@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'My New App',
-  description: 'Built with Next.js and Tailwind CSS',
+  description: 'A brand new project built with Next.js and Firebase',
 };
 
 export default function RootLayout({

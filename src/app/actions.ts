@@ -1,32 +1,35 @@
 'use server';
 
 import { suggestPaymentMethod } from '@/ai/flows/suggest-payment-method';
-import type { SuggestPaymentMethodOutput } from '@/ai/flows/suggest-payment-method';
 
-// Mock payment history data for demonstration
-const mockPaymentHistory = [
-  { paymentMethod: 'Credit Card', amount: 49.99, timestamp: '2023-10-01T10:00:00Z' },
-  { paymentMethod: 'PayPal', amount: 19.99, timestamp: '2023-10-15T14:30:00Z' },
-  { paymentMethod: 'Credit Card', amount: 49.99, timestamp: '2023-11-01T10:00:00Z' },
-  { paymentMethod: 'Credit Card', amount: 25.00, timestamp: '2023-11-05T12:00:00Z' },
-  { paymentMethod: 'PayPal', amount: 19.99, timestamp: '2023-11-15T14:30:00Z' },
-  { paymentMethod: 'Credit Card', amount: 49.99, timestamp: '2023-12-01T10:00:00Z' },
-  { paymentMethod: 'PayPal', amount: 99.00, timestamp: '2024-01-10T18:00:00Z' },
-  { paymentMethod: 'Credit Card', amount: 49.99, timestamp: '2024-01-15T10:00:00Z' },
-];
+/**
+ * Server action to get a payment method suggestion from the AI flow.
+ * In a real-world scenario, this would fetch historical data from a database.
+ */
+export async function getPaymentSuggestion() {
+  // Sample historical data to provide context to the AI.
+  // In a production app, you would fetch this from Firestore based on the authenticated user.
+  const sampleHistory = [
+    { paymentMethod: 'Visa **** 4242', amount: 49.00, timestamp: '2023-12-01T10:00:00Z' },
+    { paymentMethod: 'PayPal', amount: 19.99, timestamp: '2023-11-01T14:30:00Z' },
+    { paymentMethod: 'Visa **** 4242', amount: 49.00, timestamp: '2023-10-01T09:15:00Z' },
+    { paymentMethod: 'Visa **** 4242', amount: 19.99, timestamp: '2023-09-01T11:00:00Z' },
+  ];
 
-export async function getPaymentSuggestion(): Promise<SuggestPaymentMethodOutput> {
   try {
-    const suggestion = await suggestPaymentMethod({
-      userId: 'user-123',
-      paymentHistory: mockPaymentHistory,
+    const result = await suggestPaymentMethod({
+      userId: 'user-placeholder',
+      paymentHistory: sampleHistory,
     });
-    return suggestion;
+    return result;
   } catch (error) {
-    console.error('Error getting payment suggestion:', error);
     return {
       suggestedPaymentMethod: 'Error',
-      reason: 'Could not fetch suggestion from AI. Please try again later.',
+      reason: 'The AI was unable to generate a suggestion at this time.',
     };
   }
+}
+
+export async function exampleAction() {
+  return { message: 'Hello from the server!' };
 }
