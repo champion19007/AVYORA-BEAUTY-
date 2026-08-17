@@ -4,7 +4,7 @@ import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet, Sparkles } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet, Sparkles, Info } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -12,16 +12,16 @@ import { cn } from '@/lib/utils';
 
 const HERO_SLIDES = [
   {
-    title: "Science-Backed Care.",
-    subtitle: "Pure, effective, and clinical formulations for your unique skin needs.",
-    promo: "Enjoy 5% Cashback on all orders.",
+    title: "Clinical Science.",
+    subtitle: "Pure, effective, and science-backed formulations for your unique skin needs.",
+    promo: "5% Cashback on all orders as Avyora Credit.",
     image: "https://picsum.photos/seed/hero1/1920/1080",
     hint: "skincare bottles"
   },
   {
-    title: "Welcome to TrustCircle",
-    subtitle: "Our exclusive loyalty program for those who value science.",
-    promo: "Earn & redeem Mcash on every purchase.",
+    title: "The Avyora Circle",
+    subtitle: "Our exclusive loyalty program for those who value science-first care.",
+    promo: "Earn & redeem credit on every purchase.",
     image: "https://picsum.photos/seed/hero2/1920/1080",
     hint: "skincare model"
   }
@@ -38,11 +38,10 @@ export default function Home() {
   }, []);
 
   const activeCategories = new Set(PRODUCTS.map(p => p.category));
-  const activeConcerns = new Set();
-  PRODUCTS.forEach(p => p.concerns.forEach(c => activeConcerns.add(c)));
+  const activeConcerns = new Set(PRODUCTS.flatMap(p => p.concerns));
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex flex-col w-full bg-background transition-colors duration-300">
       {/* Hero Section */}
       <section className="relative h-[85vh] w-full overflow-hidden bg-muted">
         {HERO_SLIDES.map((slide, i) => (
@@ -70,7 +69,7 @@ export default function Home() {
                   {slide.promo}
                 </div>
                 <Link href="/collections">
-                  <Button className="bg-white text-black hover:bg-primary hover:text-white px-16 py-10 text-xs font-black uppercase tracking-widest rounded-none transition-all duration-300">
+                  <Button className="bg-white text-black hover:bg-primary hover:text-white px-16 py-10 text-xs font-black uppercase tracking-widest rounded-none transition-all duration-300 border-none">
                     Shop Now
                   </Button>
                 </Link>
@@ -94,14 +93,14 @@ export default function Home() {
 
       {/* Our Products Section */}
       <section className="py-32 container mx-auto px-4">
-        <div className="flex items-end justify-between mb-20">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
           <div className="space-y-4">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Active Formulations</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Clinical Formulations</span>
             <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none">Our Products</h2>
             <div className="w-32 h-2 bg-primary mt-6" />
           </div>
-          <Link href="/collections" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-3 border-b-4 border-transparent hover:border-primary pb-2 transition-all duration-300">
-            View Collection <ArrowRight className="h-4 w-4" />
+          <Link href="/collections" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-3 border-b-4 border-transparent hover:border-primary pb-2 transition-all duration-300 w-fit">
+            View Full Collection <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-8 gap-y-16">
@@ -112,27 +111,27 @@ export default function Home() {
       </section>
 
       {/* Bundle Promo */}
-      <section className="bg-muted/20 py-32">
+      <section className="bg-muted/20 py-32 transition-colors">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border-4 border-foreground bg-card overflow-hidden shadow-[30px_30px_0px_0px_rgba(0,0,0,0.05)]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border-4 border-foreground bg-card overflow-hidden shadow-[30px_30px_0px_0px_rgba(0,0,0,0.05)] transition-shadow">
             <div className="p-16 md:p-24 flex flex-col justify-center space-y-12">
-              <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">Build Your Own Bundle!</h2>
+              <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">Synthesize Your Bundle</h2>
               <div className="space-y-6">
                 {[
-                  "Get Additional Discount UPTO 15% on custom kit",
-                  "+5% Cashback as Mcash on all orders",
-                  "Free delivery on all bundles"
+                  "Additional 15% Clinical Discount on bundles",
+                  "5% Dermal Credit on all syntheses",
+                  "Complimentary delivery on all bundles"
                 ].map(text => (
                   <div key={text} className="flex items-center gap-5">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
                       <Zap className="h-4 w-4 text-white fill-white" />
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest">{text}</span>
                   </div>
                 ))}
               </div>
-              <Button className="bg-foreground text-background px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all duration-300 w-fit">
-                Shop The Bundle
+              <Button className="bg-foreground text-background px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all duration-300 w-fit border-none">
+                Start Synthesis
               </Button>
             </div>
             <div className="relative aspect-square lg:aspect-auto">
@@ -184,7 +183,7 @@ export default function Home() {
                     <Badge className="mt-6 bg-primary text-white border-none rounded-none px-6 py-2 text-[10px] font-black uppercase tracking-widest">Coming Soon</Badge>
                   ) : (
                     <Link href={`/collections?category=${cat.id}`} className="mt-8 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
-                      <Button className="bg-white text-black hover:bg-primary hover:text-white text-[9px] font-black uppercase tracking-widest px-8 rounded-none">Shop Category</Button>
+                      <Button className="bg-white text-black hover:bg-primary hover:text-white text-[9px] font-black uppercase tracking-widest px-8 rounded-none border-none">Shop Category</Button>
                     </Link>
                   )}
                 </div>
@@ -200,14 +199,14 @@ export default function Home() {
           <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Targeted Results</span>
           <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Shop by Concerns</h2>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-10">
           {CONCERNS.map((concern) => {
             const isComingSoon = !activeConcerns.has(concern.id);
             return (
               <div key={concern.id} className="flex flex-col group relative">
                 <div className={cn(
-                  "relative aspect-square overflow-hidden mb-8 border-2 border-transparent transition-all duration-500",
-                  isComingSoon ? "opacity-40" : "group-hover:border-primary"
+                  "relative aspect-square overflow-hidden mb-8 border-2 border-foreground/10 transition-all duration-500",
+                  isComingSoon ? "opacity-40" : "group-hover:border-primary group-hover:shadow-[10px_10px_0px_0px_rgba(249,115,22,0.1)]"
                 )}>
                   <Image 
                     src={concern.image} 
@@ -245,10 +244,10 @@ export default function Home() {
       </section>
 
       {/* SkinInsights AI Section */}
-      <section className="py-32 bg-accent/5 border-y-4 border-foreground">
+      <section className="py-32 bg-accent/5 border-y-4 border-foreground transition-colors">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-            <div className="relative aspect-[4/5] border-4 border-foreground bg-muted overflow-hidden group shadow-[40px_40px_0px_0px_rgba(249,115,22,0.1)]">
+            <div className="relative aspect-[4/5] border-4 border-foreground bg-muted overflow-hidden group shadow-[40px_40px_0px_0px_rgba(249,115,22,0.1)] transition-shadow">
               <Image 
                 src="https://picsum.photos/seed/insight-model/800/1000" 
                 alt="Skin Scan" 
@@ -277,20 +276,24 @@ export default function Home() {
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
                   <Sparkles className="h-4 w-4" /> AI Powered Analysis
                 </span>
-                <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase leading-[0.85]">SkinInsights — Know Your Skin Health</h2>
+                <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase leading-[0.85]">SkinInsights — Dermal Synthesis</h2>
               </div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] leading-loose text-muted-foreground max-w-xl">
-                Our proprietary AI neural network analyzes your dermal health through high-resolution imaging, identifying active concerns to synthesize your perfect clinical routine.
+                Our proprietary AI neural network analyzes your dermal health through high-resolution imaging, synthesizing your perfect clinical routine based on Avyora research.
               </p>
               <div className="flex flex-col sm:flex-row gap-6">
                 <Link href="/assistant">
-                  <Button className="bg-foreground text-background px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all duration-300">
-                    Try Skin Scan
+                  <Button className="bg-foreground text-background px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all duration-300 border-none">
+                    Start AI Scan
                   </Button>
                 </Link>
                 <Button variant="outline" className="border-4 border-foreground px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-foreground hover:text-background transition-all duration-300">
-                  Learn Science
+                  Read Clinical Data
                 </Button>
+              </div>
+              <div className="flex items-center gap-2 text-[8px] text-muted-foreground uppercase tracking-[0.2em] font-bold">
+                <Info className="h-2.5 w-2.5" />
+                Local synthesis. No data is shared with external servers for demo purposes.
               </div>
             </div>
           </div>
@@ -298,12 +301,12 @@ export default function Home() {
       </section>
 
       {/* Brand Values */}
-      <section className="py-40 bg-card">
+      <section className="py-40 bg-card transition-colors">
         <div className="container mx-auto px-4 text-center mb-32 space-y-6">
-          <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase">The future of personal care</h2>
+          <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Clinical Future of Personal Care</h2>
           <div className="w-24 h-2 bg-primary mx-auto" />
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground max-w-2xl mx-auto leading-relaxed mt-10">
-            Full disclosure of ingredients used & their exact concentrations. Clinical formulations synthesized in our private laboratory.
+            Full disclosure of clinical ingredients & their exact syntheses. All Avyora products are manufactured in-house for maximum efficacy.
           </p>
         </div>
         <div className="container mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-20">
@@ -317,7 +320,7 @@ export default function Home() {
               <div className="w-24 h-24 border-4 border-foreground mb-10 flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-white transition-all duration-500 shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)] group-hover:shadow-none translate-y-0 group-hover:-translate-y-2">
                 <val.icon className="h-10 w-10" />
               </div>
-              <h4 className="text-[11px] font-black uppercase tracking-[0.4em] mb-6">{val.title}</h4>
+              <h4 className="text-[11px] font-black uppercase tracking-[0.4em] mb-6 transition-colors">{val.title}</h4>
               <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground leading-loose px-4">
                 {val.desc}
               </p>
