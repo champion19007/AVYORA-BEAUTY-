@@ -4,7 +4,7 @@ import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet, Info } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -41,9 +41,9 @@ export default function Home() {
   const activeConcerns = new Set(PRODUCTS.flatMap(p => p.concerns));
 
   return (
-    <div className="flex flex-col w-full bg-background transition-colors duration-300">
+    <main className="flex flex-col w-full bg-background transition-colors duration-300">
       {/* Hero Section */}
-      <section className="relative h-[85vh] w-full overflow-hidden bg-muted">
+      <section className="relative h-[85vh] w-full overflow-hidden bg-muted" aria-label="Hero Carousel">
         {HERO_SLIDES.map((slide, i) => (
           <div 
             key={i}
@@ -81,6 +81,7 @@ export default function Home() {
           {HERO_SLIDES.map((_, i) => (
             <button 
               key={i} 
+              aria-label={`Go to slide ${i + 1}`}
               onClick={() => setCurrentHero(i)}
               className={cn(
                 "w-3 h-3 rounded-full transition-all border-2 border-white",
@@ -92,12 +93,12 @@ export default function Home() {
       </section>
 
       {/* Our Products Section */}
-      <section className="py-32 container mx-auto px-4">
+      <section className="py-32 container mx-auto px-4" aria-labelledby="products-heading">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
           <div className="space-y-4">
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Clinical Formulations</span>
-            <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none">Our Products</h2>
-            <div className="w-32 h-2 bg-primary mt-6" />
+            <h2 id="products-heading" className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none">Our Products</h2>
+            <div className="w-32 h-2 bg-primary mt-6" aria-hidden="true" />
           </div>
           <Link href="/collections" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-3 border-b-4 border-transparent hover:border-primary pb-2 transition-all duration-300 w-fit">
             View Full Collection <ArrowRight className="h-4 w-4" />
@@ -111,11 +112,11 @@ export default function Home() {
       </section>
 
       {/* Bundle Promo */}
-      <section className="bg-muted/20 py-32 transition-colors">
+      <section className="bg-muted/20 py-32 transition-colors" aria-labelledby="bundle-heading">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border-4 border-foreground bg-card overflow-hidden shadow-[30px_30px_0px_0px_rgba(0,0,0,0.05)] transition-shadow">
             <div className="p-16 md:p-24 flex flex-col justify-center space-y-12">
-              <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">Synthesize Your Bundle</h2>
+              <h2 id="bundle-heading" className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">Synthesize Your Bundle</h2>
               <div className="space-y-6">
                 {[
                   "Additional 15% Clinical Discount on bundles",
@@ -123,7 +124,7 @@ export default function Home() {
                   "Complimentary delivery on all bundles"
                 ].map(text => (
                   <div key={text} className="flex items-center gap-5">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
                       <Zap className="h-4 w-4 text-white fill-white" />
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-widest">{text}</span>
@@ -137,7 +138,7 @@ export default function Home() {
             <div className="relative aspect-square lg:aspect-auto">
               <Image 
                 src="https://picsum.photos/seed/bundle-kit/1000/1000" 
-                alt="Bundle Kit" 
+                alt="Avyora Skincare Bundle Kit" 
                 fill 
                 className="object-cover grayscale"
                 data-ai-hint="skincare bundle"
@@ -148,10 +149,10 @@ export default function Home() {
       </section>
 
       {/* Shop by Category Carousel */}
-      <section className="py-32 overflow-hidden bg-foreground text-background">
+      <section className="py-32 overflow-hidden bg-foreground text-background" aria-labelledby="category-heading">
         <div className="container mx-auto px-4 mb-20 text-center">
           <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Science Categories</span>
-          <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase mt-4">Shop by Category</h2>
+          <h2 id="category-heading" className="text-4xl md:text-7xl font-black tracking-tighter uppercase mt-4">Shop by Category</h2>
         </div>
         <div className="flex gap-12 overflow-x-auto pb-16 snap-x px-8 md:px-32 no-scrollbar">
           {CATEGORIES.map((cat) => {
@@ -174,7 +175,7 @@ export default function Home() {
                   )}
                   data-ai-hint={cat.hint}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" aria-hidden="true" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
                   <span className="text-white text-4xl md:text-5xl font-black uppercase tracking-[0.3em] group-hover:scale-105 transition-transform text-center leading-tight">
                     {cat.name}
@@ -194,10 +195,10 @@ export default function Home() {
       </section>
 
       {/* Shop by Concerns Carousel */}
-      <section className="py-32 container mx-auto px-4">
+      <section className="py-32 container mx-auto px-4" aria-labelledby="concerns-heading">
         <div className="text-center mb-24 space-y-4">
           <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Targeted Results</span>
-          <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Shop by Concerns</h2>
+          <h2 id="concerns-heading" className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Shop by Concern</h2>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-10">
           {CONCERNS.map((concern) => {
@@ -244,10 +245,10 @@ export default function Home() {
       </section>
 
       {/* Brand Values */}
-      <section className="py-40 bg-card transition-colors">
+      <section className="py-40 bg-card transition-colors" aria-labelledby="values-heading">
         <div className="container mx-auto px-4 text-center mb-32 space-y-6">
-          <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Clinical Future of Personal Care</h2>
-          <div className="w-24 h-2 bg-primary mx-auto" />
+          <h2 id="values-heading" className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Clinical Future of Personal Care</h2>
+          <div className="w-24 h-2 bg-primary mx-auto" aria-hidden="true" />
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground max-w-2xl mx-auto leading-relaxed mt-10">
             Full disclosure of clinical ingredients & their exact syntheses. All Avyora products are manufactured in-house for maximum efficacy.
           </p>
@@ -271,6 +272,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-    </div>
+    </main>
   );
 }
