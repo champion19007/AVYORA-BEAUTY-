@@ -21,15 +21,16 @@ export default function Home() {
           fill 
           className="object-cover opacity-90"
           priority
+          data-ai-hint="skincare products"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
         <div className="absolute inset-0 container mx-auto px-4 flex flex-col justify-center items-start text-white">
-          <h1 className="text-4xl md:text-7xl max-w-2xl mb-6">Welcome to TrustCircle</h1>
-          <p className="text-sm md:text-lg uppercase tracking-[0.2em] mb-8 opacity-80">
-            Enjoy 5% cashback on all orders. Science-backed care.
+          <h1 className="text-4xl md:text-7xl max-w-2xl mb-6 font-bold tracking-tighter">Science-Backed Care.</h1>
+          <p className="text-sm md:text-lg uppercase tracking-[0.2em] mb-8 opacity-80 font-bold">
+            Enjoy 5% cashback on all orders.
           </p>
           <Link href="/collections">
-            <Button className="bg-white text-black hover:bg-white/90 px-10 py-7 text-sm font-bold uppercase tracking-widest">
+            <Button className="bg-white text-black hover:bg-white/90 px-10 py-7 text-sm font-bold uppercase tracking-widest rounded-none">
               Shop Now
             </Button>
           </Link>
@@ -40,10 +41,10 @@ export default function Home() {
       <section className="py-24 container mx-auto px-4">
         <div className="flex items-end justify-between mb-12">
           <div>
-            <h2 className="text-2xl md:text-4xl mb-4">Our Best Sellers</h2>
-            <div className="w-12 h-1 bg-accent" />
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tight uppercase">Our Best Sellers</h2>
+            <div className="w-12 h-1 bg-primary mt-2" />
           </div>
-          <Link href="/collections?filter=bestsellers" className="text-xs font-bold uppercase tracking-widest hover:text-accent flex items-center gap-2 pb-1 border-b border-transparent hover:border-accent transition-all">
+          <Link href="/collections?filter=bestsellers" className="text-xs font-bold uppercase tracking-widest hover:text-primary flex items-center gap-2 pb-1 border-b border-transparent hover:border-primary transition-all">
             View All <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
@@ -59,22 +60,18 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center bg-white p-8 md:p-16 border border-border/50">
             <div className="space-y-8">
-              <h2 className="text-3xl md:text-5xl leading-tight">Build Your Own Bundle!</h2>
+              <h2 className="text-3xl md:text-5xl leading-tight font-bold tracking-tighter">Build Your Own Bundle!</h2>
               <ul className="space-y-4">
-                <li className="flex items-center gap-4 text-sm font-medium uppercase tracking-widest">
-                  <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center">
-                    <Zap className="h-3 w-3 text-accent" />
-                  </div>
+                <li className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest">
+                  <Zap className="h-4 w-4 text-primary" />
                   Get Additional Discount UPTO 15%
                 </li>
-                <li className="flex items-center gap-4 text-sm font-medium uppercase tracking-widest">
-                  <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center">
-                    <Zap className="h-3 w-3 text-accent" />
-                  </div>
+                <li className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest">
+                  <Zap className="h-4 w-4 text-primary" />
                   +5% Cashback as Mcash
                 </li>
               </ul>
-              <Button className="bg-primary text-primary-foreground px-10 py-7 font-bold uppercase tracking-widest">
+              <Button className="bg-primary text-primary-foreground px-10 py-7 font-bold uppercase tracking-widest rounded-none">
                 Shop The Bundle
               </Button>
             </div>
@@ -84,6 +81,7 @@ export default function Home() {
                 alt="Bundle" 
                 fill 
                 className="object-cover"
+                data-ai-hint="skincare bundle"
               />
             </div>
           </div>
@@ -92,7 +90,7 @@ export default function Home() {
 
       {/* Shop by Category */}
       <section className="py-24 container mx-auto px-4 overflow-hidden">
-        <h2 className="text-2xl md:text-4xl mb-12 text-center">Shop by Category</h2>
+        <h2 className="text-2xl md:text-4xl font-bold tracking-tight uppercase mb-12 text-center">Shop by Category</h2>
         <div className="flex gap-6 overflow-x-auto pb-8 snap-x no-scrollbar">
           {CATEGORIES.map((cat) => (
             <Link 
@@ -105,6 +103,7 @@ export default function Home() {
                 alt={cat.name} 
                 fill 
                 className="object-cover transition-transform duration-700 group-hover:scale-110"
+                data-ai-hint={cat.hint}
               />
               <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
               <div className="absolute inset-0 flex items-center justify-center">
@@ -116,9 +115,9 @@ export default function Home() {
       </section>
 
       {/* Shop by Concerns */}
-      <section className="py-24 bg-primary text-primary-foreground">
+      <section className="py-24 bg-foreground text-background">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-4xl mb-12 text-center text-white">Shop by Concerns</h2>
+          <h2 className="text-2xl md:text-4xl font-bold tracking-tight uppercase mb-12 text-center">Shop by Concerns</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {CONCERNS.map((concern) => (
               <Link 
@@ -132,9 +131,10 @@ export default function Home() {
                     alt={concern.name} 
                     fill 
                     className="object-cover grayscale transition-all duration-700 group-hover:grayscale-0 group-hover:scale-110"
+                    data-ai-hint={concern.hint}
                   />
                 </div>
-                <span className="text-xs font-bold uppercase tracking-[0.2em] group-hover:text-accent transition-colors">{concern.name}</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] group-hover:text-primary transition-colors">{concern.name}</span>
               </Link>
             ))}
           </div>
@@ -145,10 +145,10 @@ export default function Home() {
       <section className="py-24 container mx-auto px-4">
         <div className="flex items-end justify-between mb-12">
           <div>
-            <h2 className="text-2xl md:text-4xl mb-4">New Launches</h2>
-            <div className="w-12 h-1 bg-accent" />
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tight uppercase">New Launches</h2>
+            <div className="w-12 h-1 bg-primary mt-2" />
           </div>
-          <Link href="/collections?filter=new" className="text-xs font-bold uppercase tracking-widest hover:text-accent flex items-center gap-2 pb-1 border-b border-transparent hover:border-accent transition-all">
+          <Link href="/collections?filter=new" className="text-xs font-bold uppercase tracking-widest hover:text-primary flex items-center gap-2 pb-1 border-b border-transparent hover:border-primary transition-all">
             View All <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
@@ -159,77 +159,31 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Brand Values */}
+      {/* Brand Values Strip */}
       <section className="py-24 bg-white border-y">
         <div className="container mx-auto px-4 text-center mb-16">
-          <h2 className="text-2xl md:text-4xl mb-6">The future of personal care is here</h2>
-          <p className="text-muted-foreground uppercase tracking-widest text-xs max-w-2xl mx-auto">
+          <h2 className="text-2xl md:text-4xl font-bold tracking-tight uppercase mb-6">The future of personal care is here</h2>
+          <p className="text-muted-foreground uppercase tracking-widest text-[10px] max-w-2xl mx-auto font-bold">
             Full disclosure of ingredients used & their concentration. Formulations developed in our in-house laboratories.
           </p>
         </div>
         <div className="container mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
-          <div className="flex flex-col items-center text-center group">
-            <div className="w-16 h-16 border border-border mb-6 flex items-center justify-center transition-colors group-hover:border-accent">
-              <Info className="h-6 w-6" />
+          {[
+            { icon: Info, title: 'Transparency', desc: 'Full disclosure of ingredients used & their concentration.' },
+            { icon: Microscope, title: 'Efficacy', desc: 'Formulations developed in our in-house laboratories.' },
+            { icon: ShieldCheck, title: 'Affordable', desc: 'Skincare, accessible to all, without the markup.' },
+            { icon: Zap, title: 'Only the Best', desc: 'Ingredients sourced from across the world.' },
+          ].map((val) => (
+            <div key={val.title} className="flex flex-col items-center text-center group">
+              <div className="w-16 h-16 border border-border mb-6 flex items-center justify-center transition-colors group-hover:border-primary">
+                <val.icon className="h-6 w-6" />
+              </div>
+              <h4 className="text-xs font-bold uppercase tracking-widest mb-4">{val.title}</h4>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-relaxed">
+                {val.desc}
+              </p>
             </div>
-            <h4 className="text-sm mb-4">Transparency</h4>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-relaxed">
-              Full disclosure of ingredients used & their concentration.
-            </p>
-          </div>
-          <div className="flex flex-col items-center text-center group">
-            <div className="w-16 h-16 border border-border mb-6 flex items-center justify-center transition-colors group-hover:border-accent">
-              <Microscope className="h-6 w-6" />
-            </div>
-            <h4 className="text-sm mb-4">Efficacy</h4>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-relaxed">
-              Formulations developed in our in-house laboratories.
-            </p>
-          </div>
-          <div className="flex flex-col items-center text-center group">
-            <div className="w-16 h-16 border border-border mb-6 flex items-center justify-center transition-colors group-hover:border-accent">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <h4 className="text-sm mb-4">Affordable</h4>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-relaxed">
-              Skincare, accessible to all, without the markup.
-            </p>
-          </div>
-          <div className="flex flex-col items-center text-center group">
-            <div className="w-16 h-16 border border-border mb-6 flex items-center justify-center transition-colors group-hover:border-accent">
-              <Zap className="h-6 w-6" />
-            </div>
-            <h4 className="text-sm mb-4">Only the Best</h4>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-relaxed">
-              Ingredients sourced from across the world.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Promo Row */}
-      <section className="py-24 container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="relative aspect-video md:aspect-[2/1] bg-muted overflow-hidden">
-            <Image src="https://picsum.photos/seed/promo1/1000/500" alt="Promo" fill className="object-cover" />
-            <div className="absolute inset-0 bg-black/30 flex flex-col justify-center items-start p-10 text-white">
-              <h3 className="text-2xl mb-4">Minimalist Trust Circle</h3>
-              <p className="text-xs uppercase tracking-widest mb-6 opacity-80">Earn & redeem cash on every purchase.</p>
-              <Button variant="outline" className="border-white text-white hover:bg-white hover:text-black uppercase text-xs font-bold tracking-widest">
-                Join Now
-              </Button>
-            </div>
-          </div>
-          <div className="relative aspect-video md:aspect-[2/1] bg-muted overflow-hidden">
-            <Image src="https://picsum.photos/seed/promo2/1000/500" alt="Promo" fill className="object-cover" />
-            <div className="absolute inset-0 bg-black/30 flex flex-col justify-center items-start p-10 text-white">
-              <h3 className="text-2xl mb-4">Download Our App</h3>
-              <p className="text-xs uppercase tracking-widest mb-6 opacity-80">Get App Exclusive Discounts & Offers.</p>
-              <Button variant="outline" className="border-white text-white hover:bg-white hover:text-black uppercase text-xs font-bold tracking-widest">
-                Download
-              </Button>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
     </div>
