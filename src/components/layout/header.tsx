@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, ShoppingBag, Heart, User, Menu, ChevronDown, Zap, ChevronRight } from 'lucide-react';
+import { Search, ShoppingBag, Heart, User, Menu, ChevronDown, Zap, ChevronRight, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,16 +19,18 @@ const NAV_ITEMS = [
     name: 'Skin & Body Care', 
     href: '/collections?category=skin',
     mega: true,
-    concerns: ['Acne', 'Pigmentation', 'Dryness', 'UV Damage', 'Oiliness', 'Dullness', 'Aging'],
-    ingredients: ['Vitamin C', 'Salicylic Acid', 'Retinol', 'Niacinamide', 'Ceramide']
+    concerns: ['Acne', 'Pigmentation', 'Dryness', 'UV Damage', 'Underarm Darkness', 'Oiliness', 'Dullness', 'Aging'],
+    ingredients: ['Vitamin C', 'Salicylic Acid', 'Retinol', 'Niacinamide', 'UV Filters', 'Ceramide'],
+    categories: ['Cleanse', 'Tone', 'Treat', 'Moisturize', 'SPF', 'Under Eye']
   },
   { name: 'Baby Care', href: '/collections?category=baby' },
   { 
     name: 'Hair Care', 
     href: '/collections?category=hair',
     mega: true,
-    concerns: ['Hair Fall', 'Damaged Hair', 'Dandruff', 'Frizzy Hair', 'Thinning'],
-    ingredients: ['Capixyl', 'Maleic Acid', 'Peptide', 'Carnitine']
+    concerns: ['Hair Fall', 'Damaged Hair', 'Dandruff', 'Scalp Irritation', 'Frizzy Hair', 'Dull Hair', 'Oily Scalp', 'Hair Thinning'],
+    ingredients: ['Capixyl', 'Maleic Acid', 'Peptide', 'Carnitine'],
+    categories: ['Shampoo', 'Conditioner', 'Serum', 'Mask', 'Oil']
   },
   { name: 'AI Assistants', href: '/assistant' },
   { name: 'Track Order', href: '/track-order' },
@@ -37,8 +39,8 @@ const NAV_ITEMS = [
 export function Header() {
   const { cart, setCartOpen } = useApp();
   const pathname = usePathname();
+  const [isSearchOpen, setSearchOpen] = useState(false);
 
-  // Breadcrumb logic
   const pathSegments = pathname.split('/').filter(Boolean);
   const breadcrumbs = pathSegments.map((segment, index) => {
     const href = `/${pathSegments.slice(0, index + 1).join('/')}`;
@@ -48,24 +50,24 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 sm:px-8 flex h-16 items-center justify-between">
+      <div className="container mx-auto px-4 flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">
-          {/* Mobile Menu */}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] sm:w-[400px]">
-              <div className="flex flex-col gap-4 mt-8">
+            <SheetContent side="left" className="w-[300px] p-0">
+              <div className="flex flex-col p-6 space-y-4">
+                <Logo className="mb-8" />
                 {NAV_ITEMS.map((item) => (
                   <Link 
                     key={item.name} 
                     href={item.href}
                     className={cn(
-                      "text-lg font-bold uppercase tracking-widest hover:text-primary transition-colors py-2 border-b",
-                      pathname.startsWith(item.href) && item.href !== '/' ? "text-primary" : ""
+                      "text-sm font-bold uppercase tracking-[0.2em] py-3 border-b border-muted transition-colors",
+                      pathname === item.href ? "text-primary" : "text-foreground"
                     )}
                   >
                     {item.name}
@@ -77,12 +79,11 @@ export function Header() {
 
           <Logo className="hidden sm:flex" />
           
-          {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-6">
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/');
+              const isActive = pathname === item.href;
               return (
-                <div key={item.name} className="group relative py-4">
+                <div key={item.name} className="group relative py-5">
                   <Link 
                     href={item.href}
                     className={cn(
@@ -97,28 +98,37 @@ export function Header() {
                   </Link>
                   
                   {item.mega && (
-                    <div className="absolute top-full left-0 w-[600px] bg-background border shadow-xl p-8 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 grid grid-cols-3 gap-8">
-                      <div>
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 border-b pb-2">Shop by Concern</h4>
-                        <ul className="space-y-2">
+                    <div className="absolute top-[100%] left-0 w-[650px] bg-background border shadow-2xl p-10 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 grid grid-cols-3 gap-8">
+                      <div className="space-y-6">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Shop by Concern</h4>
+                        <ul className="space-y-3">
                           {item.concerns?.map(c => (
-                            <li key={c}><Link href={`/collections?concern=${c.toLowerCase()}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">{c}</Link></li>
+                            <li key={c}><Link href={`/collections?concern=${c.toLowerCase()}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{c}</Link></li>
                           ))}
                         </ul>
                       </div>
-                      <div>
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 border-b pb-2">Shop by Ingredient</h4>
-                        <ul className="space-y-2">
+                      <div className="space-y-6">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Shop by Ingredient</h4>
+                        <ul className="space-y-3">
                           {item.ingredients?.map(i => (
-                            <li key={i}><Link href={`/collections?ingredient=${i.toLowerCase()}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">{i}</Link></li>
+                            <li key={i}><Link href={`/collections?ingredient=${i.toLowerCase()}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{i}</Link></li>
                           ))}
                         </ul>
                       </div>
-                      <div className="bg-muted p-4 flex flex-col justify-center items-center text-center">
-                        <Zap className="h-8 w-8 text-primary mb-2" />
-                        <h4 className="text-[10px] font-black uppercase tracking-widest mb-1">New Launch</h4>
-                        <p className="text-[8px] uppercase tracking-widest opacity-60 mb-4">Discover our latest science</p>
-                        <Button size="sm" className="w-full text-[8px] font-bold uppercase tracking-widest">Shop Now</Button>
+                      <div className="space-y-6">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Category</h4>
+                        <ul className="space-y-3">
+                          {item.categories?.map(cat => (
+                            <li key={cat}><Link href={`/collections?cat=${cat.toLowerCase()}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{cat}</Link></li>
+                          ))}
+                        </ul>
+                        <div className="mt-8 relative aspect-video bg-muted overflow-hidden">
+                          <img src={`https://picsum.photos/seed/${item.name}/300/200`} alt="Promo" className="object-cover w-full h-full" />
+                          <div className="absolute inset-0 bg-black/40 flex flex-col justify-end p-4">
+                            <span className="text-[8px] font-bold uppercase tracking-widest text-white mb-1">New Launch</span>
+                            <Link href="/collections" className="text-[8px] font-black uppercase tracking-widest text-white border-b border-white w-fit">Shop Now</Link>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -128,37 +138,28 @@ export function Header() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="hidden md:flex relative w-48 xl:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search..." 
-              className="pl-8 h-9 bg-muted/50 rounded-none border-none focus-visible:ring-1 focus-visible:ring-primary text-xs" 
-            />
-          </div>
-          
+        <div className="flex items-center gap-2 sm:gap-6">
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button variant="ghost" size="icon" className="relative group">
-              <Heart className="h-4 w-4 group-hover:fill-primary group-hover:text-primary transition-all" />
+            <Button variant="ghost" size="icon" onClick={() => setSearchOpen(!isSearchOpen)} className="group">
+              <Search className="h-4 w-4 group-hover:text-primary" />
             </Button>
             
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="relative"
-              onClick={() => setCartOpen(true)}
-            >
-              <ShoppingBag className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="hidden sm:flex group">
+              <Heart className="h-4 w-4 group-hover:fill-primary group-hover:text-primary" />
+            </Button>
+            
+            <Button variant="ghost" size="icon" className="relative group" onClick={() => setCartOpen(true)}>
+              <ShoppingBag className="h-4 w-4 group-hover:text-primary" />
               {cart.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold">
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] text-primary-foreground font-black">
                   {cart.reduce((acc, item) => acc + item.quantity, 0)}
                 </span>
               )}
             </Button>
 
-            <Link href="/login">
-              <Button variant="ghost" size="icon">
-                <User className="h-4 w-4" />
+            <Link href="/login" className="hidden sm:flex">
+              <Button variant="ghost" size="icon" className="group">
+                <User className="h-4 w-4 group-hover:text-primary" />
               </Button>
             </Link>
 
@@ -167,20 +168,29 @@ export function Header() {
         </div>
       </div>
 
-      {/* Breadcrumb row */}
+      {isSearchOpen && (
+        <div className="absolute top-full left-0 w-full bg-background border-b p-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="container mx-auto flex gap-4">
+            <Input 
+              placeholder="Search products, ingredients, concerns..." 
+              autoFocus
+              className="rounded-none border-2 focus-visible:ring-0 text-sm"
+            />
+            <Button variant="ghost" onClick={() => setSearchOpen(false)}><X className="h-4 w-4" /></Button>
+          </div>
+        </div>
+      )}
+
       {breadcrumbs.length > 0 && (
         <div className="bg-muted/30 py-2 border-t">
-          <div className="container mx-auto px-4 sm:px-8 flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest text-muted-foreground">
-            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+          <div className="container mx-auto px-4 flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+            <Link href="/" className="hover:text-primary">Home</Link>
             {breadcrumbs.map((bc, i) => (
               <React.Fragment key={bc.href}>
                 <ChevronRight className="h-2 w-2" />
                 <Link 
                   href={bc.href} 
-                  className={cn(
-                    "hover:text-primary transition-colors",
-                    i === breadcrumbs.length - 1 && "text-foreground"
-                  )}
+                  className={cn(i === breadcrumbs.length - 1 ? "text-foreground" : "hover:text-primary")}
                 >
                   {bc.name}
                 </Link>
