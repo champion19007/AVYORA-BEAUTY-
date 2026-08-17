@@ -24,7 +24,7 @@ const FOOTER_LINKS = {
     { name: 'Payment Policy', href: '#' },
   ],
   contact: [
-    { name: 'AI WhatsApp: +91 99999 99999', href: 'https://wa.me/919999999999' },
+    { name: 'WhatsApp: +91 99999 99999', href: 'https://wa.me/919999999999' },
     { name: 'support@avyora.com', href: 'mailto:support@avyora.com' },
     { name: 'Gift Inquiries', href: '#' },
     { name: 'Fill Contact Form', href: '#' },

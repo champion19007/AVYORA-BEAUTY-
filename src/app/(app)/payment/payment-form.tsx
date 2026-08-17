@@ -1,77 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { Wand2, Loader2, CreditCard } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { getPaymentSuggestion } from '@/app/actions';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
-import type { SuggestPaymentMethodOutput } from '@/ai/flows/suggest-payment-method';
 
 export default function PaymentForm() {
   const [paymentMethod, setPaymentMethod] = useState('credit-card');
-  const [suggestion, setSuggestion] = useState<SuggestPaymentMethodOutput | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-
-  const handleGetSuggestion = async () => {
-    setIsLoading(true);
-    setSuggestion(null);
-    try {
-      const result = await getPaymentSuggestion();
-      if (result.suggestedPaymentMethod === 'Error') {
-        toast({
-          variant: 'destructive',
-          title: 'AI Suggestion Failed',
-          description: result.reason,
-        });
-      } else {
-        setSuggestion(result);
-        if (result.suggestedPaymentMethod.toLowerCase().includes('card')) {
-          setPaymentMethod('credit-card');
-        } else if (result.suggestedPaymentMethod.toLowerCase().includes('paypal')) {
-          setPaymentMethod('paypal');
-        }
-      }
-    } catch (error) {
-       toast({
-          variant: 'destructive',
-          title: 'An Error Occurred',
-          description: 'Could not fetch payment suggestion.',
-        });
-    }
-    setIsLoading(false);
-  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Payment Details</span>
-          <Button variant="outline" size="sm" onClick={handleGetSuggestion} disabled={isLoading}>
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Wand2 className="mr-2 h-4 w-4" />
-            )}
-            Get AI Suggestion
-          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {suggestion && (
-          <Alert className="mb-6 bg-accent/50 border-accent">
-            <Wand2 className="h-4 w-4" />
-            <AlertTitle className="font-headline">AI Suggestion</AlertTitle>
-            <AlertDescription>
-              We recommend using <strong>{suggestion.suggestedPaymentMethod}</strong>. {suggestion.reason}
-            </AlertDescription>
-          </Alert>
-        )}
         <RadioGroup
           value={paymentMethod}
           onValueChange={setPaymentMethod}
@@ -123,7 +70,7 @@ export default function PaymentForm() {
                 <Input id="zip" placeholder="12345" />
               </div>
             </div>
-            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90">Pay $53.00</Button>
+            <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90">Pay ₹53.00</Button>
           </div>
         ) : (
            <div className="text-center p-8 border-dashed border-2 rounded-lg">

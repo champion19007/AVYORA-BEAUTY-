@@ -4,7 +4,7 @@ import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet, Sparkles, Info } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet, Info } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -240,63 +240,6 @@ export default function Home() {
               </div>
             );
           })}
-        </div>
-      </section>
-
-      {/* SkinInsights AI Section */}
-      <section className="py-32 bg-accent/5 border-y-4 border-foreground transition-colors">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-            <div className="relative aspect-[4/5] border-4 border-foreground bg-muted overflow-hidden group shadow-[40px_40px_0px_0px_rgba(249,115,22,0.1)] transition-shadow">
-              <Image 
-                src="https://picsum.photos/seed/insight-model/800/1000" 
-                alt="Skin Scan" 
-                fill 
-                className="object-cover grayscale transition-all duration-1000 group-hover:scale-105"
-                data-ai-hint="skincare model close-up"
-              />
-              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-              {/* Simulated scan markers */}
-              {[
-                { top: '30%', left: '45%', label: 'PIGMENTATION' },
-                { top: '55%', left: '35%', label: 'ACNE' },
-                { top: '70%', left: '60%', label: 'FINE LINES' }
-              ].map(marker => (
-                <div key={marker.label} className="absolute group/marker" style={{ top: marker.top, left: marker.left }}>
-                  <div className="w-4 h-4 bg-primary rounded-full animate-ping absolute" />
-                  <div className="w-4 h-4 bg-primary rounded-full relative border-2 border-white" />
-                  <div className="absolute left-8 top-1/2 -translate-y-1/2 bg-foreground text-background px-4 py-2 text-[8px] font-black uppercase tracking-[0.3em] border-2 border-primary whitespace-nowrap opacity-0 group-hover/marker:opacity-100 transition-all duration-300 translate-x-4 group-hover/marker:translate-x-0 z-20 shadow-xl">
-                    {marker.label} DETECTED
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-12">
-              <div className="space-y-6">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                  <Sparkles className="h-4 w-4" /> AI Powered Analysis
-                </span>
-                <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase leading-[0.85]">SkinInsights — Dermal Synthesis</h2>
-              </div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] leading-loose text-muted-foreground max-w-xl">
-                Our proprietary AI neural network analyzes your dermal health through high-resolution imaging, synthesizing your perfect clinical routine based on Avyora research.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-6">
-                <Link href="/assistant">
-                  <Button className="bg-foreground text-background px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all duration-300 border-none">
-                    Start AI Scan
-                  </Button>
-                </Link>
-                <Button variant="outline" className="border-4 border-foreground px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-foreground hover:text-background transition-all duration-300">
-                  Read Clinical Data
-                </Button>
-              </div>
-              <div className="flex items-center gap-2 text-[8px] text-muted-foreground uppercase tracking-[0.2em] font-bold">
-                <Info className="h-2.5 w-2.5" />
-                Local synthesis. No data is shared with external servers for demo purposes.
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 

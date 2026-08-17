@@ -32,18 +32,16 @@ const NAV_ITEMS = [
     ingredients: ['Hair Serum', 'Capixyl', 'Maleic Acid'],
     categories: ['Hair Serum', 'Shampoo', 'Oil']
   },
-  { name: 'AI Assistants', href: '/assistant' },
   { name: 'Track Order', href: '/track-order' },
 ];
 
-// Helper to map mega menu labels to internal IDs used in filters
 const labelToId = (label: string) => {
   const map: Record<string, string> = {
-    'Face Wash': 'cleanse',
-    'Vitamin C Serum': 'brightening',
-    'Sunscreen': 'sun-protection',
-    'Body Lotion': 'dryness',
-    'Hair Serum': 'damaged-hair',
+    'Face Wash': 'face-wash',
+    'Vitamin C Serum': 'vitamin-c-serum',
+    'Hair Serum': 'hair-serum',
+    'Sunscreen': 'sunscreen',
+    'Body Lotion': 'body-lotion',
   };
   return map[label] || label.toLowerCase().replace(/ /g, '-');
 };
@@ -60,7 +58,7 @@ export function Header() {
   PRODUCTS.forEach(p => {
     p.concerns.forEach(c => activeConcerns.add(c.toLowerCase()));
     p.ingredients.forEach(i => activeIngredients.add(i.toLowerCase()));
-    activeCategories.add(p.id.toLowerCase()); // Use product ID for specific category mapping
+    activeCategories.add(p.id.toLowerCase());
   });
 
   const pathSegments = pathname.split('/').filter(Boolean);
@@ -149,8 +147,7 @@ export function Header() {
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b-2 border-foreground">Ingredients</h4>
                         <ul className="space-y-3">
                           {item.ingredients?.map(i => {
-                            // Check if this ingredient maps to a product name directly
-                            const product = PRODUCTS.find(p => p.name.includes(i) || i === 'Vitamin C Serum');
+                            const product = PRODUCTS.find(p => p.name === i);
                             const isComingSoon = !product;
                             return (
                               <li key={i} className="flex items-center justify-between group/link">
@@ -174,7 +171,7 @@ export function Header() {
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b-2 border-foreground">Category</h4>
                         <ul className="space-y-3">
                           {item.categories?.map(cat => {
-                            const product = PRODUCTS.find(p => p.name.includes(cat) || (cat === 'Face Wash' && p.id === 'face-wash') || (cat === 'Vitamin C Serum' && p.id === 'vitamin-c-serum'));
+                            const product = PRODUCTS.find(p => p.name === cat);
                             const isComingSoon = !product;
                             return (
                               <li key={cat} className="flex items-center justify-between group/link">
