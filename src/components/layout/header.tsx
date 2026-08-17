@@ -48,16 +48,16 @@ export function Header() {
   });
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 flex h-16 items-center justify-between">
-        <div className="flex items-center gap-8">
+    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-300">
+      <div className="container mx-auto px-4 flex h-20 items-center justify-between">
+        <div className="flex items-center gap-10">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] p-0">
+            <SheetContent side="left" className="w-[300px] p-0 bg-background">
               <div className="flex flex-col p-6 space-y-4">
                 <Logo className="mb-8" />
                 {NAV_ITEMS.map((item) => (
@@ -65,7 +65,7 @@ export function Header() {
                     key={item.name} 
                     href={item.href}
                     className={cn(
-                      "text-sm font-bold uppercase tracking-[0.2em] py-3 border-b border-muted transition-colors",
+                      "text-xs font-bold uppercase tracking-[0.2em] py-3 border-b border-border transition-colors",
                       pathname === item.href ? "text-primary" : "text-foreground"
                     )}
                   >
@@ -76,30 +76,30 @@ export function Header() {
             </SheetContent>
           </Sheet>
 
-          <Logo className="hidden sm:flex" />
+          <Logo />
           
-          <nav className="hidden lg:flex items-center gap-6">
+          <nav className="hidden lg:flex items-center gap-8">
             {NAV_ITEMS.map((item) => {
               const isActive = pathname === item.href;
               return (
-                <div key={item.name} className="group relative py-5">
+                <div key={item.name} className="group relative py-7">
                   <Link 
                     href={item.href}
                     className={cn(
                       "text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-1 relative",
                       isActive 
-                        ? "text-primary after:absolute after:bottom-[-20px] after:left-0 after:right-0 after:h-[2px] after:bg-primary" 
-                        : "text-foreground hover:text-primary"
+                        ? "text-primary after:absolute after:bottom-[-24px] after:left-0 after:right-0 after:h-[2px] after:bg-primary" 
+                        : "text-foreground/70 hover:text-primary"
                     )}
                   >
                     {item.name}
-                    {item.mega && <ChevronDown className="h-3 w-3" />}
+                    {item.mega && <ChevronDown className="h-3 w-3 opacity-50" />}
                   </Link>
                   
                   {item.mega && (
-                    <div className="absolute top-[100%] left-0 w-[650px] bg-background border shadow-2xl p-10 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 grid grid-cols-3 gap-8">
+                    <div className="absolute top-[100%] left-0 w-[700px] bg-card border shadow-2xl p-10 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 grid grid-cols-3 gap-8">
                       <div className="space-y-6">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Shop by Concern</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b border-border">Shop by Concern</h4>
                         <ul className="space-y-3">
                           {item.concerns?.map(c => (
                             <li key={c}><Link href={`/collections?concern=${c.toLowerCase().replace(' ', '-')}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{c}</Link></li>
@@ -107,7 +107,7 @@ export function Header() {
                         </ul>
                       </div>
                       <div className="space-y-6">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Shop by Ingredient</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b border-border">Shop by Ingredient</h4>
                         <ul className="space-y-3">
                           {item.ingredients?.map(i => (
                             <li key={i}><Link href={`/collections?ingredient=${i.toLowerCase().replace(' ', '-')}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{i}</Link></li>
@@ -115,7 +115,7 @@ export function Header() {
                         </ul>
                       </div>
                       <div className="space-y-6">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Category</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b border-border">Category</h4>
                         <ul className="space-y-3">
                           {item.categories?.map(cat => (
                             <li key={cat}><Link href={`/collections?cat=${cat.toLowerCase().replace(' ', '-')}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{cat}</Link></li>
@@ -131,7 +131,7 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-6">
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-4">
             <Button variant="ghost" size="icon" onClick={() => setSearchOpen(!isSearchOpen)} className="group">
               <Search className="h-4 w-4 group-hover:text-primary" />
             </Button>
@@ -143,7 +143,7 @@ export function Header() {
             <Button variant="ghost" size="icon" className="relative group" onClick={() => setCartOpen(true)}>
               <ShoppingBag className="h-4 w-4 group-hover:text-primary" />
               {cart.length > 0 && (
-                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] text-primary-foreground font-black">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] text-primary-foreground font-black">
                   {cart.reduce((acc, item) => acc + item.quantity, 0)}
                 </span>
               )}
@@ -155,18 +155,20 @@ export function Header() {
               </Button>
             </Link>
 
+            <div className="border-l border-border h-6 mx-2 hidden sm:block" />
+            
             <ThemeToggle />
           </div>
         </div>
       </div>
 
       {isSearchOpen && (
-        <div className="absolute top-full left-0 w-full bg-background border-b p-4 animate-in slide-in-from-top-2 duration-300">
+        <div className="absolute top-full left-0 w-full bg-background border-b border-border p-4 animate-in slide-in-from-top-2 duration-300">
           <div className="container mx-auto flex gap-4">
             <Input 
-              placeholder="Search products, ingredients, concerns..." 
+              placeholder="Search Avyora products, ingredients, concerns..." 
               autoFocus
-              className="rounded-none border-2 focus-visible:ring-0 text-sm"
+              className="rounded-none border-2 border-border focus-visible:ring-0 text-sm"
             />
             <Button variant="ghost" onClick={() => setSearchOpen(false)}><X className="h-4 w-4" /></Button>
           </div>
@@ -174,15 +176,17 @@ export function Header() {
       )}
 
       {breadcrumbs.length > 0 && (
-        <div className="bg-muted/30 py-2 border-t">
+        <div className="bg-muted/30 py-2 border-t border-border transition-colors duration-300">
           <div className="container mx-auto px-4 flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            <Link href="/" className="hover:text-primary">Home</Link>
+            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
             {breadcrumbs.map((bc, i) => (
               <React.Fragment key={bc.href}>
-                <ChevronRight className="h-2 w-2" />
+                <ChevronRight className="h-2 w-2 opacity-30" />
                 <Link 
                   href={bc.href} 
-                  className={cn(i === breadcrumbs.length - 1 ? "text-foreground" : "hover:text-primary")}
+                  className={cn(
+                    i === breadcrumbs.length - 1 ? "text-foreground" : "hover:text-primary transition-colors"
+                  )}
                 >
                   {bc.name}
                 </Link>

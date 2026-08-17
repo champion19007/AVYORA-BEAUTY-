@@ -8,6 +8,7 @@ import { CartDrawer } from '../cart-drawer';
 import { Toaster } from '@/components/ui/toaster';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -23,7 +24,7 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
   if (isAuthPage) {
     return (
       <AppProvider>
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center transition-colors duration-300">
           <main className="w-full animate-in fade-in duration-700">
             {children}
           </main>
@@ -35,7 +36,7 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
 
   return (
     <AppProvider>
-      <div className="flex min-h-screen w-full flex-col">
+      <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
         <AnnouncementBar />
         <Header />
         <main key={pathname} className="flex-1 w-full animate-in fade-in duration-700">

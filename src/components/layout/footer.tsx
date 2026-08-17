@@ -25,7 +25,7 @@ const FOOTER_LINKS = {
   ],
   contact: [
     { name: 'AI WhatsApp: +91 99999 99999', href: 'https://wa.me/919999999999' },
-    { name: 'support@brand.com', href: 'mailto:support@brand.com' },
+    { name: 'support@avyora.com', href: 'mailto:support@avyora.com' },
     { name: 'Gift Inquiries', href: '#' },
     { name: 'Fill Contact Form', href: '#' },
   ]
@@ -33,12 +33,12 @@ const FOOTER_LINKS = {
 
 export function Footer() {
   return (
-    <footer className="bg-foreground text-background pt-24 pb-12">
-      <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 border-b border-background/10 pb-20">
+    <footer className="bg-card text-card-foreground pt-24 pb-12 border-t">
+      <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 border-b border-border pb-20">
         <div className="space-y-8">
-          <Logo className="text-background" />
-          <p className="text-[10px] font-bold uppercase tracking-widest text-background/60 leading-relaxed">
-            Science-forward personal care. Formulated in-house. Delivered directly to your door.
+          <Logo />
+          <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 leading-relaxed">
+            Science-forward personal care. Formulated in-house. Delivered directly to your door by Avyora.
           </p>
           <div className="flex gap-6">
             <Link href="#" className="hover:text-primary transition-colors"><Facebook className="h-5 w-5" /></Link>
@@ -53,7 +53,7 @@ export function Footer() {
           <ul className="space-y-4">
             {FOOTER_LINKS.company.map((link) => (
               <li key={link.name}>
-                <Link href={link.href} className="text-[10px] text-background/60 hover:text-background transition-colors uppercase tracking-widest font-bold">
+                <Link href={link.href} className="text-[10px] opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest font-bold">
                   {link.name}
                 </Link>
               </li>
@@ -66,7 +66,7 @@ export function Footer() {
           <ul className="space-y-4">
             {FOOTER_LINKS.quick.map((link) => (
               <li key={link.name}>
-                <Link href={link.href} className="text-[10px] text-background/60 hover:text-background transition-colors uppercase tracking-widest font-bold">
+                <Link href={link.href} className="text-[10px] opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest font-bold">
                   {link.name}
                 </Link>
               </li>
@@ -79,7 +79,7 @@ export function Footer() {
           <ul className="space-y-4">
             {FOOTER_LINKS.contact.map((link) => (
               <li key={link.name}>
-                <Link href={link.href} className="text-[10px] text-background/60 hover:text-background transition-colors uppercase tracking-widest font-bold">
+                <Link href={link.href} className="text-[10px] opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest font-bold">
                   {link.name}
                 </Link>
               </li>
@@ -87,11 +87,11 @@ export function Footer() {
           </ul>
           <div className="mt-12 space-y-6">
             <h4 className="text-[10px] font-black uppercase tracking-widest">Newsletter</h4>
-            <div className="flex border-b border-background/20 pb-2">
+            <div className="flex border-b border-border pb-2">
               <input 
                 type="email" 
                 placeholder="Enter email" 
-                className="bg-transparent text-[10px] px-0 py-2 w-full focus:outline-none placeholder:text-background/40 uppercase tracking-widest font-bold"
+                className="bg-transparent text-[10px] px-0 py-2 w-full focus:outline-none placeholder:opacity-40 uppercase tracking-widest font-bold"
               />
               <button className="text-[10px] font-black uppercase tracking-[0.2em] ml-4 hover:text-primary transition-colors">
                 Join
@@ -101,12 +101,12 @@ export function Footer() {
         </div>
       </div>
       
-      <div className="container mx-auto px-4 mt-12 flex flex-col md:flex-row justify-between items-center text-[8px] uppercase tracking-[0.3em] text-background/40 font-black gap-6">
-        <div>© {new Date().getFullYear()} Minimalist Skincare. All rights reserved.</div>
+      <div className="container mx-auto px-4 mt-12 flex flex-col md:flex-row justify-between items-center text-[8px] uppercase tracking-[0.3em] opacity-40 font-black gap-6">
+        <div>© {new Date().getFullYear()} Avyora Skincare. All rights reserved.</div>
         <div className="flex gap-8">
-          <Link href="#" className="hover:text-background">Privacy Policy</Link>
-          <Link href="#" className="hover:text-background">Terms of Use</Link>
-          <Link href="#" className="hover:text-background">Cookie Settings</Link>
+          <Link href="#" className="hover:opacity-100">Privacy Policy</Link>
+          <Link href="#" className="hover:opacity-100">Terms of Use</Link>
+          <Link href="#" className="hover:opacity-100">Cookie Settings</Link>
         </div>
       </div>
     </footer>
