@@ -1,3 +1,4 @@
+
 'use client';
 
 import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
@@ -57,7 +58,8 @@ export default function Home() {
               alt={slide.title} 
               fill 
               className="object-cover grayscale"
-              priority
+              priority={i === 0}
+              sizes="100vw"
               data-ai-hint={slide.hint}
             />
             <div className="absolute inset-0 bg-black/40" />
@@ -141,6 +143,7 @@ export default function Home() {
                 alt="Avyora Skincare Bundle Kit" 
                 fill 
                 className="object-cover grayscale"
+                sizes="(max-width: 1024px) 100vw, 50vw"
                 data-ai-hint="skincare bundle"
               />
             </div>
@@ -173,6 +176,7 @@ export default function Home() {
                     "object-cover transition-all duration-1000 group-hover:scale-110",
                     isComingSoon ? "grayscale" : "grayscale group-hover:grayscale-0"
                   )}
+                  sizes="(max-width: 768px) 320px, 450px"
                   data-ai-hint={cat.hint}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" aria-hidden="true" />
@@ -217,6 +221,7 @@ export default function Home() {
                       "object-cover grayscale transition-all duration-700",
                       !isComingSoon && "group-hover:grayscale-0 group-hover:scale-110"
                     )}
+                    sizes="(max-width: 768px) 50vw, 12vw"
                     data-ai-hint={concern.hint}
                   />
                   {isComingSoon && (

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -32,6 +33,7 @@ export function ProductCard({ product }: { product: Product }) {
           src={product.images[currentImage]}
           alt={product.name}
           fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 20vw"
           className="object-cover transition-transform duration-700 group-hover:scale-105"
         />
         
