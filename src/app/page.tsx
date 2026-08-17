@@ -3,10 +3,11 @@
 import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 const HERO_SLIDES = [
   {
@@ -35,6 +36,10 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  const activeCategories = new Set(PRODUCTS.map(p => p.category));
+  const activeConcerns = new Set();
+  PRODUCTS.forEach(p => p.concerns.forEach(c => activeConcerns.add(c)));
+
   return (
     <div className="flex flex-col w-full">
       {/* Hero Section */}
@@ -51,20 +56,20 @@ export default function Home() {
               src={slide.image} 
               alt={slide.title} 
               fill 
-              className="object-cover"
+              className="object-cover grayscale"
               priority
               data-ai-hint={slide.hint}
             />
-            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 bg-black/40" />
             <div className="absolute inset-0 container mx-auto px-4 flex flex-col justify-center items-start text-white">
               <div className="max-w-2xl animate-in fade-in slide-in-from-left-8 duration-700">
-                <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-6 uppercase">{slide.title}</h1>
-                <p className="text-sm md:text-lg font-bold uppercase tracking-[0.3em] mb-4 opacity-90">{slide.subtitle}</p>
-                <div className="bg-primary/90 text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest w-fit mb-8">
+                <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-6 uppercase leading-[0.9]">{slide.title}</h1>
+                <p className="text-sm md:text-lg font-bold uppercase tracking-[0.3em] mb-8 opacity-90">{slide.subtitle}</p>
+                <div className="bg-primary text-white px-6 py-3 text-[10px] font-black uppercase tracking-widest w-fit mb-12 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
                   {slide.promo}
                 </div>
                 <Link href="/collections">
-                  <Button className="bg-white text-black hover:bg-white/90 px-12 py-8 text-xs font-black uppercase tracking-widest rounded-none">
+                  <Button className="bg-white text-black hover:bg-primary hover:text-white px-16 py-10 text-xs font-black uppercase tracking-widest rounded-none transition-all duration-300">
                     Shop Now
                   </Button>
                 </Link>
@@ -72,32 +77,33 @@ export default function Home() {
             </div>
           </div>
         ))}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-4">
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 flex gap-6">
           {HERO_SLIDES.map((_, i) => (
             <button 
               key={i} 
               onClick={() => setCurrentHero(i)}
               className={cn(
-                "w-2 h-2 rounded-full transition-all",
-                currentHero === i ? "bg-white w-8" : "bg-white/40"
+                "w-3 h-3 rounded-full transition-all border-2 border-white",
+                currentHero === i ? "bg-white w-12" : "bg-transparent"
               )}
             />
           ))}
         </div>
       </section>
 
-      {/* Our Products Section (Merged) */}
-      <section className="py-24 container mx-auto px-4">
-        <div className="flex items-end justify-between mb-12">
-          <div>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tighter uppercase">Our Products</h2>
-            <div className="w-20 h-1.5 bg-primary mt-4" />
+      {/* Our Products Section */}
+      <section className="py-32 container mx-auto px-4">
+        <div className="flex items-end justify-between mb-20">
+          <div className="space-y-4">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Active Formulations</span>
+            <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none">Our Products</h2>
+            <div className="w-32 h-2 bg-primary mt-6" />
           </div>
-          <Link href="/collections" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-2 border-b-2 border-transparent hover:border-primary pb-1 transition-all">
-            View All <ArrowRight className="h-3 w-3" />
+          <Link href="/collections" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-3 border-b-4 border-transparent hover:border-primary pb-2 transition-all duration-300">
+            View Collection <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-8 gap-y-16">
           {PRODUCTS.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
@@ -105,24 +111,26 @@ export default function Home() {
       </section>
 
       {/* Bundle Promo */}
-      <section className="bg-muted/30 py-24">
+      <section className="bg-muted/20 py-32">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border-2 border-foreground bg-white overflow-hidden shadow-[20px_20px_0px_0px_rgba(0,0,0,0.1)]">
-            <div className="p-12 md:p-20 flex flex-col justify-center space-y-8">
-              <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none">Build Your Own Bundle!</h2>
-              <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border-4 border-foreground bg-card overflow-hidden shadow-[30px_30px_0px_0px_rgba(0,0,0,0.05)]">
+            <div className="p-16 md:p-24 flex flex-col justify-center space-y-12">
+              <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">Build Your Own Bundle!</h2>
+              <div className="space-y-6">
                 {[
                   "Get Additional Discount UPTO 15% on custom kit",
                   "+5% Cashback as Mcash on all orders",
                   "Free delivery on all bundles"
                 ].map(text => (
-                  <div key={text} className="flex items-center gap-4">
-                    <Zap className="h-5 w-5 text-primary fill-primary" />
-                    <span className="text-xs font-black uppercase tracking-widest">{text}</span>
+                  <div key={text} className="flex items-center gap-5">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                      <Zap className="h-4 w-4 text-white fill-white" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{text}</span>
                   </div>
                 ))}
               </div>
-              <Button className="bg-foreground text-background px-12 py-8 text-xs font-black uppercase tracking-widest rounded-none hover:bg-primary transition-colors">
+              <Button className="bg-foreground text-background px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all duration-300 w-fit">
                 Shop The Bundle
               </Button>
             </div>
@@ -131,7 +139,7 @@ export default function Home() {
                 src="https://picsum.photos/seed/bundle-kit/1000/1000" 
                 alt="Bundle Kit" 
                 fill 
-                className="object-cover"
+                className="object-cover grayscale"
                 data-ai-hint="skincare bundle"
               />
             </div>
@@ -139,152 +147,183 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SkinInsights Section */}
-      <section className="py-24 container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className="relative aspect-[4/5] bg-muted overflow-hidden">
-            <Image 
-              src="https://picsum.photos/seed/insight-model/800/1000" 
-              alt="Skin Scan" 
-              fill 
-              className="object-cover"
-              data-ai-hint="skincare model close-up"
-            />
-            {/* Annotated callouts simulation */}
-            <div className="absolute top-[30%] left-[40%] group">
-              <div className="w-3 h-3 bg-primary rounded-full animate-ping absolute" />
-              <div className="w-3 h-3 bg-primary rounded-full relative" />
-              <div className="absolute left-6 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur px-3 py-1 text-[8px] font-black uppercase tracking-widest border border-foreground whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                Acne Detection
-              </div>
-            </div>
-            <div className="absolute top-[50%] left-[60%] group">
-              <div className="w-3 h-3 bg-primary rounded-full animate-ping absolute" />
-              <div className="w-3 h-3 bg-primary rounded-full relative" />
-              <div className="absolute left-6 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur px-3 py-1 text-[8px] font-black uppercase tracking-widest border border-foreground whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                Pigmentation
-              </div>
-            </div>
-          </div>
-          <div className="space-y-8">
-            <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase leading-none">SkinInsights — Know Your Skin Health, Using AI</h2>
-            <p className="text-sm font-bold uppercase tracking-widest leading-relaxed text-muted-foreground">
-              Our advanced AI analyzes your skin health through a single selfie, detecting concerns like acne, pigmentation, and fine lines to recommend your perfect science-backed routine.
-            </p>
-            <Button variant="outline" className="border-2 border-foreground px-12 py-8 text-xs font-black uppercase tracking-widest rounded-none hover:bg-foreground hover:text-background transition-all">
-              Try Now
-            </Button>
-          </div>
-        </div>
-      </section>
-
       {/* Shop by Category Carousel */}
-      <section className="py-24 overflow-hidden bg-foreground text-background">
-        <div className="container mx-auto px-4 mb-16">
-          <h2 className="text-3xl md:text-5xl font-black tracking-tighter uppercase text-center">Shop by Category</h2>
+      <section className="py-32 overflow-hidden bg-foreground text-background">
+        <div className="container mx-auto px-4 mb-20 text-center">
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Science Categories</span>
+          <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase mt-4">Shop by Category</h2>
         </div>
-        <div className="flex gap-8 overflow-x-auto pb-12 snap-x px-4 md:px-20 no-scrollbar">
-          {CATEGORIES.map((cat) => (
-            <Link 
-              key={cat.id} 
-              href={`/collections?category=${cat.id}`}
-              className="relative min-w-[300px] md:min-w-[400px] aspect-[3/4] group snap-center overflow-hidden"
-            >
-              <Image 
-                src={cat.image} 
-                alt={cat.name} 
-                fill 
-                className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
-                data-ai-hint={cat.hint}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-white text-3xl font-black uppercase tracking-[0.3em] group-hover:scale-110 transition-transform">{cat.name}</span>
+        <div className="flex gap-12 overflow-x-auto pb-16 snap-x px-8 md:px-32 no-scrollbar">
+          {CATEGORIES.map((cat) => {
+            const isComingSoon = !activeCategories.has(cat.id);
+            return (
+              <div 
+                key={cat.id} 
+                className={cn(
+                  "relative min-w-[320px] md:min-w-[450px] aspect-[3/4] group snap-center overflow-hidden border-2 border-transparent hover:border-primary transition-all duration-700",
+                  isComingSoon && "opacity-70"
+                )}
+              >
+                <Image 
+                  src={cat.image} 
+                  alt={cat.name} 
+                  fill 
+                  className={cn(
+                    "object-cover transition-all duration-1000 group-hover:scale-110",
+                    isComingSoon ? "grayscale" : "grayscale group-hover:grayscale-0"
+                  )}
+                  data-ai-hint={cat.hint}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
+                  <span className="text-white text-4xl md:text-5xl font-black uppercase tracking-[0.3em] group-hover:scale-105 transition-transform text-center leading-tight">
+                    {cat.name}
+                  </span>
+                  {isComingSoon ? (
+                    <Badge className="mt-6 bg-primary text-white border-none rounded-none px-6 py-2 text-[10px] font-black uppercase tracking-widest">Coming Soon</Badge>
+                  ) : (
+                    <Link href={`/collections?category=${cat.id}`} className="mt-8 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                      <Button className="bg-white text-black hover:bg-primary hover:text-white text-[9px] font-black uppercase tracking-widest px-8 rounded-none">Shop Category</Button>
+                    </Link>
+                  )}
+                </div>
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       {/* Shop by Concerns Carousel */}
-      <section className="py-24 container mx-auto px-4">
-        <h2 className="text-3xl md:text-5xl font-black tracking-tighter uppercase text-center mb-16">Shop by Concerns</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {CONCERNS.map((concern) => (
-            <Link 
-              key={concern.id} 
-              href={`/collections?concern=${concern.id}`}
-              className="flex flex-col group"
-            >
-              <div className="relative aspect-square overflow-hidden mb-6 border-2 border-transparent group-hover:border-primary transition-all">
-                <Image 
-                  src={concern.image} 
-                  alt={concern.name} 
-                  fill 
-                  className="object-cover grayscale transition-all duration-700 group-hover:grayscale-0 group-hover:scale-105"
-                  data-ai-hint={concern.hint}
-                />
+      <section className="py-32 container mx-auto px-4">
+        <div className="text-center mb-24 space-y-4">
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Targeted Results</span>
+          <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Shop by Concerns</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-10">
+          {CONCERNS.map((concern) => {
+            const isComingSoon = !activeConcerns.has(concern.id);
+            return (
+              <div key={concern.id} className="flex flex-col group relative">
+                <div className={cn(
+                  "relative aspect-square overflow-hidden mb-8 border-2 border-transparent transition-all duration-500",
+                  isComingSoon ? "opacity-40" : "group-hover:border-primary"
+                )}>
+                  <Image 
+                    src={concern.image} 
+                    alt={concern.name} 
+                    fill 
+                    className={cn(
+                      "object-cover grayscale transition-all duration-700",
+                      !isComingSoon && "group-hover:grayscale-0 group-hover:scale-110"
+                    )}
+                    data-ai-hint={concern.hint}
+                  />
+                  {isComingSoon && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Badge className="bg-foreground/80 text-background border-none rounded-none text-[8px] font-black uppercase px-2 py-1 tracking-widest">Soon</Badge>
+                    </div>
+                  )}
+                </div>
+                <div className="text-center space-y-2">
+                  <span className={cn(
+                    "text-[9px] font-black uppercase tracking-[0.3em] transition-colors",
+                    isComingSoon ? "text-muted-foreground" : "group-hover:text-primary"
+                  )}>
+                    {concern.name}
+                  </span>
+                  {!isComingSoon && (
+                    <Link href={`/collections?concern=${concern.id}`} className="block">
+                      <Button variant="link" className="text-[7px] font-black uppercase tracking-[0.4em] h-auto p-0 opacity-40 group-hover:opacity-100 transition-opacity">View Products</Button>
+                    </Link>
+                  )}
+                </div>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-center group-hover:text-primary transition-colors">{concern.name}</span>
-            </Link>
-          ))}
+            );
+          })}
+        </div>
+      </section>
+
+      {/* SkinInsights AI Section */}
+      <section className="py-32 bg-accent/5 border-y-4 border-foreground">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+            <div className="relative aspect-[4/5] border-4 border-foreground bg-muted overflow-hidden group shadow-[40px_40px_0px_0px_rgba(249,115,22,0.1)]">
+              <Image 
+                src="https://picsum.photos/seed/insight-model/800/1000" 
+                alt="Skin Scan" 
+                fill 
+                className="object-cover grayscale transition-all duration-1000 group-hover:scale-105"
+                data-ai-hint="skincare model close-up"
+              />
+              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              {/* Simulated scan markers */}
+              {[
+                { top: '30%', left: '45%', label: 'PIGMENTATION' },
+                { top: '55%', left: '35%', label: 'ACNE' },
+                { top: '70%', left: '60%', label: 'FINE LINES' }
+              ].map(marker => (
+                <div key={marker.label} className="absolute group/marker" style={{ top: marker.top, left: marker.left }}>
+                  <div className="w-4 h-4 bg-primary rounded-full animate-ping absolute" />
+                  <div className="w-4 h-4 bg-primary rounded-full relative border-2 border-white" />
+                  <div className="absolute left-8 top-1/2 -translate-y-1/2 bg-foreground text-background px-4 py-2 text-[8px] font-black uppercase tracking-[0.3em] border-2 border-primary whitespace-nowrap opacity-0 group-hover/marker:opacity-100 transition-all duration-300 translate-x-4 group-hover/marker:translate-x-0 z-20 shadow-xl">
+                    {marker.label} DETECTED
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-12">
+              <div className="space-y-6">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                  <Sparkles className="h-4 w-4" /> AI Powered Analysis
+                </span>
+                <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase leading-[0.85]">SkinInsights — Know Your Skin Health</h2>
+              </div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] leading-loose text-muted-foreground max-w-xl">
+                Our proprietary AI neural network analyzes your dermal health through high-resolution imaging, identifying active concerns to synthesize your perfect clinical routine.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-6">
+                <Link href="/assistant">
+                  <Button className="bg-foreground text-background px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all duration-300">
+                    Try Skin Scan
+                  </Button>
+                </Link>
+                <Button variant="outline" className="border-4 border-foreground px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-foreground hover:text-background transition-all duration-300">
+                  Learn Science
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Brand Values */}
-      <section className="py-32 border-y">
-        <div className="container mx-auto px-4 text-center mb-20">
-          <h2 className="text-3xl md:text-6xl font-black tracking-tighter uppercase mb-6">The future of personal care is here</h2>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground max-w-2xl mx-auto">
-            Full disclosure of ingredients used & their concentration. Formulations developed in our in-house laboratories.
+      <section className="py-40 bg-card">
+        <div className="container mx-auto px-4 text-center mb-32 space-y-6">
+          <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase">The future of personal care</h2>
+          <div className="w-24 h-2 bg-primary mx-auto" />
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground max-w-2xl mx-auto leading-relaxed mt-10">
+            Full disclosure of ingredients used & their exact concentrations. Clinical formulations synthesized in our private laboratory.
           </p>
         </div>
-        <div className="container mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-16">
+        <div className="container mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-20">
           {[
-            { icon: ShieldCheck, title: 'Transparency', desc: 'Full disclosure of ingredients used & their concentration.' },
-            { icon: Microscope, title: 'Efficacy', desc: 'Formulations developed in our in-house laboratories.' },
-            { icon: Droplet, title: 'Affordable', desc: 'Skincare, accessible to all, without the traditional markup.' },
-            { icon: Zap, title: 'Only the Best', desc: 'Ingredients sourced from the most reputable labs across the world.' },
+            { icon: ShieldCheck, title: 'Transparency', desc: '100% Disclosure of active ingredient concentrations.' },
+            { icon: Microscope, title: 'Clinical Efficacy', desc: 'In-house synthesis ensures batch-level quality control.' },
+            { icon: Droplet, title: 'Accessibility', desc: 'Premium dermal science, accessible without retail markups.' },
+            { icon: Zap, title: 'Global Sourcing', desc: 'Purest raw ingredients from leading global bio-laboratories.' },
           ].map((val) => (
             <div key={val.title} className="flex flex-col items-center text-center group">
-              <div className="w-20 h-20 border-2 border-foreground mb-8 flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-all">
-                <val.icon className="h-8 w-8" />
+              <div className="w-24 h-24 border-4 border-foreground mb-10 flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-white transition-all duration-500 shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)] group-hover:shadow-none translate-y-0 group-hover:-translate-y-2">
+                <val.icon className="h-10 w-10" />
               </div>
-              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] mb-4">{val.title}</h4>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.4em] mb-6">{val.title}</h4>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground leading-loose px-4">
                 {val.desc}
               </p>
             </div>
           ))}
         </div>
       </section>
-
-      {/* Floating Chat Widget Simulated */}
-      <div className="fixed bottom-8 left-8 z-50 group flex flex-col items-start gap-4">
-        <div className="hidden group-hover:flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-300">
-          {[
-            "Where is my order?",
-            "Which cleanser is best for me?",
-            "Show me our products"
-          ].map(q => (
-            <button key={q} className="bg-white border-2 border-foreground px-4 py-2 text-[8px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-colors">
-              {q}
-            </button>
-          ))}
-        </div>
-        <Link href="/assistant">
-          <Button size="icon" className="w-16 h-16 rounded-full bg-foreground text-background shadow-2xl relative border-4 border-white">
-            <Zap className="h-6 w-6" />
-            <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-black border-2 border-white">
-              2
-            </span>
-          </Button>
-        </Link>
-      </div>
     </div>
   );
-}
-
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
 }
