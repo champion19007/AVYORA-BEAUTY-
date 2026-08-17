@@ -1,6 +1,6 @@
 'use client';
 
-import { PRODUCTS, CATEGORIES } from '@/data/mock-data';
+import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -26,10 +26,10 @@ export default function CollectionsPage() {
     <div className="container mx-auto px-4 py-12">
       <section className="mb-20">
         <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-12">
-          {categoryFilter ? `${categoryFilter} Care` : concernFilter ? `Target: ${concernFilter}` : typeFilter === 'bestsellers' ? 'Our Best Sellers' : 'Shop All Collections'}
+          {categoryFilter ? `${categoryFilter} Care` : concernFilter ? `Target: ${concernFilter}` : typeFilter === 'bestsellers' ? 'Our Best Sellers' : 'Shop All Products'}
         </h1>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12">
           {CATEGORIES.map(cat => (
             <Link 
               key={cat.id} 
@@ -48,16 +48,16 @@ export default function CollectionsPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 mb-16">
-          {['Acne', 'Aging', 'Pigmentation', 'Dryness', 'Oiliness'].map(c => (
-            <Link key={c} href={`/collections?concern=${c.toLowerCase()}`}>
+          {CONCERNS.map(c => (
+            <Link key={c.id} href={`/collections?concern=${c.id}`}>
               <Button 
                 variant="outline" 
                 className={cn(
                   "rounded-none text-[8px] font-black uppercase tracking-widest h-8 px-4",
-                  concernFilter === c.toLowerCase() ? "bg-foreground text-background" : ""
+                  concernFilter === c.id ? "bg-foreground text-background" : ""
                 )}
               >
-                {c}
+                {c.name}
               </Button>
             </Link>
           ))}

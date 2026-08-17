@@ -4,11 +4,12 @@ import { PRODUCTS } from '@/data/mock-data';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Star, Plus, Minus, Heart, ArrowRight } from 'lucide-react';
+import { Star, Plus, Minus, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/lib/store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ProductCard } from '@/components/product/product-card';
+import { cn } from '@/lib/utils';
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
@@ -21,6 +22,7 @@ export default function ProductDetailPage() {
   if (!product) return <div className="p-20 text-center uppercase text-[10px] font-black">Product not found</div>;
 
   const isWishlisted = wishlist.includes(product.id);
+  const recommendations = PRODUCTS.filter(p => p.id !== product.id).slice(0, 4);
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -117,7 +119,7 @@ export default function ProductDetailPage() {
               <AccordionItem value="how-to-use">
                 <AccordionTrigger className="text-[10px] font-black uppercase tracking-widest">How to Use</AccordionTrigger>
                 <AccordionContent className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
-                  Apply 2-3 drops on cleansed face. Follow with a moisturizer. Use SPF during the day.
+                  Apply on cleansed face/body. Use SPF during the day.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -129,15 +131,11 @@ export default function ProductDetailPage() {
       <section className="py-24 border-t">
         <h2 className="text-2xl md:text-4xl font-black tracking-tighter uppercase mb-12">You May Also Like</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {PRODUCTS.slice(0, 4).map(p => (
+          {recommendations.map(p => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
       </section>
     </div>
   );
-}
-
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
 }

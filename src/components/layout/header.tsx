@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, ShoppingBag, Heart, User, Menu, ChevronDown, Zap, ChevronRight, X } from 'lucide-react';
+import { Search, ShoppingBag, Heart, User, Menu, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,18 +19,17 @@ const NAV_ITEMS = [
     name: 'Skin & Body Care', 
     href: '/collections?category=skin',
     mega: true,
-    concerns: ['Acne', 'Pigmentation', 'Dryness', 'UV Damage', 'Underarm Darkness', 'Oiliness', 'Dullness', 'Aging'],
-    ingredients: ['Vitamin C', 'Salicylic Acid', 'Retinol', 'Niacinamide', 'UV Filters', 'Ceramide'],
-    categories: ['Cleanse', 'Tone', 'Treat', 'Moisturize', 'SPF', 'Under Eye']
+    concerns: ['Cleanse', 'Brightening', 'Dullness', 'Sun Protection', 'Dryness'],
+    ingredients: ['Vitamin C', 'UV Filters', 'Ceramide', 'LHA'],
+    categories: ['Cleanse', 'Treat', 'Moisturize', 'SPF', 'Body Lotion']
   },
-  { name: 'Baby Care', href: '/collections?category=baby' },
   { 
     name: 'Hair Care', 
     href: '/collections?category=hair',
     mega: true,
-    concerns: ['Hair Fall', 'Damaged Hair', 'Dandruff', 'Scalp Irritation', 'Frizzy Hair', 'Dull Hair', 'Oily Scalp', 'Hair Thinning'],
-    ingredients: ['Capixyl', 'Maleic Acid', 'Peptide', 'Carnitine'],
-    categories: ['Shampoo', 'Conditioner', 'Serum', 'Mask', 'Oil']
+    concerns: ['Damaged Hair'],
+    ingredients: ['Peptide'],
+    categories: ['Serum']
   },
   { name: 'AI Assistants', href: '/assistant' },
   { name: 'Track Order', href: '/track-order' },
@@ -103,7 +102,7 @@ export function Header() {
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Shop by Concern</h4>
                         <ul className="space-y-3">
                           {item.concerns?.map(c => (
-                            <li key={c}><Link href={`/collections?concern=${c.toLowerCase()}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{c}</Link></li>
+                            <li key={c}><Link href={`/collections?concern=${c.toLowerCase().replace(' ', '-')}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{c}</Link></li>
                           ))}
                         </ul>
                       </div>
@@ -111,7 +110,7 @@ export function Header() {
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Shop by Ingredient</h4>
                         <ul className="space-y-3">
                           {item.ingredients?.map(i => (
-                            <li key={i}><Link href={`/collections?ingredient=${i.toLowerCase()}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{i}</Link></li>
+                            <li key={i}><Link href={`/collections?ingredient=${i.toLowerCase().replace(' ', '-')}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{i}</Link></li>
                           ))}
                         </ul>
                       </div>
@@ -119,16 +118,9 @@ export function Header() {
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b">Category</h4>
                         <ul className="space-y-3">
                           {item.categories?.map(cat => (
-                            <li key={cat}><Link href={`/collections?cat=${cat.toLowerCase()}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{cat}</Link></li>
+                            <li key={cat}><Link href={`/collections?cat=${cat.toLowerCase().replace(' ', '-')}`} className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">{cat}</Link></li>
                           ))}
                         </ul>
-                        <div className="mt-8 relative aspect-video bg-muted overflow-hidden">
-                          <img src={`https://picsum.photos/seed/${item.name}/300/200`} alt="Promo" className="object-cover w-full h-full" />
-                          <div className="absolute inset-0 bg-black/40 flex flex-col justify-end p-4">
-                            <span className="text-[8px] font-bold uppercase tracking-widest text-white mb-1">New Launch</span>
-                            <Link href="/collections" className="text-[8px] font-black uppercase tracking-widest text-white border-b border-white w-fit">Shop Now</Link>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   )}

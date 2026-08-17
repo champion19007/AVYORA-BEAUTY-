@@ -11,7 +11,7 @@ export interface Product {
   reviewCount: number;
   isBestSeller: boolean;
   isNewLaunch: boolean;
-  category: 'skin' | 'hair' | 'body' | 'lip' | 'baby';
+  category: 'skin' | 'hair' | 'body' | 'lip';
   concerns: string[];
   ingredients: string[];
   sizes: { label: string; price: number }[];
@@ -19,29 +19,29 @@ export interface Product {
 
 export const PRODUCTS: Product[] = [
   {
-    id: '1',
-    name: 'Salicylic Acid + LHA 2% Cleanser',
-    slug: 'salicylic-acid-cleanser',
-    tagline: 'Acne, Breakouts & Oiliness',
-    description: 'A daily foaming cleanser with Salicylic acid and LHA to gently exfoliate and control excess sebum.',
-    images: ['https://picsum.photos/seed/p1/800/800', 'https://picsum.photos/seed/p1b/800/800'],
-    price: 299,
-    rating: 4.8,
-    reviewCount: 1830,
+    id: 'face-wash',
+    name: 'Clinical Face Wash',
+    slug: 'face-wash',
+    tagline: 'Gently cleanses and refreshes without stripping moisture.',
+    description: 'A daily pH-balanced cleanser designed for all skin types to remove impurities and excess oil.',
+    images: ['https://picsum.photos/seed/fw1/800/800', 'https://picsum.photos/seed/fw2/800/800'],
+    price: 399,
+    rating: 4.7,
+    reviewCount: 1205,
     isBestSeller: true,
     isNewLaunch: false,
     category: 'skin',
-    concerns: ['acne', 'oiliness'],
-    ingredients: ['salicylic acid'],
-    sizes: [{ label: '100ml', price: 299 }, { label: '250ml', price: 499 }]
+    concerns: ['cleanse'],
+    ingredients: ['lha'],
+    sizes: [{ label: '100ml', price: 399 }]
   },
   {
-    id: '2',
+    id: 'vitamin-c-serum',
     name: 'Vitamin C 16% Serum',
     slug: 'vitamin-c-serum',
-    tagline: 'Dullness & Dark Spots',
-    description: 'A glow-boosting serum stabilized with pure Vitamin C to brighten skin and reduce sun damage.',
-    images: ['https://picsum.photos/seed/p2/800/800', 'https://picsum.photos/seed/p2b/800/800'],
+    tagline: 'Brightens skin and reduces the appearance of dark spots.',
+    description: 'A potent antioxidant serum to combat dullness and protect against environmental stressors.',
+    images: ['https://picsum.photos/seed/vc1/800/800', 'https://picsum.photos/seed/vc2/800/800'],
     price: 699,
     salePrice: 599,
     rating: 4.9,
@@ -49,90 +49,72 @@ export const PRODUCTS: Product[] = [
     isBestSeller: true,
     isNewLaunch: false,
     category: 'skin',
-    concerns: ['dullness', 'pigmentation'],
+    concerns: ['brightening', 'dullness'],
     ingredients: ['vitamin c'],
-    sizes: [{ label: '30ml', price: 699 }]
+    sizes: [{ label: '10ml', price: 299 }, { label: '30ml', price: 699 }]
   },
   {
-    id: '3',
-    name: 'Niacinamide 10% Serum',
-    slug: 'niacinamide-serum',
-    tagline: 'Oil Control & Blemishes',
-    description: 'A lightweight serum formulated with high concentration of Niacinamide to reduce blemishes.',
-    images: ['https://picsum.photos/seed/p3/800/800'],
-    price: 599,
-    rating: 4.7,
+    id: 'hair-serum',
+    name: 'Bond Repair Hair Serum',
+    slug: 'hair-serum',
+    tagline: 'Strengthens strands and restores shine to damaged hair.',
+    description: 'A deep-conditioning serum that targets broken bonds and smoothes frizz.',
+    images: ['https://picsum.photos/seed/hs1/800/800'],
+    price: 549,
+    rating: 4.6,
+    reviewCount: 890,
+    isBestSeller: false,
+    isNewLaunch: true,
+    category: 'hair',
+    concerns: ['damaged hair'],
+    ingredients: ['peptide'],
+    sizes: [{ label: '30ml', price: 549 }, { label: '90ml', price: 1299 }]
+  },
+  {
+    id: 'sunscreen',
+    name: 'Broad Spectrum Sunscreen',
+    slug: 'sunscreen',
+    tagline: 'Daily invisible protection against UVA/UVB rays.',
+    description: 'A lightweight, non-greasy SPF formula that leaves zero white cast.',
+    images: ['https://picsum.photos/seed/ss1/800/800'],
+    price: 499,
+    rating: 4.8,
     reviewCount: 3100,
     isBestSeller: true,
     isNewLaunch: false,
     category: 'skin',
-    concerns: ['oiliness', 'blemishes'],
-    ingredients: ['niacinamide'],
-    sizes: [{ label: '30ml', price: 599 }]
+    concerns: ['sun protection'],
+    ingredients: ['uv filters'],
+    sizes: [{ label: '30ml', price: 499 }, { label: '50ml', price: 699 }]
   },
   {
-    id: '4',
-    name: 'Hyaluronic Acid 2% + B5',
-    slug: 'hyaluronic-acid',
-    tagline: 'Hydration & Repair',
-    description: 'A hydration support formula with ultra-pure, vegan hyaluronic acid.',
-    images: ['https://picsum.photos/seed/p4/800/800'],
-    price: 499,
-    rating: 4.9,
-    reviewCount: 4200,
-    isBestSeller: true,
-    isNewLaunch: false,
-    category: 'skin',
+    id: 'body-lotion',
+    name: 'Nourishing Body Lotion',
+    slug: 'body-lotion',
+    tagline: 'Intense hydration for smooth, healthy-looking skin.',
+    description: 'A fast-absorbing lotion that provides long-lasting moisture and barrier repair.',
+    images: ['https://picsum.photos/seed/bl1/800/800'],
+    price: 449,
+    rating: 4.7,
+    reviewCount: 1560,
+    isBestSeller: false,
+    isNewLaunch: true,
+    category: 'body',
     concerns: ['dryness'],
-    ingredients: ['hyaluronic acid'],
-    sizes: [{ label: '30ml', price: 499 }]
-  },
-  {
-    id: '5',
-    name: 'Maleic Bond Repair Complex 5%',
-    slug: 'hair-bond-repair',
-    tagline: 'Damaged & Frizzy Hair',
-    description: 'A pre-shampoo hair treatment that repairs damaged hair bonds.',
-    images: ['https://picsum.photos/seed/p5/800/800'],
-    price: 499,
-    rating: 4.6,
-    reviewCount: 950,
-    isBestSeller: false,
-    isNewLaunch: true,
-    category: 'hair',
-    concerns: ['damaged hair', 'frizzy hair'],
-    ingredients: ['maleic acid'],
-    sizes: [{ label: '200ml', price: 499 }]
-  },
-  {
-    id: '6',
-    name: 'Retinol 0.3% + Q10',
-    slug: 'retinol-serum',
-    tagline: 'Fine Lines & Aging',
-    description: 'A potent anti-aging serum with Retinol and Coenzyme Q10.',
-    images: ['https://picsum.photos/seed/p6/800/800'],
-    price: 599,
-    rating: 4.8,
-    reviewCount: 1500,
-    isBestSeller: false,
-    isNewLaunch: true,
-    category: 'skin',
-    concerns: ['aging', 'fine lines'],
-    ingredients: ['retinol'],
-    sizes: [{ label: '30ml', price: 599 }]
+    ingredients: ['ceramide'],
+    sizes: [{ label: '180ml', price: 449 }]
   }
 ];
 
 export const CATEGORIES = [
   { id: 'skin', name: 'Skin Care', image: 'https://picsum.photos/seed/cat-skin/600/800', hint: 'skincare bottle' },
   { id: 'hair', name: 'Hair Care', image: 'https://picsum.photos/seed/cat-hair/600/800', hint: 'hair serum' },
-  { id: 'body', name: 'Body Care', image: 'https://picsum.photos/seed/cat-body/600/800', hint: 'body lotion' },
-  { id: 'lip', name: 'Lip Care', image: 'https://picsum.photos/seed/cat-lip/600/800', hint: 'lip balm' }
+  { id: 'body', name: 'Body Care', image: 'https://picsum.photos/seed/cat-body/600/800', hint: 'body lotion' }
 ];
 
 export const CONCERNS = [
-  { id: 'acne', name: 'Acne Control', image: 'https://picsum.photos/seed/con-acne/600/800', hint: 'acne skin' },
-  { id: 'aging', name: 'Fine Lines', image: 'https://picsum.photos/seed/con-aging/600/800', hint: 'aging skin' },
-  { id: 'pigmentation', name: 'Uneven Tone', image: 'https://picsum.photos/seed/con-tone/600/800', hint: 'pigmented skin' },
-  { id: 'dryness', name: 'Dryness', image: 'https://picsum.photos/seed/con-dry/600/800', hint: 'dry skin' }
+  { id: 'cleanse', name: 'Cleanse', image: 'https://picsum.photos/seed/con-clean/600/800', hint: 'fresh skin' },
+  { id: 'brightening', name: 'Brightening', image: 'https://picsum.photos/seed/con-bright/600/800', hint: 'glowing skin' },
+  { id: 'sun-protection', name: 'Sun Protection', image: 'https://picsum.photos/seed/con-sun/600/800', hint: 'sunscreen application' },
+  { id: 'dryness', name: 'Dryness', image: 'https://picsum.photos/seed/con-dry/600/800', hint: 'hydrated skin' }
 ];

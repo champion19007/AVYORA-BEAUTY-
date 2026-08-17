@@ -3,7 +3,7 @@
 import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet, Star } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -34,9 +34,6 @@ export default function Home() {
     }, 6000);
     return () => clearInterval(timer);
   }, []);
-
-  const bestSellers = PRODUCTS.filter(p => p.isBestSeller);
-  const newLaunches = PRODUCTS.filter(p => p.isNewLaunch);
 
   return (
     <div className="flex flex-col w-full">
@@ -89,19 +86,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Best Sellers */}
+      {/* Our Products Section (Merged) */}
       <section className="py-24 container mx-auto px-4">
         <div className="flex items-end justify-between mb-12">
           <div>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tighter uppercase">Our Best Sellers</h2>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tighter uppercase">Our Products</h2>
             <div className="w-20 h-1.5 bg-primary mt-4" />
           </div>
-          <Link href="/collections?filter=bestsellers" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-2 border-b-2 border-transparent hover:border-primary pb-1 transition-all">
+          <Link href="/collections" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-2 border-b-2 border-transparent hover:border-primary pb-1 transition-all">
             View All <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
-          {bestSellers.map((product) => (
+          {PRODUCTS.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
@@ -234,24 +231,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* New Launches */}
-      <section className="py-24 container mx-auto px-4 bg-muted/20">
-        <div className="flex items-end justify-between mb-12">
-          <div>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tighter uppercase">New Launches</h2>
-            <div className="w-20 h-1.5 bg-primary mt-4" />
-          </div>
-          <Link href="/collections?filter=new" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-2 border-b-2 border-transparent hover:border-primary pb-1 transition-all">
-            View All <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
-          {newLaunches.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      </section>
-
       {/* Brand Values */}
       <section className="py-32 border-y">
         <div className="container mx-auto px-4 text-center mb-20">
@@ -280,37 +259,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Two Tile Promo */}
-      <section className="container mx-auto px-4 py-24 grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="relative group overflow-hidden border-2 border-foreground">
-          <div className="relative aspect-[16/9] md:aspect-auto md:h-[400px]">
-            <Image src="https://picsum.photos/seed/promo1/800/600" fill alt="Trust Circle" className="object-cover" />
-            <div className="absolute inset-0 bg-black/40 p-12 flex flex-col justify-center items-start text-white space-y-4">
-              <h3 className="text-3xl font-black uppercase tracking-tighter">Minimalist Trust Circle</h3>
-              <p className="text-xs font-bold uppercase tracking-widest opacity-80">Earn & redeem cash on every purchase.</p>
-              <Button variant="outline" className="text-white border-white hover:bg-white hover:text-black rounded-none text-[8px] font-black uppercase tracking-widest">Show More</Button>
-            </div>
-          </div>
-        </div>
-        <div className="relative group overflow-hidden border-2 border-foreground">
-          <div className="relative aspect-[16/9] md:aspect-auto md:h-[400px]">
-            <Image src="https://picsum.photos/seed/promo2/800/600" fill alt="App" className="object-cover" />
-            <div className="absolute inset-0 bg-black/40 p-12 flex flex-col justify-center items-start text-white space-y-4">
-              <h3 className="text-3xl font-black uppercase tracking-tighter">Download Our App</h3>
-              <p className="text-xs font-bold uppercase tracking-widest opacity-80">Get App Exclusive Discounts & Offers.</p>
-              <Button variant="outline" className="text-white border-white hover:bg-white hover:text-black rounded-none text-[8px] font-black uppercase tracking-widest">Show More</Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Floating Chat Widget Simulated */}
       <div className="fixed bottom-8 left-8 z-50 group flex flex-col items-start gap-4">
         <div className="hidden group-hover:flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-300">
           {[
             "Where is my order?",
             "Which cleanser is best for me?",
-            "Show me best-sellers"
+            "Show me our products"
           ].map(q => (
             <button key={q} className="bg-white border-2 border-foreground px-4 py-2 text-[8px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-colors">
               {q}
