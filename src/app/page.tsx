@@ -3,6 +3,7 @@
 import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
