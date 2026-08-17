@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
-import { Toaster } from '@/components/ui/toaster';
+import { ClientLayoutWrapper } from '@/components/layout/client-layout-wrapper';
 
 export const metadata: Metadata = {
-  title: 'My New App',
-  description: 'A brand new project built with Next.js and Firebase',
+  title: 'MINIMALIST | Science-Forward Skincare',
+  description: 'Pure, effective, and science-backed skincare formulations.',
 };
 
 export default function RootLayout({
@@ -15,10 +15,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased font-sans">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-          <Toaster />
+      <body className="antialiased font-sans bg-[#FAFAF8]">
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <ClientLayoutWrapper>
+            {children}
+          </ClientLayoutWrapper>
         </ThemeProvider>
       </body>
     </html>
