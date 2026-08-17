@@ -1,13 +1,14 @@
 'use client';
 
-import { Search, ShoppingBag, Heart, User, Menu, X, ChevronDown, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, ShoppingBag, Heart, User, Menu, ChevronDown, Zap, ChevronRight } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/lib/store';
 import { Logo } from '@/components/logo';
 import Link from 'next/link';
-import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +36,15 @@ const NAV_ITEMS = [
 
 export function Header() {
   const { cart, setCartOpen } = useApp();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Breadcrumb logic
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const breadcrumbs = pathSegments.map((segment, index) => {
+    const href = `/${pathSegments.slice(0, index + 1).join('/')}`;
+    const name = segment.replace(/-/g, ' ');
+    return { name: name.charAt(0).toUpperCase() + name.slice(1), href };
+  });
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -54,7 +63,10 @@ export function Header() {
                   <Link 
                     key={item.name} 
                     href={item.href}
-                    className="text-lg font-bold uppercase tracking-widest hover:text-primary transition-colors py-2 border-b"
+                    className={cn(
+                      "text-lg font-bold uppercase tracking-widest hover:text-primary transition-colors py-2 border-b",
+                      pathname.startsWith(item.href) && item.href !== '/' ? "text-primary" : ""
+                    )}
                   >
                     {item.name}
                   </Link>
@@ -67,44 +79,52 @@ export function Header() {
           
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-6">
-            {NAV_ITEMS.map((item) => (
-              <div key={item.name} className="group relative py-4">
-                <Link 
-                  href={item.href}
-                  className="text-[10px] font-bold uppercase tracking-[0.2em] hover:text-primary transition-colors flex items-center gap-1"
-                >
-                  {item.name}
-                  {item.mega && <ChevronDown className="h-3 w-3" />}
-                </Link>
-                
-                {item.mega && (
-                  <div className="absolute top-full left-0 w-[600px] bg-background border shadow-xl p-8 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 grid grid-cols-3 gap-8">
-                    <div>
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 border-b pb-2">Shop by Concern</h4>
-                      <ul className="space-y-2">
-                        {item.concerns?.map(c => (
-                          <li key={c}><Link href={`/collections?concern=${c.toLowerCase()}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">{c}</Link></li>
-                        ))}
-                      </ul>
+            {NAV_ITEMS.map((item) => {
+              const isActive = pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/');
+              return (
+                <div key={item.name} className="group relative py-4">
+                  <Link 
+                    href={item.href}
+                    className={cn(
+                      "text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-1 relative",
+                      isActive 
+                        ? "text-primary after:absolute after:bottom-[-20px] after:left-0 after:right-0 after:h-[2px] after:bg-primary" 
+                        : "text-foreground hover:text-primary"
+                    )}
+                  >
+                    {item.name}
+                    {item.mega && <ChevronDown className="h-3 w-3" />}
+                  </Link>
+                  
+                  {item.mega && (
+                    <div className="absolute top-full left-0 w-[600px] bg-background border shadow-xl p-8 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 grid grid-cols-3 gap-8">
+                      <div>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 border-b pb-2">Shop by Concern</h4>
+                        <ul className="space-y-2">
+                          {item.concerns?.map(c => (
+                            <li key={c}><Link href={`/collections?concern=${c.toLowerCase()}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">{c}</Link></li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 border-b pb-2">Shop by Ingredient</h4>
+                        <ul className="space-y-2">
+                          {item.ingredients?.map(i => (
+                            <li key={i}><Link href={`/collections?ingredient=${i.toLowerCase()}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">{i}</Link></li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="bg-muted p-4 flex flex-col justify-center items-center text-center">
+                        <Zap className="h-8 w-8 text-primary mb-2" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest mb-1">New Launch</h4>
+                        <p className="text-[8px] uppercase tracking-widest opacity-60 mb-4">Discover our latest science</p>
+                        <Button size="sm" className="w-full text-[8px] font-bold uppercase tracking-widest">Shop Now</Button>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 border-b pb-2">Shop by Ingredient</h4>
-                      <ul className="space-y-2">
-                        {item.ingredients?.map(i => (
-                          <li key={i}><Link href={`/collections?ingredient=${i.toLowerCase()}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">{i}</Link></li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="bg-muted p-4 flex flex-col justify-center items-center text-center">
-                      <Zap className="h-8 w-8 text-primary mb-2" />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest mb-1">New Launch</h4>
-                      <p className="text-[8px] uppercase tracking-widest opacity-60 mb-4">Discover our latest science</p>
-                      <Button size="sm" className="w-full text-[8px] font-bold uppercase tracking-widest">Shop Now</Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </nav>
         </div>
 
@@ -146,6 +166,29 @@ export function Header() {
           </div>
         </div>
       </div>
+
+      {/* Breadcrumb row */}
+      {breadcrumbs.length > 0 && (
+        <div className="bg-muted/30 py-2 border-t">
+          <div className="container mx-auto px-4 sm:px-8 flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest text-muted-foreground">
+            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+            {breadcrumbs.map((bc, i) => (
+              <React.Fragment key={bc.href}>
+                <ChevronRight className="h-2 w-2" />
+                <Link 
+                  href={bc.href} 
+                  className={cn(
+                    "hover:text-primary transition-colors",
+                    i === breadcrumbs.length - 1 && "text-foreground"
+                  )}
+                >
+                  {bc.name}
+                </Link>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
