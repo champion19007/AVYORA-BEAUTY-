@@ -10,42 +10,60 @@
     --card-foreground: 0 0% 7%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 7%;
-    --primary: 0 0% 7%;
+    --primary: 270 70% 50%;
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 7%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
-    --accent: 12 76% 57%;
+    --accent: 270 70% 50%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 0 0% 7%;
-    --radius: 0rem;
+    --ring: 270 70% 50%;
+    --radius: 0.5rem;
+    
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 7%;
+    --sidebar-primary: 270 70% 50%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 96.1%;
+    --sidebar-accent-foreground: 0 0% 7%;
+    --sidebar-border: 0 0% 89.8%;
+    --sidebar-ring: 270 70% 50%;
   }
 
   .dark {
     --background: 0 0% 7%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
+    --card: 0 0% 9%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 7%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
+    --primary: 270 70% 60%;
     --primary-foreground: 0 0% 7%;
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 12 76% 57%;
+    --accent: 270 70% 60%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --ring: 270 70% 60%;
+    
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 270 70% 60%;
+    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-accent: 0 0% 14.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 14.9%;
+    --sidebar-ring: 270 70% 60%;
   }
 }
 
@@ -54,9 +72,25 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased;
+    @apply bg-background text-foreground font-body antialiased transition-colors duration-300;
   }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-headline font-bold uppercase tracking-wider;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+.circular-reveal-new {
+  animation: reveal 0.5s ease-in-out;
+}
+
+@keyframes reveal {
+  from {
+    clip-path: circle(0% at var(--reveal-x) var(--reveal-y));
+  }
+  to {
+    clip-path: circle(150% at var(--reveal-x) var(--reveal-y));
   }
 }
