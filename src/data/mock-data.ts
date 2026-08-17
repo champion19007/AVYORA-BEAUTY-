@@ -62,10 +62,10 @@ export const PRODUCTS: Product[] = [
     price: 399,
     rating: 4.6,
     reviewCount: 890,
-    isBestSeller: false,
-    isNewLaunch: true,
+    isBestSeller: true,
+    isNewLaunch: false,
     category: 'hair',
-    concerns: ['damaged hair'],
+    concerns: ['damaged-hair'],
     ingredients: ['peptide'],
     sizes: [{ label: '30ml', price: 399 }, { label: '90ml', price: 899 }]
   },
@@ -82,7 +82,7 @@ export const PRODUCTS: Product[] = [
     isBestSeller: true,
     isNewLaunch: false,
     category: 'skin',
-    concerns: ['sun protection'],
+    concerns: ['sun-protection'],
     ingredients: ['uv filters'],
     sizes: [{ label: '30ml', price: 329 }, { label: '50ml', price: 449 }]
   },
@@ -96,8 +96,8 @@ export const PRODUCTS: Product[] = [
     price: 349,
     rating: 4.7,
     reviewCount: 1560,
-    isBestSeller: false,
-    isNewLaunch: true,
+    isBestSeller: true,
+    isNewLaunch: false,
     category: 'body',
     concerns: ['dryness'],
     ingredients: ['ceramide'],
@@ -113,10 +113,11 @@ export const CATEGORIES = [
 ];
 
 export const CONCERNS = [
-  { id: 'cleanse', name: 'Cleanse', image: 'https://picsum.photos/seed/con-clean/600/800', hint: 'fresh skin' },
-  { id: 'brightening', name: 'Brightening', image: 'https://picsum.photos/seed/con-bright/600/800', hint: 'glowing skin' },
-  { id: 'sun-protection', name: 'Sun Protection', image: 'https://picsum.photos/seed/con-sun/600/800', hint: 'sunscreen application' },
-  { id: 'dryness', name: 'Dryness', image: 'https://picsum.photos/seed/con-dry/600/800', hint: 'hydrated skin' },
+  { id: 'cleanse', name: 'Face Wash', image: 'https://picsum.photos/seed/con-clean/600/800', hint: 'fresh skin' },
+  { id: 'brightening', name: 'Vitamin C Serum', image: 'https://picsum.photos/seed/con-bright/600/800', hint: 'glowing skin' },
+  { id: 'damaged-hair', name: 'Hair Serum', image: 'https://picsum.photos/seed/con-hair/600/800', hint: 'healthy hair' },
+  { id: 'sun-protection', name: 'Sunscreen', image: 'https://picsum.photos/seed/con-sun/600/800', hint: 'sunscreen application' },
+  { id: 'dryness', name: 'Body Lotion', image: 'https://picsum.photos/seed/con-dry/600/800', hint: 'hydrated skin' },
   { id: 'acne', name: 'Acne Control', image: 'https://picsum.photos/seed/con-acne/600/800', hint: 'clear skin' },
   { id: 'pigmentation', name: 'Pigmentation', image: 'https://picsum.photos/seed/con-pig/600/800', hint: 'even tone' },
   { id: 'aging', name: 'Fine Lines', image: 'https://picsum.photos/seed/con-age/600/800', hint: 'firm skin' }

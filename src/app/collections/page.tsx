@@ -19,30 +19,20 @@ export default function CollectionsPage() {
     if (categoryFilter && p.category !== categoryFilter) return false;
     if (concernFilter && !p.concerns.includes(concernFilter)) return false;
     if (typeFilter === 'bestsellers' && !p.isBestSeller) return false;
-    if (typeFilter === 'new' && !p.isNewLaunch) return false;
     return true;
   });
 
-  const getActiveConcerns = () => {
-    const set = new Set();
-    PRODUCTS.forEach(p => p.concerns.forEach(c => set.add(c)));
-    return set;
-  };
+  const activeConcerns = new Set();
+  PRODUCTS.forEach(p => p.concerns.forEach(c => activeConcerns.add(c)));
 
-  const getActiveCategories = () => {
-    const set = new Set();
-    PRODUCTS.forEach(p => set.add(p.category));
-    return set;
-  };
-
-  const activeConcerns = getActiveConcerns();
-  const activeCategories = getActiveCategories();
+  const activeCategories = new Set();
+  PRODUCTS.forEach(p => activeCategories.add(p.category));
 
   return (
     <div className="container mx-auto px-4 py-12">
       <section className="mb-20">
         <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {categoryFilter ? `${categoryFilter} Care` : concernFilter ? `Target: ${concernFilter}` : typeFilter === 'bestsellers' ? 'Our Best Sellers' : 'Shop All Products'}
+          {categoryFilter ? `${categoryFilter} Care` : concernFilter ? CONCERNS.find(c => c.id === concernFilter)?.name : typeFilter === 'bestsellers' ? 'Our Best Sellers' : 'Shop All Products'}
         </h1>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">

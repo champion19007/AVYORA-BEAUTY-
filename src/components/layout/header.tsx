@@ -20,21 +20,33 @@ const NAV_ITEMS = [
     name: 'Skin & Body Care', 
     href: '/collections?category=skin',
     mega: true,
-    concerns: ['Cleanse', 'Brightening', 'Dullness', 'Sun Protection', 'Dryness', 'Acne', 'Pigmentation', 'Fine Lines'],
-    ingredients: ['Vitamin C', 'UV Filters', 'Ceramide', 'LHA', 'Salicylic Acid', 'Retinol', 'Niacinamide'],
-    categories: ['Cleanse', 'Treat', 'Moisturize', 'SPF', 'Body Lotion']
+    concerns: ['Face Wash', 'Vitamin C Serum', 'Sunscreen', 'Body Lotion', 'Acne Control', 'Pigmentation', 'Fine Lines'],
+    ingredients: ['Vitamin C Serum', 'Sunscreen', 'Body Lotion', 'Face Wash', 'Retinol', 'Niacinamide', 'Salicylic Acid'],
+    categories: ['Face Wash', 'Vitamin C Serum', 'Sunscreen', 'Body Lotion', 'Under Eye']
   },
   { 
     name: 'Hair Care', 
     href: '/collections?category=hair',
     mega: true,
-    concerns: ['Damaged Hair', 'Hair Fall', 'Dandruff'],
-    ingredients: ['Peptide', 'Capixyl', 'Maleic Acid'],
-    categories: ['Serum', 'Oil', 'Shampoo']
+    concerns: ['Hair Serum', 'Hair Fall', 'Dandruff', 'Scalp Irritation'],
+    ingredients: ['Hair Serum', 'Capixyl', 'Maleic Acid'],
+    categories: ['Hair Serum', 'Shampoo', 'Oil']
   },
   { name: 'AI Assistants', href: '/assistant' },
   { name: 'Track Order', href: '/track-order' },
 ];
+
+// Helper to map mega menu labels to internal IDs used in filters
+const labelToId = (label: string) => {
+  const map: Record<string, string> = {
+    'Face Wash': 'cleanse',
+    'Vitamin C Serum': 'brightening',
+    'Sunscreen': 'sun-protection',
+    'Body Lotion': 'dryness',
+    'Hair Serum': 'damaged-hair',
+  };
+  return map[label] || label.toLowerCase().replace(/ /g, '-');
+};
 
 export function Header() {
   const { cart, setCartOpen } = useApp();
@@ -48,7 +60,7 @@ export function Header() {
   PRODUCTS.forEach(p => {
     p.concerns.forEach(c => activeConcerns.add(c.toLowerCase()));
     p.ingredients.forEach(i => activeIngredients.add(i.toLowerCase()));
-    activeCategories.add(p.category.toLowerCase());
+    activeCategories.add(p.id.toLowerCase()); // Use product ID for specific category mapping
   });
 
   const pathSegments = pathname.split('/').filter(Boolean);
@@ -113,11 +125,12 @@ export function Header() {
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b-2 border-foreground">Shop by Concern</h4>
                         <ul className="space-y-3">
                           {item.concerns?.map(c => {
-                            const isComingSoon = !activeConcerns.has(c.toLowerCase().replace(' ', '-'));
+                            const id = labelToId(c);
+                            const isComingSoon = !activeConcerns.has(id);
                             return (
                               <li key={c} className="flex items-center justify-between group/link">
                                 <Link 
-                                  href={isComingSoon ? '#' : `/collections?concern=${c.toLowerCase().replace(' ', '-')}`} 
+                                  href={isComingSoon ? '#' : `/collections?concern=${id}`} 
                                   className={cn(
                                     "text-[9px] uppercase tracking-widest transition-colors",
                                     isComingSoon ? "text-muted-foreground/50 cursor-default" : "text-muted-foreground hover:text-primary"
@@ -136,11 +149,13 @@ export function Header() {
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b-2 border-foreground">Ingredients</h4>
                         <ul className="space-y-3">
                           {item.ingredients?.map(i => {
-                            const isComingSoon = !activeIngredients.has(i.toLowerCase().replace(' ', '-'));
+                            // Check if this ingredient maps to a product name directly
+                            const product = PRODUCTS.find(p => p.name.includes(i) || i === 'Vitamin C Serum');
+                            const isComingSoon = !product;
                             return (
                               <li key={i} className="flex items-center justify-between group/link">
                                 <Link 
-                                  href={isComingSoon ? '#' : `/collections?ingredient=${i.toLowerCase().replace(' ', '-')}`} 
+                                  href={isComingSoon ? '#' : `/products/${product.slug}`} 
                                   className={cn(
                                     "text-[9px] uppercase tracking-widest transition-colors",
                                     isComingSoon ? "text-muted-foreground/50 cursor-default" : "text-muted-foreground hover:text-primary"
@@ -159,11 +174,12 @@ export function Header() {
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] pb-3 border-b-2 border-foreground">Category</h4>
                         <ul className="space-y-3">
                           {item.categories?.map(cat => {
-                            const isComingSoon = !activeCategories.has(cat.toLowerCase().replace(' ', '-'));
+                            const product = PRODUCTS.find(p => p.name.includes(cat) || (cat === 'Face Wash' && p.id === 'face-wash') || (cat === 'Vitamin C Serum' && p.id === 'vitamin-c-serum'));
+                            const isComingSoon = !product;
                             return (
                               <li key={cat} className="flex items-center justify-between group/link">
                                 <Link 
-                                  href={isComingSoon ? '#' : `/collections?cat=${cat.toLowerCase().replace(' ', '-')}`} 
+                                  href={isComingSoon ? '#' : `/products/${product.slug}`} 
                                   className={cn(
                                     "text-[9px] uppercase tracking-widest transition-colors",
                                     isComingSoon ? "text-muted-foreground/50 cursor-default" : "text-muted-foreground hover:text-primary"
