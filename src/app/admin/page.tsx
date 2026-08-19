@@ -7,12 +7,12 @@ import {
   TrendingUp, 
   Users, 
   AlertCircle, 
-  ArrowUpRight, 
   Search,
   Filter,
-  MoreVertical,
-  CheckCircle2,
-  Clock
+  Clock,
+  BarChart4,
+  LineChart,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,22 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { 
+  Bar, 
+  BarChart, 
+  ResponsiveContainer, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  Cell,
+  Line,
+  LineChart as RechartsLineChart,
+  Area,
+  AreaChart,
+  CartesianGrid
+} from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 export default function AdminDashboard() {
   const { user, isLoggedIn } = useApp();
@@ -39,33 +54,201 @@ export default function AdminDashboard() {
     }
   }, [isLoggedIn, user, router]);
 
+  // Analysis Data Preparation
+  const phaseData = useMemo(() => {
+    return CATEGORIES.map((cat, index) => ({
+      name: `Phase ${index + 1}`,
+      fullName: cat.name,
+      count: PRODUCTS.filter(p => p.category === cat.id).length,
+      avgPrice: Math.round(
+        PRODUCTS.filter(p => p.category === cat.id).reduce((acc, p) => acc + p.price, 0) / 
+        (PRODUCTS.filter(p => p.category === cat.id).length || 1)
+      )
+    }));
+  }, []);
+
+  const growthData = [
+    { month: 'Jan', members: 400 },
+    { month: 'Feb', members: 600 },
+    { month: 'Mar', members: 850 },
+    { month: 'Apr', members: 1100 },
+    { month: 'May', members: 1248 },
+  ];
+
   if (!isLoggedIn || !user?.isAdmin) return null;
 
   const totalSKUs = PRODUCTS.length;
   const bestSellers = PRODUCTS.filter(p => p.isBestSeller).length;
-  const totalPhases = CATEGORIES.length;
+  const avgRating = (PRODUCTS.reduce((acc, p) => acc + p.rating, 0) / totalSKUs).toFixed(1);
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-7xl space-y-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-foreground pb-12">
         <div className="space-y-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Control Panel</span>
-          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">Inventory Control</h1>
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Intelligence Hub</span>
+          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">Clinical Analysis</h1>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" className="border-2 border-foreground rounded-none font-black uppercase tracking-widest text-[10px] px-8 h-12">Export CSV</Button>
-          <Button className="bg-foreground text-background rounded-none font-black uppercase tracking-widest text-[10px] px-8 h-12 hover:bg-primary transition-all">Add Formulation</Button>
+          <Button variant="outline" className="border-2 border-foreground rounded-none font-black uppercase tracking-widest text-[10px] px-8 h-12">Download Report</Button>
+          <Button className="bg-foreground text-background rounded-none font-black uppercase tracking-widest text-[10px] px-8 h-12 hover:bg-primary transition-all">Update API</Button>
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Analytics Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* SKU Distribution Chart */}
+        <Card className="rounded-none border-2 border-foreground col-span-1 lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
+                <BarChart4 className="h-5 w-5 text-primary" /> SKU Distribution by Phase
+              </CardTitle>
+              <CardDescription className="text-[10px] font-bold uppercase">Volume Analysis across clinical categories</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="h-[300px] mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={phaseData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fontWeight: 'bold', fill: '#666' }} 
+                />
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{ fill: 'transparent' }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-foreground text-background p-4 rounded-none border-2 border-primary shadow-[8px_8px_0px_0px_rgba(249,115,22,0.2)]">
+                          <p className="text-[10px] font-black uppercase tracking-widest mb-1">{payload[0].payload.fullName}</p>
+                          <p className="text-xl font-black">{payload[0].value} Formulations</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="count" radius={[0, 0, 0, 0]}>
+                  {phaseData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#000' : '#f97316'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Membership Growth Chart */}
+        <Card className="rounded-none border-2 border-foreground">
+          <CardHeader>
+            <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" /> Circle Growth
+            </CardTitle>
+            <CardDescription className="text-[10px] font-bold uppercase">Membership acquisition trends</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px] mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={growthData}>
+                <defs>
+                  <linearGradient id="colorMembers" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis 
+                  dataKey="month" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fontWeight: 'bold' }} 
+                />
+                <Tooltip 
+                   content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white p-4 border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                          <p className="text-[8px] font-black uppercase tracking-widest">{payload[0].payload.month}</p>
+                          <p className="text-sm font-black">{payload[0].value} Members</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="members" 
+                  stroke="#f97316" 
+                  strokeWidth={4}
+                  fillOpacity={1} 
+                  fill="url(#colorMembers)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pricing Analysis Chart */}
+      <Card className="rounded-none border-2 border-foreground">
+        <CardHeader>
+          <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
+            <LineChart className="h-5 w-5 text-primary" /> Pricing Strategy Matrix
+          </CardTitle>
+          <CardDescription className="text-[10px] font-bold uppercase">Average Unit Price per Clinical Phase (INR)</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[250px] mt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <RechartsLineChart data={phaseData}>
+              <CartesianGrid strokeDasharray="10 10" vertical={false} stroke="#eee" />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fontWeight: 'bold' }} 
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fontWeight: 'bold' }}
+                tickFormatter={(value) => `₹${value}`}
+              />
+              <Tooltip 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-foreground text-background p-4 rounded-none">
+                        <p className="text-[10px] font-bold uppercase">{payload[0].payload.fullName}</p>
+                        <p className="text-lg font-black tracking-tighter">Avg: ₹{payload[0].value}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Line 
+                type="stepAfter" 
+                dataKey="avgPrice" 
+                stroke="#000" 
+                strokeWidth={4} 
+                dot={{ r: 6, fill: '#f97316', strokeWidth: 0 }}
+                activeDot={{ r: 8, fill: '#000', strokeWidth: 0 }}
+              />
+            </RechartsLineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: 'Active SKUs', value: totalSKUs, delta: '+4 New', icon: Package, color: 'text-blue-500' },
-          { label: 'Best Sellers', value: bestSellers, delta: 'Top 20%', icon: TrendingUp, color: 'text-green-500' },
-          { label: 'Clinical Phases', value: totalPhases, delta: 'Complete', icon: AlertCircle, color: 'text-orange-500' },
-          { label: 'Circle Members', value: '1,248', delta: '+12%', icon: Users, color: 'text-purple-500' },
+          { label: 'Best Sellers', value: bestSellers, delta: `${((bestSellers/totalSKUs)*100).toFixed(0)}% Portfolio`, icon: TrendingUp, color: 'text-green-500' },
+          { label: 'Clinical Rating', value: avgRating, delta: 'Top Tier', icon: AlertCircle, color: 'text-orange-500' },
+          { label: 'Circle Members', value: '1,248', delta: '+12% Monthly', icon: Users, color: 'text-purple-500' },
         ].map((stat) => (
           <Card key={stat.label} className="rounded-none border-2 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,0.05)]">
             <CardContent className="p-6">
@@ -80,7 +263,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Inventory Management */}
+      {/* Inventory Management Table */}
       <Card className="rounded-none border-2 border-foreground">
         <CardHeader className="border-b-2 border-foreground bg-muted/30 p-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -152,7 +335,7 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* System Health */}
+      {/* Logistics & Phase Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 rounded-none border-2 border-foreground">
           <CardHeader>
