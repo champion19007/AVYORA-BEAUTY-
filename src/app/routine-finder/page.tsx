@@ -163,12 +163,26 @@ export default function RoutineFinderPage() {
     let newAnswers = { ...answers };
 
     if (q.multi) {
-      const currentValues = answers[q.id] || [];
-      if (currentValues.includes(value)) {
-        newAnswers[q.id] = currentValues.filter((v: string) => v !== value);
+      let currentValues = answers[q.id] || [];
+      
+      if (value === 'None') {
+        // If "None" is clicked, it becomes the only selection, or gets cleared if already selected
+        if (currentValues.includes('None')) {
+          newAnswers[q.id] = [];
+        } else {
+          newAnswers[q.id] = ['None'];
+        }
       } else {
-        newAnswers[q.id] = [...currentValues, value];
+        // If a specific concern is clicked
+        if (currentValues.includes(value)) {
+          // Deselect it
+          newAnswers[q.id] = currentValues.filter((v: string) => v !== value);
+        } else {
+          // Select it and remove "None" if it was present
+          newAnswers[q.id] = [...currentValues.filter((v: string) => v !== 'None'), value];
+        }
       }
+      
       setAnswers(newAnswers);
       return;
     }
