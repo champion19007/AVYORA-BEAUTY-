@@ -1,5 +1,6 @@
 export type ExperienceLevel = 'N0' | 'N1' | 'N2' | 'N3' | 'N4';
 export type ReactivityLevel = 'low' | 'medium' | 'high' | 'very_high';
+export type RoutineLevel = 4 | 5 | 6 | 7;
 
 export type SkinProfile = {
   primaryConcern: string;
@@ -9,6 +10,7 @@ export type SkinProfile = {
   ageRange: 'under18' | '18_24' | '25_34' | '35_44' | '45_plus';
   sunExposure: 'indoors' | 'moderate' | 'outdoors' | 'high';
   experienceLevel: ExperienceLevel;
+  routineLevel: RoutineLevel;
   consistency: string;
   currentCondition: string;
   darkCircles: 'no' | 'mild' | 'noticeable' | 'significant';
@@ -18,7 +20,7 @@ export type SkinProfile = {
 
 export type RoutineStep = {
   order: number;
-  category: 'cleanse' | 'treatment' | 'hydrate' | 'protect' | 'body';
+  category: 'cleanse' | 'treatment' | 'brighten' | 'hydrate' | 'protect' | 'body';
   label: string;
   productId?: string;
   productName?: string;
