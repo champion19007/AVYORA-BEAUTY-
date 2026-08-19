@@ -44,9 +44,9 @@
     },
     {
       "id": "hs-1",
-      "description": "Hair Serum primary",
+      "description": "Retinol primary",
       "imageUrl": "https://picsum.photos/seed/hs1/800/800",
-      "imageHint": "hair serum"
+      "imageHint": "retinol bottle"
     },
     {
       "id": "ss-1",
@@ -61,40 +61,154 @@
       "imageHint": "body lotion"
     },
     {
-      "id": "bundle-kit",
-      "description": "Skincare bundle kit",
-      "imageUrl": "https://picsum.photos/seed/bundle-kit/1000/1000",
-      "imageHint": "skincare bundle"
+      "id": "cleansing-oil",
+      "description": "Rice Bran Cleansing Oil",
+      "imageUrl": "https://picsum.photos/seed/oil/800/800",
+      "imageHint": "cleansing oil"
     },
     {
-      "id": "track-package",
-      "description": "Delivery package",
-      "imageUrl": "https://picsum.photos/seed/track-package/800/1000",
-      "imageHint": "delivery package"
+      "id": "cleansing-balm",
+      "description": "Centella Cleansing Balm",
+      "imageUrl": "https://picsum.photos/seed/balm/800/800",
+      "imageHint": "cleansing balm"
     },
     {
-      "id": "cat-skin",
-      "description": "Skin care category",
-      "imageUrl": "https://picsum.photos/seed/cat-skin/600/800",
-      "imageHint": "skincare bottle"
+      "id": "gel-cleanser",
+      "description": "Amino Acid Gel Cleanser",
+      "imageUrl": "https://picsum.photos/seed/gel/800/800",
+      "imageHint": "gel cleanser"
     },
     {
-      "id": "cat-hair",
-      "description": "Hair care category",
-      "imageUrl": "https://picsum.photos/seed/cat-hair/600/800",
-      "imageHint": "hair serum"
+      "id": "powder-wash",
+      "description": "Papaya Powder Wash",
+      "imageUrl": "https://picsum.photos/seed/powder/800/800",
+      "imageHint": "powder wash"
     },
     {
-      "id": "cat-body",
-      "description": "Body care category",
-      "imageUrl": "https://picsum.photos/seed/cat-body/600/800",
-      "imageHint": "body lotion"
+      "id": "pha-fluid",
+      "description": "PHA Refining Fluid",
+      "imageUrl": "https://picsum.photos/seed/pha/800/800",
+      "imageHint": "exfoliating fluid"
     },
     {
-      "id": "cat-lip",
-      "description": "Lip care category",
-      "imageUrl": "https://picsum.photos/seed/cat-lip/600/800",
-      "imageHint": "lip balm"
+      "id": "lha-liquid",
+      "description": "LHA Sebum Liquid",
+      "imageUrl": "https://picsum.photos/seed/lha/800/800",
+      "imageHint": "pores liquid"
+    },
+    {
+      "id": "toner-pads",
+      "description": "Bifida Toner Pads",
+      "imageUrl": "https://picsum.photos/seed/pads/800/800",
+      "imageHint": "toner pads"
+    },
+    {
+      "id": "ha-toner",
+      "description": "HA Toner",
+      "imageUrl": "https://picsum.photos/seed/ha/800/800",
+      "imageHint": "hydrating toner"
+    },
+    {
+      "id": "rice-toner",
+      "description": "Milky Rice Toner",
+      "imageUrl": "https://picsum.photos/seed/rice/800/800",
+      "imageHint": "milky toner"
+    },
+    {
+      "id": "heartleaf-liquid",
+      "description": "Heartleaf Liquid",
+      "imageUrl": "https://picsum.photos/seed/leaf/800/800",
+      "imageHint": "calming liquid"
+    },
+    {
+      "id": "galacto-essence",
+      "description": "Galactomyces Essence",
+      "imageUrl": "https://picsum.photos/seed/essence1/800/800",
+      "imageHint": "brightening essence"
+    },
+    {
+      "id": "snail-essence",
+      "description": "Snail Mucin Essence",
+      "imageUrl": "https://picsum.photos/seed/snail/800/800",
+      "imageHint": "snail essence"
+    },
+    {
+      "id": "kombucha-essence",
+      "description": "Kombucha Essence",
+      "imageUrl": "https://picsum.photos/seed/kombucha/800/800",
+      "imageHint": "probiotic essence"
+    },
+    {
+      "id": "niacinamide-drops",
+      "description": "Niacinamide Glow Drops",
+      "imageUrl": "https://picsum.photos/seed/nia/800/800",
+      "imageHint": "niacinamide serum"
+    },
+    {
+      "id": "retinal-ampoule",
+      "description": "Retinaldehyde Ampoule",
+      "imageUrl": "https://picsum.photos/seed/retinal/800/800",
+      "imageHint": "retinal ampoule"
+    },
+    {
+      "id": "copper-peptide",
+      "description": "Copper Peptide Fluid",
+      "imageUrl": "https://picsum.photos/seed/copper/800/800",
+      "imageHint": "peptide serum"
+    },
+    {
+      "id": "pdrn-booster",
+      "description": "Salmon DNA Booster",
+      "imageUrl": "https://picsum.photos/seed/dna/800/800",
+      "imageHint": "cellular booster"
+    },
+    {
+      "id": "propolis-ampoule",
+      "description": "Propolis Ampoule",
+      "imageUrl": "https://picsum.photos/seed/honey/800/800",
+      "imageHint": "propolis ampoule"
+    },
+    {
+      "id": "collagen-mask",
+      "description": "Hydrogel Collagen Mask",
+      "imageUrl": "https://picsum.photos/seed/mask/800/800",
+      "imageHint": "sheet mask"
+    },
+    {
+      "id": "eye-patches",
+      "description": "Caffeine Eye Patches",
+      "imageUrl": "https://picsum.photos/seed/eye/800/800",
+      "imageHint": "eye patches"
+    },
+    {
+      "id": "ceramide-cream",
+      "description": "5x Ceramide Cream",
+      "imageUrl": "https://picsum.photos/seed/cream1/800/800",
+      "imageHint": "barrier cream"
+    },
+    {
+      "id": "sorbet-moisturizer",
+      "description": "Water-Gel Moisturizer",
+      "imageUrl": "https://picsum.photos/seed/gel-cream/800/800",
+      "imageHint": "gel moisturizer"
+    },
+    {
+      "id": "relief-sun-cream",
+      "description": "Relief Sun Cream",
+      "imageUrl": "https://picsum.photos/seed/sun1/800/800",
+      "imageHint": "sun cream"
+    },
+    {
+      "id": "sun-stick",
+      "description": "Cica Sun Stick",
+      "imageUrl": "https://picsum.photos/seed/sun2/800/800",
+      "imageHint": "sun stick"
+    },
+    {
+      "id": "lip-mask",
+      "description": "Lip Sleeping Mask",
+      "imageUrl": "https://picsum.photos/seed/lip/800/800",
+      "imageHint": "lip mask"
     }
   ]
 }
