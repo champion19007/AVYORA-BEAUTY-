@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getRecommendation } from '@/lib/routine-engine';
 import { RecommendationResult, RoutineStep } from '@/lib/routine-types';
 import { PRODUCTS } from '@/data/mock-data';
-import { ChevronLeft, ArrowRight, Loader2, CheckCircle2, Info, Moon, Sun, Zap, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ArrowRight, Loader2, CheckCircle2, Info, Moon, Sun, Zap, AlertTriangle, ShoppingBag } from 'lucide-react';
 import { useApp } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -31,17 +31,17 @@ const QUESTIONS = [
     label: "DO YOU HAVE ANY OTHER CONCERNS?",
     multi: true,
     options: [
-      { value: 'acne', label: 'Acne & Breakouts' },
-      { value: 'pigmentation', label: 'Dark Spots' },
-      { value: 'dullness', label: 'Dullness' },
-      { value: 'uneven', label: 'Uneven Tone' },
-      { value: 'lines', label: 'Fine Lines' },
-      { value: 'texture', label: 'Texture' },
-      { value: 'dryness', label: 'Dryness' },
-      { value: 'tanning', label: 'Tanning' },
-      { value: 'circles', label: 'Dark Circles' },
-      { value: 'oily', label: 'Oiliness' },
-      { value: 'none', label: 'None' }
+      { value: 'Acne & Breakouts', label: 'Acne & Breakouts' },
+      { value: 'Dark Spots', label: 'Dark Spots' },
+      { value: 'Dullness', label: 'Dullness' },
+      { value: 'Uneven Tone', label: 'Uneven Tone' },
+      { value: 'Fine Lines', label: 'Fine Lines' },
+      { value: 'Texture', label: 'Texture' },
+      { value: 'Dryness', label: 'Dryness' },
+      { value: 'Tanning', label: 'Tanning' },
+      { value: 'Dark Circles', label: 'Dark Circles' },
+      { value: 'Oiliness', label: 'Oiliness' },
+      { value: 'None', label: 'None' }
     ]
   },
   {
@@ -62,7 +62,7 @@ const QUESTIONS = [
       { value: 'rarely', label: 'Rarely reacts to products' },
       { value: 'sometimes', label: 'Sometimes gets irritated' },
       { value: 'easily', label: 'Easily irritated' },
-      { value: 'very', label: 'Very reactive / sensitive' }
+      { value: 'very_high', label: 'Very reactive / sensitive' }
     ]
   },
   {
@@ -94,7 +94,7 @@ const QUESTIONS = [
       { value: 'beginner', label: "I'm a beginner" },
       { value: 'basic', label: 'I follow a basic routine' },
       { value: 'regular', label: 'I follow skincare regularly' },
-      { value: 'experienced', label: "I'm experienced with active ingredients" }
+      { value: 'experienced', label: "I'm serious about skincare" }
     ]
   },
   {
@@ -227,7 +227,9 @@ export default function RoutineFinderPage() {
                 <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
                   <Sun className="h-4 w-4 text-orange-400" /> Morning Routine: {result.morningTitle}
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">{result.morningIntro}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
+                  Every user gets a complete 7-step morning regimen for optimized dermal health.
+                </p>
               </div>
               <div className="space-y-10">
                 {result.morningRoutine.map(step => <RoutineStepCard key={`${step.order}-${step.label}`} step={step} />)}
@@ -239,7 +241,9 @@ export default function RoutineFinderPage() {
                 <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
                   <Moon className="h-4 w-4 text-indigo-400" /> Evening Routine: {result.eveningTitle}
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">{result.eveningIntro}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
+                  Every user gets a complete 7-step evening regimen for overnight skin recovery.
+                </p>
               </div>
               <div className="space-y-10">
                 {result.eveningRoutine.map(step => <RoutineStepCard key={`${step.order}-${step.label}`} step={step} />)}
@@ -413,16 +417,20 @@ export default function RoutineFinderPage() {
 
 function RoutineStepCard({ step }: { step: RoutineStep }) {
   const product = step.productId ? PRODUCTS.find(p => p.id === step.productId) : null;
+  const { addToCart } = useApp();
   
   return (
     <div className="flex flex-col md:flex-row gap-8 items-start group">
-      <div className="w-full md:w-48 aspect-square relative border shrink-0 bg-muted overflow-hidden">
+      <div className={cn(
+        "w-full md:w-48 aspect-square relative border shrink-0 bg-muted overflow-hidden",
+        step.isAvyoraProduct ? "" : "border-dashed opacity-50"
+      )}>
         {step.isAvyoraProduct && product ? (
           <Image src={product.images[0]} alt={product.name} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" data-ai-hint="skincare bottle" />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-muted/50 border-dashed border-2">
+          <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
             <Info className="h-8 w-8 mb-4 opacity-20" />
-            <p className="text-[8px] font-black uppercase tracking-widest opacity-40">{step.isPlaceholder ? "Coming Soon to Avyora" : "Recommended Step"}</p>
+            <p className="text-[8px] font-black uppercase tracking-widest opacity-40">Coming Soon to Avyora</p>
           </div>
         )}
       </div>
@@ -432,10 +440,22 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
           <span className="text-[9px] font-black uppercase tracking-widest text-primary">{step.order.toString().padStart(2, '0')}</span>
         </div>
         <div className="space-y-2">
-          <h4 className="text-[12px] font-black uppercase tracking-widest">
-            {step.productName}
-            {step.productSize && step.productSize !== 'none' && <span className="text-primary ml-2">— {step.productSize}</span>}
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-[12px] font-black uppercase tracking-widest">
+              {step.productName}
+              {step.productSize && step.productSize !== 'none' && <span className="text-primary ml-2">— {step.productSize}</span>}
+            </h4>
+            {step.isAvyoraProduct && product && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-2 text-[8px] font-black uppercase tracking-widest hover:text-primary"
+                onClick={() => addToCart(product, step.productSize || product.sizes[0].label)}
+              >
+                <ShoppingBag className="h-3 w-3 mr-2" /> Add
+              </Button>
+            )}
+          </div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
             {step.explanation}
           </p>
@@ -445,10 +465,10 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
               <span className="text-[9px] font-black uppercase tracking-widest text-primary">{step.frequency}</span>
             </div>
           )}
-          {step.isPlaceholder && (
-            <p className="text-[8px] font-black uppercase tracking-widest text-primary/60 mt-4 italic">
-              External Product Recommendation: Essential for routine completion.
-            </p>
+          {!step.isAvyoraProduct && (
+            <div className="mt-4 bg-muted/50 px-2 py-1 w-fit border border-dashed">
+              <span className="text-[7px] font-black uppercase tracking-widest opacity-40">Coming Soon / Placeholder</span>
+            </div>
           )}
         </div>
       </div>

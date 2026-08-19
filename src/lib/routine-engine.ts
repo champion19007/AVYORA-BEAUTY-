@@ -1,48 +1,37 @@
 import { SkinProfile, RecommendationResult, RoutineStep, RoutineLevel, ExperienceLevel, ReactivityLevel } from './routine-types';
 
 /**
- * STRICT RULE-BASED MODE: The recommendation engine does not invent or use general skincare knowledge.
- * Every recommendation comes from the Avyora Master Table.
+ * STRICT RULE-BASED MODE: 7-Step AM / 7-Step PM fixed architecture.
  */
 
 export function getRecommendation(answers: any): RecommendationResult {
   const profile = normalizeAnswers(answers);
   
-  // Table 7: Hard Exclusions
+  // 1. Evaluations
   const retinolExclusions = checkRetinolExclusions(profile);
-  
-  // Table 5: Vit C Eligibility
   const vitCEligible = checkVitCEligibility(profile);
-  
-  // Table 8: Retinol Eligibility
   const retinolEligible = !retinolExclusions && checkRetinolQualifying(profile);
   
-  // Active Selection based on Level Complexity (Table 17, 18, 19)
+  // 2. Active Selection (Table 3 & Table 8)
   const { recommendVitaminC, recommendRetinol } = selectActives(profile, vitCEligible, retinolEligible);
 
-  // Frequencies (Table 6, 9)
+  // 3. Frequencies
   const vitCFreq = getVitCFrequency(profile, recommendVitaminC);
   const retinolFreq = getRetinolFrequency(profile, recommendRetinol);
 
-  // Routine Construction (Table 20, 21)
-  const morningRoutine = buildMorningRoutine(profile, recommendVitaminC, vitCFreq);
-  const eveningRoutine = buildEveningRoutine(profile, recommendRetinol, retinolFreq);
+  // 4. Routine Construction (Fixed 7+7)
+  const morningRoutine = buildFixedMorningRoutine(profile, recommendVitaminC, vitCFreq);
+  const eveningRoutine = buildFixedEveningRoutine(profile, recommendRetinol, retinolFreq);
   const bodyRoutine = buildBodyRoutine(profile);
 
-  // Size Mapping (Table 22)
+  // 5. Size Mapping
   const recommendedProducts = mapProductSizes(morningRoutine, eveningRoutine, bodyRoutine, profile);
 
-  // Validation (Table 28)
-  validateRoutine(morningRoutine, eveningRoutine, profile);
-
-  // Presentation Layer (Table 26, 27)
   return {
     profile,
     experienceLevelName: getExperienceName(profile.experienceLevel),
     morningTitle: getMorningTitle(profile, recommendVitaminC, recommendRetinol),
     eveningTitle: getEveningTitle(profile, recommendRetinol),
-    morningIntro: getMorningIntro(profile, recommendVitaminC),
-    eveningIntro: getEveningIntro(profile, recommendRetinol),
     morningRoutine,
     eveningRoutine,
     bodyRoutine,
@@ -75,13 +64,12 @@ function normalizeAnswers(a: any): SkinProfile {
     'N3': 7,
     'N4': 7
   };
-  const routineLevel = levelMap[exp];
 
   const reactMap: Record<string, ReactivityLevel> = {
     'rarely': 'low',
     'sometimes': 'medium',
     'easily': 'high',
-    'very': 'very_high'
+    'very_high': 'very_high'
   };
 
   return {
@@ -92,7 +80,7 @@ function normalizeAnswers(a: any): SkinProfile {
     ageRange: a.age,
     sunExposure: a.sun,
     experienceLevel: exp,
-    routineLevel,
+    routineLevel: levelMap[exp],
     consistency: a.consistency,
     currentCondition: a.currentCondition,
     darkCircles: a.darkCircles || 'no',
@@ -102,6 +90,7 @@ function normalizeAnswers(a: any): SkinProfile {
 }
 
 function checkVitCEligibility(p: SkinProfile): boolean {
+  if (p.reactivity === 'very_high') return false;
   const qualifying = ['Dark Spots & Pigmentation', 'Dullness & Uneven Tone', 'Tanning', 'dark-spots', 'dullness', 'uneven', 'tanning'];
   return qualifying.includes(p.primaryConcern) || p.secondaryConcerns.some(c => qualifying.includes(c));
 }
@@ -111,8 +100,6 @@ function checkRetinolExclusions(p: SkinProfile): boolean {
   if (p.reactivity === 'very_high') return true;
   if (p.currentCondition === 'irritated') return true;
   if (p.routineLevel === 4) return true;
-  if (p.primaryConcern === 'Just Want a Simple Routine') return true;
-  if (p.primaryConcern === 'Dryness' && p.secondaryConcerns.length === 0) return true;
   return false;
 }
 
@@ -122,159 +109,191 @@ function checkRetinolQualifying(p: SkinProfile): boolean {
 }
 
 function selectActives(p: SkinProfile, vitC: boolean, retinol: boolean) {
-  const result = { recommendVitaminC: false, recommendRetinol: false };
+  const res = { recommendVitaminC: false, recommendRetinol: false };
 
-  if (p.routineLevel === 4) return result;
+  if (p.routineLevel === 4) return res;
 
   if (p.routineLevel === 5) {
-    if (vitC) result.recommendVitaminC = true;
-    else if (retinol) result.recommendRetinol = true;
-    return result;
-  }
-
-  if (p.routineLevel === 6) {
-    if (vitC && !retinol) result.recommendVitaminC = true;
-    else if (retinol && !vitC) result.recommendRetinol = true;
-    else if (vitC && retinol) {
-      // Prioritize per Table 25
+    if (vitC && retinol) {
+      // Pick based on Priority (Table 9)
       const vitCPrio = getPriority(p.primaryConcern, 'vitamin-c');
       const retPrio = getPriority(p.primaryConcern, 'retinol');
-      if (vitCPrio >= retPrio) result.recommendVitaminC = true;
-      else result.recommendRetinol = true;
+      if (vitCPrio >= retPrio) res.recommendVitaminC = true;
+      else res.recommendRetinol = true;
+    } else {
+      res.recommendVitaminC = vitC;
+      res.recommendRetinol = retinol;
     }
-    return result;
+    return res;
   }
 
-  result.recommendVitaminC = vitC;
-  result.recommendRetinol = retinol;
-  
-  // Conflict Rule Table 24
-  if (p.reactivity === 'very_high' || p.currentCondition === 'irritated') {
-    result.recommendVitaminC = false;
-    result.recommendRetinol = false;
-  }
-
-  return result;
+  res.recommendVitaminC = vitC;
+  res.recommendRetinol = retinol;
+  return res;
 }
 
 function getPriority(concern: string, active: string): number {
-  const list = ['Dark Spots / pigmentation', 'Fine Lines / aging', 'Texture', 'Dullness', 'Tanning'];
-  const idx = list.indexOf(concern);
-  if (idx === -1) return 0;
-  return 10 - idx;
+  const priorities = [
+    'Acne & Breakouts',
+    'Dark Spots & Pigmentation',
+    'Fine Lines & Aging',
+    'Texture & Roughness',
+    'Dullness & Uneven Tone',
+    'Tanning',
+    'Dryness',
+    'Just Want a Simple Routine'
+  ];
+  const idx = priorities.indexOf(concern);
+  return idx === -1 ? 0 : 10 - idx;
 }
 
 function getVitCFrequency(p: SkinProfile, recommend: boolean): string {
-  if (!recommend || p.reactivity === 'very_high') return '';
+  if (!recommend) return '';
   const isSensitive = p.reactivity === 'high' || p.skinType === 'sensitive';
   
   if (p.routineLevel === 5) return isSensitive ? '1–2 mornings/week' : '2–3 mornings/week';
   if (p.routineLevel === 6) return isSensitive ? '2–3 mornings/week' : '3–5 mornings/week';
-  return isSensitive ? '2–4 mornings/week' : 'Every morning if tolerated';
+  return isSensitive ? '2–4 mornings/week' : 'Daily AM if tolerated';
 }
 
 function getRetinolFrequency(p: SkinProfile, recommend: boolean): string {
   if (!recommend) return '';
   const isSensitive = p.reactivity === 'high' || p.skinType === 'sensitive';
   
-  if (p.routineLevel === 5) return isSensitive ? 'Usually defer' : '1–2 nights/week';
+  if (p.routineLevel === 5) return '1 night/week';
   if (p.routineLevel === 6) return isSensitive ? '1–2 nights/week' : '2–3 nights/week';
-  if (p.routineLevel === 7) return isSensitive ? '2–3 nights/week' : '3–5 nights/week if tolerated';
-  return '';
+  return isSensitive ? '2–3 nights/week' : '3–5 nights/week if tolerated';
 }
 
-function buildMorningRoutine(p: SkinProfile, vitC: boolean, freq: string): RoutineStep[] {
+function buildFixedMorningRoutine(p: SkinProfile, vitC: boolean, freq: string): RoutineStep[] {
   const steps: RoutineStep[] = [];
-  
+
+  // 1. Cleanse (Real)
   steps.push({
-    order: 1,
-    category: 'cleanse',
-    label: '01 — CLEANSE',
-    productId: 'face-wash',
-    productName: 'Avyora Face Wash',
-    productSize: '100 ml',
-    explanation: 'Start with Avyora Face Wash to cleanse the skin and prepare it for the rest of your routine.',
+    order: 1, category: 'cleanse', label: '01 — CLEANSE', slotName: 'Cleanse',
+    productId: 'face-wash', productName: 'Avyora Face Wash', productSize: '100 ml',
+    explanation: 'Start with Avyora Face Wash to gently cleanse the skin and prepare it for the rest of your routine.',
     isAvyoraProduct: true
   });
 
-  if (vitC && freq) {
+  // 2. Tone (CS)
+  steps.push({
+    order: 2, category: 'tone', label: '02 — TONE', slotName: 'Tone',
+    productName: 'Hydrating Toner', explanation: 'A hydrating toner will help balance and prep your skin — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
+  });
+
+  // 3. Essence (CS)
+  steps.push({
+    order: 3, category: 'essence', label: '03 — ESSENCE', slotName: 'Essence',
+    productName: 'Hydrating Essence', explanation: 'A lightweight essence step for extra hydration — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
+  });
+
+  // 4. Treat (Real if eligible)
+  if (vitC) {
     steps.push({
-      order: 2,
-      category: 'brighten',
-      label: '02 — BRIGHTEN',
-      productId: 'vitamin-c-serum',
-      productName: 'Avyora Vitamin C Serum',
-      productSize: p.routineLevel === 5 ? '10 ml' : '30 ml',
-      frequency: freq,
-      explanation: 'Vitamin C is included because your answers indicate dullness, uneven tone, tanning or pigmentation concerns.',
+      order: 4, category: 'brighten', label: '04 — TREAT', slotName: 'Treat',
+      productId: 'vitamin-c-serum', productName: 'Avyora Vitamin C Serum', productSize: p.routineLevel === 5 ? '10 ml' : '30 ml',
+      frequency: freq, explanation: 'Apply Avyora Vitamin C Serum to target the appearance of dullness and uneven-looking tone.',
       isAvyoraProduct: true
+    });
+  } else {
+    steps.push({
+      order: 4, category: 'treatment', label: '04 — TREAT', slotName: 'Treat',
+      productName: 'Antioxidant Serum', explanation: 'This step is reserved for a future targeted treatment based on your profile — coming soon to Avyora.',
+      isAvyoraProduct: false, isPlaceholder: true
     });
   }
 
+  // 5. Eye Care (CS)
   steps.push({
-    order: steps.length + 1,
-    category: 'hydrate',
-    label: `0${steps.length + 1} — HYDRATE`,
-    productName: 'Facial Moisturizer',
-    productSize: 'Coming Soon / External Product',
-    explanation: 'Use a facial moisturizer to maintain hydration and support the skin barrier.',
-    isAvyoraProduct: false,
-    isPlaceholder: true
+    order: 5, category: 'eye', label: '05 — EYE CARE', slotName: 'Eye Care',
+    productName: 'Eye Cream', explanation: 'A dedicated eye cream for the under-eye area — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
   });
 
+  // 6. Moisturize (CS)
   steps.push({
-    order: steps.length + 1,
-    category: 'protect',
-    label: `0${steps.length + 1} — PROTECT`,
-    productId: 'sunscreen',
-    productName: 'Avyora Sunscreen',
-    productSize: (p.routineLevel >= 6 || p.sunExposure === 'high') ? '50 ml' : '30 ml',
-    explanation: p.sunExposure === 'high' && p.darkSpots !== 'no' 
+    order: 6, category: 'hydrate', label: '06 — MOISTURIZE', slotName: 'Moisturize',
+    productName: 'Facial Moisturizer', explanation: 'Apply a facial moisturizer to maintain hydration and support the skin barrier — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
+  });
+
+  // 7. Protect (Real)
+  const ssSize = (p.routineLevel >= 6 || p.sunExposure === 'high') ? '50 ml' : '30 ml';
+  steps.push({
+    order: 7, category: 'protect', label: '07 — PROTECT', slotName: 'Protect',
+    productId: 'sunscreen', productName: 'Avyora Sunscreen', productSize: ssSize,
+    explanation: (p.sunExposure === 'high' && p.darkSpots !== 'no') 
       ? "Daily sun protection is especially important for your profile because pigmentation and frequent UV exposure can contribute to uneven-looking skin tone."
-      : "Finish your morning routine with sunscreen to protect your skin from daily UV exposure.",
+      : "Finish with Avyora Sunscreen to protect your skin from daily UV exposure.",
     isAvyoraProduct: true
   });
 
   return steps;
 }
 
-function buildEveningRoutine(p: SkinProfile, retinol: boolean, freq: string): RoutineStep[] {
+function buildFixedEveningRoutine(p: SkinProfile, retinol: boolean, freq: string): RoutineStep[] {
   const steps: RoutineStep[] = [];
-  
+
+  // 1. First Cleanse (CS)
   steps.push({
-    order: 1,
-    category: 'cleanse',
-    label: '01 — CLEANSE',
-    productId: 'face-wash',
-    productName: 'Avyora Face Wash',
-    productSize: '100 ml',
-    explanation: 'Start with Avyora Face Wash to cleanse the skin and prepare it for the rest of your routine.',
+    order: 1, category: 'cleanse', label: '01 — FIRST CLEANSE', slotName: 'First Cleanse',
+    productName: 'Micellar/Oil Cleanser', explanation: 'An oil-based first cleanse can help lift sunscreen and makeup — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
+  });
+
+  // 2. Second Cleanse (Real)
+  steps.push({
+    order: 2, category: 'cleanse', label: '02 — SECOND CLEANSE', slotName: 'Second Cleanse',
+    productId: 'face-wash', productName: 'Avyora Face Wash', productSize: '100 ml',
+    explanation: 'Wash with Avyora Face Wash to fully cleanse the skin.',
     isAvyoraProduct: true
   });
 
-  if (retinol && freq && freq !== 'Usually defer') {
+  // 3. Exfoliate (CS)
+  steps.push({
+    order: 3, category: 'exfoliate', label: '03 — EXFOLIATE', slotName: 'Exfoliate',
+    productName: 'Gentle Exfoliant', explanation: p.routineLevel === 4 ? 'Not part of your routine yet — coming soon to Avyora.' : 'A gentle exfoliating step for smoother-looking texture on scheduled nights — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
+  });
+
+  // 4. Tone (CS)
+  steps.push({
+    order: 4, category: 'tone', label: '04 — TONE', slotName: 'Tone',
+    productName: 'Hydrating Toner', explanation: 'A hydrating toner to prep your skin before treatment — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
+  });
+
+  // 5. Treat (Real if eligible)
+  if (retinol) {
     steps.push({
-      order: 2,
-      category: 'treatment',
-      label: '02 — TREAT',
-      productId: 'retinol',
-      productName: 'Avyora Retinol',
-      productSize: p.routineLevel === 7 ? '90 ml' : '30 ml',
-      frequency: freq,
-      explanation: 'Retinol is included because your answers indicate concerns such as fine lines, texture or pigmentation and your profile is suitable for a gradual active routine.',
+      order: 5, category: 'renew', label: '05 — TREAT', slotName: 'Treat',
+      productId: 'retinol', productName: 'Avyora Retinol', productSize: p.routineLevel === 7 ? '90 ml' : '30 ml',
+      frequency: freq, explanation: 'Apply Avyora Retinol on your scheduled treatment nights to target the appearance of fine lines and uneven texture.',
       isAvyoraProduct: true
+    });
+  } else {
+    steps.push({
+      order: 5, category: 'treatment', label: '05 — TREAT', slotName: 'Treat',
+      productName: 'Repair Serum', explanation: 'This step is reserved for a future targeted treatment based on your profile — coming soon to Avyora.',
+      isAvyoraProduct: false, isPlaceholder: true
     });
   }
 
+  // 6. Eye Care (CS)
   steps.push({
-    order: steps.length + 1,
-    category: 'hydrate',
-    label: `0${steps.length + 1} — HYDRATE`,
-    productName: 'Facial Moisturizer',
-    productSize: 'Coming Soon / External Product',
-    explanation: 'Use a facial moisturizer to maintain hydration and support the skin barrier.',
-    isAvyoraProduct: false,
-    isPlaceholder: true
+    order: 6, category: 'eye', label: '06 — EYE CARE', slotName: 'Eye Care',
+    productName: 'Night Eye Cream', explanation: 'A richer night eye cream — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
+  });
+
+  // 7. Moisturize (CS)
+  steps.push({
+    order: 7, category: 'hydrate', label: '07 — MOISTURIZE', slotName: 'Moisturize',
+    productName: 'Night Moisturizer', explanation: 'Finish with a facial moisturizer to lock in hydration overnight — coming soon to Avyora.',
+    isAvyoraProduct: false, isPlaceholder: true
   });
 
   return steps;
@@ -283,12 +302,8 @@ function buildEveningRoutine(p: SkinProfile, retinol: boolean, freq: string): Ro
 function buildBodyRoutine(p: SkinProfile): RoutineStep[] {
   if (!p.bodyCare) return [];
   return [{
-    order: 1,
-    category: 'body',
-    label: 'BODY CARE',
-    productId: 'body-lotion',
-    productName: 'Avyora Body Lotion',
-    productSize: '180 ml',
+    order: 1, category: 'body', label: 'BODY CARE', slotName: 'Body care',
+    productId: 'body-lotion', productName: 'Avyora Body Lotion', productSize: '180 ml',
     explanation: 'Apply Avyora Body Lotion after bathing to moisturize the body and help relieve dryness.',
     isAvyoraProduct: true
   }];
@@ -309,33 +324,20 @@ function getExperienceName(exp: ExperienceLevel): string {
 }
 
 function getMorningTitle(p: SkinProfile, vitC: boolean, retinol: boolean): string {
-  if (vitC && retinol && p.routineLevel === 7) return "Brighten & Protect";
+  if (vitC && p.routineLevel === 7) return "Brighten & Protect";
   if (p.primaryConcern === 'Dullness & Uneven Tone') return "Brighten & Protect";
-  if (p.primaryConcern === 'Dark Spots & Pigmentation') return "Brighten & Protect";
   if (p.reactivity === 'high') return "Calm, Hydrate & Protect";
-  if (p.primaryConcern === 'Dryness') return "Hydrate & Protect";
   return "Protect & Hydrate";
 }
 
 function getEveningTitle(p: SkinProfile, retinol: boolean): string {
   if (retinol) return "Renew & Restore";
-  if (p.reactivity === 'high') return "Calm & Restore";
   return "Cleanse & Hydrate";
-}
-
-function getMorningIntro(p: SkinProfile, vitC: boolean): string {
-  if (vitC) return "Your morning routine focuses on supporting a more even-looking complexion while protecting your skin from daily UV exposure.";
-  return "Your morning routine focuses on gentle cleansing and hydration, with a essential final step of sun protection.";
-}
-
-function getEveningIntro(p: SkinProfile, retinol: boolean): string {
-  if (retinol) return "Your evening routine focuses on cleansing away the day's buildup, followed by a targeted treatment on scheduled nights.";
-  return "Your evening routine focuses on thorough cleansing and moisture replenishment to support skin recovery overnight.";
 }
 
 function getUnderEyeGuidance(p: SkinProfile): string | undefined {
   if (p.darkCircles === 'no') return undefined;
-  return "Your answers indicate an under-eye concern. Maintain gentle hydration and daily sun protection; a dedicated eye-care product may be considered separately.";
+  return "You indicated that dark circles are one of your concerns. Keep the area gently hydrated and protected from daily sun exposure. A dedicated eye-care product may be considered separately.";
 }
 
 function getWarnings(p: SkinProfile, retinol: boolean): string[] {
@@ -348,7 +350,6 @@ function getWarnings(p: SkinProfile, retinol: boolean): string[] {
 function getExplanations(p: SkinProfile, vitC: boolean, retinol: boolean): string[] {
   const exps = [];
   if (vitC && retinol) exps.push("Vitamin C is placed in your morning routine and Retinol in your evening routine so the actives are separated across the day.");
-  if (p.darkSpots !== 'no') exps.push("Your routine combines morning antioxidant support with controlled nighttime treatment while keeping sun protection as a daily foundation.");
   return exps;
 }
 
@@ -357,28 +358,17 @@ function getPriorities(p: SkinProfile): string[] {
   if (p.reactivity === 'very_high') priorities.push("01 — SOOTHING IRRITATION");
   if (p.primaryConcern.includes('Acne')) priorities.push("01 — ACNE CONTROL");
   if (p.darkSpots !== 'no') priorities.push("01 — DARK SPOTS");
-  if (p.primaryConcern.includes('Aging')) priorities.push("02 — FINE LINES");
   priorities.push("03 — SUN PROTECTION");
   return priorities.slice(0, 3);
 }
 
 function generateWhyThisRoutine(p: SkinProfile, vitC: boolean, retinol: boolean): string {
   const concerns = [p.primaryConcern, ...p.secondaryConcerns].filter(c => c !== 'None').join(' and ');
-  return `You selected ${concerns.toLowerCase()}, have ${p.skinType} skin, and are at a ${getExperienceName(p.experienceLevel).toLowerCase()} level. Your routine therefore focuses on ${vitC && retinol ? 'combining Vitamin C and Retinol' : vitC ? 'targeted Vitamin C support' : retinol ? 'gradual Retinol introduction' : 'barrier-focused care'} while keeping hydration and sun protection as your daily foundation.`;
+  return `You selected ${concerns.toLowerCase()}, have ${p.skinType} skin, and are at a ${getExperienceName(p.experienceLevel).toLowerCase()} level. Your routine combines ${vitC && retinol ? 'Vitamin C in the morning with Retinol at night' : vitC ? 'targeted Vitamin C support' : retinol ? 'gradual Retinol introduction' : 'barrier-focused care'} while daily sunscreen remains the foundation.`;
 }
 
 function getRetinolSchedule(p: SkinProfile): string {
   const isSensitive = p.reactivity === 'high' || p.skinType === 'sensitive';
   if (isSensitive) return "Week 1–4: 1–2 nights/week. Introduce very gradually.";
-  if (p.experienceLevel === 'N4') return "Week 1–2: 3 nights/week. Ongoing: 3–5 nights/week if tolerated.";
   return "Week 1–2: 2 nights/week. Week 3–4: 3 nights/week if tolerated.";
-}
-
-function validateRoutine(am: RoutineStep[], pm: RoutineStep[], p: SkinProfile) {
-  const amIds = am.map(s => s.productId);
-  const pmIds = pm.map(s => s.productId);
-  if (!amIds.includes('face-wash') || !pmIds.includes('face-wash')) throw new Error('Face Wash missing');
-  if (!amIds.includes('sunscreen')) throw new Error('Sunscreen missing in AM');
-  if (pmIds.includes('sunscreen')) throw new Error('Sunscreen in PM');
-  if (p.ageRange === 'under18' && pmIds.includes('retinol')) throw new Error('Retinol restricted for minors');
 }

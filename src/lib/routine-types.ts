@@ -20,8 +20,9 @@ export type SkinProfile = {
 
 export type RoutineStep = {
   order: number;
-  category: 'cleanse' | 'treatment' | 'brighten' | 'hydrate' | 'protect' | 'body' | 'renew';
+  category: 'cleanse' | 'treatment' | 'brighten' | 'hydrate' | 'protect' | 'body' | 'renew' | 'tone' | 'essence' | 'eye' | 'exfoliate';
   label: string;
+  slotName: string;
   productId?: string;
   productName?: string;
   productSize?: string;
@@ -36,8 +37,6 @@ export type RecommendationResult = {
   experienceLevelName: string;
   morningTitle: string;
   eveningTitle: string;
-  morningIntro: string;
-  eveningIntro: string;
   morningRoutine: RoutineStep[];
   eveningRoutine: RoutineStep[];
   bodyRoutine: RoutineStep[];
