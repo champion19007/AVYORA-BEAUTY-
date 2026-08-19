@@ -52,7 +52,7 @@ export const PRODUCTS: Product[] = [
     isBestSeller: true,
     isNewLaunch: false,
     category: 'skin',
-    concerns: ['vitamin-c-serum'],
+    concerns: ['vitamin-c-serum', 'uneven', 'dullness'],
     ingredients: ['vitamin c'],
     sizes: [{ label: '10ml', price: 249 }, { label: '30ml', price: 499 }]
   },
@@ -69,9 +69,9 @@ export const PRODUCTS: Product[] = [
     isBestSeller: true,
     isNewLaunch: false,
     category: 'skin',
-    concerns: ['aging'],
+    concerns: ['aging', 'lines', 'texture'],
     ingredients: ['retinol'],
-    sizes: [{ label: '30ml', price: 399 }, { label: '50ml', price: 599 }]
+    sizes: [{ label: '30ml', price: 399 }, { label: '90ml', price: 899 }]
   },
   {
     id: 'sunscreen',
