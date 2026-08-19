@@ -23,7 +23,7 @@ const QUESTIONS = [
       { value: 'Fine Lines & Aging', label: 'Fine Lines & Aging' },
       { value: 'Texture & Roughness', label: 'Texture & Roughness' },
       { value: 'Dryness', label: 'Dryness' },
-      { value: 'simple', label: 'Just Want a Simple Routine' }
+      { value: 'Just Want a Simple Routine', label: 'Just Want a Simple Routine' }
     ]
   },
   {
@@ -181,19 +181,11 @@ export default function RoutineFinderPage() {
     } else {
       setIsAnalyzing(true);
       setTimeout(() => {
-        const recommendation = getRecommendation(newAnswers);
-        setResult(recommendation);
+        const rec = getRecommendation(newAnswers);
+        setResult(rec);
         setIsAnalyzing(false);
       }, 2000);
     }
-  };
-
-  const handleContinue = () => {
-    if (step < QUESTIONS.length - 1) setStep(step + 1);
-  };
-
-  const handleBack = () => {
-    if (step > 0) setStep(step - 1);
   };
 
   const handleAddAll = () => {
@@ -219,38 +211,41 @@ export default function RoutineFinderPage() {
     return (
       <div className="container mx-auto px-4 py-12 max-w-6xl animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="text-center mb-16 space-y-6">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Avyora Skin Diagnostic v2.0</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Avyora Skin Diagnostic</span>
           <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tighter leading-[0.9]">YOUR PERSONALIZED<br/>AVYORA ROUTINE</h1>
           <div className="flex flex-wrap justify-center gap-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground">
             <span className="bg-muted px-3 py-1">{p.skinType.toUpperCase()} SKIN</span>
-            {result.priorityConcerns.map(c => <span key={c} className="bg-muted px-3 py-1">{c}</span>)}
-            <span className="bg-primary/20 text-primary px-3 py-1">{result.experienceLevel}</span>
+            {result.priorities.map(c => <span key={c} className="bg-muted px-3 py-1">{c}</span>)}
+            <span className="bg-primary/20 text-primary px-3 py-1">{result.experienceLevelName}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
           <div className="lg:col-span-8 space-y-20">
-            {/* Morning Routine */}
             <section className="space-y-12">
-              <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
-                <Sun className="h-4 w-4 text-orange-400" /> Morning Cycle
-              </h2>
+              <div className="space-y-4">
+                <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
+                  <Sun className="h-4 w-4 text-orange-400" /> Morning Routine: {result.morningTitle}
+                </h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">{result.morningIntro}</p>
+              </div>
               <div className="space-y-10">
-                {result.morningRoutine.map(step => <RoutineStepCard key={step.order} step={step} />)}
+                {result.morningRoutine.map(step => <RoutineStepCard key={`${step.order}-${step.label}`} step={step} />)}
               </div>
             </section>
 
-            {/* Evening Routine */}
             <section className="space-y-12">
-              <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
-                <Moon className="h-4 w-4 text-indigo-400" /> Evening Cycle
-              </h2>
+              <div className="space-y-4">
+                <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
+                  <Moon className="h-4 w-4 text-indigo-400" /> Evening Routine: {result.eveningTitle}
+                </h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">{result.eveningIntro}</p>
+              </div>
               <div className="space-y-10">
-                {result.eveningRoutine.map(step => <RoutineStepCard key={step.order} step={step} />)}
+                {result.eveningRoutine.map(step => <RoutineStepCard key={`${step.order}-${step.label}`} step={step} />)}
               </div>
             </section>
 
-            {/* Under-Eye Concern */}
             {result.underEyeGuidance && (
               <section className="space-y-8 bg-muted/30 p-8 border-l-4 border-primary">
                 <h2 className="text-xs font-black uppercase tracking-[0.4em] flex items-center gap-3">
@@ -262,14 +257,13 @@ export default function RoutineFinderPage() {
               </section>
             )}
 
-            {/* Body Care */}
             {result.bodyRoutine.length > 0 && (
               <section className="space-y-12">
                 <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
                   <Zap className="h-4 w-4 text-primary" /> Body Care
                 </h2>
                 <div className="space-y-10">
-                  {result.bodyRoutine.map(step => <RoutineStepCard key={step.order} step={step} />)}
+                  {result.bodyRoutine.map(step => <RoutineStepCard key={`${step.order}-${step.label}`} step={step} />)}
                 </div>
               </section>
             )}
@@ -278,30 +272,39 @@ export default function RoutineFinderPage() {
           <div className="lg:col-span-4 space-y-8">
             <Card className="rounded-none border-2 border-foreground bg-primary/5 sticky top-32">
               <CardContent className="p-8 space-y-10">
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <h3 className="text-lg font-black uppercase tracking-tighter">Diagnostic Summary</h3>
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-[9px] font-black uppercase tracking-widest text-primary mb-2">Priority Focus</h4>
-                      <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-                        {result.explanations.join(' ')}
-                      </p>
+                  
+                  <div className="space-y-4">
+                    <h4 className="text-[9px] font-black uppercase tracking-widest text-primary">Top Skin Priorities</h4>
+                    <div className="space-y-2">
+                      {result.priorities.map((p, i) => (
+                        <div key={i} className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3 text-primary" /> {p}
+                        </div>
+                      ))}
                     </div>
-                    {result.warnings.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-[9px] font-black uppercase tracking-widest text-destructive mb-2 flex items-center gap-2">
-                          <AlertTriangle className="h-3 w-3" /> Clinical Cautions
-                        </h4>
-                        <ul className="space-y-2">
-                          {result.warnings.map((w, i) => (
-                            <li key={i} className="text-[9px] font-bold uppercase tracking-widest flex items-start gap-2 text-muted-foreground">
-                              <span className="shrink-0">•</span> {w}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-[9px] font-black uppercase tracking-widest text-primary">Why This Routine?</h4>
+                    <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                      {result.whyThisRoutine}
+                    </p>
+                  </div>
+
+                  {result.warnings.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[9px] font-black uppercase tracking-widest text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-3 w-3" /> Clinical Cautions
+                      </h4>
+                      <ul className="space-y-2">
+                        {result.warnings.map((w, i) => (
+                          <li key={i} className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">• {w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 {result.treatmentSchedule?.retinol && (
@@ -354,7 +357,7 @@ export default function RoutineFinderPage() {
       <div className="flex-1 space-y-16 animate-in fade-in slide-in-from-right-4 duration-500">
         <div className="space-y-4">
           <div className="flex items-center gap-6">
-            <Button variant="ghost" size="icon" onClick={handleBack} disabled={step === 0} className="rounded-none border-2 border-foreground/10 h-12 w-12 shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="rounded-none border-2 border-foreground/10 h-12 w-12 shrink-0">
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">{q.label}</h2>
@@ -394,7 +397,7 @@ export default function RoutineFinderPage() {
 
         {q.multi && (
           <div className="flex justify-end ml-20">
-            <Button onClick={handleContinue} className="h-16 px-12 rounded-none bg-foreground text-background font-black uppercase tracking-widest hover:bg-primary transition-all shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)]">
+            <Button onClick={() => setStep(step + 1)} className="h-16 px-12 rounded-none bg-foreground text-background font-black uppercase tracking-widest hover:bg-primary transition-all shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)]">
               Continue <ArrowRight className="ml-3 h-5 w-5" />
             </Button>
           </div>
@@ -402,7 +405,7 @@ export default function RoutineFinderPage() {
       </div>
 
       <div className="mt-24 pt-10 border-t border-foreground/5 text-center">
-        <p className="text-[8px] font-black uppercase tracking-[0.4em] text-muted-foreground italic">Avyora Clinical Diagnostics Engine v2.0 · Professional Use Authorized</p>
+        <p className="text-[8px] font-black uppercase tracking-[0.4em] text-muted-foreground italic">Avyora Clinical Diagnostics Engine v2.0</p>
       </div>
     </div>
   );
@@ -415,11 +418,11 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
     <div className="flex flex-col md:flex-row gap-8 items-start group">
       <div className="w-full md:w-48 aspect-square relative border shrink-0 bg-muted overflow-hidden">
         {step.isAvyoraProduct && product ? (
-          <Image src={product.images[0]} alt={product.productName || ''} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" data-ai-hint="skincare bottle" />
+          <Image src={product.images[0]} alt={product.name} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" data-ai-hint="skincare bottle" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-muted/50 border-dashed border-2">
             <Info className="h-8 w-8 mb-4 opacity-20" />
-            <p className="text-[8px] font-black uppercase tracking-widest opacity-40">Coming Soon to Avyora</p>
+            <p className="text-[8px] font-black uppercase tracking-widest opacity-40">{step.isPlaceholder ? "Coming Soon to Avyora" : "Recommended Step"}</p>
           </div>
         )}
       </div>
@@ -442,7 +445,7 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
               <span className="text-[9px] font-black uppercase tracking-widest text-primary">{step.frequency}</span>
             </div>
           )}
-          {!step.isAvyoraProduct && (
+          {step.isPlaceholder && (
             <p className="text-[8px] font-black uppercase tracking-widest text-primary/60 mt-4 italic">
               External Product Recommendation: Essential for routine completion.
             </p>

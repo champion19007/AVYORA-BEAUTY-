@@ -20,7 +20,7 @@ export type SkinProfile = {
 
 export type RoutineStep = {
   order: number;
-  category: 'cleanse' | 'treatment' | 'brighten' | 'hydrate' | 'protect' | 'body';
+  category: 'cleanse' | 'treatment' | 'brighten' | 'hydrate' | 'protect' | 'body' | 'renew';
   label: string;
   productId?: string;
   productName?: string;
@@ -28,12 +28,16 @@ export type RoutineStep = {
   frequency?: string;
   explanation: string;
   isAvyoraProduct: boolean;
+  isPlaceholder?: boolean;
 };
 
 export type RecommendationResult = {
   profile: SkinProfile;
-  experienceLevel: string;
-  priorityConcerns: string[];
+  experienceLevelName: string;
+  morningTitle: string;
+  eveningTitle: string;
+  morningIntro: string;
+  eveningIntro: string;
   morningRoutine: RoutineStep[];
   eveningRoutine: RoutineStep[];
   bodyRoutine: RoutineStep[];
@@ -43,6 +47,8 @@ export type RecommendationResult = {
   };
   warnings: string[];
   explanations: string[];
+  priorities: string[];
+  whyThisRoutine: string;
   recommendedProducts: {
     productId: string;
     size: string;
