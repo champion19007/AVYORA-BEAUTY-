@@ -14,7 +14,7 @@ export interface Product {
   reviewCount: number;
   isBestSeller: boolean;
   isNewLaunch: boolean;
-  category: 'skin' | 'hair' | 'body' | 'lip' | 'cleanser' | 'toner' | 'essence' | 'serum' | 'moisturizer' | 'sun' | 'mask';
+  category: 'skin' | 'hair' | 'body' | 'lip' | 'cleanser' | 'toner' | 'essence' | 'serum' | 'moisturizer' | 'sun' | 'mask' | 'exfoliator';
   concerns: string[];
   ingredients: string[];
   sizes: { label: string; price: number }[];
@@ -23,94 +23,7 @@ export interface Product {
 const getImg = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
 export const PRODUCTS: Product[] = [
-  // EXISTING CORE 5
-  {
-    id: 'face-wash',
-    name: 'Face Wash',
-    slug: 'face-wash',
-    tagline: 'Gently cleanses and refreshes without stripping moisture.',
-    description: 'A daily pH-balanced cleanser designed for all skin types to remove impurities and excess oil.',
-    images: [getImg('fw-1'), getImg('fw-2')],
-    price: 299,
-    rating: 4.7,
-    reviewCount: 1205,
-    isBestSeller: true,
-    isNewLaunch: false,
-    category: 'cleanser',
-    concerns: ['face-wash', 'cleanse'],
-    ingredients: ['lha'],
-    sizes: [{ label: '100ml', price: 299 }]
-  },
-  {
-    id: 'vitamin-c-serum',
-    name: 'Vitamin C Serum',
-    slug: 'vitamin-c-serum',
-    tagline: 'Brightens skin and reduces the appearance of dark spots.',
-    description: 'A potent antioxidant serum to combat dullness and protect against environmental stressors.',
-    images: [getImg('vc-1'), getImg('vc-2')],
-    price: 249,
-    rating: 4.9,
-    reviewCount: 2450,
-    isBestSeller: true,
-    isNewLaunch: false,
-    category: 'serum',
-    concerns: ['vitamin-c-serum', 'uneven', 'dullness', 'brightening'],
-    ingredients: ['vitamin c'],
-    sizes: [{ label: '10ml', price: 249 }, { label: '30ml', price: 499 }]
-  },
-  {
-    id: 'retinol',
-    name: 'Retinol',
-    slug: 'retinol',
-    tagline: 'Accelerates skin renewal for smoother, youthful-looking skin.',
-    description: 'A stable, clinical-grade retinol formulation to reduce fine lines and improve texture.',
-    images: [getImg('hs-1')],
-    price: 399,
-    rating: 4.8,
-    reviewCount: 1100,
-    isBestSeller: true,
-    isNewLaunch: false,
-    category: 'serum',
-    concerns: ['aging', 'lines', 'texture'],
-    ingredients: ['retinol'],
-    sizes: [{ label: '30ml', price: 399 }, { label: '90ml', price: 899 }]
-  },
-  {
-    id: 'sunscreen',
-    name: 'Sunscreen',
-    slug: 'sunscreen',
-    tagline: 'Daily invisible protection against UVA/UVB rays.',
-    description: 'A lightweight, non-greasy SPF formula that leaves zero white cast.',
-    images: [getImg('ss-1')],
-    price: 329,
-    rating: 4.8,
-    reviewCount: 3100,
-    isBestSeller: true,
-    isNewLaunch: false,
-    category: 'sun',
-    concerns: ['sunscreen', 'protect'],
-    ingredients: ['uv filters'],
-    sizes: [{ label: '30ml', price: 329 }, { label: '50ml', price: 449 }]
-  },
-  {
-    id: 'body-lotion',
-    name: 'Body Lotion',
-    slug: 'body-lotion',
-    tagline: 'Intense hydration for smooth, healthy-looking skin.',
-    description: 'A fast-absorbing lotion that provides long-lasting moisture and barrier repair.',
-    images: [getImg('bl-1')],
-    price: 349,
-    rating: 4.7,
-    reviewCount: 1560,
-    isBestSeller: true,
-    isNewLaunch: false,
-    category: 'body',
-    concerns: ['body-lotion', 'dryness'],
-    ingredients: ['ceramide'],
-    sizes: [{ label: '180ml', price: 349 }]
-  },
-
-  // PHASE 1: CLEANSING & PREP
+  // PHASE 1: FOUNDATIONAL CLEANSING & PREP
   {
     id: 'rice-bran-cleansing-oil',
     name: 'Rice Bran Cleansing Oil',
@@ -146,20 +59,20 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '100ml', price: 799 }]
   },
   {
-    id: 'amino-acid-gel-cleanser',
-    name: 'Amino Acid Gel Cleanser',
-    slug: 'amino-acid-gel-cleanser',
+    id: 'face-wash',
+    name: 'Low-pH Amino Acid Gel Cleanser',
+    slug: 'face-wash',
     tagline: 'The gold standard in non-stripping daily cleansing.',
     description: 'A water-based daily cleanser formulated at pH 5.5 using coconut-derived surfactants.',
-    images: [getImg('gel-cleanser')],
+    images: [getImg('fw-1'), getImg('fw-2')],
     price: 349,
     rating: 4.8,
-    reviewCount: 890,
+    reviewCount: 1205,
     isBestSeller: true,
     isNewLaunch: false,
     category: 'cleanser',
-    concerns: ['second-cleanse', 'barrier-support'],
-    ingredients: ['Amino Acids', 'Coco-Glucoside'],
+    concerns: ['face-wash', 'cleanse', 'barrier-support'],
+    ingredients: ['Amino Acids', 'LHA'],
     sizes: [{ label: '150ml', price: 349 }]
   },
   {
@@ -180,7 +93,7 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '60g', price: 549 }]
   },
 
-  // PHASE 2: EXFOLIATION
+  // PHASE 2: EXFOLIATION & SURFACE POLISHING
   {
     id: 'pha-refining-fluid',
     name: 'PHA Refining Fluid',
@@ -193,7 +106,7 @@ export const PRODUCTS: Product[] = [
     reviewCount: 230,
     isBestSeller: false,
     isNewLaunch: true,
-    category: 'serum',
+    category: 'exfoliator',
     concerns: ['exfoliation', 'texture', 'sensitive-skin'],
     ingredients: ['Gluconolactone (PHA)'],
     sizes: [{ label: '30ml', price: 499 }]
@@ -210,7 +123,7 @@ export const PRODUCTS: Product[] = [
     reviewCount: 340,
     isBestSeller: false,
     isNewLaunch: true,
-    category: 'serum',
+    category: 'exfoliator',
     concerns: ['acne', 'oiliness', 'pore-care'],
     ingredients: ['LHA'],
     sizes: [{ label: '30ml', price: 449 }]
@@ -227,13 +140,13 @@ export const PRODUCTS: Product[] = [
     reviewCount: 150,
     isBestSeller: false,
     isNewLaunch: true,
-    category: 'mask',
+    category: 'exfoliator',
     concerns: ['texture', 'barrier-repair'],
     ingredients: ['Bifida Ferment', 'AHA'],
     sizes: [{ label: '60 Pads', price: 899 }]
   },
 
-  // PHASE 3: HYDRATION
+  // PHASE 3: HIGH-VOLUME DEEP HYDRATION
   {
     id: 'ha-toner',
     name: 'Multi-Molecular Hyaluronic Toner',
@@ -286,7 +199,7 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '200ml', price: 499 }]
   },
 
-  // PHASE 4: ESSENCES
+  // PHASE 4: CELLULAR REPAIR & BRIGHTENING ESSENCES
   {
     id: 'galacto-essence',
     name: 'Galactomyces Ferment Essence',
@@ -339,7 +252,24 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '150ml', price: 699 }]
   },
 
-  // PHASE 5: SERUMS & AMPOULES
+  // PHASE 5: TARGETED ACTIVE SERUMS & AMPOULES
+  {
+    id: 'vitamin-c-serum',
+    name: 'Vitamin C Serum',
+    slug: 'vitamin-c-serum',
+    tagline: 'Brightens skin and reduces the appearance of dark spots.',
+    description: 'A potent antioxidant serum to combat dullness and protect against environmental stressors.',
+    images: [getImg('vc-1'), getImg('vc-2')],
+    price: 249,
+    rating: 4.9,
+    reviewCount: 2450,
+    isBestSeller: true,
+    isNewLaunch: false,
+    category: 'serum',
+    concerns: ['uneven', 'dullness', 'brightening'],
+    ingredients: ['vitamin c'],
+    sizes: [{ label: '10ml', price: 249 }, { label: '30ml', price: 499 }]
+  },
   {
     id: 'niacinamide-drops',
     name: '10% Niacinamide Glow Drops',
@@ -358,21 +288,21 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '30ml', price: 449 }]
   },
   {
-    id: 'retinal-ampoule',
+    id: 'retinol',
     name: 'Encapsulated Retinal Ampoule',
-    slug: 'retinal-ampoule',
+    slug: 'retinol',
     tagline: 'Fast-acting Vitamin A with zero irritation.',
     description: 'Uses lipid capsules to deliver deep anti-wrinkle results and boost collagen.',
-    images: [getImg('retinal-ampoule')],
-    price: 949,
+    images: [getImg('retinal-ampoule'), getImg('hs-1')],
+    price: 399,
     rating: 4.9,
-    reviewCount: 180,
-    isBestSeller: false,
-    isNewLaunch: true,
+    reviewCount: 1100,
+    isBestSeller: true,
+    isNewLaunch: false,
     category: 'serum',
-    concerns: ['deep-wrinkles', 'aging', 'collagen'],
-    ingredients: ['Retinaldehyde', 'Lecithin'],
-    sizes: [{ label: '30ml', price: 949 }]
+    concerns: ['aging', 'lines', 'texture', 'deep-wrinkles'],
+    ingredients: ['Retinaldehyde', 'Retinol'],
+    sizes: [{ label: '30ml', price: 399 }, { label: '90ml', price: 899 }]
   },
   {
     id: 'copper-peptide',
@@ -426,7 +356,7 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '30ml', price: 649 }]
   },
 
-  // PHASE 6: MASKS
+  // PHASE 6: SHEET MASKS & EXPRESS TREATMENTS
   {
     id: 'collagen-mask',
     name: 'Hydrogel Collagen Melting Mask',
@@ -462,7 +392,7 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '60 Patches', price: 749 }]
   },
 
-  // PHASE 7: MOISTURE & SUN
+  // PHASE 7: MOISTURE LOCKING & SUN BARRIERS
   {
     id: 'ceramide-cream',
     name: '5x Essential Ceramide Cream',
@@ -498,21 +428,21 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '50ml', price: 499 }]
   },
   {
-    id: 'relief-sun-cream',
+    id: 'sunscreen',
     name: 'Probiotics Relief Sun Cream',
-    slug: 'relief-sun-cream',
-    tagline: 'SPF 50+ protection that feels like a lightweight lotion.',
-    description: 'Leaves absolutely zero white cast with a highly radiant, glossy glow.',
-    images: [getImg('relief-sun-cream')],
-    price: 649,
+    slug: 'sunscreen',
+    tagline: 'Daily invisible protection that feels like a lightweight lotion.',
+    description: 'Leaves behind absolutely zero white cast and a highly radiant, glossy glow.',
+    images: [getImg('relief-sun-cream'), getImg('ss-1')],
+    price: 329,
     rating: 4.9,
     reviewCount: 3200,
     isBestSeller: true,
     isNewLaunch: false,
-    category: 'sun',
-    concerns: ['uv-protection', 'brightening'],
-    ingredients: ['Rice Extract', 'Probiotics'],
-    sizes: [{ label: '50ml', price: 649 }]
+    category: 'moisturizer',
+    concerns: ['sunscreen', 'protect', 'uv-protection', 'brightening'],
+    ingredients: ['Rice Extract', 'Probiotics', 'uv filters'],
+    sizes: [{ label: '30ml', price: 329 }, { label: '50ml', price: 649 }]
   },
   {
     id: 'sun-stick',
@@ -526,7 +456,7 @@ export const PRODUCTS: Product[] = [
     reviewCount: 410,
     isBestSeller: false,
     isNewLaunch: true,
-    category: 'sun',
+    category: 'moisturizer',
     concerns: ['reapplication', 'calming'],
     ingredients: ['Cica', 'Mugwort'],
     sizes: [{ label: '20g', price: 599 }]
@@ -543,20 +473,40 @@ export const PRODUCTS: Product[] = [
     reviewCount: 890,
     isBestSeller: true,
     isNewLaunch: false,
-    category: 'lip',
+    category: 'moisturizer',
     concerns: ['dry-lips', 'flaking'],
     ingredients: ['Ceramides', 'Shea Butter'],
     sizes: [{ label: '20g', price: 299 }]
+  },
+
+  // BODY CARE (STAYS SEPARATE)
+  {
+    id: 'body-lotion',
+    name: 'Body Lotion',
+    slug: 'body-lotion',
+    tagline: 'Intense hydration for smooth, healthy-looking skin.',
+    description: 'A fast-absorbing lotion that provides long-lasting moisture and barrier repair.',
+    images: [getImg('bl-1')],
+    price: 349,
+    rating: 4.7,
+    reviewCount: 1560,
+    isBestSeller: true,
+    isNewLaunch: false,
+    category: 'body',
+    concerns: ['body-lotion', 'dryness'],
+    ingredients: ['ceramide'],
+    sizes: [{ label: '180ml', price: 349 }]
   }
 ];
 
 export const CATEGORIES = [
-  { id: 'cleanser', name: 'Phase 1: Cleansers', image: getImg('gel-cleanser'), hint: 'cleansing gel' },
-  { id: 'serum', name: 'Phase 5: Target Serums', image: getImg('niacinamide-drops'), hint: 'clinical serum' },
-  { id: 'sun', name: 'Phase 7: Sun Protection', image: getImg('relief-sun-cream'), hint: 'sunscreen lotion' },
-  { id: 'essence', name: 'Phase 4: Essences', image: getImg('galacto-essence'), hint: 'skin essence' },
-  { id: 'moisturizer', name: 'Phase 7: Moisturizers', image: getImg('ceramide-cream'), hint: 'barrier cream' },
-  { id: 'mask', name: 'Phase 6: Treatments', image: getImg('collagen-mask'), hint: 'sheet mask' }
+  { id: 'cleanser', name: 'Phase 1: Cleansing & Prep', image: getImg('gel-cleanser'), hint: 'cleansing gel' },
+  { id: 'exfoliator', name: 'Phase 2: Exfoliation', image: getImg('pha-fluid'), hint: 'exfoliating fluid' },
+  { id: 'toner', name: 'Phase 3: Deep Hydration', image: getImg('ha-toner'), hint: 'hydrating toner' },
+  { id: 'essence', name: 'Phase 4: Repair Essences', image: getImg('galacto-essence'), hint: 'skin essence' },
+  { id: 'serum', name: 'Phase 5: Targeted Serums', image: getImg('niacinamide-drops'), hint: 'clinical serum' },
+  { id: 'mask', name: 'Phase 6: Treatments', image: getImg('collagen-mask'), hint: 'sheet mask' },
+  { id: 'moisturizer', name: 'Phase 7: Moisture & Sun', image: getImg('ceramide-cream'), hint: 'barrier cream' }
 ];
 
 export const CONCERNS = [
