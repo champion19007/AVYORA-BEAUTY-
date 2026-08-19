@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getRecommendation } from '@/lib/routine-engine';
 import { RecommendationResult, RoutineStep } from '@/lib/routine-types';
 import { PRODUCTS } from '@/data/mock-data';
-import { ChevronLeft, ArrowRight, Loader2, CheckCircle2, Info, Moon, Sun, Zap, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, ArrowRight, Loader2, CheckCircle2, Info, Moon, Sun, Zap, AlertTriangle } from 'lucide-react';
 import { useApp } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -17,12 +17,12 @@ const QUESTIONS = [
     id: 'concern',
     label: "WHAT IS YOUR PRIMARY CONCERN?",
     options: [
-      { value: 'acne', label: 'Acne & Breakouts' },
-      { value: 'pigmentation', label: 'Dark Spots & Pigmentation' },
-      { value: 'dullness', label: 'Dullness & Uneven Tone' },
-      { value: 'lines', label: 'Fine Lines & Aging' },
-      { value: 'texture', label: 'Texture & Roughness' },
-      { value: 'dryness', label: 'Dryness' },
+      { value: 'Acne & Breakouts', label: 'Acne & Breakouts' },
+      { value: 'Dark Spots & Pigmentation', label: 'Dark Spots & Pigmentation' },
+      { value: 'Dullness & Uneven Tone', label: 'Dullness & Uneven Tone' },
+      { value: 'Fine Lines & Aging', label: 'Fine Lines & Aging' },
+      { value: 'Texture & Roughness', label: 'Texture & Roughness' },
+      { value: 'Dryness', label: 'Dryness' },
       { value: 'simple', label: 'Just Want a Simple Routine' }
     ]
   },
@@ -70,10 +70,10 @@ const QUESTIONS = [
     label: "WHAT IS YOUR AGE?",
     options: [
       { value: 'under18', label: 'Under 18' },
-      { value: '18-24', label: '18–24' },
-      { value: '25-34', label: '25–34' },
-      { value: '35-44', label: '35–44' },
-      { value: '45plus', label: '45+' }
+      { value: '18_24', label: '18–24' },
+      { value: '25_34', label: '25–34' },
+      { value: '35_44', label: '35–44' },
+      { value: '45_plus', label: '45+' }
     ]
   },
   {
@@ -170,7 +170,6 @@ export default function RoutineFinderPage() {
         newAnswers[q.id] = [...currentValues, value];
       }
       setAnswers(newAnswers);
-      // Multi-select doesn't auto-advance
       return;
     }
 
@@ -223,7 +222,7 @@ export default function RoutineFinderPage() {
           <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Avyora Skin Diagnostic v2.0</span>
           <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tighter leading-[0.9]">YOUR PERSONALIZED<br/>AVYORA ROUTINE</h1>
           <div className="flex flex-wrap justify-center gap-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground">
-            <span className="bg-muted px-3 py-1">{p.skinType} Skin</span>
+            <span className="bg-muted px-3 py-1">{p.skinType.toUpperCase()} SKIN</span>
             {result.priorityConcerns.map(c => <span key={c} className="bg-muted px-3 py-1">{c}</span>)}
             <span className="bg-primary/20 text-primary px-3 py-1">{result.experienceLevel}</span>
           </div>
@@ -251,6 +250,18 @@ export default function RoutineFinderPage() {
               </div>
             </section>
 
+            {/* Under-Eye Concern */}
+            {result.underEyeGuidance && (
+              <section className="space-y-8 bg-muted/30 p-8 border-l-4 border-primary">
+                <h2 className="text-xs font-black uppercase tracking-[0.4em] flex items-center gap-3">
+                   <Info className="h-4 w-4 text-primary" /> Under-Eye Concern
+                </h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed text-muted-foreground">
+                  {result.underEyeGuidance}
+                </p>
+              </section>
+            )}
+
             {/* Body Care */}
             {result.bodyRoutine.length > 0 && (
               <section className="space-y-12">
@@ -277,12 +288,14 @@ export default function RoutineFinderPage() {
                       </p>
                     </div>
                     {result.warnings.length > 0 && (
-                      <div>
-                        <h4 className="text-[9px] font-black uppercase tracking-widest text-destructive mb-2">Clinical Cautions</h4>
+                      <div className="space-y-2">
+                        <h4 className="text-[9px] font-black uppercase tracking-widest text-destructive mb-2 flex items-center gap-2">
+                          <AlertTriangle className="h-3 w-3" /> Clinical Cautions
+                        </h4>
                         <ul className="space-y-2">
                           {result.warnings.map((w, i) => (
-                            <li key={i} className="text-[9px] font-bold uppercase tracking-widest flex items-start gap-2">
-                              <Info className="h-3 w-3 shrink-0" /> {w}
+                            <li key={i} className="text-[9px] font-bold uppercase tracking-widest flex items-start gap-2 text-muted-foreground">
+                              <span className="shrink-0">•</span> {w}
                             </li>
                           ))}
                         </ul>
@@ -292,9 +305,9 @@ export default function RoutineFinderPage() {
                 </div>
 
                 {result.treatmentSchedule?.retinol && (
-                  <div className="p-6 bg-foreground text-background space-y-4">
+                  <div className="p-6 bg-foreground text-background space-y-4 shadow-[10px_10px_0px_0px_rgba(249,115,22,0.2)]">
                     <h4 className="text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                      <Zap className="h-3 w-3" /> Retinol Schedule
+                      <Zap className="h-3 w-3 text-primary" /> Retinol Introduction
                     </h4>
                     <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
                       {result.treatmentSchedule.retinol}
@@ -303,14 +316,14 @@ export default function RoutineFinderPage() {
                 )}
 
                 <div className="pt-8 border-t border-foreground/10 space-y-4">
-                  <Button onClick={handleAddAll} className="w-full h-14 rounded-none bg-foreground text-background font-black uppercase tracking-widest hover:bg-primary transition-all">
+                  <Button onClick={handleAddAll} className="w-full h-14 rounded-none bg-foreground text-background font-black uppercase tracking-widest hover:bg-primary transition-all shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] hover:shadow-none">
                     Add Routine to Cart
                   </Button>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => { setResult(null); setStep(0); setAnswers({}); }} className="flex-1 text-[9px] font-black uppercase tracking-widest rounded-none border-2">
+                    <Button variant="outline" onClick={() => { setResult(null); setStep(0); setAnswers({}); }} className="flex-1 text-[9px] font-black uppercase tracking-widest rounded-none border-2 h-12">
                       Retake Quiz
                     </Button>
-                    <Button variant="outline" onClick={() => setResult(null)} className="flex-1 text-[9px] font-black uppercase tracking-widest rounded-none border-2">
+                    <Button variant="outline" onClick={() => setResult(null)} className="flex-1 text-[9px] font-black uppercase tracking-widest rounded-none border-2 h-12">
                       Edit Answers
                     </Button>
                   </div>
@@ -381,7 +394,7 @@ export default function RoutineFinderPage() {
 
         {q.multi && (
           <div className="flex justify-end ml-20">
-            <Button onClick={handleContinue} className="h-16 px-12 rounded-none bg-foreground text-background font-black uppercase tracking-widest hover:bg-primary transition-all">
+            <Button onClick={handleContinue} className="h-16 px-12 rounded-none bg-foreground text-background font-black uppercase tracking-widest hover:bg-primary transition-all shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)]">
               Continue <ArrowRight className="ml-3 h-5 w-5" />
             </Button>
           </div>
@@ -402,36 +415,36 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
     <div className="flex flex-col md:flex-row gap-8 items-start group">
       <div className="w-full md:w-48 aspect-square relative border shrink-0 bg-muted overflow-hidden">
         {step.isAvyoraProduct && product ? (
-          <Image src={product.images[0]} alt={product.name} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" data-ai-hint="skincare bottle" />
+          <Image src={product.images[0]} alt={product.productName || ''} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" data-ai-hint="skincare bottle" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-muted/50 border-dashed border-2">
-            <ShieldCheck className="h-8 w-8 mb-4 opacity-20" />
+            <Info className="h-8 w-8 mb-4 opacity-20" />
             <p className="text-[8px] font-black uppercase tracking-widest opacity-40">Coming Soon to Avyora</p>
           </div>
         )}
       </div>
       <div className="space-y-4 flex-1">
         <div className="flex items-center justify-between border-b pb-2">
-          <h3 className="text-sm font-black uppercase tracking-[0.2em]">{step.label}</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em]">{step.label}</h3>
           <span className="text-[9px] font-black uppercase tracking-widest text-primary">{step.order.toString().padStart(2, '0')}</span>
         </div>
         <div className="space-y-2">
-          <h4 className="text-[11px] font-black uppercase tracking-widest">
-            {step.isAvyoraProduct ? `Avyora ${product?.name}` : 'Facial Moisturizer'}
-            {step.productSize && <span className="text-primary ml-2">— {step.productSize}</span>}
+          <h4 className="text-[12px] font-black uppercase tracking-widest">
+            {step.productName}
+            {step.productSize && step.productSize !== 'none' && <span className="text-primary ml-2">— {step.productSize}</span>}
           </h4>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
             {step.explanation}
           </p>
           {step.frequency && (
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 bg-primary/5 px-2 py-1 w-fit">
               <Zap className="h-3 w-3 text-primary" />
               <span className="text-[9px] font-black uppercase tracking-widest text-primary">{step.frequency}</span>
             </div>
           )}
           {!step.isAvyoraProduct && (
-            <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-2 py-1 w-fit mt-4 italic">
-              Use a generic pH-balanced moisturizer until our clinical formulation launches.
+            <p className="text-[8px] font-black uppercase tracking-widest text-primary/60 mt-4 italic">
+              External Product Recommendation: Essential for routine completion.
             </p>
           )}
         </div>
