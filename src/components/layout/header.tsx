@@ -32,6 +32,7 @@ const NAV_ITEMS = [
     ingredients: ['Hair Serum', 'Capixyl', 'Maleic Acid'],
     categories: ['Hair Serum', 'Shampoo', 'Oil']
   },
+  { name: 'Routine Finder', href: '/routine-finder' },
   { name: 'Track Order', href: '/track-order' },
 ];
 
@@ -40,6 +41,7 @@ const labelToId = (label: string) => {
     'Face Wash': 'face-wash',
     'Vitamin C Serum': 'vitamin-c-serum',
     'Hair Serum': 'hair-serum',
+    'Retinol': 'retinol',
     'Sunscreen': 'sunscreen',
     'Body Lotion': 'body-lotion',
   };

@@ -1,4 +1,3 @@
-
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export interface Product {
@@ -58,21 +57,21 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '10ml', price: 249 }, { label: '30ml', price: 499 }]
   },
   {
-    id: 'hair-serum',
-    name: 'Hair Serum',
-    slug: 'hair-serum',
-    tagline: 'Strengthens strands and restores shine to damaged hair.',
-    description: 'A deep-conditioning serum that targets broken bonds and smoothes frizz.',
+    id: 'retinol',
+    name: 'Retinol',
+    slug: 'retinol',
+    tagline: 'Accelerates skin renewal for smoother, youthful-looking skin.',
+    description: 'A stable, clinical-grade retinol formulation to reduce fine lines and improve texture.',
     images: [getImg('hs-1')],
     price: 399,
-    rating: 4.6,
-    reviewCount: 890,
+    rating: 4.8,
+    reviewCount: 1100,
     isBestSeller: true,
     isNewLaunch: false,
-    category: 'hair',
-    concerns: ['hair-serum'],
-    ingredients: ['peptide'],
-    sizes: [{ label: '30ml', price: 399 }, { label: '90ml', price: 899 }]
+    category: 'skin',
+    concerns: ['aging'],
+    ingredients: ['retinol'],
+    sizes: [{ label: '30ml', price: 399 }, { label: '50ml', price: 599 }]
   },
   {
     id: 'sunscreen',
@@ -120,7 +119,7 @@ export const CATEGORIES = [
 export const CONCERNS = [
   { id: 'face-wash', name: 'Face Wash', image: getImg('fw-1'), hint: 'fresh skin' },
   { id: 'vitamin-c-serum', name: 'Vitamin C Serum', image: getImg('vc-1'), hint: 'glowing skin' },
-  { id: 'hair-serum', name: 'Hair Serum', image: getImg('hs-1'), hint: 'healthy hair' },
+  { id: 'retinol', name: 'Retinol', image: getImg('hs-1'), hint: 'anti aging' },
   { id: 'sunscreen', name: 'Sunscreen', image: getImg('ss-1'), hint: 'sun protection' },
   { id: 'body-lotion', name: 'Body Lotion', image: getImg('bl-1'), hint: 'hydrated skin' },
   { id: 'acne', name: 'Acne Control', image: 'https://picsum.photos/seed/con-acne/600/800', hint: 'clear skin' },
