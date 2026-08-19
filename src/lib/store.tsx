@@ -11,6 +11,7 @@ interface CartItem extends Product {
 interface User {
   name: string;
   email: string;
+  isAdmin?: boolean;
 }
 
 interface AppContextType {
@@ -22,7 +23,7 @@ interface AppContextType {
   toggleWishlist: (productId: string) => void;
   isLoggedIn: boolean;
   user: User | null;
-  login: (email: string) => void;
+  login: (email: string, isAdmin?: boolean) => void;
   logout: () => void;
   isCartOpen: boolean;
   setCartOpen: (open: boolean) => void;
@@ -93,8 +94,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const login = (email: string) => {
-    const mockUser = { name: 'John Doe', email };
+  const login = (email: string, isAdmin: boolean = false) => {
+    const mockUser = { 
+      name: isAdmin ? 'System Admin' : 'John Doe', 
+      email,
+      isAdmin 
+    };
     setUser(mockUser);
     setIsLoggedIn(true);
     localStorage.setItem('user', JSON.stringify(mockUser));

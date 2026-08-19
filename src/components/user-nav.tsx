@@ -1,9 +1,13 @@
+'use client';
+
 import Link from 'next/link';
 import {
   CreditCard,
   LogOut,
   Settings,
   User,
+  ShieldCheck,
+  LayoutDashboard
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -16,57 +20,79 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useApp } from '@/lib/store';
 
 export function UserNav() {
-  const userAvatar = PlaceHolderImages.find(p => p.id === '1');
+  const { user, isLoggedIn, logout } = useApp();
+
+  if (!isLoggedIn) {
+    return (
+      <Link href="/login">
+        <Button variant="ghost" size="icon" className="group">
+          <User className="h-4 w-4 group-hover:text-primary" />
+        </Button>
+      </Link>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-9 w-9">
-            {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt="User avatar" data-ai-hint={userAvatar.imageHint} />}
-            <AvatarFallback>SC</AvatarFallback>
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full border-2 border-foreground hover:bg-primary hover:border-primary group transition-all">
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="bg-transparent text-[10px] font-black group-hover:text-white">
+              {user?.name?.charAt(0) || 'U'}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
+      <DropdownMenuContent className="w-64 rounded-none border-2 border-foreground p-0" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal p-6 bg-muted/30 border-b-2 border-foreground">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">John Doe</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              john.doe@example.com
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-black uppercase tracking-widest">{user?.name}</p>
+              {user?.isAdmin && (
+                <span className="bg-primary text-white text-[8px] font-black px-2 py-0.5 rounded-none uppercase tracking-tighter">Admin</span>
+              )}
+            </div>
+            <p className="text-[10px] leading-none text-muted-foreground uppercase font-bold tracking-widest">
+              {user?.email}
             </p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
+        
+        <DropdownMenuGroup className="p-2">
+          {user?.isAdmin && (
+            <Link href="/admin">
+              <DropdownMenuItem className="p-3 text-[10px] font-black uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-none">
+                <LayoutDashboard className="mr-3 h-4 w-4" />
+                <span>Admin Dashboard</span>
+              </DropdownMenuItem>
+            </Link>
+          )}
           <Link href="/settings">
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+            <DropdownMenuItem className="p-3 text-[10px] font-black uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-none">
+              <User className="mr-3 h-4 w-4" />
+              <span>Profile Settings</span>
             </DropdownMenuItem>
           </Link>
           <Link href="/settings?tab=billing">
-            <DropdownMenuItem>
-              <CreditCard className="mr-2 h-4 w-4" />
-              <span>Billing</span>
-            </DropdownMenuItem>
-          </Link>
-          <Link href="/settings">
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
+            <DropdownMenuItem className="p-3 text-[10px] font-black uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-none">
+              <CreditCard className="mr-3 h-4 w-4" />
+              <span>Dermal Credit</span>
             </DropdownMenuItem>
           </Link>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <Link href="/login">
-            <DropdownMenuItem>
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Log out</span>
-            </DropdownMenuItem>
-        </Link>
+        
+        <DropdownMenuSeparator className="bg-foreground h-0.5" />
+        
+        <DropdownMenuItem 
+          onClick={() => logout()}
+          className="p-4 text-[10px] font-black uppercase tracking-widest cursor-pointer focus:bg-destructive focus:text-white rounded-none m-2"
+        >
+          <LogOut className="mr-3 h-4 w-4" />
+          <span>Clinical Logout</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
