@@ -44,8 +44,8 @@ export function HomeClient({
   products: Product[];
   categories: typeof CATEGORIES;
   concerns: typeof CONCERNS;
-  activeCategories: Set<string>;
-  activeConcerns: Set<string>;
+  activeCategories: ReadonlySet<string>;
+  activeConcerns: ReadonlySet<string>;
 }) {
   const [currentHero, setCurrentHero] = useState(0);
 

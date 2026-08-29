@@ -142,6 +142,18 @@ const QUESTIONS = [
     ]
   },
   {
+    // Retinoids are contraindicated in pregnancy and breastfeeding, so the
+    // engine needs to know before it can recommend one.
+    id: 'pregnancy',
+    label: "ARE YOU PREGNANT OR BREASTFEEDING?",
+    help: "Retinoids are not recommended during pregnancy or breastfeeding, so we will leave them out of your routine.",
+    options: [
+      { value: 'yes', label: 'Yes' },
+      { value: 'no', label: 'No' },
+      { value: 'no', label: 'Prefer not to say' }
+    ]
+  },
+  {
     id: 'bodyCare',
     label: "DO YOU WANT BODY CARE INCLUDED?",
     options: [
@@ -241,7 +253,7 @@ export default function RoutineFinderPage() {
                 <h2 className="text-xs font-semibold uppercase tracking-[0.4em] pb-4 border-b border-border flex items-center gap-3">
                   <Sun className="h-4 w-4 text-orange-400" /> Morning Routine: {result.morningTitle}
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   Every user gets a complete 7-step morning regimen for optimized dermal health.
                 </p>
               </div>
@@ -255,7 +267,7 @@ export default function RoutineFinderPage() {
                 <h2 className="text-xs font-semibold uppercase tracking-[0.4em] pb-4 border-b border-border flex items-center gap-3">
                   <Moon className="h-4 w-4 text-indigo-400" /> Evening Routine: {result.eveningTitle}
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   Every user gets a complete 7-step evening regimen for overnight skin recovery.
                 </p>
               </div>
@@ -378,9 +390,12 @@ export default function RoutineFinderPage() {
             <Button variant="ghost" size="icon" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="rounded-md border border-border/10 h-12 w-12 shrink-0">
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <h2 className="text-3xl md:text-5xl font-semibold uppercase tracking-tighter leading-none">{q.label}</h2>
+            <h2 className="font-headline text-3xl font-light leading-tight tracking-tight md:text-5xl">{q.label}</h2>
           </div>
-          {q.multi && <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary ml-20">Multiple selections allowed</p>}
+          {q.multi && <p className="ml-20 text-xs font-medium uppercase tracking-[0.2em] text-primary">Multiple selections allowed</p>}
+          {'help' in q && q.help && (
+            <p className="ml-0 max-w-xl text-sm leading-relaxed text-muted-foreground md:ml-20">{q.help}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ml-0 md:ml-20">
@@ -450,12 +465,12 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
       </div>
       <div className="space-y-4 flex-1">
         <div className="flex items-center justify-between border-b pb-2">
-          <h3 className="text-[10px] font-semibold uppercase tracking-[0.3em]">{step.label}</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">{step.label}</h3>
           <span className="text-[9px] font-semibold uppercase tracking-widest text-primary">{step.order.toString().padStart(2, '0')}</span>
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h4 className="text-[12px] font-semibold uppercase tracking-widest">
+            <h4 className="font-headline text-lg font-medium tracking-wide">
               {step.productName}
               {step.productSize && step.productSize !== 'none' && <span className="text-primary ml-2">— {step.productSize}</span>}
             </h4>
@@ -470,13 +485,13 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
               </Button>
             )}
           </div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             {step.explanation}
           </p>
           {step.frequency && (
-            <div className="flex items-center gap-2 mt-2 bg-primary/5 px-2 py-1 w-fit">
+            <div className="mt-3 flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5">
               <Zap className="h-3 w-3 text-primary" />
-              <span className="text-[9px] font-semibold uppercase tracking-widest text-primary">{step.frequency}</span>
+              <span className="text-xs font-medium text-primary">{step.frequency}</span>
             </div>
           )}
           {!step.isAvyoraProduct && (

@@ -1,4 +1,5 @@
 import { PRODUCTS } from '@/data/mock-data';
+import { getProductBySlug } from '@/lib/catalogue';
 import { notFound } from 'next/navigation';
 import { ProductClient } from './product-client';
 import type { Metadata, ResolvingMetadata } from 'next';
@@ -20,7 +21,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const { slug } = await params;
-  const product = PRODUCTS.find((p) => p.slug === slug);
+  const product = getProductBySlug(slug);
 
   if (!product) return { title: 'Product Not Found' };
 
@@ -37,7 +38,7 @@ export async function generateMetadata(
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const product = PRODUCTS.find((p) => p.slug === slug);
+  const product = getProductBySlug(slug);
 
   if (!product) {
     notFound();

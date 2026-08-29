@@ -6,11 +6,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 /**
- * Path to the brand artwork. Save the master logo file at `public/logo.png`.
- * Until it exists, the components below fall back to a typeset gold monogram
- * so the header never shows a broken image.
+ * Brand artwork. `logo.png` is the full lockup as supplied; `logo-mark.png`
+ * is the gilded "A" emblem cropped out of it at build time, so the header can
+ * show the emblem without also repeating the wordmark.
  */
 const LOGO_SRC = '/logo.png';
+const MARK_SRC = '/logo-mark.png';
 
 /** Typeset stand-in used when the artwork file is missing. */
 function MonogramFallback({ className }: { className?: string }) {
@@ -27,31 +28,24 @@ function MonogramFallback({ className }: { className?: string }) {
   );
 }
 
-/**
- * The supplied artwork is a square lockup: the gilded "A" emblem occupies
- * roughly the top three quarters, with the AVYORA wordmark beneath it. In the
- * header we crop to the emblem alone and typeset the wordmark beside it, so
- * the brand name is never rendered twice.
- */
-function EmblemCrop({ className, sizes }: { className?: string; sizes: string }) {
+/** The emblem alone, for lockups that typeset the wordmark separately. */
+function Emblem({ className, sizes }: { className?: string; sizes: string }) {
   const [failed, setFailed] = useState(false);
 
   if (failed) return <MonogramFallback className={cn('text-lg', className)} />;
 
   return (
-    <span className={cn('relative block overflow-hidden', className)}>
-      <Image
-        src={LOGO_SRC}
-        alt=""
-        aria-hidden="true"
-        width={512}
-        height={512}
-        sizes={sizes}
-        priority
-        onError={() => setFailed(true)}
-        className="absolute left-1/2 top-0 w-[136%] max-w-none -translate-x-1/2"
-      />
-    </span>
+    <Image
+      src={MARK_SRC}
+      alt=""
+      aria-hidden="true"
+      width={512}
+      height={512}
+      sizes={sizes}
+      priority
+      onError={() => setFailed(true)}
+      className={cn('object-contain', className)}
+    />
   );
 }
 
@@ -65,7 +59,7 @@ export function Logo({ className }: { className?: string }) {
       aria-label="Avyora — home"
       className={cn('group flex items-center gap-3', className)}
     >
-      <EmblemCrop className="h-11 w-11 shrink-0" sizes="44px" />
+      <Emblem className="h-11 w-11 shrink-0" sizes="44px" />
       <span className="flex flex-col justify-center">
         <span className="font-headline text-2xl font-semibold leading-none tracking-[0.14em] text-foreground transition-colors group-hover:text-primary">
           AVYORA

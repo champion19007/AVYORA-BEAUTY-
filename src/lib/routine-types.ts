@@ -16,6 +16,8 @@ export type SkinProfile = {
   darkCircles: 'no' | 'mild' | 'noticeable' | 'significant';
   darkSpots: 'no' | 'few' | 'moderate' | 'significant';
   bodyCare: boolean;
+  /** Retinoids are withheld during pregnancy and breastfeeding. */
+  pregnancy: boolean;
 };
 
 export type RoutineStep = {
