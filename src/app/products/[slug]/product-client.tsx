@@ -81,12 +81,20 @@ export function ProductClient({
               <p className="text-xs md:text-sm font-bold uppercase tracking-widest text-muted-foreground mt-4 leading-relaxed">{product.tagline}</p>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center bg-foreground text-background px-3 py-1 text-[10px] font-semibold">
-                {product.rating} <Star className="h-3 w-3 ml-2 fill-primary text-primary" aria-hidden="true" />
+            {product.reviewCount && product.rating ? (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center bg-foreground text-background px-3 py-1 text-[10px] font-semibold">
+                  {product.rating} <Star className="h-3 w-3 ml-2 fill-primary text-primary" aria-hidden="true" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                  {product.reviewCount.toLocaleString()} Reviews
+                </span>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">{product.reviewCount.toLocaleString()} Reviews</span>
-            </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No reviews yet — be the first to review this formulation.
+              </p>
+            )}
 
             <div className="flex items-baseline gap-4 pt-2">
               <span className="text-3xl md:text-4xl font-semibold">₹{product.price.toLocaleString()}</span>

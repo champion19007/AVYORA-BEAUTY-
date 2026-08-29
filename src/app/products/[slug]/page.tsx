@@ -66,11 +66,18 @@ export default async function ProductPage({ params }: Props) {
       availability: 'https://schema.org/InStock',
       url: `https://avyora.com/products/${product.slug}`,
     },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: product.rating,
-      reviewCount: product.reviewCount,
-    },
+    // Only advertise an aggregateRating when real reviews back it. Emitting a
+    // fabricated one breaches Google's structured-data policy and can get the
+    // whole site's rich results demoted.
+    ...(product.rating && product.reviewCount
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: product.rating,
+            reviewCount: product.reviewCount,
+          },
+        }
+      : {}),
   };
 
   return (

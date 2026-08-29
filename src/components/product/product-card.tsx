@@ -107,15 +107,19 @@ export function ProductCard({ product }: { product: Product }) {
           {product.tagline}
         </p>
 
-        <div className="mt-4 flex items-center gap-2">
-          <span className="flex items-center gap-1 text-[13px] font-medium">
-            <Star className="h-3.5 w-3.5 fill-primary text-primary" />
-            {product.rating}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            ({product.reviewCount.toLocaleString()} reviews)
-          </span>
-        </div>
+        {product.reviewCount && product.rating ? (
+          <div className="mt-4 flex items-center gap-2">
+            <span className="flex items-center gap-1 text-[13px] font-medium">
+              <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+              {product.rating}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              ({product.reviewCount.toLocaleString()} reviews)
+            </span>
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-muted-foreground">No reviews yet</p>
+        )}
 
         {product.sizes.length > 1 && (
           <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Select size">

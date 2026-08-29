@@ -7,19 +7,22 @@ import { Footer } from './footer';
 import { CartDrawer } from '../cart-drawer';
 import { Toaster } from '@/components/ui/toaster';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
 
+/**
+ * This used to gate everything behind `if (!mounted) return null`, which meant
+ * the server rendered an empty document: no header, no footer, no product
+ * copy. Search engines saw a blank page, the prerendered HTML was a shell, and
+ * nothing painted until hydration finished.
+ *
+ * The gate was presumably there to dodge a theme hydration mismatch, but
+ * next-themes already handles that via `suppressHydrationWarning` on <html>
+ * plus its inline pre-paint script. Client-only state (cart, wishlist, user)
+ * starts empty on both server and client and is filled from localStorage in an
+ * effect, so it hydrates consistently without a gate.
+ */
 export function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
 
   if (isAuthPage) {
     return (

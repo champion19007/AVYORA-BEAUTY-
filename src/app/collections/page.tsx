@@ -66,7 +66,7 @@ function CollectionsContent() {
         result.sort((a, b) => b.price - a.price);
         break;
       case 'rating':
-        result.sort((a, b) => b.rating - a.rating);
+        result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
         break;
       case 'newest':
         result.sort((a, b) => Number(b.isNewLaunch) - Number(a.isNewLaunch));

@@ -329,11 +329,11 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-background border border-foreground/10">
                       <p className="text-[8px] font-semibold uppercase opacity-40">Rating</p>
-                      <p className="text-xl font-semibold">{selectedProduct.rating}</p>
+                      <p className="text-xl font-semibold">{selectedProduct.rating ?? '—'}</p>
                     </div>
                     <div className="p-4 bg-background border border-foreground/10">
                       <p className="text-[8px] font-semibold uppercase opacity-40">Reviews</p>
-                      <p className="text-xl font-semibold">{selectedProduct.reviewCount}</p>
+                      <p className="text-xl font-semibold">{selectedProduct.reviewCount ?? 0}</p>
                     </div>
                   </div>
                 </CardContent>

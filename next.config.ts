@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
   },
 
+  // A self-contained server bundle for container deploys (ECS, App Runner).
+  // Only enabled for Docker builds so Vercel's own build pipeline is untouched.
+  ...(process.env.DOCKER_BUILD === '1' ? { output: 'standalone' as const } : {}),
+
   // The x-powered-by header tells attackers the stack and helps nobody.
   poweredByHeader: false,
   compress: true,
