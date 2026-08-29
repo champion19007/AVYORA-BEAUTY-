@@ -73,33 +73,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors duration-300">
       <div className="container mx-auto px-4 flex h-20 items-center justify-between">
-        <div className="flex items-center gap-10">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] p-0 bg-background border-r-2 border-foreground">
-              <div className="flex flex-col p-6 space-y-4">
-                <Logo className="mb-8" />
-                {NAV_ITEMS.map((item) => (
-                  <Link 
-                    key={item.name} 
-                    href={item.href}
-                    className={cn(
-                      "text-[10px] font-black uppercase tracking-[0.2em] py-4 border-b border-border transition-colors",
-                      pathname === item.href ? "text-primary" : "text-foreground"
-                    )}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          <Logo />
+        <div className="flex items-center gap-12">
+          <Logo className="shrink-0" />
           
           <nav className="hidden lg:flex items-center gap-8">
             {NAV_ITEMS.map((item) => {
@@ -225,6 +200,31 @@ export function Header() {
                 <User className="h-4 w-4 group-hover:text-primary" />
               </Button>
             </Link>
+
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden group">
+                  <Menu className="h-5 w-5 group-hover:text-primary" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] p-0 bg-background border-l-2 border-foreground">
+                <div className="flex flex-col p-6 space-y-4">
+                  <Logo className="mb-8" />
+                  {NAV_ITEMS.map((item) => (
+                    <Link 
+                      key={item.name} 
+                      href={item.href}
+                      className={cn(
+                        "text-[10px] font-black uppercase tracking-[0.2em] py-4 border-b border-border transition-colors",
+                        pathname === item.href ? "text-primary" : "text-foreground"
+                      )}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
 
             <div className="border-l border-border h-6 mx-2 hidden sm:block" />
             
