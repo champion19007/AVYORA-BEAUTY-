@@ -39,7 +39,9 @@ next-env.d.ts
 
 .genkit/*
 .env*
+# ...but the template carries no secrets and documents the required vars.
+!.env.example
 
 # firebase
 firebase-debug.log
-firestore-debug.log
+firestore-debug.log.env

@@ -44,22 +44,33 @@ and baseline security headers.
 Serving 50,000 readers and *transacting* with 50,000 customers are different
 problems. The site currently does the first, not the second.
 
-### 1. Admin authentication is not real — fix before any public launch
+### 1. Admin authentication — resolved
 
-`src/app/(auth)/login/page.tsx` compares the username and password in the
-browser. Both values are in the JavaScript bundle every visitor downloads:
+Admin login is now verified server-side and enforced by middleware.
+
+- Credentials live in `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` and
+  `SESSION_SECRET`, never in the bundle. The password is stored as a PBKDF2
+  hash (210k iterations, SHA-256, per-password salt) and compared in constant
+  time.
+- A successful login issues an HMAC-signed, httpOnly, SameSite=Lax session
+  cookie with an eight-hour expiry. Page scripts cannot read or forge it.
+- `src/middleware.ts` verifies that signature before `/admin` renders, so the
+  old localStorage bypass grants nothing.
+- Missing configuration **fails closed**: an unconfigured deployment refuses
+  every admin login rather than accepting any.
+
+Generate credentials with:
 
 ```bash
-grep -o qwerty .next/static/chunks/app/\(auth\)/login/*.js
+node scripts/hash-password.mjs 'your-admin-password'
 ```
 
-The gate on `/admin` is also client-side only. Anyone can open the console, set
-`localStorage.user` to `{"isAdmin":true}`, and reach the admin panel — no
-password needed at all.
+then set the three variables in Vercel under Project Settings → Environment
+Variables. Nothing works until you do, which is the intended behaviour.
 
-This needs real server-side authentication with hashed credentials and a
-server-checked session before the site is public. It is not a scaling issue,
-but it is the most urgent item here.
+Note the hash is colon-delimited, not `$`-delimited: `$` is a variable
+expansion sigil in `.env` files, and a `$`-delimited hash is silently mangled
+on load, producing a failure that looks exactly like a wrong password.
 
 ### 2. There is no backend
 
@@ -92,7 +103,7 @@ grows.
 
 ## Suggested order of work
 
-1. Server-side auth for `/admin` (security, urgent)
+1. ~~Server-side auth for `/admin`~~ — done; set the env vars in Vercel
 2. Real product photography on owned storage (launch blocker)
 3. Database for catalogue, cart and orders
 4. Checkout and payments
