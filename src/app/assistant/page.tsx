@@ -112,7 +112,7 @@ export default function AssistantPage() {
             <CardContent className="space-y-4">
               <div className="relative aspect-video bg-muted border border-border overflow-hidden">
                 <Image 
-                  src="https://picsum.photos/seed/insight/400/300" 
+                  src="https://images.unsplash.com/photo-1573461160327-b450ce3d8e7f?auto=format&fit=crop&w=800&q=80" 
                   alt="Skin Scan" 
                   fill 
                   className="object-cover opacity-50 grayscale"

@@ -15,14 +15,14 @@ const HERO_SLIDES = [
     title: 'Clinical science,\nquietly luxurious.',
     subtitle: 'Pure, effective, evidence-led formulations for your skin.',
     promo: '5% cashback on every order as Avyora Credit',
-    image: 'https://picsum.photos/seed/hero1/1920/1080',
+    image: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?auto=format&fit=crop&w=1920&q=80',
     hint: 'skincare bottles',
   },
   {
     title: 'The Avyora Circle',
     subtitle: 'Our membership for those who value science-first care.',
     promo: 'Earn and redeem credit on every purchase',
-    image: 'https://picsum.photos/seed/hero2/1920/1080',
+    image: 'https://images.unsplash.com/photo-1567721913486-6585f069b332?auto=format&fit=crop&w=1920&q=80',
     hint: 'skincare model',
   },
 ];
@@ -86,7 +86,7 @@ export function HomeClient({
                   <span className="mb-6 inline-block text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
                     Avyora Skincare
                   </span>
-                  <h1 className="mb-6 whitespace-pre-line font-headline text-5xl font-light leading-[1.05] tracking-tight md:text-7xl">
+                  <h1 className="mb-6 whitespace-pre-line font-headline text-4xl font-normal leading-[1.12] tracking-[0.01em] md:text-6xl">
                     {slide.title}
                   </h1>
                   <p className="mb-10 max-w-md text-base leading-relaxed text-white/80 md:text-lg">
@@ -129,7 +129,7 @@ export function HomeClient({
             <span className="eyebrow">Clinical formulations</span>
             <h2
               id="products-heading"
-              className="mt-3 font-headline text-4xl font-light tracking-tight md:text-5xl"
+              className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl"
             >
               Our products
             </h2>
@@ -160,7 +160,7 @@ export function HomeClient({
                 </span>
                 <h2
                   id="bundle-heading"
-                  className="mt-4 font-headline text-4xl font-light leading-tight tracking-tight md:text-5xl"
+                  className="mt-4 font-headline text-3xl font-normal leading-snug tracking-[0.02em] md:text-4xl"
                 >
                   Compose your own bundle
                 </h2>
@@ -190,7 +190,7 @@ export function HomeClient({
             </div>
             <div className="relative aspect-square lg:aspect-auto">
               <Image
-                src="https://picsum.photos/seed/bundle-kit/1000/1000"
+                src="https://images.unsplash.com/photo-1590439471364-192aa70c0b53?auto=format&fit=crop&w=1200&q=80"
                 alt="An Avyora skincare bundle"
                 fill
                 className="object-cover"
@@ -208,7 +208,7 @@ export function HomeClient({
           <span className="eyebrow">Explore</span>
           <h2
             id="category-heading"
-            className="mt-3 font-headline text-4xl font-light tracking-tight md:text-5xl"
+            className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl"
           >
             Shop by category
           </h2>
@@ -276,7 +276,7 @@ export function HomeClient({
             <span className="eyebrow">Targeted results</span>
             <h2
               id="concerns-heading"
-              className="mt-3 font-headline text-4xl font-light tracking-tight md:text-5xl"
+              className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl"
             >
               Shop by concern
             </h2>
@@ -344,7 +344,7 @@ export function HomeClient({
           <div className="mx-auto mb-20 max-w-2xl text-center">
             <h2
               id="values-heading"
-              className="font-headline text-4xl font-light leading-tight tracking-tight md:text-5xl"
+              className="font-headline text-3xl font-normal leading-snug tracking-[0.02em] md:text-4xl"
             >
               The clinical future of personal care
             </h2>

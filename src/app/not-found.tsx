@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <div className="container mx-auto flex min-h-[65vh] flex-col items-center justify-center px-4 text-center">
       <span className="eyebrow">Error 404</span>
-      <h1 className="mt-4 font-headline text-5xl font-light tracking-tight md:text-6xl">
+      <h1 className="mt-4 font-headline text-4xl font-normal tracking-[0.02em] md:text-5xl">
         This page doesn&apos;t exist
       </h1>
       <span className="rule-gold mt-8 w-full max-w-xs" aria-hidden="true" />

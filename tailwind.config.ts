@@ -10,11 +10,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        /* Cormorant Garamond mirrors the high-contrast serif of the
-           AVYORA wordmark; Inter carries everything else. */
-        sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        body: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        headline: ['var(--font-cormorant)', 'ui-serif', 'Georgia', 'serif'],
+        /* Cinzel echoes the Roman capitals of the AVYORA wordmark; Jost
+           carries everything else. */
+        sans: ['var(--font-jost)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        body: ['var(--font-jost)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        headline: ['var(--font-cinzel)', 'ui-serif', 'Georgia', 'serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
