@@ -1,16 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getRecommendation } from '@/lib/routine-engine';
 import { RecommendationResult, RoutineStep } from '@/lib/routine-types';
-import { PRODUCTS } from '@/data/mock-data';
-import { ChevronLeft, ArrowRight, Loader2, CheckCircle2, Info, Moon, Sun, Zap, AlertTriangle, ShoppingBag } from 'lucide-react';
+import { getProductById } from '@/lib/catalogue';
+import {
+  ChevronLeft,
+  ArrowRight,
+  Loader2,
+  Info,
+  Moon,
+  Sun,
+  Sparkles,
+  AlertTriangle,
+  ShoppingBag,
+  RotateCcw,
+  Check,
+} from 'lucide-react';
 import { useApp } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+
+type Question = {
+  id: string;
+  label: string;
+  help?: string;
+  multi?: boolean;
+  options: { value: string; label: string }[];
+};
 
 const QUESTIONS = [
   {
@@ -163,344 +184,416 @@ const QUESTIONS = [
   }
 ];
 
+/** One step of a routine, with the matching product pulled from the catalogue. */
+function StepCard({ step }: { step: RoutineStep }) {
+  const { addToCart } = useApp();
+  const [added, setAdded] = useState(false);
+  const product = step.productId ? getProductById(step.productId) : undefined;
+  const size = step.productSize || product?.sizes[0]?.label;
+
+  const handleAdd = () => {
+    if (!product || !size) return;
+    addToCart(product, size);
+    setAdded(true);
+  };
+
+  return (
+    <li className="flex gap-5 border-b border-border py-6 last:border-b-0">
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-28 sm:w-28">
+        {product ? (
+          <Image
+            src={product.images[0]}
+            alt={product.name}
+            fill
+            sizes="112px"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Info className="h-5 w-5 opacity-30" />
+          </div>
+        )}
+        <span className="absolute left-0 top-0 rounded-br-lg bg-foreground/85 px-2 py-0.5 text-[10px] font-semibold text-background">
+          {String(step.order).padStart(2, '0')}
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
+          {step.slotName}
+        </p>
+        <h3 className="mt-1 font-headline text-lg font-normal tracking-[0.02em]">
+          {product ? (
+            <Link href={`/products/${product.slug}`} className="hover:text-primary">
+              {product.name}
+            </Link>
+          ) : (
+            step.productName
+          )}
+        </h3>
+
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.explanation}</p>
+
+        {step.frequency && (
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">
+            <Sparkles className="h-3 w-3" />
+            {step.frequency}
+          </p>
+        )}
+
+        {product && (
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <span className="text-sm">
+              <span className="font-medium">
+                ₹{(product.salePrice ?? product.sizes[0].price).toLocaleString('en-IN')}
+              </span>
+              {size && <span className="text-muted-foreground"> · {size}</span>}
+            </span>
+            <Button
+              size="sm"
+              variant={added ? 'secondary' : 'outline'}
+              onClick={handleAdd}
+              className="h-8 rounded-md text-xs"
+            >
+              {added ? (
+                <>
+                  <Check className="mr-1.5 h-3 w-3" /> In bag
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="mr-1.5 h-3 w-3" /> Add
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function RoutineList({ steps }: { steps: RoutineStep[] }) {
+  return (
+    <ul>
+      {steps.map((s) => (
+        <StepCard key={`${s.order}-${s.slotName}`} step={s} />
+      ))}
+    </ul>
+  );
+}
+
 export default function RoutineFinderPage() {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<any>({});
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<RecommendationResult | null>(null);
   const { addToCart } = useApp();
+  const [addedAll, setAddedAll] = useState(false);
+
+  const questions = QUESTIONS as Question[];
+  const q = questions[step];
+
+  const submit = (finalAnswers: Record<string, any>) => {
+    setIsAnalyzing(true);
+    // A short beat so the transition reads as deliberate. The engine is
+    // synchronous, so there is nothing genuine to wait for; the previous
+    // two-second "synthesizing clinical data" pause was pure theatre.
+    setTimeout(() => {
+      setResult(getRecommendation(finalAnswers));
+      setIsAnalyzing(false);
+    }, 600);
+  };
 
   const handleAnswer = (value: string) => {
-    const q = QUESTIONS[step];
-    let newAnswers = { ...answers };
+    const next = { ...answers };
 
     if (q.multi) {
-      let currentValues = answers[q.id] || [];
-      
+      const current: string[] = answers[q.id] || [];
       if (value === 'None') {
-        // If "None" is clicked, it becomes the only selection, or gets cleared if already selected
-        if (currentValues.includes('None')) {
-          newAnswers[q.id] = [];
-        } else {
-          newAnswers[q.id] = ['None'];
-        }
+        next[q.id] = current.includes('None') ? [] : ['None'];
+      } else if (current.includes(value)) {
+        next[q.id] = current.filter((v) => v !== value);
       } else {
-        // If a specific concern is clicked
-        if (currentValues.includes(value)) {
-          // Deselect it
-          newAnswers[q.id] = currentValues.filter((v: string) => v !== value);
-        } else {
-          // Select it and remove "None" if it was present
-          newAnswers[q.id] = [...currentValues.filter((v: string) => v !== 'None'), value];
-        }
+        next[q.id] = [...current.filter((v) => v !== 'None'), value];
       }
-      
-      setAnswers(newAnswers);
+      setAnswers(next);
       return;
     }
 
-    newAnswers[q.id] = value;
-    setAnswers(newAnswers);
-
-    if (step < QUESTIONS.length - 1) {
-      setStep(step + 1);
-    } else {
-      setIsAnalyzing(true);
-      setTimeout(() => {
-        const rec = getRecommendation(newAnswers);
-        setResult(rec);
-        setIsAnalyzing(false);
-      }, 2000);
-    }
+    next[q.id] = value;
+    setAnswers(next);
+    if (step < questions.length - 1) setStep(step + 1);
+    else submit(next);
   };
+
+  const handleContinue = () => {
+    if (step < questions.length - 1) setStep(step + 1);
+    else submit(answers);
+  };
+
+  const restart = () => {
+    setResult(null);
+    setAnswers({});
+    setStep(0);
+    setAddedAll(false);
+  };
+
+  const shoppingList = useMemo(() => {
+    if (!result) return [];
+    return result.recommendedProducts
+      .map((r) => ({ product: getProductById(r.productId), size: r.size }))
+      .filter((x): x is { product: NonNullable<typeof x.product>; size: string } => !!x.product);
+  }, [result]);
+
+  const total = shoppingList.reduce(
+    (sum, { product }) => sum + (product.salePrice ?? product.sizes[0].price),
+    0
+  );
 
   const handleAddAll = () => {
-    if (!result) return;
-    result.recommendedProducts.forEach(rec => {
-      const product = PRODUCTS.find(p => p.id === rec.productId);
-      if (product) addToCart(product, rec.size);
-    });
+    shoppingList.forEach(({ product, size }) => addToCart(product, size || product.sizes[0].label));
+    setAddedAll(true);
   };
 
+  /* ---------------------------------------------------------------- loading */
   if (isAnalyzing) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center animate-in fade-in duration-500">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <h2 className="text-2xl font-semibold uppercase tracking-tighter">BUILDING YOUR PERSONALIZED ROUTINE...</h2>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Synthesizing clinical data for your specific skin profile.</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 text-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <h1 className="font-headline text-2xl font-normal tracking-[0.02em]">
+          Building your routine
+        </h1>
+        <p className="text-sm text-muted-foreground">Matching your answers to our formulations.</p>
       </div>
     );
   }
 
+  /* ---------------------------------------------------------------- results */
   if (result) {
     const p = result.profile;
+    const hasBody = result.bodyRoutine.length > 0;
+
     return (
-      <div className="container mx-auto px-4 py-12 max-w-6xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <div className="text-center mb-16 space-y-6">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.4em] text-primary">Avyora Skin Diagnostic</span>
-          <h1 className="text-4xl md:text-7xl font-semibold uppercase tracking-tighter leading-[0.9]">YOUR PERSONALIZED<br/>AVYORA ROUTINE</h1>
-          <div className="flex flex-wrap justify-center gap-2 text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">
-            <span className="bg-muted px-3 py-1">{p.skinType.toUpperCase()} SKIN</span>
-            {result.priorities.map(c => <span key={c} className="bg-muted px-3 py-1">{c}</span>)}
-            <span className="bg-primary/20 text-primary px-3 py-1">{result.experienceLevelName}</span>
+      <div className="container mx-auto max-w-5xl px-4 py-14">
+        <header className="mb-12 text-center">
+          <span className="eyebrow">Your routine</span>
+          <h1 className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl">
+            Built for {p.skinType} skin
+          </h1>
+          <span className="rule-gold mx-auto mt-7 max-w-xs" aria-hidden="true" />
+          <div className="mt-7 flex flex-wrap justify-center gap-2">
+            <span className="rounded-full bg-muted px-3 py-1 text-xs capitalize">
+              {p.skinType} skin
+            </span>
+            <span className="rounded-full bg-muted px-3 py-1 text-xs">{p.primaryConcern}</span>
+            <span className="rounded-full bg-primary/15 px-3 py-1 text-xs text-primary">
+              {result.experienceLevelName.toLowerCase()}
+            </span>
           </div>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
-          <div className="lg:col-span-8 space-y-20">
-            <section className="space-y-12">
-              <div className="space-y-4">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.4em] pb-4 border-b border-border flex items-center gap-3">
-                  <Sun className="h-4 w-4 text-orange-400" /> Morning Routine: {result.morningTitle}
-                </h2>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Every user gets a complete 7-step morning regimen for optimized dermal health.
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <Tabs defaultValue="am">
+              <TabsList className="mb-2 w-full justify-start rounded-lg">
+                <TabsTrigger value="am" className="gap-2 text-xs">
+                  <Sun className="h-3.5 w-3.5" /> Morning
+                </TabsTrigger>
+                <TabsTrigger value="pm" className="gap-2 text-xs">
+                  <Moon className="h-3.5 w-3.5" /> Evening
+                </TabsTrigger>
+                {hasBody && (
+                  <TabsTrigger value="body" className="text-xs">
+                    Body
+                  </TabsTrigger>
+                )}
+              </TabsList>
+
+              <TabsContent value="am">
+                <p className="mb-2 text-sm text-muted-foreground">
+                  {result.morningRoutine.length} steps · {result.morningTitle}
                 </p>
-              </div>
-              <div className="space-y-10">
-                {result.morningRoutine.map(step => <RoutineStepCard key={`${step.order}-${step.label}`} step={step} />)}
-              </div>
+                <RoutineList steps={result.morningRoutine} />
+              </TabsContent>
+              <TabsContent value="pm">
+                <p className="mb-2 text-sm text-muted-foreground">
+                  {result.eveningRoutine.length} steps · {result.eveningTitle}
+                </p>
+                <RoutineList steps={result.eveningRoutine} />
+              </TabsContent>
+              {hasBody && (
+                <TabsContent value="body">
+                  <RoutineList steps={result.bodyRoutine} />
+                </TabsContent>
+              )}
+            </Tabs>
+          </div>
+
+          <aside className="space-y-8">
+            <section className="rounded-xl border border-border bg-card p-6">
+              <h2 className="font-headline text-lg font-normal tracking-[0.02em]">
+                Why this routine
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {result.whyThisRoutine}
+              </p>
             </section>
 
-            <section className="space-y-12">
-              <div className="space-y-4">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.4em] pb-4 border-b border-border flex items-center gap-3">
-                  <Moon className="h-4 w-4 text-indigo-400" /> Evening Routine: {result.eveningTitle}
+            {result.treatmentSchedule?.retinol && (
+              <section className="rounded-xl border border-primary/30 bg-primary/5 p-6">
+                <h2 className="font-headline text-lg font-normal tracking-[0.02em]">
+                  Building up retinol
                 </h2>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Every user gets a complete 7-step evening regimen for overnight skin recovery.
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  {result.treatmentSchedule.retinol}
                 </p>
-              </div>
-              <div className="space-y-10">
-                {result.eveningRoutine.map(step => <RoutineStepCard key={`${step.order}-${step.label}`} step={step} />)}
-              </div>
-            </section>
+              </section>
+            )}
 
             {result.underEyeGuidance && (
-              <section className="space-y-8 bg-muted/30 p-8 border-l-4 border-primary">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.4em] flex items-center gap-3">
-                   <Info className="h-4 w-4 text-primary" /> Under-Eye Concern
-                </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed text-muted-foreground">
+              <section className="rounded-xl border border-border p-6">
+                <h2 className="font-headline text-lg font-normal tracking-[0.02em]">Under-eye</h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                   {result.underEyeGuidance}
                 </p>
               </section>
             )}
 
-            {result.bodyRoutine.length > 0 && (
-              <section className="space-y-12">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.4em] pb-4 border-b border-border flex items-center gap-3">
-                  <Zap className="h-4 w-4 text-primary" /> Body Care
+            {result.warnings.length > 0 && (
+              <section className="rounded-xl border border-border bg-muted/40 p-6">
+                <h2 className="flex items-center gap-2 font-headline text-lg font-normal tracking-[0.02em]">
+                  <AlertTriangle className="h-4 w-4 text-primary" />
+                  Before you start
                 </h2>
-                <div className="space-y-10">
-                  {result.bodyRoutine.map(step => <RoutineStepCard key={`${step.order}-${step.label}`} step={step} />)}
-                </div>
+                <ul className="mt-3 space-y-3">
+                  {result.warnings.map((w) => (
+                    <li key={w} className="text-sm leading-relaxed text-muted-foreground">
+                      {w}
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
-          </div>
 
-          <div className="lg:col-span-4 space-y-8">
-            <Card className="rounded-md border border-border bg-primary/5 sticky top-32">
-              <CardContent className="p-8 space-y-10">
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold uppercase tracking-tighter">Diagnostic Summary</h3>
-                  
-                  <div className="space-y-4">
-                    <h4 className="text-[9px] font-semibold uppercase tracking-widest text-primary">Top Skin Priorities</h4>
-                    <div className="space-y-2">
-                      {result.priorities.map((p, i) => (
-                        <div key={i} className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                          <CheckCircle2 className="h-3 w-3 text-primary" /> {p}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+            <section className="rounded-xl border border-border bg-card p-6">
+              <h2 className="font-headline text-lg font-normal tracking-[0.02em]">
+                Everything in this routine
+              </h2>
+              <ul className="mt-4 space-y-2">
+                {shoppingList.map(({ product }) => (
+                  <li key={product.id} className="flex justify-between gap-3 text-sm">
+                    <Link href={`/products/${product.slug}`} className="truncate hover:text-primary">
+                      {product.name}
+                    </Link>
+                    <span className="shrink-0 text-muted-foreground">
+                      ₹{(product.salePrice ?? product.sizes[0].price).toLocaleString('en-IN')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4 flex justify-between border-t border-border pt-4 text-sm font-medium">
+                <span>Total</span>
+                <span>₹{total.toLocaleString('en-IN')}</span>
+              </div>
+              <Button
+                onClick={handleAddAll}
+                className="mt-5 w-full rounded-md py-6 text-xs font-semibold uppercase tracking-[0.18em]"
+              >
+                {addedAll ? 'Added to bag' : 'Add all to bag'}
+              </Button>
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                Or add steps individually as you go.
+              </p>
+            </section>
 
-                  <div className="space-y-2">
-                    <h4 className="text-[9px] font-semibold uppercase tracking-widest text-primary">Why This Routine?</h4>
-                    <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-                      {result.whyThisRoutine}
-                    </p>
-                  </div>
-
-                  {result.warnings.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-[9px] font-semibold uppercase tracking-widest text-destructive flex items-center gap-2">
-                        <AlertTriangle className="h-3 w-3" /> Clinical Cautions
-                      </h4>
-                      <ul className="space-y-2">
-                        {result.warnings.map((w, i) => (
-                          <li key={i} className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">• {w}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                {result.treatmentSchedule?.retinol && (
-                  <div className="p-6 bg-foreground text-background space-y-4 shadow-luxe">
-                    <h4 className="text-[9px] font-semibold uppercase tracking-widest flex items-center gap-2">
-                      <Zap className="h-3 w-3 text-primary" /> Retinol Introduction
-                    </h4>
-                    <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-                      {result.treatmentSchedule.retinol}
-                    </p>
-                  </div>
-                )}
-
-                <div className="pt-8 border-t border-foreground/10 space-y-4">
-                  <Button onClick={handleAddAll} className="w-full h-14 rounded-md bg-foreground text-background font-semibold uppercase tracking-widest hover:bg-primary transition-all shadow-luxe hover:shadow-none">
-                    Add Routine to Cart
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => { setResult(null); setStep(0); setAnswers({}); }} className="flex-1 text-[9px] font-semibold uppercase tracking-widest rounded-md border-2 h-12">
-                      Retake Quiz
-                    </Button>
-                    <Button variant="outline" onClick={() => setResult(null)} className="flex-1 text-[9px] font-semibold uppercase tracking-widest rounded-md border-2 h-12">
-                      Edit Answers
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            <Button variant="ghost" onClick={restart} className="w-full gap-2 text-xs">
+              <RotateCcw className="h-3.5 w-3.5" /> Start over
+            </Button>
+          </aside>
         </div>
       </div>
     );
   }
 
-  const q = QUESTIONS[step];
-  const progress = ((step + 1) / QUESTIONS.length) * 100;
+  /* -------------------------------------------------------------- questions */
+  const selected: string[] = q.multi ? answers[q.id] || [] : [];
+  const progress = ((step + 1) / questions.length) * 100;
 
   return (
-    <div className="container mx-auto px-4 py-20 max-w-4xl min-h-[70vh] flex flex-col">
-      <div className="space-y-8 mb-20">
-        <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-[0.4em] text-muted-foreground">
-          <span>Step {step + 1} of {QUESTIONS.length}</span>
-          <span>{Math.round(progress)}% Diagnostic Complete</span>
+    <div className="container mx-auto max-w-3xl px-4 py-14">
+      <div className="mb-10">
+        <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            Question {step + 1} of {questions.length}
+          </span>
+          <span>{Math.round(progress)}%</span>
         </div>
-        <Progress value={progress} className="h-1 bg-muted overflow-hidden rounded-md">
-          <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-        </Progress>
+        <Progress value={progress} className="h-1" />
       </div>
 
-      <div className="flex-1 space-y-16 animate-in fade-in slide-in-from-right-4 duration-500">
-        <div className="space-y-4">
-          <div className="flex items-center gap-6">
-            <Button variant="ghost" size="icon" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="rounded-md border border-border/10 h-12 w-12 shrink-0">
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <h2 className="font-headline text-3xl font-light leading-tight tracking-tight md:text-5xl">{q.label}</h2>
+      <div key={step} className="animate-fade-up">
+        <div className="mb-8 flex items-start gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Previous question"
+            onClick={() => step > 0 && setStep(step - 1)}
+            disabled={step === 0}
+            className="mt-1 h-10 w-10 shrink-0 rounded-full border border-border"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="font-headline text-2xl font-normal leading-snug tracking-[0.02em] md:text-3xl">
+              {q.label}
+            </h1>
+            {q.help && (
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">{q.help}</p>
+            )}
+            {q.multi && (
+              <p className="mt-3 text-xs uppercase tracking-[0.18em] text-primary">
+                Choose as many as apply
+              </p>
+            )}
           </div>
-          {q.multi && <p className="ml-20 text-xs font-medium uppercase tracking-[0.2em] text-primary">Multiple selections allowed</p>}
-          {'help' in q && q.help && (
-            <p className="ml-0 max-w-xl text-sm leading-relaxed text-muted-foreground md:ml-20">{q.help}</p>
-          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ml-0 md:ml-20">
-          {q.options.map((opt) => {
-            const isSelected = q.multi && (answers[q.id] || []).includes(opt.value);
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {q.options.map((opt, i) => {
+            const isSelected = q.multi ? selected.includes(opt.value) : answers[q.id] === opt.value;
             return (
               <button
-                key={opt.value}
+                key={`${opt.value}-${i}`}
                 onClick={() => handleAnswer(opt.value)}
+                aria-pressed={isSelected}
                 className={cn(
-                  "p-8 border-2 text-left transition-all duration-300 relative group overflow-hidden",
-                  isSelected ? "border-primary bg-primary/5" : "border-foreground/10 hover:border-primary"
+                  'flex items-center justify-between rounded-lg border px-5 py-4 text-left text-sm transition-all',
+                  isSelected
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
                 )}
               >
-                <div className={cn(
-                  "absolute inset-0 bg-primary translate-y-full group-hover:translate-y-0 transition-transform duration-300 -z-10 opacity-5",
-                  isSelected && "translate-y-0"
-                )} />
-                <span className={cn(
-                  "text-[10px] font-semibold uppercase tracking-widest transition-colors",
-                  isSelected ? "text-primary" : "group-hover:text-primary"
-                )}>{opt.label}</span>
-                {isSelected ? (
-                  <CheckCircle2 className="absolute right-6 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
-                ) : (
-                  <ArrowRight className="absolute right-6 top-1/2 -translate-y-1/2 h-5 w-5 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all text-primary" />
-                )}
+                <span>{opt.label}</span>
+                {isSelected && <Check className="h-4 w-4 shrink-0 text-primary" />}
               </button>
             );
           })}
         </div>
 
         {q.multi && (
-          <div className="flex justify-end ml-20">
-            <Button onClick={() => setStep(step + 1)} className="h-16 px-12 rounded-md bg-foreground text-background font-semibold uppercase tracking-widest hover:bg-primary transition-all shadow-luxe">
-              Continue <ArrowRight className="ml-3 h-5 w-5" />
-            </Button>
-          </div>
+          <Button
+            onClick={handleContinue}
+            className="mt-8 w-full gap-2 rounded-md py-6 text-xs font-semibold uppercase tracking-[0.18em] sm:w-auto sm:px-12"
+          >
+            Continue <ArrowRight className="h-4 w-4" />
+          </Button>
         )}
       </div>
 
-      <div className="mt-24 pt-10 border-t border-foreground/5 text-center">
-        <p className="text-[8px] font-semibold uppercase tracking-[0.4em] text-muted-foreground italic">Avyora Clinical Diagnostics Engine v2.0</p>
-      </div>
-    </div>
-  );
-}
-
-function RoutineStepCard({ step }: { step: RoutineStep }) {
-  const product = step.productId ? PRODUCTS.find(p => p.id === step.productId) : null;
-  const { addToCart } = useApp();
-  
-  return (
-    <div className="flex flex-col md:flex-row gap-8 items-start group">
-      <div className={cn(
-        "w-full md:w-48 aspect-square relative border shrink-0 bg-muted overflow-hidden",
-        step.isAvyoraProduct ? "" : "border-dashed opacity-50"
-      )}>
-        {step.isAvyoraProduct && product ? (
-          <Image src={product.images[0]} alt={product.name} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" data-ai-hint="skincare bottle" />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
-            <Info className="h-8 w-8 mb-4 opacity-20" />
-            <p className="text-[8px] font-semibold uppercase tracking-widest opacity-40">Coming Soon to Avyora</p>
-          </div>
-        )}
-      </div>
-      <div className="space-y-4 flex-1">
-        <div className="flex items-center justify-between border-b pb-2">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">{step.label}</h3>
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-primary">{step.order.toString().padStart(2, '0')}</span>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h4 className="font-headline text-lg font-medium tracking-wide">
-              {step.productName}
-              {step.productSize && step.productSize !== 'none' && <span className="text-primary ml-2">— {step.productSize}</span>}
-            </h4>
-            {step.isAvyoraProduct && product && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 px-2 text-[8px] font-semibold uppercase tracking-widest hover:text-primary"
-                onClick={() => addToCart(product, step.productSize || product.sizes[0].label)}
-              >
-                <ShoppingBag className="h-3 w-3 mr-2" /> Add
-              </Button>
-            )}
-          </div>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {step.explanation}
-          </p>
-          {step.frequency && (
-            <div className="mt-3 flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5">
-              <Zap className="h-3 w-3 text-primary" />
-              <span className="text-xs font-medium text-primary">{step.frequency}</span>
-            </div>
-          )}
-          {!step.isAvyoraProduct && (
-            <div className="mt-4 bg-muted/50 px-2 py-1 w-fit border border-dashed">
-              <span className="text-[7px] font-semibold uppercase tracking-widest opacity-40">Coming Soon / Placeholder</span>
-            </div>
-          )}
-        </div>
-      </div>
+      <p className="mt-14 border-t border-border pt-8 text-center text-xs leading-relaxed text-muted-foreground">
+        This gives general guidance, not medical advice. If you have a persistent or painful skin
+        condition, please see a dermatologist.
+      </p>
     </div>
   );
 }

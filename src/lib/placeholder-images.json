@@ -14,207 +14,213 @@
     },
     {
       "id": "hero-1",
-      "description": "Clinical science hero",
-      "imageUrl": "https://picsum.photos/seed/hero1/1920/1080",
+      "description": "Avyora formulations arranged with stones and botanicals",
+      "imageUrl": "https://images.unsplash.com/photo-1612817288484-6f916006741a?auto=format&fit=crop&w=1920&q=80",
       "imageHint": "skincare bottles"
     },
     {
       "id": "hero-2",
-      "description": "Avyora circle hero",
-      "imageUrl": "https://picsum.photos/seed/hero2/1920/1080",
+      "description": "The Avyora range on dark stone",
+      "imageUrl": "https://images.unsplash.com/photo-1567721913486-6585f069b332?auto=format&fit=crop&w=1920&q=80",
       "imageHint": "skincare model"
     },
     {
       "id": "fw-1",
-      "description": "Face Wash primary",
-      "imageUrl": "https://picsum.photos/seed/fw1/800/800",
+      "description": "Cleansing ritual: towel, brush and soap dish",
+      "imageUrl": "https://images.unsplash.com/photo-1590439471364-192aa70c0b53?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "face wash"
     },
     {
       "id": "fw-2",
-      "description": "Face Wash alternate",
-      "imageUrl": "https://picsum.photos/seed/fw2/800/800",
+      "description": "Minimal white cleanser bottles",
+      "imageUrl": "https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "cleanser bottle"
     },
     {
       "id": "vc-1",
-      "description": "Vitamin C Serum primary",
-      "imageUrl": "https://picsum.photos/seed/vc1/800/800",
+      "description": "Amber dropper bottles of vitamin C serum",
+      "imageUrl": "https://images.unsplash.com/photo-1631730359585-38a4935cbec4?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "vitamin c"
     },
     {
       "id": "vc-2",
-      "description": "Vitamin C Serum alternate",
-      "imageUrl": "https://picsum.photos/seed/vc2/800/800",
+      "description": "Vitamin C serum bottle on a plinth",
+      "imageUrl": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "serum bottle"
     },
     {
       "id": "hs-1",
-      "description": "Retinol primary",
-      "imageUrl": "https://picsum.photos/seed/hs1/800/800",
+      "description": "Hair serum in an amber dropper bottle",
+      "imageUrl": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "retinol bottle"
     },
     {
       "id": "ss-1",
-      "description": "Sunscreen primary",
-      "imageUrl": "https://picsum.photos/seed/ss1/800/800",
+      "description": "Sunscreen tube resting on linen",
+      "imageUrl": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "sunscreen bottle"
     },
     {
       "id": "bl-1",
-      "description": "Body Lotion primary",
-      "imageUrl": "https://picsum.photos/seed/bl1/800/800",
+      "description": "Body lotion bottles",
+      "imageUrl": "https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "body lotion"
     },
     {
       "id": "cleansing-oil",
-      "description": "Rice Bran Cleansing Oil",
-      "imageUrl": "https://picsum.photos/seed/oil/800/800",
+      "description": "Cleansing oil in an amber bottle",
+      "imageUrl": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "cleansing oil"
     },
     {
       "id": "cleansing-balm",
-      "description": "Centella Cleansing Balm",
-      "imageUrl": "https://picsum.photos/seed/balm/800/800",
+      "description": "Cleansing balm in an open jar",
+      "imageUrl": "https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "cleansing balm"
     },
     {
       "id": "gel-cleanser",
-      "description": "Amino Acid Gel Cleanser",
-      "imageUrl": "https://picsum.photos/seed/gel/800/800",
+      "description": "Gel cleanser beside a folded towel",
+      "imageUrl": "https://images.unsplash.com/photo-1590439471364-192aa70c0b53?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "gel cleanser"
     },
     {
       "id": "powder-wash",
-      "description": "Papaya Powder Wash",
-      "imageUrl": "https://picsum.photos/seed/powder/800/800",
+      "description": "Enzyme powder wash",
+      "imageUrl": "https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "powder wash"
     },
     {
       "id": "pha-fluid",
-      "description": "PHA Refining Fluid",
-      "imageUrl": "https://picsum.photos/seed/pha/800/800",
+      "description": "PHA refining fluid in glass ampoules",
+      "imageUrl": "https://images.unsplash.com/photo-1602928321679-560bb453f190?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "exfoliating fluid"
     },
     {
       "id": "lha-liquid",
-      "description": "LHA Sebum Liquid",
-      "imageUrl": "https://picsum.photos/seed/lha/800/800",
+      "description": "LHA sebum-control liquid",
+      "imageUrl": "https://images.unsplash.com/photo-1631730359585-38a4935cbec4?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "pores liquid"
     },
     {
       "id": "toner-pads",
-      "description": "Bifida Toner Pads",
-      "imageUrl": "https://picsum.photos/seed/pads/800/800",
+      "description": "Exfoliating toner pads with facial tools",
+      "imageUrl": "https://images.unsplash.com/photo-1600428877878-1a0fd85beda8?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "toner pads"
     },
     {
       "id": "ha-toner",
-      "description": "HA Toner",
-      "imageUrl": "https://picsum.photos/seed/ha/800/800",
+      "description": "Hyaluronic acid toner with eucalyptus",
+      "imageUrl": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "hydrating toner"
     },
     {
       "id": "rice-toner",
-      "description": "Milky Rice Toner",
-      "imageUrl": "https://picsum.photos/seed/rice/800/800",
+      "description": "Milky rice toner bottle",
+      "imageUrl": "https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "milky toner"
     },
     {
       "id": "heartleaf-liquid",
-      "description": "Heartleaf Liquid",
-      "imageUrl": "https://picsum.photos/seed/leaf/800/800",
+      "description": "Heartleaf soothing liquid",
+      "imageUrl": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "calming liquid"
     },
     {
       "id": "galacto-essence",
-      "description": "Galactomyces Essence",
-      "imageUrl": "https://picsum.photos/seed/essence1/800/800",
+      "description": "Galactomyces ferment essence",
+      "imageUrl": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "brightening essence"
     },
     {
       "id": "snail-essence",
-      "description": "Snail Mucin Essence",
-      "imageUrl": "https://picsum.photos/seed/snail/800/800",
+      "description": "Snail mucin essence in an amber bottle",
+      "imageUrl": "https://images.unsplash.com/photo-1631730359585-38a4935cbec4?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "snail essence"
     },
     {
       "id": "kombucha-essence",
-      "description": "Kombucha Essence",
-      "imageUrl": "https://picsum.photos/seed/kombucha/800/800",
+      "description": "Kombucha ferment essence",
+      "imageUrl": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "probiotic essence"
     },
     {
       "id": "niacinamide-drops",
-      "description": "Niacinamide Glow Drops",
-      "imageUrl": "https://picsum.photos/seed/nia/800/800",
+      "description": "Niacinamide drops in a dropper bottle",
+      "imageUrl": "https://images.unsplash.com/photo-1631730359585-38a4935cbec4?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "niacinamide serum"
     },
     {
       "id": "retinal-ampoule",
-      "description": "Retinaldehyde Ampoule",
-      "imageUrl": "https://picsum.photos/seed/retinal/800/800",
+      "description": "Encapsulated retinal ampoules",
+      "imageUrl": "https://images.unsplash.com/photo-1602928321679-560bb453f190?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "retinal ampoule"
     },
     {
       "id": "copper-peptide",
-      "description": "Copper Peptide Fluid",
-      "imageUrl": "https://picsum.photos/seed/copper/800/800",
+      "description": "Copper peptide ampoules",
+      "imageUrl": "https://images.unsplash.com/photo-1602928321679-560bb453f190?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "peptide serum"
     },
     {
       "id": "pdrn-booster",
-      "description": "Salmon DNA Booster",
-      "imageUrl": "https://picsum.photos/seed/dna/800/800",
+      "description": "PDRN booster ampoules",
+      "imageUrl": "https://images.unsplash.com/photo-1602928321679-560bb453f190?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "cellular booster"
     },
     {
       "id": "propolis-ampoule",
-      "description": "Propolis Ampoule",
-      "imageUrl": "https://picsum.photos/seed/honey/800/800",
+      "description": "Propolis ampoule",
+      "imageUrl": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "propolis ampoule"
     },
     {
       "id": "collagen-mask",
-      "description": "Hydrogel Collagen Mask",
-      "imageUrl": "https://picsum.photos/seed/mask/800/800",
+      "description": "A treatment mask being applied",
+      "imageUrl": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "sheet mask"
     },
     {
       "id": "eye-patches",
-      "description": "Caffeine Eye Patches",
-      "imageUrl": "https://picsum.photos/seed/eye/800/800",
+      "description": "Under-eye patches with facial tools",
+      "imageUrl": "https://images.unsplash.com/photo-1600428877878-1a0fd85beda8?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "eye patches"
     },
     {
       "id": "ceramide-cream",
-      "description": "5x Ceramide Cream",
-      "imageUrl": "https://picsum.photos/seed/cream1/800/800",
+      "description": "Ceramide cream in an open jar",
+      "imageUrl": "https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "barrier cream"
     },
     {
       "id": "sorbet-moisturizer",
-      "description": "Water-Gel Moisturizer",
-      "imageUrl": "https://picsum.photos/seed/gel-cream/800/800",
+      "description": "Water-gel moisturiser",
+      "imageUrl": "https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "gel moisturizer"
     },
     {
       "id": "relief-sun-cream",
-      "description": "Relief Sun Cream",
-      "imageUrl": "https://picsum.photos/seed/sun1/800/800",
+      "description": "Sun cream tube on linen",
+      "imageUrl": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "sun cream"
     },
     {
       "id": "sun-stick",
-      "description": "Cica Sun Stick",
-      "imageUrl": "https://picsum.photos/seed/sun2/800/800",
+      "description": "Sun stick on linen",
+      "imageUrl": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "sun stick"
     },
     {
       "id": "lip-mask",
-      "description": "Lip Sleeping Mask",
-      "imageUrl": "https://picsum.photos/seed/lip/800/800",
+      "description": "Overnight lip mask",
+      "imageUrl": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1200&q=80",
       "imageHint": "lip mask"
+    },
+    {
+      "id": "oil-lifestyle",
+      "imageHint": "skincare product",
+      "imageUrl": "https://images.unsplash.com/photo-1573461160327-b450ce3d8e7f?auto=format&fit=crop&w=1200&q=80",
+      "description": "Facial oil applied to skin"
     }
   ]
 }

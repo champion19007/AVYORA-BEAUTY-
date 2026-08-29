@@ -1,23 +1,25 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond, Inter } from 'next/font/google';
+import { Cinzel, Jost } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ClientLayoutWrapper } from '@/components/layout/client-layout-wrapper';
 
 /**
- * Cormorant Garamond echoes the high-contrast serif of the AVYORA
- * wordmark and carries every display heading. Inter handles UI text.
+ * Cinzel is drawn from Roman inscriptional capitals, which is what the AVYORA
+ * wordmark in the logo is based on — it carries the display headings and the
+ * wordmark itself. Jost is a geometric sans that keeps body copy quiet
+ * underneath it.
  */
-const cormorant = Cormorant_Garamond({
+const cinzel = Cinzel({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-cormorant',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-cinzel',
   display: 'swap',
 });
 
-const inter = Inter({
+const jost = Jost({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-jost',
   display: 'swap',
 });
 
@@ -90,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${cormorant.variable} ${inter.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${cinzel.variable} ${jost.variable}`}>
       <body className="antialiased font-body bg-background">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <ClientLayoutWrapper>

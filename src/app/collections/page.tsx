@@ -95,7 +95,7 @@ function CollectionsContent() {
     <div className="container mx-auto px-4 py-16">
       <header className="mx-auto mb-12 max-w-2xl text-center">
         <span className="eyebrow">Clinical catalogue</span>
-        <h1 className="mt-3 font-headline text-5xl font-light capitalize tracking-tight md:text-6xl">
+        <h1 className="mt-3 font-headline text-4xl font-normal capitalize tracking-[0.02em] md:text-5xl">
           {heading}
         </h1>
         <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
@@ -136,7 +136,7 @@ function CollectionsContent() {
         </div>
       ) : (
         <div className="space-y-6 py-32 text-center">
-          <h2 className="font-headline text-3xl font-light">Nothing here yet</h2>
+          <h2 className="font-headline text-3xl font-normal">Nothing here yet</h2>
           <p className="text-muted-foreground">
             We couldn&apos;t find any formulations matching your selection.
           </p>
