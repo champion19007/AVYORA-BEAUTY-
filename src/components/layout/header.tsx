@@ -36,6 +36,16 @@ const NAV_ITEMS = [
   { name: 'Track Order', href: '/track-order' },
 ];
 
+/** The catalogue is static, so this index is built once, not per render. */
+const ACTIVE_CONCERNS: ReadonlySet<string> = new Set(
+  PRODUCTS.flatMap((p) => p.concerns.map((c) => c.toLowerCase()))
+);
+
+/** Product lookup by display name, also static. */
+const PRODUCT_BY_NAME: ReadonlyMap<string, (typeof PRODUCTS)[number]> = new Map(
+  PRODUCTS.map((p) => [p.name, p])
+);
+
 const labelToId = (label: string) => {
   const map: Record<string, string> = {
     'Face Wash': 'face-wash',
@@ -91,8 +101,6 @@ export function Header() {
   const [isSearchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
 
-  const activeConcerns = new Set<string>();
-  PRODUCTS.forEach((p) => p.concerns.forEach((c) => activeConcerns.add(c.toLowerCase())));
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,21 +153,21 @@ export function Header() {
                           const id = labelToId(c);
                           return {
                             label: c,
-                            href: activeConcerns.has(id) ? `/collections?concern=${id}` : null,
+                            href: ACTIVE_CONCERNS.has(id) ? `/collections?concern=${id}` : null,
                           };
                         })}
                       />
                       <MegaColumn
                         heading="By ingredient"
                         links={(item.ingredients ?? []).map((i) => {
-                          const product = PRODUCTS.find((p) => p.name === i);
+                          const product = PRODUCT_BY_NAME.get(i);
                           return { label: i, href: product ? `/products/${product.slug}` : null };
                         })}
                       />
                       <MegaColumn
                         heading="By category"
                         links={(item.categories ?? []).map((c) => {
-                          const product = PRODUCTS.find((p) => p.name === c);
+                          const product = PRODUCT_BY_NAME.get(c);
                           return { label: c, href: product ? `/products/${product.slug}` : null };
                         })}
                       />

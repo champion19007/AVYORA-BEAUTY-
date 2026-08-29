@@ -25,30 +25,65 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  /**
+   * Admin credentials are checked on the server.
+   *
+   * This previously compared `qwerty` / `12345678` here in the browser, which
+   * put both values into the JavaScript bundle every visitor downloads. The
+   * server now verifies them and issues an httpOnly session cookie; the client
+   * never sees the credentials or the session token.
+   */
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Specific Admin Credentials Check
-    if (username === 'qwerty' && password === '12345678') {
-      login(username, true);
-      toast({
-        title: "Admin Access Granted",
-        description: "Welcome to the Avyora Control Panel.",
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
       });
-      router.push('/admin');
-      return;
-    }
 
-    // Standard Mock Login for other credentials
-    if (username && password.length >= 6) {
-      login(username, false);
-      router.push('/');
-    } else {
+      if (response.ok) {
+        login(username, true);
+        toast({
+          title: 'Admin access granted',
+          description: 'Welcome to the Avyora control panel.',
+        });
+        router.push('/admin');
+        return;
+      }
+
+      // 503 means the deployment has no admin credentials configured. Say so,
+      // rather than implying the password was wrong.
+      if (response.status === 503) {
+        toast({
+          variant: 'destructive',
+          title: 'Admin access unavailable',
+          description: 'Admin credentials are not configured on this deployment.',
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Not an admin: fall back to the ordinary customer session.
+      if (username && password.length >= 6) {
+        login(username, false);
+        router.push('/');
+        return;
+      }
+
       toast({
-        variant: "destructive",
-        title: "Authentication Failed",
-        description: "Please check your credentials and try again.",
+        variant: 'destructive',
+        title: 'Authentication failed',
+        description: 'Please check your credentials and try again.',
+      });
+      setIsLoading(false);
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Could not reach the server',
+        description: 'Check your connection and try again.',
       });
       setIsLoading(false);
     }
@@ -71,7 +106,7 @@ export default function LoginPage() {
             <Label htmlFor="username" className="text-[10px] font-semibold uppercase tracking-widest">Username / Email</Label>
             <Input
               id="username"
-              placeholder="e.g. qwerty"
+              placeholder="Username or email"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}

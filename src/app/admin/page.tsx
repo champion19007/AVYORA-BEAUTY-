@@ -57,10 +57,9 @@ export default function AdminDashboard() {
   const { user, isLoggedIn } = useApp();
   const { toast } = useToast();
   const router = useRouter();
-  const productService = ProductService.getInstance();
 
   // State Management
-  const [products, setProducts] = useState(productService.getAllProducts());
+  const [products, setProducts] = useState(ProductService.getAllProducts());
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [newPrice, setNewPrice] = useState<string>('');
@@ -99,18 +98,21 @@ export default function AdminDashboard() {
   ];
 
   /**
-   * Handles price updates for a clinical formulation.
+   * Price editing is disabled until there is a database behind it.
+   *
+   * It previously mutated an in-memory singleton. On serverless that edit
+   * lands on one instance only: invisible to other instances, lost when the
+   * instance recycles, and capable of showing two customers two different
+   * prices. Rather than leave a control that appears to work and does not,
+   * it reports the limitation. See docs/scaling.md.
    */
   const handleUpdatePrice = () => {
-    if (!selectedProductId || isNaN(Number(newPrice))) return;
-    
-    productService.updateProductPrice(selectedProductId, Number(newPrice));
-    setProducts([...productService.getAllProducts()]);
     setIsEditingPrice(false);
-    
     toast({
-      title: "Price Updated",
-      description: `New unit price set for ${selectedProductId}.`,
+      variant: 'destructive',
+      title: 'Price editing unavailable',
+      description:
+        'Prices are read from the build-time catalogue. Connect a database before enabling edits.',
     });
   };
 
@@ -120,7 +122,7 @@ export default function AdminDashboard() {
   );
 
   const selectedPerformanceData = useMemo(() => 
-    selectedProductId ? productService.getProductSimulatedPerformance(selectedProductId) : [],
+    selectedProductId ? ProductService.getProductSimulatedPerformance(selectedProductId) : [],
     [selectedProductId]
   );
 

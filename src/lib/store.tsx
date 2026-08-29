@@ -11,6 +11,11 @@ interface CartItem extends Product {
 interface User {
   name: string;
   email: string;
+  /**
+   * UI hint only — it decides what to render, never what is permitted.
+   * Admin access is enforced server-side by middleware.ts against a signed
+   * httpOnly cookie, so editing this in localStorage grants nothing.
+   */
   isAdmin?: boolean;
 }
 
@@ -109,6 +114,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setIsLoggedIn(false);
     localStorage.removeItem('user');
+    // Clear the server-side admin session too, otherwise the signed cookie
+    // outlives the UI state and /admin stays reachable after "logging out".
+    void fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
   };
 
   return (

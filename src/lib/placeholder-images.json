@@ -2,8 +2,8 @@
   "placeholderImages": [
     {
       "id": "avyora-logo",
-      "description": "Avyora Official Logo - Gold and Blue clinical branding",
-      "imageUrl": "https://picsum.photos/seed/avyora-brand/800/800",
+      "description": "Avyora official logo lockup",
+      "imageUrl": "/logo.png",
       "imageHint": "clinical logo"
     },
     {
