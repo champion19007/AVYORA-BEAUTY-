@@ -131,12 +131,12 @@ export default function AdminDashboard() {
       {/* Clinical Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-4 border-foreground pb-12">
         <div className="space-y-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Intelligence Hub</span>
-          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">Clinical Analysis</h1>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.4em] text-primary">Intelligence Hub</span>
+          <h1 className="text-4xl md:text-6xl font-semibold uppercase tracking-tight leading-none">Clinical Analysis</h1>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" className="border-2 border-foreground rounded-none font-black uppercase tracking-widest text-[10px] px-8 h-12 hover:bg-muted transition-all">Export JSON</Button>
-          <Button className="bg-foreground text-background rounded-none font-black uppercase tracking-widest text-[10px] px-8 h-12 hover:bg-primary transition-all">Sync Cloud</Button>
+          <Button variant="outline" className="border border-border rounded-md font-semibold uppercase tracking-widest text-[10px] px-8 h-12 hover:bg-muted transition-all">Export JSON</Button>
+          <Button className="bg-foreground text-background rounded-md font-semibold uppercase tracking-widest text-[10px] px-8 h-12 hover:bg-primary transition-all">Sync Cloud</Button>
         </div>
       </div>
 
@@ -145,11 +145,11 @@ export default function AdminDashboard() {
         <div className="lg:col-span-2 space-y-8">
           
           {/* Inventory Table with Interactive Rows */}
-          <Card className="rounded-none border-2 border-foreground overflow-hidden">
+          <Card className="rounded-md border border-border overflow-hidden">
             <CardHeader className="border-b-2 border-foreground bg-muted/30">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-1">
-                  <CardTitle className="text-xl font-black uppercase tracking-tighter">Formulation Index</CardTitle>
+                  <CardTitle className="text-xl font-semibold uppercase tracking-tight">Formulation Index</CardTitle>
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Select a product for granular SKU intelligence</CardDescription>
                 </div>
               </div>
@@ -158,9 +158,9 @@ export default function AdminDashboard() {
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow className="hover:bg-transparent border-b-2 border-foreground">
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-foreground h-14 pl-8">Formulation</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-foreground h-14">Phase</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-foreground h-14 text-right pr-8">Unit Price</TableHead>
+                    <TableHead className="text-[10px] font-semibold uppercase tracking-widest text-foreground h-14 pl-8">Formulation</TableHead>
+                    <TableHead className="text-[10px] font-semibold uppercase tracking-widest text-foreground h-14">Phase</TableHead>
+                    <TableHead className="text-[10px] font-semibold uppercase tracking-widest text-foreground h-14 text-right pr-8">Unit Price</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -177,17 +177,17 @@ export default function AdminDashboard() {
                     >
                       <TableCell className="py-6 pl-8">
                         <div className="flex flex-col gap-1">
-                          <span className="text-[11px] font-black uppercase tracking-widest">{product.name}</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-widest">{product.name}</span>
                           <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{product.id}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="rounded-none border-2 border-foreground/10 text-[8px] font-black uppercase tracking-widest py-1 px-3">
+                        <Badge variant="outline" className="rounded-md border border-border text-[8px] font-semibold uppercase tracking-widest py-1 px-3">
                           {product.category}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right pr-8">
-                        <span className="text-[11px] font-black tracking-tighter">₹{product.price.toLocaleString()}</span>
+                        <span className="text-[11px] font-semibold tracking-tight">₹{product.price.toLocaleString()}</span>
                       </TableCell>
                       <TableCell className="pr-4">
                         <ChevronRight className={`h-4 w-4 transition-transform ${selectedProductId === product.id ? 'translate-x-1 text-primary' : 'text-muted-foreground/30'}`} />
@@ -201,9 +201,9 @@ export default function AdminDashboard() {
 
           {/* Aggregate Phase Analysis */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="rounded-none border-2 border-foreground">
+            <Card className="rounded-md border border-border">
               <CardHeader>
-                <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest flex items-center gap-2">
                   <BarChart4 className="h-4 w-4 text-primary" /> SKU Volume by Phase
                 </CardTitle>
               </CardHeader>
@@ -215,9 +215,9 @@ export default function AdminDashboard() {
                       cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                       content={({ active, payload }) => (
                         active && payload && payload.length ? (
-                          <div className="bg-foreground text-background p-3 rounded-none border-2 border-primary">
-                            <p className="text-[9px] font-black uppercase">{payload[0].payload.fullName}</p>
-                            <p className="text-lg font-black">{payload[0].value} SKUs</p>
+                          <div className="bg-foreground text-background p-3 rounded-md border border-primary">
+                            <p className="text-[9px] font-semibold uppercase">{payload[0].payload.fullName}</p>
+                            <p className="text-lg font-semibold">{payload[0].value} SKUs</p>
                           </div>
                         ) : null
                       )}
@@ -228,9 +228,9 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-none border-2 border-foreground">
+            <Card className="rounded-md border border-border">
               <CardHeader>
-                <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-primary" /> Growth Analysis
                 </CardTitle>
               </CardHeader>
@@ -256,14 +256,14 @@ export default function AdminDashboard() {
         <div className="space-y-8">
           {selectedProduct ? (
             <div className="space-y-8 sticky top-32 animate-in slide-in-from-right-4 duration-500">
-              <Card className="rounded-none border-2 border-foreground bg-accent/5 overflow-hidden">
+              <Card className="rounded-md border border-border bg-accent/5 overflow-hidden">
                 <CardHeader className="border-b-2 border-foreground bg-background">
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
-                      <span className="text-[8px] font-black uppercase tracking-[0.3em] text-primary">{selectedProduct.category} Intelligence</span>
-                      <CardTitle className="text-xl font-black uppercase tracking-tighter leading-none">{selectedProduct.name}</CardTitle>
+                      <span className="text-[8px] font-semibold uppercase tracking-[0.3em] text-primary">{selectedProduct.category} Intelligence</span>
+                      <CardTitle className="text-xl font-semibold uppercase tracking-tight leading-none">{selectedProduct.name}</CardTitle>
                     </div>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-none border border-foreground/10">
+                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md border border-foreground/10">
                       <Maximize2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -271,7 +271,7 @@ export default function AdminDashboard() {
                 <CardContent className="p-8 space-y-8">
                   {/* Detailed Performance Chart */}
                   <div className="space-y-4">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center justify-between">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-widest flex items-center justify-between">
                       30-Day Dermal Volume <span>{selectedPerformanceData.reduce((acc, curr) => acc + curr.volume, 0)} Total</span>
                     </h4>
                     <div className="h-[120px] w-full">
@@ -286,11 +286,11 @@ export default function AdminDashboard() {
                   {/* Pricing Management Logic */}
                   <div className="pt-6 border-t border-foreground/10 space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest">Clinical Unit Pricing</h4>
+                      <h4 className="text-[10px] font-semibold uppercase tracking-widest">Clinical Unit Pricing</h4>
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-8 text-[8px] font-black uppercase rounded-none px-4"
+                        className="h-8 text-[8px] font-semibold uppercase rounded-md px-4"
                         onClick={() => setIsEditingPrice(!isEditingPrice)}
                       >
                         {isEditingPrice ? "Cancel" : <><Edit3 className="h-3 w-3 mr-2" /> Adjust</>}
@@ -300,24 +300,24 @@ export default function AdminDashboard() {
                     {isEditingPrice ? (
                       <div className="flex gap-2">
                         <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black opacity-40">₹</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold opacity-40">₹</span>
                           <Input 
                             value={newPrice}
                             onChange={(e) => setNewPrice(e.target.value)}
-                            className="rounded-none border-2 border-foreground h-12 pl-8 text-xs font-black focus-visible:ring-0"
+                            className="rounded-md border border-border h-12 pl-8 text-xs font-semibold focus-visible:ring-0"
                             placeholder="Set price..."
                           />
                         </div>
                         <Button 
                           onClick={handleUpdatePrice}
-                          className="bg-foreground text-background rounded-none h-12 px-4 hover:bg-primary transition-all"
+                          className="bg-foreground text-background rounded-md h-12 px-4 hover:bg-primary transition-all"
                         >
                           <Check className="h-4 w-4" />
                         </Button>
                       </div>
                     ) : (
-                      <div className="p-4 bg-background border-2 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,0.05)]">
-                        <span className="text-3xl font-black tracking-tighter">₹{selectedProduct.price.toLocaleString()}</span>
+                      <div className="p-4 bg-background border border-border shadow-luxe">
+                        <span className="text-3xl font-semibold tracking-tight">₹{selectedProduct.price.toLocaleString()}</span>
                         <p className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Current MRP for {selectedProduct.sizes[0].label}</p>
                       </div>
                     )}
@@ -326,23 +326,23 @@ export default function AdminDashboard() {
                   {/* SKU Stats */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-background border border-foreground/10">
-                      <p className="text-[8px] font-black uppercase opacity-40">Rating</p>
-                      <p className="text-xl font-black">{selectedProduct.rating}</p>
+                      <p className="text-[8px] font-semibold uppercase opacity-40">Rating</p>
+                      <p className="text-xl font-semibold">{selectedProduct.rating}</p>
                     </div>
                     <div className="p-4 bg-background border border-foreground/10">
-                      <p className="text-[8px] font-black uppercase opacity-40">Reviews</p>
-                      <p className="text-xl font-black">{selectedProduct.reviewCount}</p>
+                      <p className="text-[8px] font-semibold uppercase opacity-40">Reviews</p>
+                      <p className="text-xl font-semibold">{selectedProduct.reviewCount}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="rounded-none border-2 border-foreground bg-primary text-white">
+              <Card className="rounded-md border border-border bg-primary text-white">
                 <CardContent className="p-6">
                   <div className="flex gap-4 items-start">
                     <AlertCircle className="h-5 w-5 shrink-0" />
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest leading-tight">Clinical Optimization Insight</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest leading-tight">Clinical Optimization Insight</p>
                       <p className="text-[9px] font-bold uppercase tracking-widest opacity-80 mt-2 leading-relaxed">
                         This SKU has high conversion in Phase {selectedProduct.id.includes('oil') ? '1' : '5'} clusters. Consider price bundling for loyalty program members.
                       </p>
@@ -354,7 +354,7 @@ export default function AdminDashboard() {
           ) : (
             <div className="h-full min-h-[400px] border-2 border-dashed border-foreground/10 flex flex-col items-center justify-center text-center p-12 bg-muted/10">
               <Package className="h-12 w-12 text-muted-foreground opacity-20 mb-6" />
-              <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Select a Formulation</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Select a Formulation</h4>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mt-2 max-w-[200px]">
                 Select any SKU from the formulation index to view deep clinical intelligence.
               </p>

@@ -76,20 +76,20 @@ export function ProductClient({
         <div className="lg:col-span-5 space-y-6 md:space-y-10">
           <div className="space-y-4">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">{product.category} Care</span>
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter mt-2 leading-none">{product.name}</h1>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-primary">{product.category} Care</span>
+              <h1 className="text-3xl md:text-5xl lg:text-6xl font-semibold uppercase tracking-tighter mt-2 leading-none">{product.name}</h1>
               <p className="text-xs md:text-sm font-bold uppercase tracking-widest text-muted-foreground mt-4 leading-relaxed">{product.tagline}</p>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="flex items-center bg-foreground text-background px-3 py-1 text-[10px] font-black">
+              <div className="flex items-center bg-foreground text-background px-3 py-1 text-[10px] font-semibold">
                 {product.rating} <Star className="h-3 w-3 ml-2 fill-primary text-primary" aria-hidden="true" />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">{product.reviewCount.toLocaleString()} Reviews</span>
             </div>
 
             <div className="flex items-baseline gap-4 pt-2">
-              <span className="text-3xl md:text-4xl font-black">₹{product.price.toLocaleString()}</span>
+              <span className="text-3xl md:text-4xl font-semibold">₹{product.price.toLocaleString()}</span>
               {product.salePrice && (
                 <span className="text-lg md:text-xl text-muted-foreground line-through italic font-bold">₹{product.salePrice.toLocaleString()}</span>
               )}
@@ -98,14 +98,14 @@ export function ProductClient({
 
           <div className="space-y-8">
             <div className="space-y-4">
-              <span className="text-[10px] font-black uppercase tracking-widest">Select Size</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest">Select Size</span>
               <div className="flex flex-wrap gap-3 md:gap-4">
                 {product.sizes.map(size => (
                   <button 
                     key={size.label}
                     onClick={() => setSelectedSize(size.label)}
                     className={cn(
-                      "px-6 py-3 border-2 text-[10px] font-black uppercase tracking-widest transition-all",
+                      "px-6 py-3 border-2 text-[10px] font-semibold uppercase tracking-widest transition-all",
                       selectedSize === size.label ? "bg-foreground text-background border-foreground" : "border-muted hover:border-primary"
                     )}
                   >
@@ -116,7 +116,7 @@ export function ProductClient({
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex items-center border-2 border-foreground h-14 md:h-16 shrink-0 w-full sm:w-auto justify-between sm:justify-start">
+              <div className="flex items-center border border-border h-14 md:h-16 shrink-0 w-full sm:w-auto justify-between sm:justify-start">
                 <button 
                   aria-label="Decrease quantity"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))} 
@@ -124,7 +124,7 @@ export function ProductClient({
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="px-6 font-black text-sm" aria-label="Quantity">{quantity}</span>
+                <span className="px-6 font-semibold text-sm" aria-label="Quantity">{quantity}</span>
                 <button 
                   aria-label="Increase quantity"
                   onClick={() => setQuantity(quantity + 1)} 
@@ -134,7 +134,7 @@ export function ProductClient({
                 </button>
               </div>
               <Button 
-                className="flex-1 h-14 md:h-16 rounded-none bg-primary text-white font-black uppercase tracking-widest hover:bg-primary/90 text-[10px]"
+                className="flex-1 h-14 md:h-16 rounded-md bg-primary text-white font-semibold uppercase tracking-widest hover:bg-primary/90 text-[10px]"
                 onClick={() => addToCart(product, selectedSize)}
               >
                 Add to Cart
@@ -145,13 +145,13 @@ export function ProductClient({
           <div className="pt-6 md:pt-10 border-t">
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="ingredients">
-                <AccordionTrigger className="text-[10px] font-black uppercase tracking-widest py-4">Key Ingredients</AccordionTrigger>
+                <AccordionTrigger className="text-[10px] font-semibold uppercase tracking-widest py-4">Key Ingredients</AccordionTrigger>
                 <AccordionContent className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground leading-loose pt-2">
                   {product.ingredients.join(', ')}. Optimized for clinical results with high-purity actives.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="how-to-use">
-                <AccordionTrigger className="text-[10px] font-black uppercase tracking-widest py-4">How to Use</AccordionTrigger>
+                <AccordionTrigger className="text-[10px] font-semibold uppercase tracking-widest py-4">How to Use</AccordionTrigger>
                 <AccordionContent className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground leading-loose pt-2">
                   Apply on cleansed face/body. Use twice daily for optimal results. Ensure SPF protection during daylight hours.
                 </AccordionContent>
@@ -163,7 +163,7 @@ export function ProductClient({
 
       <section className="mt-24 md:mt-32 pt-16 md:pt-24 border-t" aria-labelledby="recommendations-heading">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 md:mb-16 gap-4">
-          <h2 id="recommendations-heading" className="text-3xl md:text-4xl font-black tracking-tighter uppercase leading-none">You May Also Like</h2>
+          <h2 id="recommendations-heading" className="text-3xl md:text-4xl font-semibold tracking-tighter uppercase leading-none">You May Also Like</h2>
           <div className="h-1 w-24 bg-primary hidden md:block" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">

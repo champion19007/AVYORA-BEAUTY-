@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -16,6 +15,13 @@ export function ProductCard({ product }: { product: Product }) {
   const { addToCart, wishlist, toggleWishlist } = useApp();
   const isWishlisted = wishlist.includes(product.id);
 
+  // Each size carries its own price, so the displayed figure has to follow
+  // the selection rather than always quoting the base SKU.
+  const activeSize = product.sizes.find((s) => s.label === selectedSize) ?? product.sizes[0];
+  // `salePrice`, when set, is the discounted figure the customer pays.
+  const currentPrice = product.salePrice ?? activeSize.price;
+  const wasPrice = product.salePrice ? activeSize.price : null;
+
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
     setCurrentImage((prev) => (prev + 1) % product.images.length);
@@ -27,93 +33,132 @@ export function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <div className="group relative flex flex-col bg-card border border-border hover:border-primary transition-all duration-500 shadow-sm hover:shadow-2xl">
-      <Link href={`/products/${product.slug}`} className="relative aspect-[4/5] overflow-hidden bg-muted">
+    <article className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-all duration-500 hover:-translate-y-1 hover:border-primary/40 hover:shadow-luxe-lg">
+      <Link
+        href={`/products/${product.slug}`}
+        className="relative aspect-[4/5] overflow-hidden bg-muted"
+      >
         <Image
           src={product.images[currentImage]}
           alt={product.name}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          className="object-cover transition-transform duration-1000 group-hover:scale-110"
+          className="object-cover transition-transform [transition-duration:1200ms] ease-out group-hover:scale-105"
           data-ai-hint="skincare product"
         />
-        
+
         {product.images.length > 1 && (
-          <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-            <button onClick={prevImage} className="bg-background/80 p-2 hover:bg-primary hover:text-white transition-colors"><ChevronLeft className="h-4 w-4" /></button>
-            <button onClick={nextImage} className="bg-background/80 p-2 hover:bg-primary hover:text-white transition-colors"><ChevronRight className="h-4 w-4" /></button>
+          <div className="absolute inset-0 z-10 flex items-center justify-between px-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <button
+              onClick={prevImage}
+              aria-label="Previous image"
+              className="rounded-full bg-background/85 p-2 backdrop-blur-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={nextImage}
+              aria-label="Next image"
+              className="rounded-full bg-background/85 p-2 backdrop-blur-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         )}
 
-        <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+        <div className="absolute left-4 top-4 z-10 flex flex-col gap-2">
           {product.isBestSeller && (
-            <span className="bg-foreground text-background text-[8px] font-black uppercase px-2 py-1 tracking-widest shadow-sm">
+            <span className="rounded-full bg-foreground/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-background backdrop-blur-sm">
               Best Seller
             </span>
           )}
           {product.isNewLaunch && (
-            <span className="bg-primary text-primary-foreground text-[8px] font-black uppercase px-2 py-1 tracking-widest shadow-sm">
-              New Launch
+            <span className="rounded-full bg-primary px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-primary-foreground">
+              New
             </span>
           )}
         </div>
 
-        <button 
-          onClick={(e) => { e.preventDefault(); toggleWishlist(product.id); }}
-          className="absolute top-4 right-4 p-2 bg-background/50 backdrop-blur-sm hover:bg-background transition-all border border-border z-10"
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            toggleWishlist(product.id);
+          }}
+          aria-label={isWishlisted ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`}
+          aria-pressed={isWishlisted}
+          className="absolute right-4 top-4 z-10 rounded-full border border-border/60 bg-background/70 p-2 backdrop-blur-sm transition-all hover:bg-background"
         >
-          <Heart className={cn("h-4 w-4 transition-colors", isWishlisted ? "fill-primary text-primary" : "text-foreground")} />
+          <Heart
+            className={cn(
+              'h-4 w-4 transition-colors',
+              isWishlisted ? 'fill-primary text-primary' : 'text-foreground'
+            )}
+          />
         </button>
       </Link>
 
-      <div className="p-6 flex flex-col flex-1">
-        <h3 className="text-[11px] font-black uppercase tracking-[0.15em] mb-1 truncate leading-tight">
-          <Link href={`/products/${product.slug}`} className="hover:text-primary transition-colors">{product.name}</Link>
+      <div className="flex flex-1 flex-col p-5">
+        <h3 className="font-headline text-xl font-semibold leading-snug tracking-wide">
+          <Link href={`/products/${product.slug}`} className="transition-colors hover:text-primary">
+            {product.name}
+          </Link>
         </h3>
-        <p className="text-[8px] text-muted-foreground uppercase tracking-widest mb-4 font-bold truncate">
+        <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
           {product.tagline}
         </p>
-        
-        <div className="flex items-center gap-2 mb-6">
-          <div className="flex items-center bg-muted/50 px-2 py-1 border border-border">
-            <span className="text-[9px] font-black mr-1">{product.rating}</span>
-            <Star className="h-2 w-2 fill-primary text-primary" />
+
+        <div className="mt-4 flex items-center gap-2">
+          <span className="flex items-center gap-1 text-[13px] font-medium">
+            <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+            {product.rating}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            ({product.reviewCount.toLocaleString()} reviews)
+          </span>
+        </div>
+
+        {product.sizes.length > 1 && (
+          <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Select size">
+            {product.sizes.map((size) => (
+              <button
+                key={size.label}
+                onClick={() => setSelectedSize(size.label)}
+                aria-pressed={selectedSize === size.label}
+                className={cn(
+                  'rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all',
+                  selectedSize === size.label
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                )}
+              >
+                {size.label}
+              </button>
+            ))}
           </div>
-          <span className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest">({product.reviewCount.toLocaleString()})</span>
-        </div>
+        )}
 
-        <div className="flex flex-wrap gap-2 mb-8">
-          {product.sizes.map((size) => (
-            <button
-              key={size.label}
-              onClick={() => setSelectedSize(size.label)}
-              className={cn(
-                "text-[8px] font-black uppercase tracking-widest px-3 py-1.5 border transition-all",
-                selectedSize === size.label 
-                  ? "bg-foreground text-background border-foreground" 
-                  : "bg-transparent text-muted-foreground border-border hover:border-primary hover:text-primary"
-              )}
-            >
-              {size.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-auto">
-          <div className="flex items-baseline gap-2 mb-6">
-            <span className="text-base font-black">₹{product.price.toLocaleString()}</span>
-            {product.salePrice && (
-              <span className="text-[10px] text-muted-foreground line-through font-bold">₹{product.salePrice.toLocaleString()}</span>
+        <div className="mt-auto pt-6">
+          <div className="mb-4 flex items-baseline gap-2">
+            <span className="font-headline text-2xl font-semibold text-gilt">
+              ₹{currentPrice.toLocaleString('en-IN')}
+            </span>
+            {wasPrice && (
+              <span className="text-sm text-muted-foreground line-through">
+                ₹{wasPrice.toLocaleString('en-IN')}
+              </span>
+            )}
+            {product.sizes.length === 1 && (
+              <span className="ml-auto text-xs text-muted-foreground">{activeSize.label}</span>
             )}
           </div>
-          <Button 
-            className="w-full bg-foreground text-background font-black uppercase tracking-widest text-[9px] py-7 rounded-none hover:bg-primary transition-all duration-300"
+          <Button
+            className="w-full rounded-md bg-foreground py-6 text-xs font-semibold uppercase tracking-[0.2em] text-background transition-colors duration-300 hover:bg-primary hover:text-primary-foreground"
             onClick={() => addToCart(product, selectedSize)}
           >
-            Add to Cart
+            Add to Bag
           </Button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

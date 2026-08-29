@@ -4,8 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export default function SettingsPage({ searchParams }: { searchParams: { tab: string } }) {
-  const defaultTab = searchParams.tab || "profile";
+// Next 15 hands `searchParams` to pages as a promise.
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  const defaultTab = tab || 'profile';
   
   return (
     <div className="flex flex-col gap-6">

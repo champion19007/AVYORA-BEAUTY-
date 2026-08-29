@@ -10,8 +10,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['var(--font-inter)', 'sans-serif'],
-        headline: ['var(--font-poppins)', 'sans-serif'],
+        /* Cormorant Garamond mirrors the high-contrast serif of the
+           AVYORA wordmark; Inter carries everything else. */
+        sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        body: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        headline: ['var(--font-cormorant)', 'ui-serif', 'Georgia', 'serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -40,6 +43,7 @@ export default {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
         },
+        leaf: 'hsl(var(--leaf))',
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
@@ -53,6 +57,9 @@ export default {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      letterSpacing: {
+        luxe: '0.28em',
+      },
       keyframes: {
         'accordion-down': {
           from: { height: '0' },
@@ -62,10 +69,20 @@ export default {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        'fade-up': {
+          from: { opacity: '0', transform: 'translateY(16px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'ken-burns': {
+          from: { transform: 'scale(1)' },
+          to: { transform: 'scale(1.08)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'fade-up': 'fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'ken-burns': 'ken-burns 12s ease-out both',
       },
     },
   },

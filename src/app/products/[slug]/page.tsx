@@ -7,6 +7,14 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
+/**
+ * The catalogue is fixed at build time, so every product detail page can be
+ * statically pre-rendered rather than server-rendered on each request.
+ */
+export function generateStaticParams() {
+  return PRODUCTS.map((p) => ({ slug: p.slug }));
+}
+
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata

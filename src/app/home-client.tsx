@@ -4,7 +4,7 @@ import { Product, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ShieldCheck, Microscope, Zap, Droplet } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Microscope, Leaf, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -12,29 +12,36 @@ import { cn } from '@/lib/utils';
 
 const HERO_SLIDES = [
   {
-    title: "Clinical Science.",
-    subtitle: "Pure, effective, and science-backed formulations for your unique skin needs.",
-    promo: "5% Cashback on all orders as Avyora Credit.",
-    image: "https://picsum.photos/seed/hero1/1920/1080",
-    hint: "skincare bottles"
+    title: 'Clinical science,\nquietly luxurious.',
+    subtitle: 'Pure, effective, evidence-led formulations for your skin.',
+    promo: '5% cashback on every order as Avyora Credit',
+    image: 'https://picsum.photos/seed/hero1/1920/1080',
+    hint: 'skincare bottles',
   },
   {
-    title: "The Avyora Circle",
-    subtitle: "Our exclusive loyalty program for those who value science-first care.",
-    promo: "Earn & redeem credit on every purchase.",
-    image: "https://picsum.photos/seed/hero2/1920/1080",
-    hint: "skincare model"
-  }
+    title: 'The Avyora Circle',
+    subtitle: 'Our membership for those who value science-first care.',
+    promo: 'Earn and redeem credit on every purchase',
+    image: 'https://picsum.photos/seed/hero2/1920/1080',
+    hint: 'skincare model',
+  },
 ];
 
-export function HomeClient({ 
-  products, 
-  categories, 
+const VALUES = [
+  { icon: ShieldCheck, title: 'Transparency', desc: 'Every active concentration disclosed in full.' },
+  { icon: Microscope, title: 'Clinical efficacy', desc: 'In-house synthesis with batch-level quality control.' },
+  { icon: Leaf, title: 'Considered sourcing', desc: 'Botanical actives from leading global laboratories.' },
+  { icon: Sparkles, title: 'Fair pricing', desc: 'Premium dermal science without the retail markup.' },
+];
+
+export function HomeClient({
+  products,
+  categories,
   concerns,
   activeCategories,
-  activeConcerns
-}: { 
-  products: Product[]; 
+  activeConcerns,
+}: {
+  products: Product[];
   categories: typeof CATEGORIES;
   concerns: typeof CONCERNS;
   activeCategories: Set<string>;
@@ -44,110 +51,149 @@ export function HomeClient({
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentHero(prev => (prev + 1) % HERO_SLIDES.length);
-    }, 6000);
+      setCurrentHero((prev) => (prev + 1) % HERO_SLIDES.length);
+    }, 7000);
     return () => clearInterval(timer);
   }, []);
 
   return (
-    <main className="flex flex-col w-full bg-background transition-colors duration-300">
-      <section className="relative h-[85vh] w-full overflow-hidden bg-muted" aria-label="Hero Carousel">
+    <main className="flex w-full flex-col bg-background transition-colors duration-300">
+      {/* ---------------------------------------------------------------- Hero */}
+      <section className="relative h-[82vh] w-full overflow-hidden bg-muted" aria-label="Featured">
         {HERO_SLIDES.map((slide, i) => (
-          <div 
+          <div
             key={i}
             className={cn(
-              "absolute inset-0 transition-opacity duration-1000",
-              currentHero === i ? "opacity-100 z-10" : "opacity-0 z-0"
+              'absolute inset-0 transition-opacity duration-1000',
+              currentHero === i ? 'z-10 opacity-100' : 'z-0 opacity-0'
             )}
           >
-            <Image 
-              src={slide.image} 
-              alt={slide.title} 
-              fill 
-              className="object-cover grayscale"
+            <Image
+              src={slide.image}
+              alt=""
+              aria-hidden="true"
+              fill
+              className={cn('object-cover', currentHero === i && 'animate-ken-burns')}
               priority={i === 0}
               sizes="100vw"
               data-ai-hint={slide.hint}
             />
-            <div className="absolute inset-0 bg-black/40" />
-            <div className="absolute inset-0 container mx-auto px-4 flex flex-col justify-center items-start text-white">
-              <div className="max-w-2xl animate-in fade-in slide-in-from-left-8 duration-700">
-                <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-6 uppercase leading-[0.9]">{slide.title}</h1>
-                <p className="text-sm md:text-lg font-bold uppercase tracking-[0.3em] mb-8 opacity-90">{slide.subtitle}</p>
-                <div className="bg-primary text-white px-6 py-3 text-[10px] font-black uppercase tracking-widest w-fit mb-12 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
-                  {slide.promo}
+            {/* Navy wash keeps the white type legible and ties the hero to the mark. */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(224_60%_10%_/_0.82)] via-[hsl(224_60%_10%_/_0.55)] to-transparent" />
+            <div className="container absolute inset-0 mx-auto flex flex-col items-start justify-center px-4 text-white">
+              {currentHero === i && (
+                <div className="max-w-2xl animate-fade-up">
+                  <span className="mb-6 inline-block text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
+                    Avyora Skincare
+                  </span>
+                  <h1 className="mb-6 whitespace-pre-line font-headline text-5xl font-light leading-[1.05] tracking-tight md:text-7xl">
+                    {slide.title}
+                  </h1>
+                  <p className="mb-10 max-w-md text-base leading-relaxed text-white/80 md:text-lg">
+                    {slide.subtitle}
+                  </p>
+                  <div className="mb-10 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.18em] text-white/90">
+                    <span className="h-px w-8 bg-primary" aria-hidden="true" />
+                    {slide.promo}
+                  </div>
+                  <Link href="/collections">
+                    <Button className="rounded-md bg-primary px-12 py-7 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground transition-colors duration-300 hover:bg-white hover:text-foreground">
+                      Shop the collection
+                    </Button>
+                  </Link>
                 </div>
-                <Link href="/collections">
-                  <Button className="bg-white text-black hover:bg-primary hover:text-white px-16 py-10 text-xs font-black uppercase tracking-widest rounded-none transition-all duration-300 border-none">
-                    Shop Now
-                  </Button>
-                </Link>
-              </div>
+              )}
             </div>
           </div>
         ))}
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 flex gap-6">
+        <div className="absolute bottom-10 left-1/2 z-20 flex -translate-x-1/2 gap-3">
           {HERO_SLIDES.map((_, i) => (
-            <button 
-              key={i} 
+            <button
+              key={i}
               aria-label={`Go to slide ${i + 1}`}
+              aria-current={currentHero === i}
               onClick={() => setCurrentHero(i)}
               className={cn(
-                "w-3 h-3 rounded-full transition-all border-2 border-white",
-                currentHero === i ? "bg-white w-12" : "bg-transparent"
+                'h-1 rounded-full transition-all duration-500',
+                currentHero === i ? 'w-12 bg-primary' : 'w-6 bg-white/45 hover:bg-white/70'
               )}
             />
           ))}
         </div>
       </section>
 
-      <section className="py-32 container mx-auto px-4" aria-labelledby="products-heading">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
-          <div className="space-y-4">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Clinical Formulations</span>
-            <h2 id="products-heading" className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none">Our Products</h2>
-            <div className="w-32 h-2 bg-primary mt-6" aria-hidden="true" />
+      {/* ------------------------------------------------------------ Products */}
+      <section className="container mx-auto px-4 py-24" aria-labelledby="products-heading">
+        <div className="mb-14 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+          <div>
+            <span className="eyebrow">Clinical formulations</span>
+            <h2
+              id="products-heading"
+              className="mt-3 font-headline text-4xl font-light tracking-tight md:text-5xl"
+            >
+              Our products
+            </h2>
           </div>
-          <Link href="/collections" className="text-[10px] font-black uppercase tracking-widest hover:text-primary flex items-center gap-3 border-b-4 border-transparent hover:border-primary pb-2 transition-all duration-300 w-fit">
-            View Full Collection <ArrowRight className="h-4 w-4" />
+          <Link
+            href="/collections"
+            className="group flex w-fit items-center gap-2 border-b border-primary/40 pb-1 text-xs font-semibold uppercase tracking-[0.2em] transition-colors hover:text-primary"
+          >
+            View full collection
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-8 gap-y-16">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
       </section>
 
-      <section className="bg-muted/20 py-32 transition-colors" aria-labelledby="bundle-heading">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border-4 border-foreground bg-card overflow-hidden shadow-[30px_30px_0px_0px_rgba(0,0,0,0.05)] transition-shadow">
-            <div className="p-16 md:p-24 flex flex-col justify-center space-y-12">
-              <h2 id="bundle-heading" className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">Synthesize Your Bundle</h2>
-              <div className="space-y-6">
-                {[
-                  "Additional 15% Clinical Discount on bundles",
-                  "5% Dermal Credit on all syntheses",
-                  "Complimentary delivery on all bundles"
-                ].map(text => (
-                  <div key={text} className="flex items-center gap-5">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
-                      <Zap className="h-4 w-4 text-white fill-white" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest">{text}</span>
-                  </div>
-                ))}
+      {/* -------------------------------------------------------------- Bundle */}
+      <section className="px-4 py-16" aria-labelledby="bundle-heading">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-1 overflow-hidden rounded-xl bg-[hsl(224_60%_13%)] text-white shadow-luxe-lg lg:grid-cols-2">
+            <div className="flex flex-col justify-center space-y-8 p-12 md:p-16">
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
+                  Build your ritual
+                </span>
+                <h2
+                  id="bundle-heading"
+                  className="mt-4 font-headline text-4xl font-light leading-tight tracking-tight md:text-5xl"
+                >
+                  Compose your own bundle
+                </h2>
               </div>
-              <Button className="bg-foreground text-background px-16 py-10 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all duration-300 w-fit border-none">
-                Start Synthesis
-              </Button>
+              <ul className="space-y-4">
+                {[
+                  'An additional 15% off every bundle',
+                  '5% back as Avyora Credit',
+                  'Complimentary delivery, always',
+                ].map((text) => (
+                  <li key={text} className="flex items-center gap-4">
+                    <span
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary"
+                      aria-hidden="true"
+                    >
+                      <Sparkles className="h-3 w-3 text-primary-foreground" />
+                    </span>
+                    <span className="text-sm text-white/85">{text}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/routine-finder" className="w-fit">
+                <Button className="rounded-md bg-primary px-12 py-7 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground transition-colors hover:bg-white hover:text-foreground">
+                  Start with the routine finder
+                </Button>
+              </Link>
             </div>
             <div className="relative aspect-square lg:aspect-auto">
-              <Image 
-                src="https://picsum.photos/seed/bundle-kit/1000/1000" 
-                alt="Avyora Skincare Bundle Kit" 
-                fill 
-                className="object-cover grayscale"
+              <Image
+                src="https://picsum.photos/seed/bundle-kit/1000/1000"
+                alt="An Avyora skincare bundle"
+                fill
+                className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 data-ai-hint="skincare bundle"
               />
@@ -156,127 +202,169 @@ export function HomeClient({
         </div>
       </section>
 
-      <section className="py-32 overflow-hidden bg-foreground text-background" aria-labelledby="category-heading">
-        <div className="container mx-auto px-4 mb-20 text-center">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Science Categories</span>
-          <h2 id="category-heading" className="text-4xl md:text-7xl font-black tracking-tighter uppercase mt-4">Shop by Category</h2>
+      {/* ------------------------------------------------------------ Category */}
+      <section className="overflow-hidden py-24" aria-labelledby="category-heading">
+        <div className="container mx-auto mb-12 px-4 text-center">
+          <span className="eyebrow">Explore</span>
+          <h2
+            id="category-heading"
+            className="mt-3 font-headline text-4xl font-light tracking-tight md:text-5xl"
+          >
+            Shop by category
+          </h2>
+          <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
         </div>
-        <div className="flex gap-12 overflow-x-auto pb-16 snap-x px-8 md:px-32 no-scrollbar">
+        <div className="no-scrollbar flex snap-x gap-6 overflow-x-auto px-4 pb-8 md:px-12">
           {categories.map((cat) => {
             const isComingSoon = !activeCategories.has(cat.id);
-            return (
-              <div 
-                key={cat.id} 
-                className={cn(
-                  "relative min-w-[320px] md:min-w-[450px] aspect-[3/4] group snap-center overflow-hidden border-2 border-transparent hover:border-primary transition-all duration-700",
-                  isComingSoon && "opacity-70"
-                )}
-              >
-                <Image 
-                  src={cat.image} 
-                  alt={cat.name} 
-                  fill 
+            const cardClass = cn(
+              'group relative aspect-[3/4] w-[280px] shrink-0 snap-center overflow-hidden rounded-lg md:w-[340px]',
+              isComingSoon && 'cursor-default'
+            );
+            const inner = (
+              <>
+                <Image
+                  src={cat.image}
+                  alt={cat.name}
+                  fill
                   className={cn(
-                    "object-cover transition-all duration-1000 group-hover:scale-110",
-                    isComingSoon ? "grayscale" : "grayscale group-hover:grayscale-0"
+                    'object-cover transition-transform [transition-duration:1200ms] ease-out',
+                    isComingSoon ? 'opacity-60 grayscale' : 'group-hover:scale-105'
                   )}
-                  sizes="(max-width: 768px) 320px, 450px"
+                  sizes="(max-width: 768px) 280px, 340px"
                   data-ai-hint={cat.hint}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" aria-hidden="true" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
-                  <span className="text-white text-4xl md:text-5xl font-black uppercase tracking-[0.3em] group-hover:scale-105 transition-transform text-center leading-tight">
+                <div
+                  className="absolute inset-0 bg-gradient-to-t from-[hsl(224_60%_10%_/_0.85)] via-transparent to-transparent"
+                  aria-hidden="true"
+                />
+                <div className="absolute inset-x-0 bottom-0 p-7">
+                  <h3 className="font-headline text-2xl font-medium tracking-wide text-white">
                     {cat.name}
-                  </span>
+                  </h3>
                   {isComingSoon ? (
-                    <Badge className="mt-6 bg-primary text-white border-none rounded-none px-6 py-2 text-[10px] font-black uppercase tracking-widest">Coming Soon</Badge>
+                    <Badge className="mt-3 rounded-full border-none bg-white/15 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white backdrop-blur-sm">
+                      Coming soon
+                    </Badge>
                   ) : (
-                    <Link href={`/collections?category=${cat.id}`} className="mt-8 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
-                      <Button className="bg-white text-black hover:bg-primary hover:text-white text-[9px] font-black uppercase tracking-widest px-8 rounded-none border-none">Shop Category</Button>
-                    </Link>
+                    <span className="mt-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+                      Shop now
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                    </span>
                   )}
                 </div>
+              </>
+            );
+
+            return isComingSoon ? (
+              <div key={cat.id} className={cardClass}>
+                {inner}
               </div>
+            ) : (
+              <Link key={cat.id} href={`/collections?category=${cat.id}`} className={cardClass}>
+                {inner}
+              </Link>
             );
           })}
         </div>
       </section>
 
-      <section className="py-32 container mx-auto px-4" aria-labelledby="concerns-heading">
-        <div className="text-center mb-24 space-y-4">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Targeted Results</span>
-          <h2 id="concerns-heading" className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Shop by Concern</h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-10">
-          {concerns.map((concern) => {
-            const isComingSoon = !activeConcerns.has(concern.id);
-            return (
-              <div key={concern.id} className="flex flex-col group relative">
-                <div className={cn(
-                  "relative aspect-square overflow-hidden mb-8 border-2 border-foreground/10 transition-all duration-500",
-                  isComingSoon ? "opacity-40" : "group-hover:border-primary group-hover:shadow-[10px_10px_0px_0px_rgba(249,115,22,0.1)]"
-                )}>
-                  <Image 
-                    src={concern.image} 
-                    alt={concern.name} 
-                    fill 
+      {/* ------------------------------------------------------------- Concerns */}
+      <section className="bg-muted/40 py-24" aria-labelledby="concerns-heading">
+        <div className="container mx-auto px-4">
+          <div className="mb-14 text-center">
+            <span className="eyebrow">Targeted results</span>
+            <h2
+              id="concerns-heading"
+              className="mt-3 font-headline text-4xl font-light tracking-tight md:text-5xl"
+            >
+              Shop by concern
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-4 lg:grid-cols-8">
+            {concerns.map((concern) => {
+              const isComingSoon = !activeConcerns.has(concern.id);
+              const inner = (
+                <>
+                  <div
                     className={cn(
-                      "object-cover grayscale transition-all duration-700",
-                      !isComingSoon && "group-hover:grayscale-0 group-hover:scale-110"
+                      'relative mb-4 aspect-square overflow-hidden rounded-full ring-1 ring-border transition-all duration-500',
+                      isComingSoon ? 'opacity-45' : 'group-hover:ring-2 group-hover:ring-primary'
                     )}
-                    sizes="(max-width: 768px) 50vw, 12vw"
-                    data-ai-hint={concern.hint}
-                  />
-                  {isComingSoon && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Badge className="bg-foreground/80 text-background border-none rounded-none text-[8px] font-black uppercase px-2 py-1 tracking-widest">Soon</Badge>
-                    </div>
-                  )}
-                </div>
-                <div className="text-center space-y-2">
-                  <span className={cn(
-                    "text-[9px] font-black uppercase tracking-[0.3em] transition-colors",
-                    isComingSoon ? "text-muted-foreground" : "group-hover:text-primary"
-                  )}>
+                  >
+                    <Image
+                      src={concern.image}
+                      alt={concern.name}
+                      fill
+                      className={cn(
+                        'object-cover transition-transform duration-700',
+                        isComingSoon ? 'grayscale' : 'group-hover:scale-110'
+                      )}
+                      sizes="(max-width: 768px) 45vw, 12vw"
+                      data-ai-hint={concern.hint}
+                    />
+                  </div>
+                  <span
+                    className={cn(
+                      'text-[11px] font-medium uppercase tracking-[0.16em] transition-colors',
+                      isComingSoon ? 'text-muted-foreground' : 'group-hover:text-primary'
+                    )}
+                  >
                     {concern.name}
                   </span>
-                  {!isComingSoon && (
-                    <Link href={`/collections?concern=${concern.id}`} className="block">
-                      <Button variant="link" className="text-[7px] font-black uppercase tracking-[0.4em] h-auto p-0 opacity-40 group-hover:opacity-100 transition-opacity">View Products</Button>
-                    </Link>
+                  {isComingSoon && (
+                    <span className="mt-1 text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70">
+                      Soon
+                    </span>
                   )}
+                </>
+              );
+
+              return isComingSoon ? (
+                <div key={concern.id} className="group flex cursor-default flex-col text-center">
+                  {inner}
                 </div>
-              </div>
-            );
-          })}
+              ) : (
+                <Link
+                  key={concern.id}
+                  href={`/collections?concern=${concern.id}`}
+                  className="group flex flex-col text-center"
+                >
+                  {inner}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      <section className="py-40 bg-card transition-colors" aria-labelledby="values-heading">
-        <div className="container mx-auto px-4 text-center mb-32 space-y-6">
-          <h2 id="values-heading" className="text-4xl md:text-7xl font-black tracking-tighter uppercase">Clinical Future of Personal Care</h2>
-          <div className="w-24 h-2 bg-primary mx-auto" aria-hidden="true" />
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground max-w-2xl mx-auto leading-relaxed mt-10">
-            Full disclosure of clinical ingredients & their exact syntheses. All Avyora products are manufactured in-house for maximum efficacy.
-          </p>
-        </div>
-        <div className="container mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-20">
-          {[
-            { icon: ShieldCheck, title: 'Transparency', desc: '100% Disclosure of active ingredient concentrations.' },
-            { icon: Microscope, title: 'Clinical Efficacy', desc: 'In-house synthesis ensures batch-level quality control.' },
-            { icon: Droplet, title: 'Accessibility', desc: 'Premium dermal science, accessible without retail markups.' },
-            { icon: Zap, title: 'Global Sourcing', desc: 'Purest raw ingredients from leading global bio-laboratories.' },
-          ].map((val) => (
-            <div key={val.title} className="flex flex-col items-center text-center group">
-              <div className="w-24 h-24 border-4 border-foreground mb-10 flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-white transition-all duration-500 shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)] group-hover:shadow-none translate-y-0 group-hover:-translate-y-2">
-                <val.icon className="h-10 w-10" />
+      {/* --------------------------------------------------------------- Values */}
+      <section className="py-28" aria-labelledby="values-heading">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto mb-20 max-w-2xl text-center">
+            <h2
+              id="values-heading"
+              className="font-headline text-4xl font-light leading-tight tracking-tight md:text-5xl"
+            >
+              The clinical future of personal care
+            </h2>
+            <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
+            <p className="mt-8 text-base leading-relaxed text-muted-foreground">
+              Full disclosure of every clinical ingredient and its exact concentration.
+              All Avyora products are formulated in-house for maximum efficacy.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
+            {VALUES.map((val) => (
+              <div key={val.title} className="group flex flex-col items-center text-center">
+                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-primary/35 text-primary transition-colors duration-500 group-hover:bg-primary group-hover:text-primary-foreground">
+                  <val.icon className="h-6 w-6" />
+                </div>
+                <h3 className="font-headline text-xl font-medium tracking-wide">{val.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{val.desc}</p>
               </div>
-              <h4 className="text-[11px] font-black uppercase tracking-[0.4em] mb-6 transition-colors">{val.title}</h4>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground leading-loose px-4">
-                {val.desc}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
     </main>

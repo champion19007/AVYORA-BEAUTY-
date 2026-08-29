@@ -214,7 +214,7 @@ export default function RoutineFinderPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center animate-in fade-in duration-500">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <h2 className="text-2xl font-black uppercase tracking-tighter">BUILDING YOUR PERSONALIZED ROUTINE...</h2>
+        <h2 className="text-2xl font-semibold uppercase tracking-tighter">BUILDING YOUR PERSONALIZED ROUTINE...</h2>
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Synthesizing clinical data for your specific skin profile.</p>
       </div>
     );
@@ -225,9 +225,9 @@ export default function RoutineFinderPage() {
     return (
       <div className="container mx-auto px-4 py-12 max-w-6xl animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="text-center mb-16 space-y-6">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Avyora Skin Diagnostic</span>
-          <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tighter leading-[0.9]">YOUR PERSONALIZED<br/>AVYORA ROUTINE</h1>
-          <div className="flex flex-wrap justify-center gap-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.4em] text-primary">Avyora Skin Diagnostic</span>
+          <h1 className="text-4xl md:text-7xl font-semibold uppercase tracking-tighter leading-[0.9]">YOUR PERSONALIZED<br/>AVYORA ROUTINE</h1>
+          <div className="flex flex-wrap justify-center gap-2 text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">
             <span className="bg-muted px-3 py-1">{p.skinType.toUpperCase()} SKIN</span>
             {result.priorities.map(c => <span key={c} className="bg-muted px-3 py-1">{c}</span>)}
             <span className="bg-primary/20 text-primary px-3 py-1">{result.experienceLevelName}</span>
@@ -238,7 +238,7 @@ export default function RoutineFinderPage() {
           <div className="lg:col-span-8 space-y-20">
             <section className="space-y-12">
               <div className="space-y-4">
-                <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.4em] pb-4 border-b border-border flex items-center gap-3">
                   <Sun className="h-4 w-4 text-orange-400" /> Morning Routine: {result.morningTitle}
                 </h2>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
@@ -252,7 +252,7 @@ export default function RoutineFinderPage() {
 
             <section className="space-y-12">
               <div className="space-y-4">
-                <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.4em] pb-4 border-b border-border flex items-center gap-3">
                   <Moon className="h-4 w-4 text-indigo-400" /> Evening Routine: {result.eveningTitle}
                 </h2>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-relaxed">
@@ -266,7 +266,7 @@ export default function RoutineFinderPage() {
 
             {result.underEyeGuidance && (
               <section className="space-y-8 bg-muted/30 p-8 border-l-4 border-primary">
-                <h2 className="text-xs font-black uppercase tracking-[0.4em] flex items-center gap-3">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.4em] flex items-center gap-3">
                    <Info className="h-4 w-4 text-primary" /> Under-Eye Concern
                 </h2>
                 <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed text-muted-foreground">
@@ -277,7 +277,7 @@ export default function RoutineFinderPage() {
 
             {result.bodyRoutine.length > 0 && (
               <section className="space-y-12">
-                <h2 className="text-xs font-black uppercase tracking-[0.4em] pb-4 border-b-2 border-foreground flex items-center gap-3">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.4em] pb-4 border-b border-border flex items-center gap-3">
                   <Zap className="h-4 w-4 text-primary" /> Body Care
                 </h2>
                 <div className="space-y-10">
@@ -288,13 +288,13 @@ export default function RoutineFinderPage() {
           </div>
 
           <div className="lg:col-span-4 space-y-8">
-            <Card className="rounded-none border-2 border-foreground bg-primary/5 sticky top-32">
+            <Card className="rounded-md border border-border bg-primary/5 sticky top-32">
               <CardContent className="p-8 space-y-10">
                 <div className="space-y-6">
-                  <h3 className="text-lg font-black uppercase tracking-tighter">Diagnostic Summary</h3>
+                  <h3 className="text-lg font-semibold uppercase tracking-tighter">Diagnostic Summary</h3>
                   
                   <div className="space-y-4">
-                    <h4 className="text-[9px] font-black uppercase tracking-widest text-primary">Top Skin Priorities</h4>
+                    <h4 className="text-[9px] font-semibold uppercase tracking-widest text-primary">Top Skin Priorities</h4>
                     <div className="space-y-2">
                       {result.priorities.map((p, i) => (
                         <div key={i} className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
@@ -305,7 +305,7 @@ export default function RoutineFinderPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="text-[9px] font-black uppercase tracking-widest text-primary">Why This Routine?</h4>
+                    <h4 className="text-[9px] font-semibold uppercase tracking-widest text-primary">Why This Routine?</h4>
                     <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
                       {result.whyThisRoutine}
                     </p>
@@ -313,7 +313,7 @@ export default function RoutineFinderPage() {
 
                   {result.warnings.length > 0 && (
                     <div className="space-y-2">
-                      <h4 className="text-[9px] font-black uppercase tracking-widest text-destructive flex items-center gap-2">
+                      <h4 className="text-[9px] font-semibold uppercase tracking-widest text-destructive flex items-center gap-2">
                         <AlertTriangle className="h-3 w-3" /> Clinical Cautions
                       </h4>
                       <ul className="space-y-2">
@@ -326,8 +326,8 @@ export default function RoutineFinderPage() {
                 </div>
 
                 {result.treatmentSchedule?.retinol && (
-                  <div className="p-6 bg-foreground text-background space-y-4 shadow-[10px_10px_0px_0px_rgba(249,115,22,0.2)]">
-                    <h4 className="text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                  <div className="p-6 bg-foreground text-background space-y-4 shadow-luxe">
+                    <h4 className="text-[9px] font-semibold uppercase tracking-widest flex items-center gap-2">
                       <Zap className="h-3 w-3 text-primary" /> Retinol Introduction
                     </h4>
                     <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
@@ -337,14 +337,14 @@ export default function RoutineFinderPage() {
                 )}
 
                 <div className="pt-8 border-t border-foreground/10 space-y-4">
-                  <Button onClick={handleAddAll} className="w-full h-14 rounded-none bg-foreground text-background font-black uppercase tracking-widest hover:bg-primary transition-all shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] hover:shadow-none">
+                  <Button onClick={handleAddAll} className="w-full h-14 rounded-md bg-foreground text-background font-semibold uppercase tracking-widest hover:bg-primary transition-all shadow-luxe hover:shadow-none">
                     Add Routine to Cart
                   </Button>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => { setResult(null); setStep(0); setAnswers({}); }} className="flex-1 text-[9px] font-black uppercase tracking-widest rounded-none border-2 h-12">
+                    <Button variant="outline" onClick={() => { setResult(null); setStep(0); setAnswers({}); }} className="flex-1 text-[9px] font-semibold uppercase tracking-widest rounded-md border-2 h-12">
                       Retake Quiz
                     </Button>
-                    <Button variant="outline" onClick={() => setResult(null)} className="flex-1 text-[9px] font-black uppercase tracking-widest rounded-none border-2 h-12">
+                    <Button variant="outline" onClick={() => setResult(null)} className="flex-1 text-[9px] font-semibold uppercase tracking-widest rounded-md border-2 h-12">
                       Edit Answers
                     </Button>
                   </div>
@@ -363,11 +363,11 @@ export default function RoutineFinderPage() {
   return (
     <div className="container mx-auto px-4 py-20 max-w-4xl min-h-[70vh] flex flex-col">
       <div className="space-y-8 mb-20">
-        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground">
+        <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-[0.4em] text-muted-foreground">
           <span>Step {step + 1} of {QUESTIONS.length}</span>
           <span>{Math.round(progress)}% Diagnostic Complete</span>
         </div>
-        <Progress value={progress} className="h-1 bg-muted overflow-hidden rounded-none">
+        <Progress value={progress} className="h-1 bg-muted overflow-hidden rounded-md">
           <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
         </Progress>
       </div>
@@ -375,12 +375,12 @@ export default function RoutineFinderPage() {
       <div className="flex-1 space-y-16 animate-in fade-in slide-in-from-right-4 duration-500">
         <div className="space-y-4">
           <div className="flex items-center gap-6">
-            <Button variant="ghost" size="icon" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="rounded-none border-2 border-foreground/10 h-12 w-12 shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0} className="rounded-md border border-border/10 h-12 w-12 shrink-0">
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">{q.label}</h2>
+            <h2 className="text-3xl md:text-5xl font-semibold uppercase tracking-tighter leading-none">{q.label}</h2>
           </div>
-          {q.multi && <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary ml-20">Multiple selections allowed</p>}
+          {q.multi && <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary ml-20">Multiple selections allowed</p>}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ml-0 md:ml-20">
@@ -400,7 +400,7 @@ export default function RoutineFinderPage() {
                   isSelected && "translate-y-0"
                 )} />
                 <span className={cn(
-                  "text-[10px] font-black uppercase tracking-widest transition-colors",
+                  "text-[10px] font-semibold uppercase tracking-widest transition-colors",
                   isSelected ? "text-primary" : "group-hover:text-primary"
                 )}>{opt.label}</span>
                 {isSelected ? (
@@ -415,7 +415,7 @@ export default function RoutineFinderPage() {
 
         {q.multi && (
           <div className="flex justify-end ml-20">
-            <Button onClick={() => setStep(step + 1)} className="h-16 px-12 rounded-none bg-foreground text-background font-black uppercase tracking-widest hover:bg-primary transition-all shadow-[10px_10px_0px_0px_rgba(0,0,0,0.1)]">
+            <Button onClick={() => setStep(step + 1)} className="h-16 px-12 rounded-md bg-foreground text-background font-semibold uppercase tracking-widest hover:bg-primary transition-all shadow-luxe">
               Continue <ArrowRight className="ml-3 h-5 w-5" />
             </Button>
           </div>
@@ -423,7 +423,7 @@ export default function RoutineFinderPage() {
       </div>
 
       <div className="mt-24 pt-10 border-t border-foreground/5 text-center">
-        <p className="text-[8px] font-black uppercase tracking-[0.4em] text-muted-foreground italic">Avyora Clinical Diagnostics Engine v2.0</p>
+        <p className="text-[8px] font-semibold uppercase tracking-[0.4em] text-muted-foreground italic">Avyora Clinical Diagnostics Engine v2.0</p>
       </div>
     </div>
   );
@@ -444,18 +444,18 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
             <Info className="h-8 w-8 mb-4 opacity-20" />
-            <p className="text-[8px] font-black uppercase tracking-widest opacity-40">Coming Soon to Avyora</p>
+            <p className="text-[8px] font-semibold uppercase tracking-widest opacity-40">Coming Soon to Avyora</p>
           </div>
         )}
       </div>
       <div className="space-y-4 flex-1">
         <div className="flex items-center justify-between border-b pb-2">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em]">{step.label}</h3>
-          <span className="text-[9px] font-black uppercase tracking-widest text-primary">{step.order.toString().padStart(2, '0')}</span>
+          <h3 className="text-[10px] font-semibold uppercase tracking-[0.3em]">{step.label}</h3>
+          <span className="text-[9px] font-semibold uppercase tracking-widest text-primary">{step.order.toString().padStart(2, '0')}</span>
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h4 className="text-[12px] font-black uppercase tracking-widest">
+            <h4 className="text-[12px] font-semibold uppercase tracking-widest">
               {step.productName}
               {step.productSize && step.productSize !== 'none' && <span className="text-primary ml-2">— {step.productSize}</span>}
             </h4>
@@ -463,7 +463,7 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="h-8 px-2 text-[8px] font-black uppercase tracking-widest hover:text-primary"
+                className="h-8 px-2 text-[8px] font-semibold uppercase tracking-widest hover:text-primary"
                 onClick={() => addToCart(product, step.productSize || product.sizes[0].label)}
               >
                 <ShoppingBag className="h-3 w-3 mr-2" /> Add
@@ -476,12 +476,12 @@ function RoutineStepCard({ step }: { step: RoutineStep }) {
           {step.frequency && (
             <div className="flex items-center gap-2 mt-2 bg-primary/5 px-2 py-1 w-fit">
               <Zap className="h-3 w-3 text-primary" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-primary">{step.frequency}</span>
+              <span className="text-[9px] font-semibold uppercase tracking-widest text-primary">{step.frequency}</span>
             </div>
           )}
           {!step.isAvyoraProduct && (
             <div className="mt-4 bg-muted/50 px-2 py-1 w-fit border border-dashed">
-              <span className="text-[7px] font-black uppercase tracking-widest opacity-40">Coming Soon / Placeholder</span>
+              <span className="text-[7px] font-semibold uppercase tracking-widest opacity-40">Coming Soon / Placeholder</span>
             </div>
           )}
         </div>

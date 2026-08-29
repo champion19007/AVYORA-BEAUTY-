@@ -45,7 +45,7 @@ export default function AssistantPage() {
                 <p className="text-[8px] uppercase tracking-widest opacity-60 text-foreground">Clinical Simulation Active</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-muted-foreground">
+            <div className="flex items-center gap-2 text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               Live
             </div>
@@ -88,9 +88,9 @@ export default function AssistantPage() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                className="rounded-none border-2 h-12 text-xs focus-visible:ring-0 focus-visible:border-primary"
+                className="rounded-md border-2 h-12 text-xs focus-visible:ring-0 focus-visible:border-primary"
               />
-              <Button onClick={() => handleSend()} className="rounded-none h-12 px-8 bg-foreground text-background hover:bg-primary transition-colors">
+              <Button onClick={() => handleSend()} className="rounded-md h-12 px-8 bg-foreground text-background hover:bg-primary transition-colors">
                 <Send className="h-4 w-4" />
               </Button>
             </div>
@@ -102,7 +102,7 @@ export default function AssistantPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="rounded-none border-2 bg-accent/5 border-foreground">
+          <Card className="rounded-md border-2 bg-accent/5 border-foreground">
             <CardHeader>
               <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
@@ -110,7 +110,7 @@ export default function AssistantPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="relative aspect-video bg-muted border-2 border-foreground overflow-hidden">
+              <div className="relative aspect-video bg-muted border border-border overflow-hidden">
                 <Image 
                   src="https://picsum.photos/seed/insight/400/300" 
                   alt="Skin Scan" 
@@ -125,7 +125,7 @@ export default function AssistantPage() {
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground leading-relaxed font-bold">
                 Synthesize a custom routine through clinical photo analysis.
               </p>
-              <Button className="w-full rounded-none border-2 border-foreground bg-transparent text-foreground hover:bg-foreground hover:text-background font-black uppercase tracking-widest text-[10px] py-6 transition-all">
+              <Button className="w-full rounded-md border border-border bg-transparent text-foreground hover:bg-foreground hover:text-background font-semibold uppercase tracking-widest text-[10px] py-6 transition-all">
                 Upload Selfie
               </Button>
             </CardContent>
