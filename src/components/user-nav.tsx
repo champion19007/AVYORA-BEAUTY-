@@ -38,21 +38,21 @@ export function UserNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full border-2 border-foreground hover:bg-primary hover:border-primary group transition-all">
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full border border-border hover:bg-primary hover:border-primary group transition-all">
           <Avatar className="h-7 w-7">
-            <AvatarFallback className="bg-transparent text-[10px] font-black group-hover:text-white">
+            <AvatarFallback className="bg-transparent text-[10px] font-semibold group-hover:text-white">
               {user?.name?.charAt(0) || 'U'}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64 rounded-none border-2 border-foreground p-0" align="end" forceMount>
+      <DropdownMenuContent className="w-64 rounded-md border border-border p-0" align="end" forceMount>
         <DropdownMenuLabel className="font-normal p-6 bg-muted/30 border-b-2 border-foreground">
           <div className="flex flex-col space-y-1">
             <div className="flex items-center gap-2">
-              <p className="text-xs font-black uppercase tracking-widest">{user?.name}</p>
+              <p className="text-xs font-semibold uppercase tracking-widest">{user?.name}</p>
               {user?.isAdmin && (
-                <span className="bg-primary text-white text-[8px] font-black px-2 py-0.5 rounded-none uppercase tracking-tighter">Admin</span>
+                <span className="bg-primary text-white text-[8px] font-semibold px-2 py-0.5 rounded-md uppercase tracking-tighter">Admin</span>
               )}
             </div>
             <p className="text-[10px] leading-none text-muted-foreground uppercase font-bold tracking-widest">
@@ -64,20 +64,20 @@ export function UserNav() {
         <DropdownMenuGroup className="p-2">
           {user?.isAdmin && (
             <Link href="/admin">
-              <DropdownMenuItem className="p-3 text-[10px] font-black uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-none">
+              <DropdownMenuItem className="p-3 text-[10px] font-semibold uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-md">
                 <LayoutDashboard className="mr-3 h-4 w-4" />
                 <span>Admin Dashboard</span>
               </DropdownMenuItem>
             </Link>
           )}
           <Link href="/settings">
-            <DropdownMenuItem className="p-3 text-[10px] font-black uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-none">
+            <DropdownMenuItem className="p-3 text-[10px] font-semibold uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-md">
               <User className="mr-3 h-4 w-4" />
               <span>Profile Settings</span>
             </DropdownMenuItem>
           </Link>
           <Link href="/settings?tab=billing">
-            <DropdownMenuItem className="p-3 text-[10px] font-black uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-none">
+            <DropdownMenuItem className="p-3 text-[10px] font-semibold uppercase tracking-widest cursor-pointer focus:bg-primary focus:text-white rounded-md">
               <CreditCard className="mr-3 h-4 w-4" />
               <span>Dermal Credit</span>
             </DropdownMenuItem>
@@ -88,7 +88,7 @@ export function UserNav() {
         
         <DropdownMenuItem 
           onClick={() => logout()}
-          className="p-4 text-[10px] font-black uppercase tracking-widest cursor-pointer focus:bg-destructive focus:text-white rounded-none m-2"
+          className="p-4 text-[10px] font-semibold uppercase tracking-widest cursor-pointer focus:bg-destructive focus:text-white rounded-md m-2"
         >
           <LogOut className="mr-3 h-4 w-4" />
           <span>Clinical Logout</span>

@@ -21,7 +21,7 @@ export function AnnouncementBar() {
   }, []);
 
   return (
-    <div className="bg-foreground text-background text-[10px] py-2 px-4 flex items-center justify-between font-black uppercase tracking-[0.2em] transition-colors duration-300">
+    <div className="bg-foreground text-background text-[10px] py-2 px-4 flex items-center justify-between font-semibold uppercase tracking-[0.2em] transition-colors duration-300">
       <button onClick={() => setIndex((prev) => (prev - 1 + MESSAGES.length) % MESSAGES.length)} className="hover:opacity-70 transition-opacity">
         <ChevronLeft className="h-3 w-3" />
       </button>

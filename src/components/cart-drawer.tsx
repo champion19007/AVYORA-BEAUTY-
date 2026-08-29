@@ -15,12 +15,12 @@ export function CartDrawer() {
 
   return (
     <Sheet open={isCartOpen} onOpenChange={setCartOpen}>
-      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col border-l-2 border-foreground">
-        <SheetHeader className="p-8 border-b-2 border-foreground bg-muted/30">
+      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col border-l border-border">
+        <SheetHeader className="p-8 border-b border-border bg-muted/30">
           <SheetTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ShoppingBag className="h-5 w-5" />
-              <span className="text-sm font-black uppercase tracking-widest">Shopping Bag ({cart.length})</span>
+              <span className="text-sm font-semibold uppercase tracking-widest">Shopping Bag ({cart.length})</span>
             </div>
             <button onClick={() => setCartOpen(false)}><X className="h-5 w-5" /></button>
           </SheetTitle>
@@ -33,11 +33,11 @@ export function CartDrawer() {
                 <ShoppingBag className="h-10 w-10" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your bag is empty</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Your bag is empty</p>
                 <p className="text-[8px] font-bold uppercase tracking-[0.2em] mt-2 max-w-[200px]">Start your journey to better skin science today.</p>
               </div>
               <Button 
-                className="rounded-none bg-foreground text-background font-black uppercase tracking-widest text-[10px] px-8 py-6"
+                className="rounded-md bg-foreground text-background font-semibold uppercase tracking-widest text-[10px] px-8 py-6"
                 onClick={() => setCartOpen(false)}
               >
                 Shop All
@@ -58,7 +58,7 @@ export function CartDrawer() {
                   <div className="flex-1 flex flex-col">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="text-[10px] font-black uppercase tracking-widest leading-tight mb-1">{item.name}</h4>
+                        <h4 className="text-[10px] font-semibold uppercase tracking-widest leading-tight mb-1">{item.name}</h4>
                         <p className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">{item.selectedSize}</p>
                       </div>
                       <button 
@@ -77,7 +77,7 @@ export function CartDrawer() {
                         >
                           <Minus className="h-3 w-3" />
                         </button>
-                        <span className="text-[10px] px-4 font-black">{item.quantity}</span>
+                        <span className="text-[10px] px-4 font-semibold">{item.quantity}</span>
                         <button 
                           className="p-2 hover:bg-muted"
                           onClick={() => updateQuantity(item.id, item.selectedSize, 1)}
@@ -85,7 +85,7 @@ export function CartDrawer() {
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
-                      <p className="text-xs font-black">₹{(item.price * item.quantity).toLocaleString()}</p>
+                      <p className="text-xs font-semibold">₹{(item.price * item.quantity).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -97,7 +97,7 @@ export function CartDrawer() {
         {cart.length > 0 && (
           <div className="p-8 border-t-2 border-foreground space-y-6 bg-white shadow-[0_-20px_40px_rgba(0,0,0,0.05)]">
             <div className="space-y-4">
-              <div className="flex justify-between text-[8px] font-black uppercase tracking-widest">
+              <div className="flex justify-between text-[8px] font-semibold uppercase tracking-widest">
                 <span>{progress >= 100 ? 'Free Gift Earned!' : `Add ₹${(freeGiftThreshold - subtotal).toLocaleString()} for a Free Gift`}</span>
                 <span>{Math.round(progress)}%</span>
               </div>
@@ -109,14 +109,14 @@ export function CartDrawer() {
               </div>
             </div>
             
-            <div className="flex justify-between text-xl font-black uppercase tracking-tighter">
+            <div className="flex justify-between text-xl font-semibold uppercase tracking-tighter">
               <span>Subtotal</span>
               <span>₹{subtotal.toLocaleString()}</span>
             </div>
             
             <div className="space-y-4">
               <Link href="/checkout" onClick={() => setCartOpen(false)} className="block">
-                <Button className="w-full bg-foreground text-background font-black uppercase tracking-widest py-8 rounded-none group hover:bg-primary transition-colors">
+                <Button className="w-full bg-foreground text-background font-semibold uppercase tracking-widest py-8 rounded-md group hover:bg-primary transition-colors">
                   Checkout Now <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-2 transition-transform" />
                 </Button>
               </Link>

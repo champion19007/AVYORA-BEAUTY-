@@ -55,11 +55,11 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="mx-auto max-w-sm w-full rounded-none border-2 border-foreground shadow-[10px_10px_0px_0px_rgba(0,0,0,1)]">
-      <CardHeader className="space-y-4 text-center pb-8 border-b-2 border-foreground mb-6">
+    <Card className="mx-auto max-w-sm w-full rounded-md border border-border shadow-luxe">
+      <CardHeader className="space-y-4 text-center pb-8 border-b border-border mb-6">
         <LogoDark className="justify-center" />
         <div className="space-y-2">
-          <CardTitle className="font-black text-2xl uppercase tracking-tighter">Welcome Back</CardTitle>
+          <CardTitle className="font-semibold text-2xl uppercase tracking-tighter">Welcome Back</CardTitle>
           <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
             Enter your clinical credentials to proceed
           </CardDescription>
@@ -68,19 +68,19 @@ export default function LoginPage() {
       <CardContent>
         <form onSubmit={handleLogin} className="grid gap-6">
           <div className="grid gap-2">
-            <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-widest">Username / Email</Label>
+            <Label htmlFor="username" className="text-[10px] font-semibold uppercase tracking-widest">Username / Email</Label>
             <Input
               id="username"
               placeholder="e.g. qwerty"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="rounded-none border-2 border-foreground h-12 text-xs focus-visible:ring-0 focus-visible:border-primary"
+              className="rounded-md border border-border h-12 text-xs focus-visible:ring-0 focus-visible:border-primary"
             />
           </div>
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-widest">Password</Label>
+              <Label htmlFor="password" className="text-[10px] font-semibold uppercase tracking-widest">Password</Label>
               <Link
                 href="#"
                 className="text-[8px] font-bold uppercase tracking-widest underline opacity-60 hover:opacity-100"
@@ -94,24 +94,24 @@ export default function LoginPage() {
               required 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="rounded-none border-2 border-foreground h-12 text-xs focus-visible:ring-0 focus-visible:border-primary"
+              className="rounded-md border border-border h-12 text-xs focus-visible:ring-0 focus-visible:border-primary"
             />
           </div>
           <Button 
             type="submit" 
             disabled={isLoading}
-            className="w-full bg-foreground text-background hover:bg-primary hover:text-white h-14 rounded-none font-black uppercase tracking-widest text-[10px] transition-all"
+            className="w-full bg-foreground text-background hover:bg-primary hover:text-white h-14 rounded-md font-semibold uppercase tracking-widest text-[10px] transition-all"
           >
             {isLoading ? "Authenticating..." : "Login"}
           </Button>
-          <Button variant="outline" type="button" className="w-full border-2 border-foreground h-14 rounded-none font-black uppercase tracking-widest text-[10px]">
+          <Button variant="outline" type="button" className="w-full border border-border h-14 rounded-md font-semibold uppercase tracking-widest text-[10px]">
             Login with Google
           </Button>
         </form>
         <div className="mt-8 text-center">
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">
             No account?{' '}
-            <Link href="/signup" className="underline font-black text-foreground opacity-100">
+            <Link href="/signup" className="underline font-semibold text-foreground opacity-100">
               Join the Circle
             </Link>
           </p>

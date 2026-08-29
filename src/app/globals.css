@@ -5,48 +5,79 @@
 
 @layer base {
   :root {
-    /* Light Mode: Cream background, Navy text, Gold accents */
-    --background: 60 10% 98%;
-    --foreground: 220 50% 15%; /* Navy Blue tint */
+    /* ---------------------------------------------------------------
+     * Avyora brand palette, sampled directly from the logo:
+     *   Navy    #16265E  – the "A" monogram and wordmark
+     *   Gold    #C9A227  – the arc, ribbon, star and lotus
+     *   Leaf    #2E8B22  – the botanical sprigs
+     *   Ivory   #FAF8F3  – the logo's paper ground
+     * ------------------------------------------------------------- */
+    --background: 40 33% 97%;
+    --foreground: 224 60% 16%;
+
     --card: 0 0% 100%;
-    --card-foreground: 220 50% 15%;
+    --card-foreground: 224 60% 16%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 50% 15%;
-    --primary: 43 80% 50%; /* Clinical Gold */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 30% 96%;
-    --secondary-foreground: 220 50% 15%;
-    --muted: 220 10% 94%;
-    --muted-foreground: 220 10% 40%;
-    --accent: 43 80% 50%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 224 60% 16%;
+
+    /* Gold is the accent, not the workhorse: used for price, rules,
+       badges and hover states rather than large fills. */
+    --primary: 43 68% 47%;
+    --primary-foreground: 224 60% 12%;
+
+    --secondary: 224 40% 96%;
+    --secondary-foreground: 224 60% 16%;
+
+    --muted: 40 20% 94%;
+    --muted-foreground: 224 15% 42%;
+
+    --accent: 43 68% 47%;
+    --accent-foreground: 224 60% 12%;
+
+    /* Botanical green, reserved for "in stock" / natural-origin cues. */
+    --leaf: 112 60% 34%;
+
+    --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 90%;
-    --input: 220 15% 90%;
-    --ring: 43 80% 50%;
-    --radius: 0rem;
+
+    --border: 224 20% 89%;
+    --input: 224 20% 89%;
+    --ring: 43 68% 47%;
+
+    --radius: 0.5rem;
   }
 
   .dark {
-    /* Dark Mode: Deep Navy background, off-white text, Gold accents */
-    --background: 220 50% 5%;
-    --foreground: 60 10% 98%;
-    --card: 220 50% 8%;
-    --card-foreground: 60 10% 98%;
-    --popover: 220 50% 5%;
-    --popover-foreground: 60 10% 98%;
-    --primary: 43 80% 60%; /* Brighter Gold for Dark Mode */
-    --primary-foreground: 220 50% 5%;
-    --secondary: 220 30% 15%;
-    --secondary-foreground: 60 10% 98%;
-    --muted: 220 30% 15%;
-    --muted-foreground: 220 10% 65%;
-    --accent: 43 80% 60%;
-    --accent-foreground: 60 10% 98%;
-    --border: 220 30% 20%;
-    --input: 220 30% 20%;
-    --ring: 43 80% 60%;
+    /* Night mode reads as deep navy lacquer with gold leaf, mirroring
+       the logo on a dark ground. */
+    --background: 224 55% 7%;
+    --foreground: 40 30% 95%;
+
+    --card: 224 48% 11%;
+    --card-foreground: 40 30% 95%;
+    --popover: 224 50% 9%;
+    --popover-foreground: 40 30% 95%;
+
+    --primary: 43 76% 60%;
+    --primary-foreground: 224 60% 8%;
+
+    --secondary: 224 35% 17%;
+    --secondary-foreground: 40 30% 95%;
+
+    --muted: 224 32% 16%;
+    --muted-foreground: 224 12% 68%;
+
+    --accent: 43 76% 60%;
+    --accent-foreground: 224 60% 8%;
+
+    --leaf: 112 45% 52%;
+
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 224 28% 21%;
+    --input: 224 28% 21%;
+    --ring: 43 76% 60%;
   }
 }
 
@@ -56,6 +87,54 @@
   }
   body {
     @apply bg-background text-foreground antialiased transition-colors duration-300;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+  }
+  h1, h2, h3, h4 {
+    @apply font-headline;
+  }
+}
+
+@layer components {
+  /* Thin gold rule used to separate sections, echoing the arc that
+     sweeps over the logo's monogram. */
+  .rule-gold {
+    @apply block h-px w-full;
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--primary) / 0.55),
+      transparent
+    );
+  }
+
+  /* Small caps eyebrow above section headings. */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.32em] text-primary;
+  }
+
+  /* Brushed-gold text for prices and numerals. */
+  .text-gilt {
+    background-image: linear-gradient(
+      100deg,
+      hsl(var(--primary)),
+      hsl(43 82% 62%),
+      hsl(var(--primary))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Soft, warm elevation. Replaces the old hard-offset brutalist shadow. */
+  .shadow-luxe {
+    box-shadow:
+      0 1px 2px hsl(224 60% 16% / 0.04),
+      0 8px 24px -8px hsl(224 60% 16% / 0.10);
+  }
+  .shadow-luxe-lg {
+    box-shadow:
+      0 2px 4px hsl(224 60% 16% / 0.05),
+      0 24px 48px -12px hsl(224 60% 16% / 0.18);
   }
 }
 
@@ -71,4 +150,14 @@
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

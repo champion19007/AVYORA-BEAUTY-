@@ -1,67 +1,116 @@
 'use client';
 
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 /**
- * Logo component optimized for the new Gold and Blue clinical branding.
- * Fixed for precise top-left placement in navigation.
+ * Path to the brand artwork. Save the master logo file at `public/logo.png`.
+ * Until it exists, the components below fall back to a typeset gold monogram
+ * so the header never shows a broken image.
  */
-export function Logo({ className }: { className?: string }) {
-  const logoImage = PlaceHolderImages.find(img => img.id === 'avyora-logo')?.imageUrl || '';
+const LOGO_SRC = '/logo.png';
+
+/** Typeset stand-in used when the artwork file is missing. */
+function MonogramFallback({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex items-center justify-center rounded-full border border-primary/50 bg-[hsl(224_60%_16%)] font-headline font-semibold text-primary',
+        className
+      )}
+    >
+      A
+    </span>
+  );
+}
+
+/**
+ * The supplied artwork is a square lockup: the gilded "A" emblem occupies
+ * roughly the top three quarters, with the AVYORA wordmark beneath it. In the
+ * header we crop to the emblem alone and typeset the wordmark beside it, so
+ * the brand name is never rendered twice.
+ */
+function EmblemCrop({ className, sizes }: { className?: string; sizes: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) return <MonogramFallback className={cn('text-lg', className)} />;
 
   return (
-    <Link href="/" className={cn('flex items-center gap-3 group', className)}>
-      <div className="relative h-11 w-11 overflow-hidden rounded-full border-2 border-primary bg-foreground flex items-center justify-center shrink-0">
-        <Image 
-          src={logoImage} 
-          alt="Avyora Icon" 
-          width={44} 
-          height={44} 
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
-          data-ai-hint="clinical logo"
-        />
-      </div>
-      <div className="flex flex-col justify-center">
-        <span className="text-xl font-black tracking-tighter text-foreground uppercase leading-[0.8] mb-1">
+    <span className={cn('relative block overflow-hidden', className)}>
+      <Image
+        src={LOGO_SRC}
+        alt=""
+        aria-hidden="true"
+        width={512}
+        height={512}
+        sizes={sizes}
+        priority
+        onError={() => setFailed(true)}
+        className="absolute left-1/2 top-0 w-[136%] max-w-none -translate-x-1/2"
+      />
+    </span>
+  );
+}
+
+/**
+ * Primary navigation lockup: cropped emblem plus typeset wordmark.
+ */
+export function Logo({ className }: { className?: string }) {
+  return (
+    <Link
+      href="/"
+      aria-label="Avyora — home"
+      className={cn('group flex items-center gap-3', className)}
+    >
+      <EmblemCrop className="h-11 w-11 shrink-0" sizes="44px" />
+      <span className="flex flex-col justify-center">
+        <span className="font-headline text-2xl font-semibold leading-none tracking-[0.14em] text-foreground transition-colors group-hover:text-primary">
           AVYORA
         </span>
-        <span className="text-[7px] font-bold tracking-[0.3em] text-primary uppercase opacity-80">
-          Inspire • Create • Grow
+        <span className="mt-1 text-[7px] font-medium uppercase tracking-[0.34em] text-primary">
+          Inspire · Create · Grow
         </span>
-      </div>
+      </span>
     </Link>
   );
 }
 
 /**
- * Large, centered logo variant for authentication and splash screens.
+ * Large centred variant for authentication and splash screens. Shows the
+ * artwork whole, since there is room for the wordmark to read properly.
  */
 export function LogoDark({ className }: { className?: string }) {
-  const logoImage = PlaceHolderImages.find(img => img.id === 'avyora-logo')?.imageUrl || '';
+  const [failed, setFailed] = useState(false);
 
   return (
-    <Link href="/" className={cn('flex flex-col items-center gap-4 group', className)}>
-      <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-primary bg-foreground flex items-center justify-center shadow-2xl">
-        <Image 
-          src={logoImage} 
-          alt="Avyora Icon" 
-          width={96} 
-          height={96} 
-          className="object-cover transition-transform duration-700 group-hover:scale-110"
-          data-ai-hint="clinical logo"
+    <Link
+      href="/"
+      aria-label="Avyora — home"
+      className={cn('group flex flex-col items-center gap-3', className)}
+    >
+      {failed ? (
+        <>
+          <MonogramFallback className="h-20 w-20 text-4xl" />
+          <span className="font-headline text-3xl font-semibold tracking-[0.14em]">AVYORA</span>
+          <span className="text-[9px] font-medium uppercase tracking-[0.34em] text-primary">
+            Inspire · Create · Grow
+          </span>
+        </>
+      ) : (
+        <Image
+          src={LOGO_SRC}
+          alt="Avyora"
+          width={320}
+          height={320}
+          sizes="160px"
+          priority
+          onError={() => setFailed(true)}
+          className="h-40 w-40 object-contain transition-transform duration-700 group-hover:scale-[1.03]"
         />
-      </div>
-      <div className="text-center">
-        <h1 className="text-4xl font-black tracking-tighter text-foreground uppercase leading-none">
-          AVYORA
-        </h1>
-        <p className="text-[11px] font-black tracking-[0.5em] text-primary uppercase mt-4">
-          Inspire • Create • Grow
-        </p>
-      </div>
+      )}
     </Link>
   );
 }

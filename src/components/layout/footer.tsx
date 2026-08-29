@@ -20,93 +20,111 @@ const FOOTER_LINKS = {
     { name: 'Shipping Policy', href: '#' },
     { name: 'Return Policy', href: '#' },
     { name: 'Track Order', href: '/track-order' },
-    { name: 'Download App', href: '#' },
+    { name: 'Routine Finder', href: '/routine-finder' },
     { name: 'Payment Policy', href: '#' },
   ],
   contact: [
     { name: 'WhatsApp: +91 99999 99999', href: 'https://wa.me/919999999999' },
     { name: 'support@avyora.com', href: 'mailto:support@avyora.com' },
     { name: 'Gift Inquiries', href: '#' },
-    { name: 'Fill Contact Form', href: '#' },
-  ]
+    { name: 'Contact Form', href: '#' },
+  ],
 };
+
+const SOCIALS = [
+  { Icon: Instagram, label: 'Instagram', href: '#' },
+  { Icon: Facebook, label: 'Facebook', href: '#' },
+  { Icon: Youtube, label: 'YouTube', href: '#' },
+  { Icon: Mail, label: 'Email us', href: 'mailto:support@avyora.com' },
+];
+
+function LinkColumn({ heading, links }: { heading: string; links: { name: string; href: string }[] }) {
+  return (
+    <div>
+      <h2 className="mb-6 font-headline text-lg font-medium tracking-wide">{heading}</h2>
+      <ul className="space-y-3">
+        {links.map((link) => (
+          <li key={link.name}>
+            <Link
+              href={link.href}
+              className="text-sm text-muted-foreground transition-colors hover:text-primary"
+            >
+              {link.name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function Footer() {
   return (
-    <footer className="bg-card text-card-foreground pt-24 pb-12 border-t">
-      <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 border-b border-border pb-20">
-        <div className="space-y-8">
+    <footer className="border-t border-border bg-card pb-10 pt-20 text-card-foreground">
+      <div className="container mx-auto grid grid-cols-1 gap-12 border-b border-border px-4 pb-16 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-6">
           <Logo />
-          <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 leading-relaxed">
-            Science-forward personal care. Formulated in-house. Delivered directly to your door by Avyora.
+          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+            Science-forward personal care. Formulated in-house, delivered directly to your door.
           </p>
-          <div className="flex gap-6">
-            <Link href="#" className="hover:text-primary transition-colors"><Facebook className="h-5 w-5" /></Link>
-            <Link href="#" className="hover:text-primary transition-colors"><Instagram className="h-5 w-5" /></Link>
-            <Link href="#" className="hover:text-primary transition-colors"><Youtube className="h-5 w-5" /></Link>
-            <Link href="#" className="hover:text-primary transition-colors"><Mail className="h-5 w-5" /></Link>
+          <div className="flex gap-4">
+            {SOCIALS.map(({ Icon, label, href }) => (
+              <Link
+                key={label}
+                href={href}
+                aria-label={label}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+              >
+                <Icon className="h-4 w-4" />
+              </Link>
+            ))}
           </div>
         </div>
 
-        <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] mb-8">Company</h3>
-          <ul className="space-y-4">
-            {FOOTER_LINKS.company.map((link) => (
-              <li key={link.name}>
-                <Link href={link.href} className="text-[10px] opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest font-bold">
-                  {link.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <LinkColumn heading="Company" links={FOOTER_LINKS.company} />
+        <LinkColumn heading="Quick links" links={FOOTER_LINKS.quick} />
 
         <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] mb-8">Quick Links</h3>
-          <ul className="space-y-4">
-            {FOOTER_LINKS.quick.map((link) => (
-              <li key={link.name}>
-                <Link href={link.href} className="text-[10px] opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest font-bold">
-                  {link.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] mb-8">Contact Us</h3>
-          <ul className="space-y-4">
-            {FOOTER_LINKS.contact.map((link) => (
-              <li key={link.name}>
-                <Link href={link.href} className="text-[10px] opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest font-bold">
-                  {link.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-12 space-y-6">
-            <h4 className="text-[10px] font-black uppercase tracking-widest">Newsletter</h4>
-            <div className="flex border-b border-border pb-2">
-              <input 
-                type="email" 
-                placeholder="Enter email" 
-                className="bg-transparent text-[10px] px-0 py-2 w-full focus:outline-none placeholder:opacity-40 uppercase tracking-widest font-bold"
+          <LinkColumn heading="Contact" links={FOOTER_LINKS.contact} />
+          <div className="mt-10">
+            <h2 className="mb-3 font-headline text-lg font-medium tracking-wide">Newsletter</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Formulation notes and early access, occasionally.
+            </p>
+            <form className="flex items-center gap-2 border-b border-border pb-2 focus-within:border-primary">
+              <label htmlFor="newsletter-email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="newsletter-email"
+                type="email"
+                required
+                placeholder="your@email.com"
+                className="w-full bg-transparent py-1.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
               />
-              <button className="text-[10px] font-black uppercase tracking-[0.2em] ml-4 hover:text-primary transition-colors">
+              <button
+                type="submit"
+                className="shrink-0 text-xs font-semibold uppercase tracking-[0.18em] text-primary transition-opacity hover:opacity-70"
+              >
                 Join
               </button>
-            </div>
+            </form>
           </div>
         </div>
       </div>
-      
-      <div className="container mx-auto px-4 mt-12 flex flex-col md:flex-row justify-between items-center text-[8px] uppercase tracking-[0.3em] opacity-40 font-black gap-6">
-        <div>© {new Date().getFullYear()} Avyora Skincare. All rights reserved.</div>
-        <div className="flex gap-8">
-          <Link href="#" className="hover:opacity-100">Privacy Policy</Link>
-          <Link href="#" className="hover:opacity-100">Terms of Use</Link>
-          <Link href="#" className="hover:opacity-100">Cookie Settings</Link>
+
+      <div className="container mx-auto mt-8 flex flex-col items-center justify-between gap-4 px-4 text-xs text-muted-foreground md:flex-row">
+        <p>© {new Date().getFullYear()} Avyora Skincare. All rights reserved.</p>
+        <div className="flex gap-6">
+          <Link href="#" className="transition-colors hover:text-primary">
+            Privacy Policy
+          </Link>
+          <Link href="#" className="transition-colors hover:text-primary">
+            Terms of Use
+          </Link>
+          <Link href="#" className="transition-colors hover:text-primary">
+            Cookie Settings
+          </Link>
         </div>
       </div>
     </footer>
