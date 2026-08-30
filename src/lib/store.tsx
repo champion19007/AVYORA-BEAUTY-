@@ -43,17 +43,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isCartOpen, setCartOpen] = useState(false);
 
+  /**
+   * Rehydrates persisted state after mount.
+   *
+   * This cannot move into lazy initial state: localStorage does not exist on
+   * the server, and reading it during the first client render would disagree
+   * with the server's HTML and break hydration. Reading after mount is the
+   * correct shape for client-only persisted state.
+   *
+   * The reads are wrapped in try/catch because localStorage throws in private
+   * browsing on some browsers, and a corrupt JSON value would otherwise take
+   * down the whole provider.
+   */
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    const savedWishlist = localStorage.getItem('wishlist');
-    const savedUser = localStorage.getItem('user');
+    let savedCart: CartItem[] | null = null;
+    let savedWishlist: string[] | null = null;
+    let savedUser: User | null = null;
 
-    if (savedCart) setCart(JSON.parse(savedCart));
-    if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
+    try {
+      const rawCart = localStorage.getItem('cart');
+      const rawWishlist = localStorage.getItem('wishlist');
+      const rawUser = localStorage.getItem('user');
+      if (rawCart) savedCart = JSON.parse(rawCart);
+      if (rawWishlist) savedWishlist = JSON.parse(rawWishlist);
+      if (rawUser) savedUser = JSON.parse(rawUser);
+    } catch {
+      // Unreadable or corrupt storage: start from empty rather than crash.
+      return;
+    }
+
+    /* eslint-disable react-hooks/set-state-in-effect -- rehydrating client-only
+       persisted state after mount is exactly the case this rule cannot model:
+       localStorage is unavailable during SSR, so the values cannot come from
+       lazy initial state without breaking hydration. */
+    if (savedCart) setCart(savedCart);
+    if (savedWishlist) setWishlist(savedWishlist);
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      setUser(savedUser);
       setIsLoggedIn(true);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {

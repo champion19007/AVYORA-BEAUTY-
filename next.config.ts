@@ -6,8 +6,10 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Lint runs in CI and in the build. It was disabled here, which is the same
+  // pattern that let a missing import ship as a runtime crash.
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
 
   // Ship smaller client bundles: only the icons actually imported, and

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
@@ -14,6 +15,13 @@ import {
  * page scripts cannot read or forge it.
  */
 export async function POST(request: Request) {
+  // Brute force protection: without this the PBKDF2 hash is only as strong as
+  // the number of guesses an attacker is allowed.
+  const limit = await rateLimit('adminLogin', clientIp(request));
+  if (!limit.allowed) {
+    return tooManyRequests(limit, 'Too many sign-in attempts. Try again later.');
+  }
+
   const config = getAdminConfig();
 
   let username = '';

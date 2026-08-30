@@ -9,7 +9,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin', '/dashboard', '/settings', '/payment', '/history', '/goals', '/subscriptions', '/login', '/signup'],
+      // The finance-app routes these used to cover have been deleted.
+      disallow: ['/admin', '/api', '/checkout', '/orders', '/login', '/signup'],
     },
     sitemap: 'https://avyora.com/sitemap.xml',
   };

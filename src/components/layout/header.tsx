@@ -11,52 +11,39 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { PRODUCTS } from '@/data/mock-data';
+import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 
 const NAV_ITEMS = [
   { name: 'Shop', href: '/collections' },
   { name: 'Best Sellers', href: '/collections?filter=bestsellers' },
   {
-    name: 'Skin & Body Care',
-    href: '/collections?category=skin',
+    name: 'Shop by Category',
+    href: '/collections',
     mega: true,
-    concerns: ['Face Wash', 'Vitamin C Serum', 'Sunscreen', 'Body Lotion', 'Acne Control', 'Pigmentation', 'Fine Lines'],
-    ingredients: ['Vitamin C Serum', 'Sunscreen', 'Body Lotion', 'Face Wash', 'Retinol', 'Niacinamide', 'Salicylic Acid'],
-    categories: ['Face Wash', 'Vitamin C Serum', 'Sunscreen', 'Body Lotion', 'Under Eye'],
-  },
-  {
-    name: 'Hair Care',
-    href: '/collections?category=hair',
-    mega: true,
-    concerns: ['Hair Serum', 'Hair Fall', 'Dandruff', 'Scalp Irritation'],
-    ingredients: ['Hair Serum', 'Capixyl', 'Maleic Acid'],
-    categories: ['Hair Serum', 'Shampoo', 'Oil'],
   },
   { name: 'Routine Finder', href: '/routine-finder' },
   { name: 'Track Order', href: '/track-order' },
 ];
 
-/** The catalogue is static, so this index is built once, not per render. */
-const ACTIVE_CONCERNS: ReadonlySet<string> = new Set(
-  PRODUCTS.flatMap((p) => p.concerns.map((c) => c.toLowerCase()))
+/**
+ * The menus are derived from the catalogue rather than hardcoded label lists.
+ *
+ * The previous version listed labels by hand, which drifted: a whole "Hair
+ * Care" mega menu advertised four concerns and three categories with zero
+ * products behind any of them, and several links resolved to nothing. Deriving
+ * the menu means an entry cannot outlive the products it points at.
+ *
+ * The catalogue is static, so these are computed once, not per render.
+ */
+const CATEGORIES_WITH_PRODUCTS = CATEGORIES.filter((c) =>
+  PRODUCTS.some((p) => p.category === c.id)
 );
 
-/** Product lookup by display name, also static. */
-const PRODUCT_BY_NAME: ReadonlyMap<string, (typeof PRODUCTS)[number]> = new Map(
-  PRODUCTS.map((p) => [p.name, p])
+const CONCERNS_WITH_PRODUCTS = CONCERNS.filter((c) =>
+  PRODUCTS.some((p) => p.concerns.includes(c.id))
 );
 
-const labelToId = (label: string) => {
-  const map: Record<string, string> = {
-    'Face Wash': 'face-wash',
-    'Vitamin C Serum': 'vitamin-c-serum',
-    'Hair Serum': 'hair-serum',
-    Retinol: 'retinol',
-    Sunscreen: 'sunscreen',
-    'Body Lotion': 'body-lotion',
-  };
-  return map[label] || label.toLowerCase().replace(/ /g, '-');
-};
+const BESTSELLERS = PRODUCTS.filter((p) => p.isBestSeller).slice(0, 7);
 
 /** One column of the mega menu. */
 function MegaColumn({
@@ -148,28 +135,25 @@ export function Header() {
                   {item.mega && (
                     <div className="pointer-events-none absolute left-1/2 top-full z-50 grid w-[760px] -translate-x-1/2 translate-y-3 grid-cols-3 gap-10 rounded-xl border border-border bg-popover p-10 opacity-0 shadow-luxe-lg transition-all duration-300 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
                       <MegaColumn
-                        heading="By concern"
-                        links={(item.concerns ?? []).map((c) => {
-                          const id = labelToId(c);
-                          return {
-                            label: c,
-                            href: ACTIVE_CONCERNS.has(id) ? `/collections?concern=${id}` : null,
-                          };
-                        })}
-                      />
-                      <MegaColumn
-                        heading="By ingredient"
-                        links={(item.ingredients ?? []).map((i) => {
-                          const product = PRODUCT_BY_NAME.get(i);
-                          return { label: i, href: product ? `/products/${product.slug}` : null };
-                        })}
-                      />
-                      <MegaColumn
                         heading="By category"
-                        links={(item.categories ?? []).map((c) => {
-                          const product = PRODUCT_BY_NAME.get(c);
-                          return { label: c, href: product ? `/products/${product.slug}` : null };
-                        })}
+                        links={CATEGORIES_WITH_PRODUCTS.map((c) => ({
+                          label: c.name,
+                          href: `/collections?category=${c.id}`,
+                        }))}
+                      />
+                      <MegaColumn
+                        heading="By concern"
+                        links={CONCERNS_WITH_PRODUCTS.slice(0, 8).map((c) => ({
+                          label: c.name,
+                          href: `/collections?concern=${c.id}`,
+                        }))}
+                      />
+                      <MegaColumn
+                        heading="Best sellers"
+                        links={BESTSELLERS.map((p) => ({
+                          label: p.name,
+                          href: `/products/${p.slug}`,
+                        }))}
                       />
                     </div>
                   )}

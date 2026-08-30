@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { createOrder, attachPaymentReference, type CheckoutInput } from '@/lib/orders';
 import { createRazorpayOrder, getRazorpayConfig } from '@/lib/razorpay';
+import { createOrderAccessToken } from '@/lib/order-access';
+import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
 
 /**
  * Creates our order, then a matching Razorpay order.
@@ -12,6 +14,11 @@ import { createRazorpayOrder, getRazorpayConfig } from '@/lib/razorpay';
  * never a figure supplied by the browser.
  */
 export async function POST(request: Request) {
+  const limit = await rateLimit('payment', clientIp(request));
+  if (!limit.allowed) {
+    return tooManyRequests(limit, 'Too many payment attempts. Please wait a moment.');
+  }
+
   const config = getRazorpayConfig();
   if (!config || !isDatabaseConfigured()) {
     return NextResponse.json(
@@ -56,6 +63,7 @@ export async function POST(request: Request) {
       amount: rzpOrder.amount,
       currency: rzpOrder.currency,
       orderNumber: created.orderNumber,
+      accessToken: await createOrderAccessToken(created.orderNumber),
     });
   } catch (err) {
     // Log the detail, return something generic: provider errors can echo config.

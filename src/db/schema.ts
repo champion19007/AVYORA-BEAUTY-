@@ -265,6 +265,30 @@ export const activityEvents = pgTable('activity_events', {
 }));
 
 /* -------------------------------------------------------------------------- */
+/* Rate limiting                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fixed-window request counters.
+ *
+ * Kept in Postgres rather than process memory because serverless instances are
+ * numerous and short-lived: an in-memory counter resets on every cold start and
+ * is not shared between instances, so an attacker spreading attempts across
+ * instances would never hit a limit. Redis/ElastiCache would be faster and is
+ * the natural upgrade after the AWS move; the interface in lib/rate-limit.ts
+ * does not change.
+ */
+export const rateLimits = pgTable('rate_limits', {
+  /** Bucket key, e.g. "admin-login:203.0.113.7". */
+  key: text('key').primaryKey(),
+  count: integer('count').notNull().default(0),
+  /** Start of the current window. */
+  windowStart: timestamp('window_start', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  windowIdx: index('rate_limits_window_idx').on(t.windowStart),
+}));
+
+/* -------------------------------------------------------------------------- */
 /* Relations                                                                    */
 /* -------------------------------------------------------------------------- */
 

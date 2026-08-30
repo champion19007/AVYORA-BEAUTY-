@@ -26,6 +26,16 @@ const FIELDS = [
   { name: 'postalCode', label: 'PIN code', autoComplete: 'postal-code', span: 1 },
 ] as const;
 
+/**
+ * Confirmation URL. Guests carry a signed token because the order page shows
+ * their address and phone number and must not be readable by URL alone.
+ */
+function orderUrl(orderNumber: string, accessToken?: string | null) {
+  return accessToken
+    ? `/orders/${orderNumber}?t=${encodeURIComponent(accessToken)}`
+    : `/orders/${orderNumber}`;
+}
+
 /** Loads Razorpay's checkout script once, on demand. */
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -111,7 +121,7 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
     if (method === 'cod') {
       const result = await placeOrder({ ...buildPayload(), paymentMethod: 'cod' });
       if (result.ok) {
-        router.push(`/orders/${result.orderNumber}`);
+        router.push(orderUrl(result.orderNumber, result.accessToken));
         return;
       }
       setFormError(result.error);
@@ -143,7 +153,7 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
       return;
     }
 
-    const { keyId, razorpayOrderId, amount, currency, orderNumber } = created.body;
+    const { keyId, razorpayOrderId, amount, currency, orderNumber, accessToken } = created.body;
 
     const rzp = new (window as any).Razorpay({
       key: keyId,
@@ -171,7 +181,7 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
           .catch(() => ({ ok: false, body: null as any }));
 
         if (verified.ok) {
-          router.push(`/orders/${orderNumber}`);
+          router.push(orderUrl(orderNumber, accessToken));
           return;
         }
 
