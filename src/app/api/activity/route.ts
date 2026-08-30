@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { ANONYMOUS_COOKIE } from '@/lib/cart-server';
 import { recordEvent, type EventName } from '@/lib/activity';
+import { isSameOrigin } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,11 @@ const ALLOWED: ReadonlySet<string> = new Set<EventName>([
  * must never surface an error to a customer mid-journey.
  */
 export async function POST(request: Request) {
-  if (!isDatabaseConfigured()) return new NextResponse(null, { status: 204 });
+  // Cross-origin posts are dropped silently: analytics should never tell a
+  // caller anything about itself.
+  if (!isSameOrigin(request) || !isDatabaseConfigured()) {
+    return new NextResponse(null, { status: 204 });
+  }
 
   try {
     const body = await request.json();

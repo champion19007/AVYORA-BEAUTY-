@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isSameOrigin } from '@/lib/security';
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
 import {
   SESSION_COOKIE,
@@ -15,6 +16,10 @@ import {
  * page scripts cannot read or forge it.
  */
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
+  }
+
   // Brute force protection: without this the PBKDF2 hash is only as strong as
   // the number of guesses an attacker is allowed.
   const limit = await rateLimit('adminLogin', clientIp(request));

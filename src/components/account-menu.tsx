@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useApp } from '@/lib/store';
+import { useAuthAvailable } from '@/components/layout/client-layout-wrapper';
 
 /**
  * Account control in the header.
@@ -28,20 +29,30 @@ import { useApp } from '@/lib/store';
  * cleared alongside the real session so the two cannot disagree.
  */
 export function AccountMenu() {
+  // Hooks cannot be conditional, so the session-aware part lives in a child
+  // that is only mounted when a SessionProvider exists above it.
+  const authAvailable = useAuthAvailable();
+  return authAvailable ? <SignedInMenu /> : <SignInLink />;
+}
+
+/** Neutral control shown when signed out, or when auth is unconfigured. */
+function SignInLink() {
+  return (
+    <Link href="/login" className="hidden sm:flex">
+      <Button variant="ghost" size="icon" aria-label="Sign in" className="hover:text-primary">
+        <User className="h-4 w-4" />
+      </Button>
+    </Link>
+  );
+}
+
+function SignedInMenu() {
   const { data: session, status } = useSession();
   const { logout } = useApp();
 
   // Render the same neutral control during loading as when signed out, so the
   // header does not shift once the session resolves.
-  if (status !== 'authenticated' || !session.user) {
-    return (
-      <Link href="/login" className="hidden sm:flex">
-        <Button variant="ghost" size="icon" aria-label="Sign in" className="hover:text-primary">
-          <User className="h-4 w-4" />
-        </Button>
-      </Link>
-    );
-  }
+  if (status !== 'authenticated' || !session.user) return <SignInLink />;
 
   const { name, email, image } = session.user;
   const initial = (name ?? email ?? '?').trim().charAt(0).toUpperCase();

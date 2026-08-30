@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isSameOrigin } from '@/lib/security';
 import { isDatabaseConfigured } from '@/db';
 import {
   getOrderByPaymentReference,
@@ -23,6 +24,10 @@ import {
  * webhook remains the authoritative record, and both paths are idempotent.
  */
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
+  }
+
   const config = getRazorpayConfig();
   if (!config || !isDatabaseConfigured()) {
     return NextResponse.json({ error: 'Payments are not configured.' }, { status: 503 });

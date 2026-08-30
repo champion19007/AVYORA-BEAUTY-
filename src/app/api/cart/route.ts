@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isSameOrigin } from '@/lib/security';
 import { cookies } from 'next/headers';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
@@ -40,6 +41,10 @@ export async function GET() {
  * checkout.
  */
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
+  }
+
   if (!isDatabaseConfigured()) return NextResponse.json({ ok: true, stored: false });
 
   let lines: ServerCartLine[];

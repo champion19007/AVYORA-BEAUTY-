@@ -72,7 +72,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
 });
 
-/** Whether customer sign-in can work on this deployment. */
+/**
+ * Whether customer sign-in can work on this deployment.
+ *
+ * AUTH_SECRET is included deliberately: without it Auth.js returns 500 from
+ * /api/auth/session, and SessionProvider polls that endpoint on every page, so
+ * an unconfigured deployment fills the console with errors and looks broken.
+ */
 export function isCustomerAuthConfigured(): boolean {
-  return googleConfigured && databaseConfigured;
+  return googleConfigured && databaseConfigured && Boolean(process.env.AUTH_SECRET);
 }

@@ -29,6 +29,14 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: Dependency audit
+        # Blocks on critical only. One high advisory is currently unavoidable:
+        # postcss 8.4.31 bundled inside Next, fixable only by upgrading to
+        # Next 16 (a breaking major). It needs attacker-controlled CSS input to
+        # exploit, and all CSS here is authored by us — see docs/security.md.
+        # Raise this back to `high` once Next 16 lands.
+        run: npm audit --audit-level=critical
+
       - name: Build
         run: npm run build
         env:

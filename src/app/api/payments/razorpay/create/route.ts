@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isSameOrigin } from '@/lib/security';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { createOrder, attachPaymentReference, type CheckoutInput } from '@/lib/orders';
@@ -14,6 +15,10 @@ import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
  * never a figure supplied by the browser.
  */
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
+  }
+
   const limit = await rateLimit('payment', clientIp(request));
   if (!limit.allowed) {
     return tooManyRequests(limit, 'Too many payment attempts. Please wait a moment.');

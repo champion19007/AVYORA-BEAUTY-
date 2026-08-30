@@ -9,6 +9,27 @@ import { CartDrawer } from '../cart-drawer';
 import { Toaster } from '@/components/ui/toaster';
 import { usePathname } from 'next/navigation';
 
+import { createContext, useContext } from 'react';
+
+/**
+ * Tells descendants whether a SessionProvider is mounted above them.
+ *
+ * `useSession` throws when there is no provider, and hooks cannot be called
+ * conditionally, so components that need the session read this first and only
+ * render their session-aware child when it is true.
+ */
+const AuthAvailableContext = createContext(false);
+export const useAuthAvailable = () => useContext(AuthAvailableContext);
+
+/** Wraps children in SessionProvider only when sign-in is actually available. */
+function MaybeSession({ enabled, children }: { enabled: boolean; children: React.ReactNode }) {
+  return (
+    <AuthAvailableContext.Provider value={enabled}>
+      {enabled ? <SessionProvider>{children}</SessionProvider> : children}
+    </AuthAvailableContext.Provider>
+  );
+}
+
 /**
  * This used to gate everything behind `if (!mounted) return null`, which meant
  * the server rendered an empty document: no header, no footer, no product
@@ -21,13 +42,24 @@ import { usePathname } from 'next/navigation';
  * starts empty on both server and client and is filled from localStorage in an
  * effect, so it hydrates consistently without a gate.
  */
-export function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
+export function ClientLayoutWrapper({
+  children,
+  authEnabled,
+}: {
+  children: React.ReactNode;
+  /**
+   * SessionProvider polls /api/auth/session. When auth is unconfigured that
+   * endpoint returns 500, so mounting the provider anyway would log an error
+   * on every page load. Gate it instead.
+   */
+  authEnabled: boolean;
+}) {
   const pathname = usePathname();
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
 
   if (isAuthPage) {
     return (
-      <SessionProvider>
+      <MaybeSession enabled={authEnabled}>
       <AppProvider>
         <div className="min-h-screen bg-background text-foreground flex items-center justify-center transition-colors duration-300">
           <main className="w-full animate-in fade-in duration-700">
@@ -36,12 +68,12 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
           <Toaster />
         </div>
       </AppProvider>
-      </SessionProvider>
+      </MaybeSession>
     );
   }
 
   return (
-    <SessionProvider>
+    <MaybeSession enabled={authEnabled}>
     <AppProvider>
       <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
         <AnnouncementBar />
@@ -54,6 +86,6 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
         <Toaster />
       </div>
     </AppProvider>
-    </SessionProvider>
+    </MaybeSession>
   );
 }
