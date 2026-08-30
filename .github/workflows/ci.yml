@@ -15,7 +15,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Must match the Node/npm major used to generate package-lock.json.
+          # A lockfile written by npm 12 is rejected by npm 10 with a
+          # package.json/lockfile "out of sync" error, even though nothing is
+          # actually out of sync.
+          node-version: '24'
           cache: npm
 
       - run: npm ci
