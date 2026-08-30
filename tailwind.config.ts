@@ -11,11 +11,12 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        /* Cinzel echoes the Roman capitals of the AVYORA wordmark; Jost
-           carries everything else. */
+        /* Foglihten is the display serif; Jost carries everything else.
+           Prices deliberately use the body face — Foglihten has no rupee
+           glyph, which is the same trap Cinzel fell into. */
         sans: ['var(--font-jost)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         body: ['var(--font-jost)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        headline: ['var(--font-cinzel)', 'ui-serif', 'Georgia', 'serif'],
+        headline: ['var(--font-display)', 'ui-serif', 'Georgia', 'serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

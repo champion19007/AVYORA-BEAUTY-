@@ -42,7 +42,7 @@ export default async function OrderPage({
     return (
       <div className="container mx-auto max-w-lg px-4 py-24 text-center">
         <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h1 className="mt-6 font-headline text-2xl font-normal tracking-[0.02em]">
+        <h1 className="mt-6 font-headline text-2xl font-normal tracking-tight">
           This order is private
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
@@ -74,7 +74,7 @@ export default async function OrderPage({
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <div className="text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-        <h1 className="mt-6 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl">
+        <h1 className="mt-6 font-headline text-4xl font-normal tracking-tight md:text-5xl">
           Thank you
         </h1>
         <p className="mt-4 text-muted-foreground">
@@ -84,7 +84,7 @@ export default async function OrderPage({
       </div>
 
       <div className="mt-12 rounded-xl border border-border bg-card p-6">
-        <h2 className="font-headline text-xl font-normal tracking-[0.02em]">Order summary</h2>
+        <h2 className="font-headline text-xl font-normal tracking-tight">Order summary</h2>
         <ul className="mt-5 divide-y divide-border">
           {order.items.map((item) => (
             <li key={item.id} className="flex justify-between gap-4 py-3 text-sm">
@@ -124,7 +124,7 @@ export default async function OrderPage({
 
       {address && (
         <div className="mt-6 rounded-xl border border-border p-6">
-          <h2 className="font-headline text-xl font-normal tracking-[0.02em]">Delivering to</h2>
+          <h2 className="font-headline text-xl font-normal tracking-tight">Delivering to</h2>
           <address className="mt-3 text-sm not-italic leading-relaxed text-muted-foreground">
             {address.fullName}
             <br />

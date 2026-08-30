@@ -86,7 +86,7 @@ export function HomeClient({
                   <span className="mb-6 inline-block text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
                     Avyora Skincare
                   </span>
-                  <h1 className="mb-6 whitespace-pre-line font-headline text-4xl font-normal leading-[1.12] tracking-[0.01em] md:text-6xl">
+                  <h1 className="mb-6 whitespace-pre-line font-headline text-5xl font-normal leading-[1.08] tracking-tight md:text-7xl">
                     {slide.title}
                   </h1>
                   <p className="mb-10 max-w-md text-base leading-relaxed text-white/80 md:text-lg">
@@ -129,7 +129,7 @@ export function HomeClient({
             <span className="eyebrow">Clinical formulations</span>
             <h2
               id="products-heading"
-              className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl"
+              className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl"
             >
               Our products
             </h2>
@@ -160,7 +160,7 @@ export function HomeClient({
                 </span>
                 <h2
                   id="bundle-heading"
-                  className="mt-4 font-headline text-3xl font-normal leading-snug tracking-[0.02em] md:text-4xl"
+                  className="mt-4 font-headline text-4xl font-normal leading-tight tracking-tight md:text-5xl"
                 >
                   Compose your own bundle
                 </h2>
@@ -208,7 +208,7 @@ export function HomeClient({
           <span className="eyebrow">Explore</span>
           <h2
             id="category-heading"
-            className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl"
+            className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl"
           >
             Shop by category
           </h2>
@@ -276,7 +276,7 @@ export function HomeClient({
             <span className="eyebrow">Targeted results</span>
             <h2
               id="concerns-heading"
-              className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl"
+              className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl"
             >
               Shop by concern
             </h2>
@@ -344,7 +344,7 @@ export function HomeClient({
           <div className="mx-auto mb-20 max-w-2xl text-center">
             <h2
               id="values-heading"
-              className="font-headline text-3xl font-normal leading-snug tracking-[0.02em] md:text-4xl"
+              className="font-headline text-4xl font-normal leading-tight tracking-tight md:text-5xl"
             >
               The clinical future of personal care
             </h2>
