@@ -111,7 +111,10 @@ export function contentSecurityPolicy(isDev: boolean): string {
     "font-src 'self' data:",
     // Unsplash for product imagery, Google for signed-in avatars.
     "img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com",
-    "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com",
+    // *.ingest.sentry.io is only reached when a DSN is configured; listing it
+    // unconditionally avoids a CSP change being forgotten at the moment
+    // monitoring is switched on.
+    "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io",
     'frame-src https://api.razorpay.com https://checkout.razorpay.com',
     "object-src 'none'",
     "base-uri 'self'",

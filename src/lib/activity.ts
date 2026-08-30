@@ -1,4 +1,5 @@
 import { db, isDatabaseConfigured } from '@/db';
+import { reportError } from '@/lib/observability';
 import { activityEvents, routineResults } from '@/db/schema';
 
 /**
@@ -78,7 +79,7 @@ export async function recordEvent(input: ActivityInput): Promise<void> {
       sessionId: input.sessionId ?? null,
     });
   } catch (err) {
-    console.error('recordEvent failed (ignored)', err);
+    reportError(err, { scope: 'activity.recordEvent' });
   }
 }
 
@@ -109,7 +110,7 @@ export async function saveRoutineResult(params: {
 
     return row?.id ?? null;
   } catch (err) {
-    console.error('saveRoutineResult failed (ignored)', err);
+    reportError(err, { scope: 'activity.saveRoutineResult' });
     return null;
   }
 }

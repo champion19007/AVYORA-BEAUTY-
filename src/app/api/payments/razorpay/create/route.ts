@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { reportError } from '@/lib/observability';
 import { isSameOrigin } from '@/lib/security';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     // Log the detail, return something generic: provider errors can echo config.
-    console.error('Razorpay order creation failed', err);
+    reportError(err, { scope: 'razorpay.createOrder', correlationId: created.orderNumber });
     return NextResponse.json(
       { error: 'We could not start the payment. Please try again.' },
       { status: 502 }

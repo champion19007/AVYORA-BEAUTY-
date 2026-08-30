@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { reportError } from '@/lib/observability';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders, orderItems, addresses } from '@/db/schema';
@@ -191,7 +192,7 @@ export async function createOrder(
     if (err instanceof OutOfStockError) {
       return { ok: false, error: err.detail };
     }
-    console.error('createOrder failed', err);
+    reportError(err, { scope: 'orders.createOrder', correlationId: orderNumber });
     return { ok: false, error: 'We could not place your order. Please try again.' };
   }
 }

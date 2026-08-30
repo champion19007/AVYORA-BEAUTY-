@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
+import { reportError } from '@/lib/observability';
 
 /**
  * Route-level error boundary.
@@ -19,9 +20,10 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Goes to the server logs. Wire an error reporter (Sentry or similar) here
-    // when one is configured; until then this is the only record.
-    console.error('Unhandled application error', error);
+    reportError(error, {
+      scope: 'route-error-boundary',
+      correlationId: error.digest,
+    });
   }, [error]);
 
   return (

@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { reportError } from '@/lib/observability';
 import { db, isDatabaseConfigured } from '@/db';
 
 /**
@@ -110,7 +111,7 @@ export async function rateLimit(
       retryAfterSeconds,
     };
   } catch (err) {
-    console.error('rateLimit check failed, allowing request', err);
+    reportError(err, { scope: 'rateLimit', extra: { bucket } });
     return allowedResult;
   }
 }

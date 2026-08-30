@@ -122,11 +122,54 @@ Server Actions.
 
 `npm audit` runs in CI on every push and pull request.
 
+## Error monitoring
+
+Two layers:
+
+1. **Structured JSON to stdout, always on.** No account, no vendor, no
+   configuration. Vercel collects it today; CloudWatch will collect it
+   unchanged after the AWS move, so this layer survives the migration.
+2. **Sentry, only when `SENTRY_DSN` is set.** The SDK is imported lazily and
+   never initialises without a DSN, so nothing is sent and no monitoring code
+   runs on deployments that have not opted in.
+
+Everything passes through `redact()` first. Logs are the classic place personal
+data leaks — retained longer than the data itself, copied into third-party
+services, and read by more people than the database is — so credentials, email,
+phone, address and card fields are masked before anything is written or sent.
+
+Session replay is deliberately disabled. It records what customers type, which
+on a checkout page means their address and phone number.
+
+`error.tsx` catches route errors; `global-error.tsx` catches failures in the
+root layout itself, which `error.tsx` cannot because the layout that would
+render it is the thing that failed.
+
+## Web application firewall
+
+Not configured, and not something application code can do — it needs account
+access.
+
+**Vercel** (current host): Project → Firewall → enable **Bot Protection** and
+**Attack Challenge Mode** if under active abuse. Add a custom rule rate-limiting
+`/api/*` if you want a second layer under the application limits.
+
+**Cloudflare** (works on Vercel now and on AWS later, so it is the more
+portable choice): put the domain behind Cloudflare, enable **Bot Fight Mode**,
+turn on the **OWASP managed ruleset**, and add a rate-limiting rule on
+`/api/payments/*`.
+
+**On AWS**: AWS WAF in front of CloudFront, with the `AWSManagedRulesCommonRuleSet`
+and `AWSManagedRulesKnownBadInputsRuleSet` managed groups.
+
+A WAF is what actually stops a determined scraper with rotating IPs, and the
+only practical defence against volumetric denial of service. The application
+rate limits are a complement to it, not a replacement.
+
 ## Known gaps
 
 - **No WAF.** The single highest-value addition for bot and DDoS defence.
-- **No error monitoring.** Production failures are currently invisible; Sentry
-  or equivalent should come before launch.
+- **No WAF.** Still the single highest-value addition; see below.
 - **One known high advisory**: postcss 8.4.31, bundled inside Next and fixable
   only by upgrading to Next 16 (a breaking major). Exploiting it needs
   attacker-controlled CSS input; all CSS here is authored by us. CI therefore
