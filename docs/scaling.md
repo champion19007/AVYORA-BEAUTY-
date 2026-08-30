@@ -109,3 +109,20 @@ grows.
 4. Checkout and payments
 5. Inventory and overselling protection
 6. Load testing against the real checkout path
+
+## Testing notes
+
+`reserveStock` is covered by integration tests
+(`src/lib/__tests__/inventory.integration.test.ts`) running against PGlite —
+Postgres compiled to WebAssembly, so the SQL semantics are real without needing
+a container. A mocked database would have tested the mock rather than the
+conditional UPDATE the whole design rests on.
+
+Those tests were themselves verified by removing the `quantity >= n` guard:
+four of them fail, including the one asserting that twenty attempts against ten
+units grant exactly ten.
+
+What they do **not** cover is genuine parallelism. PGlite serialises through a
+single connection, so a naive read-then-write implementation could still pass.
+Exercising that needs a real multi-connection Postgres — worth adding to CI as
+a service container before launch.
