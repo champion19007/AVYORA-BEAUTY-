@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, ShoppingBag, Heart, User, Menu, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { Search, ShoppingBag, Heart, Menu, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/lib/store';
 import { Logo } from '@/components/logo';
+import { AccountMenu } from '@/components/account-menu';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -194,11 +195,7 @@ export function Header() {
             )}
           </Button>
 
-          <Link href="/login" className="hidden sm:flex">
-            <Button variant="ghost" size="icon" aria-label="Account" className="hover:text-primary">
-              <User className="h-4 w-4" />
-            </Button>
-          </Link>
+          <AccountMenu />
 
           <Sheet>
             <SheetTrigger asChild>

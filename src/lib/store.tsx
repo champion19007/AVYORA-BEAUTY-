@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Product } from '@/data/mock-data';
 
 interface CartItem extends Product {
@@ -87,6 +87,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
+  }, [cart]);
+
+  /**
+   * Mirrors the cart to the server.
+   *
+   * localStorage stays the fast path so the UI is instant, but a cart that
+   * exists only in one browser cannot be recovered on another device and is
+   * invisible for abandoned-cart follow-up.
+   *
+   * Debounced, because this fires on every quantity tap. Failures are ignored:
+   * losing a mirror is acceptable, breaking the cart is not. The first render
+   * is skipped so an empty initial cart cannot wipe a stored one before
+   * localStorage has hydrated.
+   */
+  const hasHydrated = useRef(false);
+  useEffect(() => {
+    if (!hasHydrated.current) {
+      hasHydrated.current = true;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void fetch('/api/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lines: cart.map((item) => ({
+            productId: item.id,
+            size: item.selectedSize,
+            quantity: item.quantity,
+          })),
+        }),
+      }).catch(() => {});
+    }, 800);
+
+    return () => clearTimeout(timer);
   }, [cart]);
 
   useEffect(() => {

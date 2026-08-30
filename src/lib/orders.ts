@@ -4,6 +4,8 @@ import { db } from '@/db';
 import { orders, orderItems, addresses } from '@/db/schema';
 import { getProductById } from '@/lib/catalogue';
 import { calculateTotals, generateOrderNumber, toPaise } from '@/lib/money';
+import { reserveStock } from '@/lib/inventory';
+import { recordEvent } from '@/lib/activity';
 
 /**
  * Order creation.
@@ -55,6 +57,13 @@ export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type CreateOrderResult =
   | { ok: true; orderNumber: string; orderId: string; totalPaise: number }
   | { ok: false; error: string };
+
+/** Thrown inside the order transaction to roll it back when stock runs out. */
+class OutOfStockError extends Error {
+  constructor(readonly detail: string) {
+    super(detail);
+  }
+}
 
 /**
  * Validates, prices and persists an order.
@@ -111,6 +120,24 @@ export async function createOrder(
 
   try {
     await db.transaction(async (tx) => {
+      // Reserve stock first, inside the same transaction as the order. If this
+      // fails the whole thing rolls back, so an order can never exist for
+      // goods that were not actually available.
+      const reservation = await reserveStock(
+        lines.map((l) => ({ productId: l.productId, size: l.size, quantity: l.quantity })),
+        tx as never
+      );
+
+      if (!reservation.ok) {
+        const first = reservation.insufficient[0];
+        const product = getProductById(first.productId);
+        throw new OutOfStockError(
+          first.available === 0
+            ? `${product?.name ?? 'An item'} (${first.size}) has just sold out.`
+            : `Only ${first.available} left of ${product?.name ?? 'an item'} (${first.size}). Please reduce the quantity.`
+        );
+      }
+
       const [address] = await tx
         .insert(addresses)
         .values({ ...data.address, line2: data.address.line2 || null, userId: userId ?? null })
@@ -145,8 +172,25 @@ export async function createOrder(
       );
     });
 
+    // Best-effort; recordEvent swallows its own failures.
+    await recordEvent({
+      name: 'order_placed',
+      userId: userId ?? null,
+      props: {
+        orderNumber,
+        totalPaise: totals.total,
+        itemCount: lines.reduce((n, l) => n + l.quantity, 0),
+        paymentMethod: data.paymentMethod,
+      },
+    });
+
     return { ok: true, orderNumber, orderId: createdOrderId, totalPaise: totals.total };
   } catch (err) {
+    // Out-of-stock is an expected outcome, not a fault: tell the customer
+    // exactly what happened rather than a generic failure.
+    if (err instanceof OutOfStockError) {
+      return { ok: false, error: err.detail };
+    }
     console.error('createOrder failed', err);
     return { ok: false, error: 'We could not place your order. Please try again.' };
   }

@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.mjs",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed-inventory": "node scripts/seed-inventory.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

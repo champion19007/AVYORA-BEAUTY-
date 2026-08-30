@@ -8,6 +8,7 @@ import { Price } from '@/components/price';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getRecommendation } from '@/lib/routine-engine';
+import { persistRoutine } from './actions';
 import { RecommendationResult, RoutineStep } from '@/lib/routine-types';
 import { getProductById } from '@/lib/catalogue';
 import {
@@ -298,8 +299,11 @@ export default function RoutineFinderPage() {
     // synchronous, so there is nothing genuine to wait for; the previous
     // two-second "synthesizing clinical data" pause was pure theatre.
     setTimeout(() => {
-      setResult(getRecommendation(finalAnswers));
+      const recommendation = getRecommendation(finalAnswers);
+      setResult(recommendation);
       setIsAnalyzing(false);
+      // Fire and forget: saving must not delay showing the routine.
+      void persistRoutine(finalAnswers, recommendation);
     }, 600);
   };
 

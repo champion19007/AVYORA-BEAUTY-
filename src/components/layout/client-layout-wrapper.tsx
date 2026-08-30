@@ -1,5 +1,6 @@
 'use client';
 
+import { SessionProvider } from 'next-auth/react';
 import { AppProvider } from '@/lib/store';
 import { AnnouncementBar } from './announcement-bar';
 import { Header } from './header';
@@ -26,6 +27,7 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
 
   if (isAuthPage) {
     return (
+      <SessionProvider>
       <AppProvider>
         <div className="min-h-screen bg-background text-foreground flex items-center justify-center transition-colors duration-300">
           <main className="w-full animate-in fade-in duration-700">
@@ -34,10 +36,12 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
           <Toaster />
         </div>
       </AppProvider>
+      </SessionProvider>
     );
   }
 
   return (
+    <SessionProvider>
     <AppProvider>
       <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
         <AnnouncementBar />
@@ -50,5 +54,6 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
         <Toaster />
       </div>
     </AppProvider>
+    </SessionProvider>
   );
 }

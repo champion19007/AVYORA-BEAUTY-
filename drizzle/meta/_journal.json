@@ -15,6 +15,13 @@
       "when": 1788068734957,
       "tag": "0001_grey_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788069801221,
+      "tag": "0002_great_iron_patriot",
+      "breakpoints": true
     }
   ]
 }
