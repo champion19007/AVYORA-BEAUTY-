@@ -3,6 +3,7 @@
 import { X, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useApp } from '@/lib/store';
 import { Button } from '@/components/ui/button';
+import { Price, formatPrice } from '@/components/price';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -85,7 +86,7 @@ export function CartDrawer() {
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
-                      <p className="text-xs font-semibold">₹{(item.price * item.quantity).toLocaleString()}</p>
+                      <Price amount={item.price * item.quantity} size="sm" />
                     </div>
                   </div>
                 </div>
@@ -98,7 +99,7 @@ export function CartDrawer() {
           <div className="p-8 border-t-2 border-foreground space-y-6 bg-white shadow-[0_-20px_40px_rgba(0,0,0,0.05)]">
             <div className="space-y-4">
               <div className="flex justify-between text-[8px] font-semibold uppercase tracking-widest">
-                <span>{progress >= 100 ? 'Free Gift Earned!' : `Add ₹${(freeGiftThreshold - subtotal).toLocaleString()} for a Free Gift`}</span>
+                <span>{progress >= 100 ? 'Free Gift Earned!' : `Add ${formatPrice(freeGiftThreshold - subtotal)} for a Free Gift`}</span>
                 <span>{Math.round(progress)}%</span>
               </div>
               <div className="h-1 w-full bg-muted overflow-hidden">
@@ -111,7 +112,7 @@ export function CartDrawer() {
             
             <div className="flex justify-between text-xl font-semibold uppercase tracking-tighter">
               <span>Subtotal</span>
-              <span>₹{subtotal.toLocaleString()}</span>
+              <Price amount={subtotal} size="base" />
             </div>
             
             <div className="space-y-4">

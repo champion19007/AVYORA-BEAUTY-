@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { Star, Plus, Minus, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Price } from '@/components/price';
 import { useApp } from '@/lib/store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ProductCard } from '@/components/product/product-card';
@@ -97,10 +98,12 @@ export function ProductClient({
             )}
 
             <div className="flex items-baseline gap-4 pt-2">
-              <span className="text-3xl md:text-4xl font-semibold">₹{product.price.toLocaleString()}</span>
-              {product.salePrice && (
-                <span className="text-lg md:text-xl text-muted-foreground line-through italic font-bold">₹{product.salePrice.toLocaleString()}</span>
-              )}
+              {/* salePrice, when set, is what the customer pays; price becomes the "was". */}
+              <Price
+                amount={product.salePrice ?? product.price}
+                was={product.salePrice ? product.price : null}
+                size="hero"
+              />
             </div>
           </div>
 
