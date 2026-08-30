@@ -7,6 +7,7 @@ import { Star, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { Product } from '@/data/mock-data';
 import { useApp } from '@/lib/store';
 import { Button } from '@/components/ui/button';
+import { Price } from '@/components/price';
 import { cn } from '@/lib/utils';
 
 export function ProductCard({ product }: { product: Product }) {
@@ -143,14 +144,7 @@ export function ProductCard({ product }: { product: Product }) {
 
         <div className="mt-auto pt-6">
           <div className="mb-4 flex items-baseline gap-2">
-            <span className="font-headline text-2xl font-semibold text-gilt">
-              ₹{currentPrice.toLocaleString('en-IN')}
-            </span>
-            {wasPrice && (
-              <span className="text-sm text-muted-foreground line-through">
-                ₹{wasPrice.toLocaleString('en-IN')}
-              </span>
-            )}
+            <Price amount={currentPrice} was={wasPrice} size="lg" />
             {product.sizes.length === 1 && (
               <span className="ml-auto text-xs text-muted-foreground">{activeSize.label}</span>
             )}

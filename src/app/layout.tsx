@@ -3,6 +3,7 @@ import { Cinzel, Jost } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ClientLayoutWrapper } from '@/components/layout/client-layout-wrapper';
+import { isCustomerAuthConfigured } from '@/auth';
 
 /**
  * Cinzel is drawn from Roman inscriptional capitals, which is what the AVYORA
@@ -95,7 +96,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${cinzel.variable} ${jost.variable}`}>
       <body className="antialiased font-body bg-background">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <ClientLayoutWrapper>
+          <ClientLayoutWrapper authEnabled={isCustomerAuthConfigured()}>
             {children}
           </ClientLayoutWrapper>
         </ThemeProvider>

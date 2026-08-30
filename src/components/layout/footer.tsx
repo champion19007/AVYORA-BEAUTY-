@@ -3,38 +3,39 @@ import { Facebook, Instagram, Youtube, Mail } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
 const FOOTER_LINKS = {
+  // Every entry points somewhere real. Links previously pointed at "#", which
+  // is both a dead end for customers and a blocker for payment-provider
+  // activation, since published policies are a condition of going live.
   company: [
-    { name: 'About Us', href: '#' },
-    { name: 'Our Values', href: '#' },
-    { name: 'Privacy Notice', href: '#' },
-    { name: 'Terms & Conditions', href: '#' },
-    { name: 'Cookie Policy', href: '#' },
-    { name: 'Corporate Information', href: '#' },
-    { name: 'Media Outreach', href: '#' },
-    { name: 'Distributor Queries', href: '#' },
-    { name: 'Grievance Redressal', href: '#' },
+    { name: 'Privacy Policy', href: '/privacy' },
+    { name: 'Terms & Conditions', href: '/terms' },
+    { name: 'Refund & Cancellation', href: '/refund-policy' },
+    { name: 'Shipping Policy', href: '/shipping-policy' },
+    { name: 'Contact & Grievances', href: '/contact' },
   ],
   quick: [
-    { name: 'Blog', href: '#' },
-    { name: 'FAQs', href: '#' },
-    { name: 'Shipping Policy', href: '#' },
-    { name: 'Return Policy', href: '#' },
-    { name: 'Track Order', href: '/track-order' },
+    { name: 'Shop All', href: '/collections' },
+    { name: 'Best Sellers', href: '/collections?filter=bestsellers' },
+    { name: 'New Arrivals', href: '/collections?filter=new' },
     { name: 'Routine Finder', href: '/routine-finder' },
-    { name: 'Payment Policy', href: '#' },
+    { name: 'Track Order', href: '/track-order' },
   ],
   contact: [
     { name: 'WhatsApp: +91 99999 99999', href: 'https://wa.me/919999999999' },
     { name: 'support@avyora.com', href: 'mailto:support@avyora.com' },
-    { name: 'Gift Inquiries', href: '#' },
-    { name: 'Contact Form', href: '#' },
+    { name: 'Contact us', href: '/contact' },
   ],
 };
 
-const SOCIALS = [
-  { Icon: Instagram, label: 'Instagram', href: '#' },
-  { Icon: Facebook, label: 'Facebook', href: '#' },
-  { Icon: Youtube, label: 'YouTube', href: '#' },
+/**
+ * Social links. Set a real profile URL to show an icon; leave it null and the
+ * icon is not rendered at all. A link to "#" looks live and goes nowhere,
+ * which is worse than no icon.
+ */
+const SOCIALS: { Icon: typeof Instagram; label: string; href: string | null }[] = [
+  { Icon: Instagram, label: 'Instagram', href: null },
+  { Icon: Facebook, label: 'Facebook', href: null },
+  { Icon: Youtube, label: 'YouTube', href: null },
   { Icon: Mail, label: 'Email us', href: 'mailto:support@avyora.com' },
 ];
 
@@ -68,10 +69,10 @@ export function Footer() {
             Science-forward personal care. Formulated in-house, delivered directly to your door.
           </p>
           <div className="flex gap-4">
-            {SOCIALS.map(({ Icon, label, href }) => (
+            {SOCIALS.filter((s) => s.href).map(({ Icon, label, href }) => (
               <Link
                 key={label}
-                href={href}
+                href={href as string}
                 aria-label={label}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
               >
@@ -116,14 +117,14 @@ export function Footer() {
       <div className="container mx-auto mt-8 flex flex-col items-center justify-between gap-4 px-4 text-xs text-muted-foreground md:flex-row">
         <p>© {new Date().getFullYear()} Avyora Skincare. All rights reserved.</p>
         <div className="flex gap-6">
-          <Link href="#" className="transition-colors hover:text-primary">
-            Privacy Policy
+          <Link href="/privacy" className="transition-colors hover:text-primary">
+            Privacy
           </Link>
-          <Link href="#" className="transition-colors hover:text-primary">
-            Terms of Use
+          <Link href="/terms" className="transition-colors hover:text-primary">
+            Terms
           </Link>
-          <Link href="#" className="transition-colors hover:text-primary">
-            Cookie Settings
+          <Link href="/refund-policy" className="transition-colors hover:text-primary">
+            Refunds
           </Link>
         </div>
       </div>

@@ -112,19 +112,6 @@
     @apply text-[11px] font-semibold uppercase tracking-[0.32em] text-primary;
   }
 
-  /* Brushed-gold text for prices and numerals. */
-  .text-gilt {
-    background-image: linear-gradient(
-      100deg,
-      hsl(var(--primary)),
-      hsl(43 82% 62%),
-      hsl(var(--primary))
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
   /* Soft, warm elevation. Replaces the old hard-offset brutalist shadow. */
   .shadow-luxe {
     box-shadow:

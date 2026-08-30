@@ -26,13 +26,37 @@ const FIELDS = [
   { name: 'postalCode', label: 'PIN code', autoComplete: 'postal-code', span: 1 },
 ] as const;
 
-export function CheckoutClient() {
+/**
+ * Confirmation URL. Guests carry a signed token because the order page shows
+ * their address and phone number and must not be readable by URL alone.
+ */
+function orderUrl(orderNumber: string, accessToken?: string | null) {
+  return accessToken
+    ? `/orders/${orderNumber}?t=${encodeURIComponent(accessToken)}`
+    : `/orders/${orderNumber}`;
+}
+
+/** Loads Razorpay's checkout script once, on demand. */
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(false);
+    if ((window as any).Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }) {
   const { cart, updateQuantity, removeFromCart } = useApp();
   const router = useRouter();
   const [values, setValues] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [method, setMethod] = useState<'razorpay' | 'cod'>(razorpayEnabled ? 'razorpay' : 'cod');
 
   const totals = useMemo(
     () =>
@@ -68,39 +92,118 @@ export function CheckoutClient() {
     return Object.keys(e).length === 0;
   };
 
+  const buildPayload = () => ({
+    email: values.email.trim(),
+    address: {
+      fullName: values.fullName.trim(),
+      line1: values.line1.trim(),
+      line2: values.line2?.trim() || '',
+      city: values.city.trim(),
+      state: values.state.trim(),
+      postalCode: values.postalCode.trim(),
+      country: 'IN',
+      phone: values.phone.trim(),
+    },
+    items: cart.map((i) => ({
+      productId: i.id,
+      size: i.selectedSize,
+      quantity: i.quantity,
+    })),
+  });
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setFormError(null);
     if (!validate()) return;
 
     setSubmitting(true);
-    const result = await placeOrder({
-      email: values.email.trim(),
-      paymentMethod: 'cod',
-      address: {
-        fullName: values.fullName.trim(),
-        line1: values.line1.trim(),
-        line2: values.line2?.trim() || '',
-        city: values.city.trim(),
-        state: values.state.trim(),
-        postalCode: values.postalCode.trim(),
-        country: 'IN',
-        phone: values.phone.trim(),
-      },
-      items: cart.map((i) => ({
-        productId: i.id,
-        size: i.selectedSize,
-        quantity: i.quantity,
-      })),
-    });
 
-    if (result.ok) {
-      router.push(`/orders/${result.orderNumber}`);
+    if (method === 'cod') {
+      const result = await placeOrder({ ...buildPayload(), paymentMethod: 'cod' });
+      if (result.ok) {
+        router.push(orderUrl(result.orderNumber, result.accessToken));
+        return;
+      }
+      setFormError(result.error);
+      setSubmitting(false);
       return;
     }
 
-    setFormError(result.error);
-    setSubmitting(false);
+    // Online payment. The server creates our order and a matching Razorpay
+    // order; the amount charged is whatever the server calculated, never a
+    // figure supplied by this browser.
+    const created = await fetch('/api/payments/razorpay/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...buildPayload(), paymentMethod: 'razorpay' }),
+    })
+      .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
+      .catch(() => ({ ok: false, body: null as any }));
+
+    if (!created.ok) {
+      setFormError(created.body?.error ?? 'We could not start the payment. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      setFormError('Could not reach the payment provider. Check your connection and try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    const { keyId, razorpayOrderId, amount, currency, orderNumber, accessToken } = created.body;
+
+    const rzp = new (window as any).Razorpay({
+      key: keyId,
+      order_id: razorpayOrderId,
+      amount,
+      currency,
+      name: 'Avyora',
+      description: `Order ${orderNumber}`,
+      image: '/logo-mark.png',
+      prefill: {
+        name: values.fullName.trim(),
+        email: values.email.trim(),
+        contact: values.phone.trim(),
+      },
+      theme: { color: '#C9A227' },
+      handler: async (response: Record<string, string>) => {
+        // Confirmation goes through our server, which checks the signature.
+        // Nothing is trusted because the browser reported success.
+        const verified = await fetch('/api/payments/razorpay/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(response),
+        })
+          .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
+          .catch(() => ({ ok: false, body: null as any }));
+
+        if (verified.ok) {
+          router.push(orderUrl(orderNumber, accessToken));
+          return;
+        }
+
+        // The webhook may still settle this independently, so say so rather
+        // than implying the money is lost.
+        setFormError(
+          verified.body?.error ??
+            'We could not confirm your payment. If you were charged, it will be reconciled shortly.'
+        );
+        setSubmitting(false);
+      },
+      modal: {
+        ondismiss: () => setSubmitting(false),
+      },
+    });
+
+    rzp.on('payment.failed', () => {
+      setFormError('That payment did not go through. Try again, or choose cash on delivery.');
+      setSubmitting(false);
+    });
+
+    rzp.open();
   };
 
   if (cart.length === 0) {
@@ -160,15 +263,49 @@ export function CheckoutClient() {
           </div>
 
           <h2 className="mt-12 font-headline text-xl font-normal tracking-[0.02em]">Payment</h2>
-          <div className="mt-4 rounded-lg border border-primary bg-primary/5 p-5">
-            <p className="text-sm font-medium">Cash on delivery</p>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Pay the courier when your order arrives.
-            </p>
+          <div className="mt-4 space-y-3" role="radiogroup" aria-label="Payment method">
+            {razorpayEnabled && (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={method === 'razorpay'}
+                onClick={() => setMethod('razorpay')}
+                className={cn(
+                  'w-full rounded-lg border p-5 text-left transition-colors',
+                  method === 'razorpay'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <p className="text-sm font-medium">Pay online</p>
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  UPI, cards, net banking and wallets, secured by Razorpay.
+                </p>
+              </button>
+            )}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={method === 'cod'}
+              onClick={() => setMethod('cod')}
+              className={cn(
+                'w-full rounded-lg border p-5 text-left transition-colors',
+                method === 'cod'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50'
+              )}
+            >
+              <p className="text-sm font-medium">Cash on delivery</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Pay the courier when your order arrives.
+              </p>
+            </button>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Card and UPI payments are not enabled on this deployment yet.
-          </p>
+          {!razorpayEnabled && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Online payment is not enabled on this deployment yet.
+            </p>
+          )}
         </div>
 
         {/* ---------------------------------------------------------- summary */}
@@ -251,7 +388,10 @@ export function CheckoutClient() {
             </dl>
 
             {formError && (
-              <p role="alert" className="mt-5 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <p
+                role="alert"
+                className="mt-5 rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+              >
                 {formError}
               </p>
             )}
@@ -263,11 +403,13 @@ export function CheckoutClient() {
             >
               {submitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Placing order
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {method === 'razorpay' ? 'Opening payment' : 'Placing order'}
                 </>
               ) : (
                 <>
-                  <Lock className="h-3.5 w-3.5" /> Place order
+                  <Lock className="h-3.5 w-3.5" />
+                  {method === 'razorpay' ? `Pay ${formatPaise(totals.total)}` : 'Place order'}
                 </>
               )}
             </Button>

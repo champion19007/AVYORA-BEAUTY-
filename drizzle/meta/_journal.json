@@ -8,6 +8,20 @@
       "when": 1788028784042,
       "tag": "0000_new_bloodscream",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788068734957,
+      "tag": "0001_grey_bug",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788069801221,
+      "tag": "0002_great_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

@@ -1,32 +1,102 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, getAdminConfig, verifySessionToken } from '@/lib/auth';
+import {
+  contentSecurityPolicy,
+  isAllowedCrawler,
+  isBlockedAgent,
+  securityHeaders,
+} from '@/lib/security';
+import { rateLimit } from '@/lib/rate-limit';
 
 /**
- * Server-side gate for the admin area.
+ * Edge middleware: security headers, bot mitigation, and the admin gate.
  *
- * This is the actual security boundary. The admin page also checks a client
- * flag, but only to decide what to render — that check is trivially bypassed
- * by editing localStorage, which is exactly how the previous implementation
- * could be defeated. Requests without a valid signed session never reach the
- * route at all.
+ * It runs on every request that is not a static asset. The matcher at the
+ * bottom excludes `_next/static`, images and the like, because adding headers
+ * to immutable assets costs latency on every page for no benefit.
  */
+
+/** Requests per minute for an ordinary visitor. Generous; this targets bulk pulls. */
+const BROWSE_LIMIT = { limit: 120, windowSeconds: 60 };
+
+function clientAddress(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]!.trim();
+  return request.headers.get('x-real-ip') ?? 'unknown';
+}
+
 export async function middleware(request: NextRequest) {
-  const config = getAdminConfig();
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const session = config ? await verifySessionToken(token, config.sessionSecret) : null;
+  const userAgent = request.headers.get('user-agent') ?? '';
+  const path = request.nextUrl.pathname;
 
-  if (session) return NextResponse.next();
+  /* ----------------------------------------------------- bot mitigation --- */
 
-  const loginUrl = new URL('/login', request.url);
-  loginUrl.searchParams.set('next', request.nextUrl.pathname);
-  const response = NextResponse.redirect(loginUrl);
+  // Known scrapers and vulnerability scanners. Search engines are checked
+  // first so a rule change can never accidentally deindex the shop.
+  if (!isAllowedCrawler(userAgent) && isBlockedAgent(userAgent)) {
+    return new NextResponse('Not available', {
+      status: 403,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  }
 
-  // Clear a stale or tampered cookie on the way out.
-  if (token) response.cookies.set(SESSION_COOKIE, '', { path: '/', maxAge: 0 });
+  // Throttle bulk browsing. Search engines are exempt, since crawling fast is
+  // their job and blocking them costs organic traffic.
+  if (!isAllowedCrawler(userAgent) && !path.startsWith('/api/')) {
+    const browse = await rateLimit('checkout', `browse:${clientAddress(request)}`, BROWSE_LIMIT);
+    if (!browse.allowed) {
+      return new NextResponse('Too many requests', {
+        status: 429,
+        headers: {
+          'Retry-After': String(browse.retryAfterSeconds),
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+  }
+
+  /* ------------------------------------------------------------- admin --- */
+
+  if (path.startsWith('/admin')) {
+    const config = getAdminConfig();
+    const token = request.cookies.get(SESSION_COOKIE)?.value;
+    const session = config ? await verifySessionToken(token, config.sessionSecret) : null;
+
+    if (!session) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('next', path);
+      const redirect = NextResponse.redirect(loginUrl);
+      if (token) redirect.cookies.set(SESSION_COOKIE, '', { path: '/', maxAge: 0 });
+      return redirect;
+    }
+  }
+
+  /* ----------------------------------------------------------- headers --- */
+
+  const isDev = process.env.NODE_ENV !== 'production';
+  const response = NextResponse.next();
+
+  response.headers.set('Content-Security-Policy', contentSecurityPolicy(isDev));
+  for (const [key, value] of Object.entries(securityHeaders())) {
+    response.headers.set(key, value);
+  }
 
   return response;
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: [
+    /*
+     * Everything except static assets and the image optimiser. Those are
+     * immutable and cached at the edge; running middleware on them would add
+     * latency to every page load for no security benefit.
+     */
+    {
+      source: '/((?!_next/static|_next/image|favicon.ico|logo.*\\.png|og-image\\.jpg|icon\\.png).*)',
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
+  ],
 };

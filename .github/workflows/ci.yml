@@ -1,0 +1,49 @@
+name: CI
+
+# Tests and type checks existed but nothing ran them, so a regression could
+# reach main unnoticed. This runs them on every push and pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Must match the Node/npm major used to generate package-lock.json.
+          # A lockfile written by npm 12 is rejected by npm 10 with a
+          # package.json/lockfile "out of sync" error, even though nothing is
+          # actually out of sync.
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Dependency audit
+        # Blocks on critical only. One high advisory is currently unavoidable:
+        # postcss 8.4.31 bundled inside Next, fixable only by upgrading to
+        # Next 16 (a breaking major). It needs attacker-controlled CSS input to
+        # exploit, and all CSS here is authored by us — see docs/security.md.
+        # Raise this back to `high` once Next 16 lands.
+        run: npm audit --audit-level=critical
+
+      - name: Build
+        run: npm run build
+        env:
+          # The build must succeed without secrets, which also proves the app
+          # degrades rather than crashing when unconfigured.
+          NODE_ENV: production

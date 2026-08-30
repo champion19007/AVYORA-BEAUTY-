@@ -265,6 +265,60 @@ export const activityEvents = pgTable('activity_events', {
 }));
 
 /* -------------------------------------------------------------------------- */
+/* Inventory                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Stock, held per product *and* size, because a 30ml and a 50ml of the same
+ * serum are different physical things.
+ *
+ * Stock lives here rather than in the catalogue file because it changes with
+ * every order; a value compiled into the bundle could not be decremented and
+ * would need a redeploy to correct.
+ *
+ * `quantity` is the number on hand. It is decremented inside the same
+ * transaction that writes the order, under a `quantity >= n` guard, so two
+ * simultaneous orders for the last unit cannot both succeed.
+ */
+export const inventory = pgTable('inventory', {
+  id: serial('id').primaryKey(),
+  productId: text('product_id').notNull(),
+  size: text('size').notNull(),
+  quantity: integer('quantity').notNull().default(0),
+  /** Below this, the storefront shows a low-stock notice. */
+  lowStockThreshold: integer('low_stock_threshold').notNull().default(5),
+  /** Lets a SKU be sold past zero deliberately (made to order, pre-order). */
+  allowBackorder: boolean('allow_backorder').notNull().default(false),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  uniq: uniqueIndex('inventory_product_size_idx').on(t.productId, t.size),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Rate limiting                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fixed-window request counters.
+ *
+ * Kept in Postgres rather than process memory because serverless instances are
+ * numerous and short-lived: an in-memory counter resets on every cold start and
+ * is not shared between instances, so an attacker spreading attempts across
+ * instances would never hit a limit. Redis/ElastiCache would be faster and is
+ * the natural upgrade after the AWS move; the interface in lib/rate-limit.ts
+ * does not change.
+ */
+export const rateLimits = pgTable('rate_limits', {
+  /** Bucket key, e.g. "admin-login:203.0.113.7". */
+  key: text('key').primaryKey(),
+  count: integer('count').notNull().default(0),
+  /** Start of the current window. */
+  windowStart: timestamp('window_start', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  windowIdx: index('rate_limits_window_idx').on(t.windowStart),
+}));
+
+/* -------------------------------------------------------------------------- */
 /* Relations                                                                    */
 /* -------------------------------------------------------------------------- */
 

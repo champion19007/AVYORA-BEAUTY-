@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { getOrderByNumber } from '@/lib/orders';
+import { verifyOrderAccessToken } from '@/lib/order-access';
 import { formatPaise } from '@/lib/money';
 
 export const metadata: Metadata = {
@@ -12,19 +14,59 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** Order confirmations are per-customer, so never cache them. */
+/** Per-customer and access-controlled, so never cached. */
 export const dynamic = 'force-dynamic';
 
 export default async function OrderPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orderNumber: string }>;
+  searchParams: Promise<{ t?: string }>;
 }) {
   const { orderNumber } = await params;
+  const { t } = await searchParams;
+
   if (!isDatabaseConfigured()) notFound();
 
   const order = await getOrderByNumber(orderNumber);
   if (!order) notFound();
+
+  // The order number alone is not authorisation: this page carries the
+  // customer's name, address and phone number.
+  const session = await auth().catch(() => null);
+  const ownsOrder = Boolean(session?.user?.id && order.userId === session.user.id);
+  const hasToken = await verifyOrderAccessToken(orderNumber, t);
+
+  if (!ownsOrder && !hasToken) {
+    return (
+      <div className="container mx-auto max-w-lg px-4 py-24 text-center">
+        <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
+        <h1 className="mt-6 font-headline text-2xl font-normal tracking-[0.02em]">
+          This order is private
+        </h1>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          Open it from the link in your confirmation email, or sign in with the account used to
+          place it.
+        </p>
+        <div className="mt-8 flex justify-center gap-3">
+          <Link href="/login">
+            <Button className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]">
+              Sign in
+            </Button>
+          </Link>
+          <Link href="/track-order">
+            <Button
+              variant="outline"
+              className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]"
+            >
+              Track an order
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const address = order.shippingAddress as Record<string, string> | null;
 
@@ -48,7 +90,10 @@ export default async function OrderPage({
             <li key={item.id} className="flex justify-between gap-4 py-3 text-sm">
               <span>
                 {item.productName}
-                <span className="text-muted-foreground"> · {item.size} × {item.quantity}</span>
+                <span className="text-muted-foreground">
+                  {' '}
+                  · {item.size} × {item.quantity}
+                </span>
               </span>
               <span className="tabular-nums">{formatPaise(item.lineTotal)}</span>
             </li>
@@ -71,7 +116,8 @@ export default async function OrderPage({
             <dd className="tabular-nums">{formatPaise(order.total)}</dd>
           </div>
           <p className="pt-1 text-xs text-muted-foreground">
-            Includes {formatPaise(order.tax)} GST · Payment: cash on delivery
+            Includes {formatPaise(order.tax)} GST ·{' '}
+            {order.paymentProvider === 'cod' ? 'Cash on delivery' : 'Paid online'}
           </p>
         </dl>
       </div>

@@ -4,9 +4,11 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Price } from '@/components/price';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getRecommendation } from '@/lib/routine-engine';
+import { persistRoutine } from './actions';
 import { RecommendationResult, RoutineStep } from '@/lib/routine-types';
 import { getProductById } from '@/lib/catalogue';
 import {
@@ -243,11 +245,9 @@ function StepCard({ step }: { step: RoutineStep }) {
 
         {product && (
           <div className="mt-4 flex flex-wrap items-center gap-4">
-            <span className="text-sm">
-              <span className="font-medium">
-                ₹{(product.salePrice ?? product.sizes[0].price).toLocaleString('en-IN')}
-              </span>
-              {size && <span className="text-muted-foreground"> · {size}</span>}
+            <span className="flex items-baseline gap-2 text-sm">
+              <Price amount={product.salePrice ?? product.sizes[0].price} size="sm" />
+              {size && <span className="text-muted-foreground">· {size}</span>}
             </span>
             <Button
               size="sm"
@@ -299,8 +299,11 @@ export default function RoutineFinderPage() {
     // synchronous, so there is nothing genuine to wait for; the previous
     // two-second "synthesizing clinical data" pause was pure theatre.
     setTimeout(() => {
-      setResult(getRecommendation(finalAnswers));
+      const recommendation = getRecommendation(finalAnswers);
+      setResult(recommendation);
       setIsAnalyzing(false);
+      // Fire and forget: saving must not delay showing the routine.
+      void persistRoutine(finalAnswers, recommendation);
     }, 600);
   };
 
@@ -485,15 +488,17 @@ export default function RoutineFinderPage() {
                     <Link href={`/products/${product.slug}`} className="truncate hover:text-primary">
                       {product.name}
                     </Link>
-                    <span className="shrink-0 text-muted-foreground">
-                      ₹{(product.salePrice ?? product.sizes[0].price).toLocaleString('en-IN')}
-                    </span>
+                    <Price
+                      amount={product.salePrice ?? product.sizes[0].price}
+                      size="sm"
+                      className="shrink-0"
+                    />
                   </li>
                 ))}
               </ul>
               <div className="mt-4 flex justify-between border-t border-border pt-4 text-sm font-medium">
                 <span>Total</span>
-                <span>₹{total.toLocaleString('en-IN')}</span>
+                <Price amount={total} size="base" />
               </div>
               <Button
                 onClick={handleAddAll}
