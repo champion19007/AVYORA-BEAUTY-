@@ -38,7 +38,7 @@ export const addressSchema = z.object({
 export const checkoutSchema = z.object({
   email: z.string().trim().email('Enter a valid email address'),
   address: addressSchema,
-  paymentMethod: z.enum(['cod']),
+  paymentMethod: z.enum(['cod', 'razorpay']),
   items: z
     .array(
       z.object({
@@ -53,7 +53,7 @@ export const checkoutSchema = z.object({
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 export type CreateOrderResult =
-  | { ok: true; orderNumber: string }
+  | { ok: true; orderNumber: string; orderId: string; totalPaise: number }
   | { ok: false; error: string };
 
 /**
@@ -107,6 +107,7 @@ export async function createOrder(
   );
 
   const orderNumber = generateOrderNumber();
+  let createdOrderId = '';
 
   try {
     await db.transaction(async (tx) => {
@@ -122,8 +123,9 @@ export async function createOrder(
           userId: userId ?? null,
           email: data.email,
           status: 'pending',
-          // Cash on delivery is unpaid until the courier collects. A card or
-          // UPI provider would move this to 'authorized' or 'paid' on webhook.
+          // Unpaid either way at this point: cash on delivery stays unpaid
+          // until the courier collects, and a Razorpay order is only marked
+          // paid once its signature is verified or its webhook arrives.
           paymentStatus: 'unpaid',
           subtotal: totals.subtotal,
           discount: totals.discount,
@@ -132,16 +134,18 @@ export async function createOrder(
           total: totals.total,
           shippingAddressId: address.id,
           shippingAddress: data.address,
-          paymentProvider: 'cod',
+          paymentProvider: data.paymentMethod,
         })
         .returning({ id: orders.id });
+
+      createdOrderId = order.id;
 
       await tx.insert(orderItems).values(
         lines.map((l) => ({ ...l, orderId: order.id }))
       );
     });
 
-    return { ok: true, orderNumber };
+    return { ok: true, orderNumber, orderId: createdOrderId, totalPaise: totals.total };
   } catch (err) {
     console.error('createOrder failed', err);
     return { ok: false, error: 'We could not place your order. Please try again.' };
@@ -160,4 +164,73 @@ export async function getOrderByNumber(orderNumber: string) {
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
   return { ...order, items };
+}
+
+/**
+ * Records the Razorpay order id against our order, so a later webhook can find
+ * the order it belongs to.
+ */
+export async function attachPaymentReference(orderId: string, reference: string) {
+  await db
+    .update(orders)
+    .set({ paymentReference: reference, updatedAt: new Date() })
+    .where(eq(orders.id, orderId));
+}
+
+/**
+ * Marks an order paid.
+ *
+ * Only ever called after a signature has been verified server-side, never
+ * because the browser reported success. `expectedTotal` is checked against the
+ * amount the provider actually captured, so a tampered or partial payment
+ * cannot flip an order to paid.
+ */
+export async function markOrderPaid(
+  orderId: string,
+  paymentId: string,
+  capturedPaise?: number
+): Promise<{ ok: boolean; error?: string }> {
+  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (!order) return { ok: false, error: 'Order not found' };
+
+  if (typeof capturedPaise === 'number' && capturedPaise !== order.total) {
+    console.error(
+      `Payment amount mismatch for order ${order.orderNumber}: captured ${capturedPaise}, expected ${order.total}`
+    );
+    return { ok: false, error: 'Payment amount did not match the order total' };
+  }
+
+  // Idempotent: webhooks are delivered more than once, and the browser
+  // callback often races the webhook for the same payment.
+  if (order.paymentStatus === 'paid') return { ok: true };
+
+  await db
+    .update(orders)
+    .set({
+      paymentStatus: 'paid',
+      status: 'paid',
+      paymentReference: paymentId,
+      updatedAt: new Date(),
+    })
+    .where(eq(orders.id, orderId));
+
+  return { ok: true };
+}
+
+/** Marks a payment attempt failed, leaving the order recoverable. */
+export async function markOrderPaymentFailed(orderId: string) {
+  await db
+    .update(orders)
+    .set({ paymentStatus: 'failed', updatedAt: new Date() })
+    .where(eq(orders.id, orderId));
+}
+
+/** Finds an order by the payment reference stored against it. */
+export async function getOrderByPaymentReference(reference: string) {
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.paymentReference, reference))
+    .limit(1);
+  return order ?? null;
 }
