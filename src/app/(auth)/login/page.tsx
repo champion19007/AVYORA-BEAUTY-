@@ -16,6 +16,19 @@ import { Label } from '@/components/ui/label';
 import { LogoDark } from '@/components/logo';
 import { useApp } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
+import { signIn } from 'next-auth/react';
+
+/** Google's mark, inlined so the button needs no external request. */
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-2.8-.4-4.1H24v7.4h12.7c-.3 2.1-1.6 5.3-4.7 7.4l7.6 5.9c4.5-4.2 7.1-10.3 7.1-16.6z" />
+      <path fill="#FBBC05" d="M10.4 28.7a14.8 14.8 0 0 1 0-9.4l-7.8-6.1a24 24 0 0 0 0 21.6l7.8-6.1z" />
+      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2 1.4-4.8 2.4-8.3 2.4-6.3 0-11.7-3.7-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z" />
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -139,8 +152,14 @@ export default function LoginPage() {
           >
             {isLoading ? "Authenticating..." : "Login"}
           </Button>
-          <Button variant="outline" type="button" className="w-full border border-border h-14 rounded-md font-semibold uppercase tracking-widest text-[10px]">
-            Login with Google
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => signIn('google', { callbackUrl: '/' })}
+            className="w-full h-14 rounded-md border border-border font-semibold uppercase tracking-widest text-[10px] gap-3"
+          >
+            <GoogleMark />
+            Continue with Google
           </Button>
         </form>
         <div className="mt-8 text-center">
