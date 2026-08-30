@@ -95,7 +95,7 @@ function CollectionsContent() {
     <div className="container mx-auto px-4 py-16">
       <header className="mx-auto mb-12 max-w-2xl text-center">
         <span className="eyebrow">Clinical catalogue</span>
-        <h1 className="mt-3 font-headline text-4xl font-normal capitalize tracking-[0.02em] md:text-5xl">
+        <h1 className="mt-3 font-headline text-5xl font-normal capitalize tracking-tight md:text-6xl">
           {heading}
         </h1>
         <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />

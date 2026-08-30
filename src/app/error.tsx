@@ -29,7 +29,7 @@ export default function Error({
   return (
     <div className="container mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-4 text-center">
       <AlertTriangle className="h-10 w-10 text-primary" />
-      <h1 className="mt-6 font-headline text-3xl font-normal tracking-[0.02em]">
+      <h1 className="mt-6 font-headline text-3xl font-normal tracking-tight">
         Something went wrong
       </h1>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">

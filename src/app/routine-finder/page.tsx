@@ -224,7 +224,7 @@ function StepCard({ step }: { step: RoutineStep }) {
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
           {step.slotName}
         </p>
-        <h3 className="mt-1 font-headline text-lg font-normal tracking-[0.02em]">
+        <h3 className="mt-1 font-headline text-lg font-normal tracking-tight">
           {product ? (
             <Link href={`/products/${product.slug}`} className="hover:text-primary">
               {product.name}
@@ -363,7 +363,7 @@ export default function RoutineFinderPage() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 text-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <h1 className="font-headline text-2xl font-normal tracking-[0.02em]">
+        <h1 className="font-headline text-2xl font-normal tracking-tight">
           Building your routine
         </h1>
         <p className="text-sm text-muted-foreground">Matching your answers to our formulations.</p>
@@ -380,7 +380,7 @@ export default function RoutineFinderPage() {
       <div className="container mx-auto max-w-5xl px-4 py-14">
         <header className="mb-12 text-center">
           <span className="eyebrow">Your routine</span>
-          <h1 className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl">
+          <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
             Built for {p.skinType} skin
           </h1>
           <span className="rule-gold mx-auto mt-7 max-w-xs" aria-hidden="true" />
@@ -434,7 +434,7 @@ export default function RoutineFinderPage() {
 
           <aside className="space-y-8">
             <section className="rounded-xl border border-border bg-card p-6">
-              <h2 className="font-headline text-lg font-normal tracking-[0.02em]">
+              <h2 className="font-headline text-lg font-normal tracking-tight">
                 Why this routine
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -444,7 +444,7 @@ export default function RoutineFinderPage() {
 
             {result.treatmentSchedule?.retinol && (
               <section className="rounded-xl border border-primary/30 bg-primary/5 p-6">
-                <h2 className="font-headline text-lg font-normal tracking-[0.02em]">
+                <h2 className="font-headline text-lg font-normal tracking-tight">
                   Building up retinol
                 </h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -455,7 +455,7 @@ export default function RoutineFinderPage() {
 
             {result.underEyeGuidance && (
               <section className="rounded-xl border border-border p-6">
-                <h2 className="font-headline text-lg font-normal tracking-[0.02em]">Under-eye</h2>
+                <h2 className="font-headline text-lg font-normal tracking-tight">Under-eye</h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                   {result.underEyeGuidance}
                 </p>
@@ -464,7 +464,7 @@ export default function RoutineFinderPage() {
 
             {result.warnings.length > 0 && (
               <section className="rounded-xl border border-border bg-muted/40 p-6">
-                <h2 className="flex items-center gap-2 font-headline text-lg font-normal tracking-[0.02em]">
+                <h2 className="flex items-center gap-2 font-headline text-lg font-normal tracking-tight">
                   <AlertTriangle className="h-4 w-4 text-primary" />
                   Before you start
                 </h2>
@@ -479,7 +479,7 @@ export default function RoutineFinderPage() {
             )}
 
             <section className="rounded-xl border border-border bg-card p-6">
-              <h2 className="font-headline text-lg font-normal tracking-[0.02em]">
+              <h2 className="font-headline text-lg font-normal tracking-tight">
                 Everything in this routine
               </h2>
               <ul className="mt-4 space-y-2">
@@ -549,7 +549,7 @@ export default function RoutineFinderPage() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="font-headline text-2xl font-normal leading-snug tracking-[0.02em] md:text-3xl">
+            <h1 className="font-headline text-3xl font-normal leading-snug tracking-tight md:text-4xl">
               {q.label}
             </h1>
             {q.help && (

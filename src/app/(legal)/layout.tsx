@@ -15,8 +15,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <article
         className="
-          [&_h1]:font-headline [&_h1]:text-3xl [&_h1]:font-normal [&_h1]:tracking-[0.02em] [&_h1]:md:text-4xl
-          [&_h2]:mt-10 [&_h2]:font-headline [&_h2]:text-xl [&_h2]:font-normal [&_h2]:tracking-[0.02em]
+          [&_h1]:font-headline [&_h1]:text-3xl [&_h1]:font-normal [&_h1]:tracking-tight [&_h1]:md:text-4xl
+          [&_h2]:mt-10 [&_h2]:font-headline [&_h2]:text-xl [&_h2]:font-normal [&_h2]:tracking-tight
           [&_p]:mt-4 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted-foreground
           [&_li]:mt-2 [&_li]:text-sm [&_li]:leading-relaxed [&_li]:text-muted-foreground
           [&_ul]:mt-4 [&_ul]:list-disc [&_ul]:pl-5

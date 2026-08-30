@@ -210,7 +210,7 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
     return (
       <div className="container mx-auto max-w-2xl px-4 py-24 text-center">
         <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h1 className="mt-6 font-headline text-3xl font-normal tracking-[0.02em]">
+        <h1 className="mt-6 font-headline text-3xl font-normal tracking-tight">
           Your bag is empty
         </h1>
         <p className="mt-4 text-muted-foreground">Add a formulation before checking out.</p>
@@ -227,14 +227,14 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
     <div className="container mx-auto max-w-6xl px-4 py-14">
       <header className="mb-12 text-center">
         <span className="eyebrow">Checkout</span>
-        <h1 className="mt-3 font-headline text-3xl font-normal tracking-[0.02em] md:text-4xl">
+        <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
           Complete your order
         </h1>
       </header>
 
       <form onSubmit={submit} className="grid grid-cols-1 gap-12 lg:grid-cols-5">
         <div className="lg:col-span-3">
-          <h2 className="font-headline text-xl font-normal tracking-[0.02em]">Delivery details</h2>
+          <h2 className="font-headline text-xl font-normal tracking-tight">Delivery details</h2>
 
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
             {FIELDS.map((f) => (
@@ -262,7 +262,7 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
             ))}
           </div>
 
-          <h2 className="mt-12 font-headline text-xl font-normal tracking-[0.02em]">Payment</h2>
+          <h2 className="mt-12 font-headline text-xl font-normal tracking-tight">Payment</h2>
           <div className="mt-4 space-y-3" role="radiogroup" aria-label="Payment method">
             {razorpayEnabled && (
               <button
@@ -311,7 +311,7 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
         {/* ---------------------------------------------------------- summary */}
         <aside className="lg:col-span-2">
           <div className="rounded-xl border border-border bg-card p-6">
-            <h2 className="font-headline text-xl font-normal tracking-[0.02em]">Your order</h2>
+            <h2 className="font-headline text-xl font-normal tracking-tight">Your order</h2>
 
             <ul className="mt-5 space-y-4">
               {cart.map((item) => {
