@@ -104,7 +104,7 @@ export function ProductCard({ product }: { product: Product }) {
             {product.name}
           </Link>
         </h3>
-        <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-muted-foreground">
           {product.tagline}
         </p>
 
