@@ -54,12 +54,24 @@ export function clientIp(request: Request): string {
 }
 
 /**
+ * How long the counter query may take before the request is let through.
+ *
+ * Middleware awaits this on every page view, so an unbounded query is an
+ * unbounded page load. Failing open on *errors* is not enough: a database that
+ * accepts the connection and then never answers — a restarted container
+ * holding a dead socket, a saturated pool — is not an error, it is a hang, and
+ * without this bound it takes the entire site down. Ask any user which they
+ * prefer: unlimited requests, or a shop that never renders.
+ */
+const RATE_LIMIT_TIMEOUT_MS = 1000;
+
+/**
  * Consumes one unit from a bucket.
  *
- * Fails **open** when no database is configured: a missing DATABASE_URL should
- * not make the site unusable. It fails open on database errors too — a rate
- * limiter that takes checkout down when the counter table hiccups causes more
- * damage than the abuse it prevents.
+ * Fails **open** in every failure mode: no database configured, a query error,
+ * or a query that exceeds RATE_LIMIT_TIMEOUT_MS. A rate limiter that takes
+ * checkout down when the counter table hiccups causes more damage than the
+ * abuse it prevents.
  */
 export async function rateLimit(
   bucket: keyof typeof RATE_LIMITS,
@@ -76,10 +88,16 @@ export async function rateLimit(
 
   const key = `${bucket}:${identifier}`;
 
+  // Resolves to null if the query outruns its budget, so the caller proceeds.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), RATE_LIMIT_TIMEOUT_MS);
+  });
+
   try {
     // Upsert-and-count atomically: start a new window if the old one has
     // expired, otherwise increment. The returned count is authoritative.
-    const rows = await db.execute<{ count: number; window_start: Date }>(sql`
+    const query = db.execute<{ count: number; window_start: Date }>(sql`
       INSERT INTO rate_limits (key, count, window_start)
       VALUES (${key}, 1, now())
       ON CONFLICT (key) DO UPDATE
@@ -97,6 +115,18 @@ export async function rateLimit(
       RETURNING count, window_start
     `);
 
+    const rows = await Promise.race([query, budget]);
+
+    // Timed out. Let the request through rather than making the visitor wait
+    // on a counter; the query is left to settle on its own.
+    if (rows === null) {
+      reportError(new Error(`Rate limit query exceeded ${RATE_LIMIT_TIMEOUT_MS}ms`), {
+        scope: 'rateLimit',
+        extra: { bucket, timedOut: true },
+      });
+      return allowedResult;
+    }
+
     const row = (rows as unknown as { count: number; window_start: Date }[])[0];
     if (!row) return allowedResult;
 
@@ -113,6 +143,9 @@ export async function rateLimit(
   } catch (err) {
     reportError(err, { scope: 'rateLimit', extra: { bucket } });
     return allowedResult;
+  } finally {
+    // Without this the pending timer keeps the event loop alive on every call.
+    clearTimeout(timer);
   }
 }
 
