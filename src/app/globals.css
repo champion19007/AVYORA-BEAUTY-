@@ -45,6 +45,11 @@
     --ring: 43 68% 47%;
 
     --radius: 0.5rem;
+
+    /* Avyora Beauty sub-brand, sampled from its supplied artwork. Kept as a
+       token rather than a hex literal in the component so it flips with the
+       theme like every other colour. */
+    --beauty-pink: #C01050;
   }
 
   .dark {
@@ -78,6 +83,9 @@
     --border: 224 28% 21%;
     --input: 224 28% 21%;
     --ring: 43 76% 60%;
+
+    /* Lightened: the crimson is too dark to read on the dark ground. */
+    --beauty-pink: #F06AA0;
   }
 }
 

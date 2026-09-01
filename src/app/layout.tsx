@@ -4,6 +4,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ClientLayoutWrapper } from '@/components/layout/client-layout-wrapper';
+import { DeliverTo } from '@/components/layout/deliver-to';
 import { isCustomerAuthConfigured } from '@/auth';
 
 /**
@@ -108,7 +109,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${foglihten.variable} ${jost.variable}`}>
       <body className="antialiased font-body bg-background">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <ClientLayoutWrapper authEnabled={isCustomerAuthConfigured()}>
+          <ClientLayoutWrapper authEnabled={isCustomerAuthConfigured()} deliverTo={<DeliverTo />}>
             {children}
           </ClientLayoutWrapper>
         </ThemeProvider>

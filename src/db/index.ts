@@ -68,6 +68,23 @@ export const db = new Proxy({} as Database, {
   },
 });
 
+/**
+ * The real Drizzle instance, not the proxy.
+ *
+ * `db` above is a Proxy so that importing it cannot throw. That works for
+ * queries, but defeats library code that identifies the SQL dialect from the
+ * object's prototype: Auth.js's Drizzle adapter runs `is(db, PgDatabase)`, and
+ * a Proxy wrapping `{}` inherits from Object, so the check fails and it throws
+ * "Unsupported database type (object)".
+ *
+ * Calling this opens the connection immediately and raises if DATABASE_URL is
+ * missing — the very thing the proxy exists to avoid. So call it only behind a
+ * configuration check, never at module scope unconditionally.
+ */
+export function getDatabase(): Database {
+  return getDb();
+}
+
 export { schema };
 
 /** True when a database is configured. Lets routes degrade rather than crash. */

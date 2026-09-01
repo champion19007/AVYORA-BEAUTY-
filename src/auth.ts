@@ -1,8 +1,10 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
-import { db } from '@/db';
+import { cookies } from 'next/headers';
+import { getDatabase } from '@/db';
 import { users, accounts, sessions, verificationTokens } from '@/db/schema';
+import { ANONYMOUS_COOKIE, mergeCarts } from '@/lib/cart-server';
 
 /**
  * Customer authentication.
@@ -31,8 +33,11 @@ const databaseConfigured = Boolean(process.env.DATABASE_URL);
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // The adapter needs a database. Without one, fall back to no providers so the
   // app still builds and runs; sign-in simply reports itself unavailable.
+  // getDatabase() rather than the `db` proxy: the adapter identifies the
+  // dialect by prototype and rejects a proxy. Safe here because this branch
+  // only runs when DATABASE_URL is set.
   adapter: databaseConfigured
-    ? DrizzleAdapter(db, {
+    ? DrizzleAdapter(getDatabase(), {
         usersTable: users,
         accountsTable: accounts,
         sessionsTable: sessions,
@@ -66,6 +71,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Expose the user id so server code can scope queries without a lookup.
       if (session.user && user) session.user.id = user.id;
       return session;
+    },
+  },
+
+  events: {
+    /**
+     * Fold the visitor's anonymous cart into their account cart.
+     *
+     * This is the moment the two identities meet: everything added before
+     * signing in is filed under a cookie id, everything after under the user
+     * id. Without this step a customer who fills a basket and then signs in to
+     * pay watches it empty — the most expensive possible moment to lose a cart.
+     *
+     * Runs as an event rather than a callback because its result must not gate
+     * sign-in: a merge failure is a lost cart, but a thrown error here would be
+     * a customer who cannot log in at all. Hence the catch.
+     */
+    async signIn({ user }) {
+      if (!user?.id) return;
+
+      try {
+        const anonymousId = (await cookies()).get(ANONYMOUS_COOKIE)?.value;
+        if (anonymousId) await mergeCarts(user.id, anonymousId);
+      } catch (err) {
+        console.error('cart merge on sign-in failed (ignored)', err);
+      }
     },
   },
 

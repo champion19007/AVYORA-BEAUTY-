@@ -89,11 +89,23 @@ export const addresses = pgTable('addresses', {
   fullName: text('full_name').notNull(),
   line1: text('line1').notNull(),
   line2: text('line2'),
+  /** Nearby reference point. Optional, but Indian couriers rely on it heavily. */
+  landmark: text('landmark'),
   city: text('city').notNull(),
   state: text('state').notNull(),
   postalCode: text('postal_code').notNull(),
   country: text('country').notNull().default('IN'),
   phone: text('phone').notNull(),
+  /**
+   * The address pre-selected at checkout and shown in the header.
+   *
+   * At most one per user should be true. That is enforced in application code
+   * (see `setDefaultAddress`) rather than by a partial unique index, because
+   * promoting a new default means clearing the old one, and doing both inside
+   * one transaction is simpler to reason about than an index that rejects the
+   * intermediate state.
+   */
+  isDefault: boolean('is_default').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   userIdx: index('addresses_user_idx').on(t.userId),

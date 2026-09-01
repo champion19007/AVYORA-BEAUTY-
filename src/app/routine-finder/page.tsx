@@ -234,7 +234,7 @@ function StepCard({ step }: { step: RoutineStep }) {
           )}
         </h3>
 
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.explanation}</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{step.explanation}</p>
 
         {step.frequency && (
           <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">

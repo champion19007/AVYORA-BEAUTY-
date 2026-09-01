@@ -78,8 +78,23 @@ export function ProductClient({
           <div className="space-y-4">
             <div>
               <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-primary">{product.category} Care</span>
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-semibold uppercase tracking-tighter mt-2 leading-none">{product.name}</h1>
-              <p className="text-xs md:text-sm font-bold uppercase tracking-widest text-muted-foreground mt-4 leading-relaxed">{product.tagline}</p>
+              <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-normal tracking-tight mt-2 leading-tight">
+                {product.name}
+              </h1>
+              {/* The tagline is a sentence, so it is set as one: no caps, no
+                  bold, at a size that can actually be read at arm's length. */}
+              <p className="mt-3 text-base md:text-lg leading-relaxed text-muted-foreground">
+                {product.tagline}
+              </p>
+              {/*
+                The catalogue carries a `description` for every product and the
+                page never rendered it — customers saw only the one-line
+                tagline. It is the main body copy on the page, so it leads at
+                full reading size.
+              */}
+              <p className="mt-4 text-[15px] md:text-base leading-relaxed text-foreground/80">
+                {product.description}
+              </p>
             </div>
 
             {product.reviewCount && product.rating ? (
@@ -156,15 +171,16 @@ export function ProductClient({
           <div className="pt-6 md:pt-10 border-t">
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="ingredients">
-                <AccordionTrigger className="text-[10px] font-semibold uppercase tracking-widest py-4">Key Ingredients</AccordionTrigger>
-                <AccordionContent className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground leading-loose pt-2">
-                  {product.ingredients.join(', ')}. Optimized for clinical results with high-purity actives.
+                <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">Key Ingredients</AccordionTrigger>
+                <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
+                  {product.ingredients.join(', ')}. Formulated with high-purity actives.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="how-to-use">
-                <AccordionTrigger className="text-[10px] font-semibold uppercase tracking-widest py-4">How to Use</AccordionTrigger>
-                <AccordionContent className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground leading-loose pt-2">
-                  Apply on cleansed face/body. Use twice daily for optimal results. Ensure SPF protection during daylight hours.
+                <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">How to Use</AccordionTrigger>
+                <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
+                  Apply to cleansed skin. Use twice daily for best results, and wear SPF during
+                  the day.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

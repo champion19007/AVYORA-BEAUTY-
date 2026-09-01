@@ -45,6 +45,7 @@ function MaybeSession({ enabled, children }: { enabled: boolean; children: React
 export function ClientLayoutWrapper({
   children,
   authEnabled,
+  deliverTo,
 }: {
   children: React.ReactNode;
   /**
@@ -53,6 +54,13 @@ export function ClientLayoutWrapper({
    * on every page load. Gate it instead.
    */
   authEnabled: boolean;
+  /**
+   * The "deliver to" indicator, rendered on the server and passed in as an
+   * element. This wrapper is a client component, so it cannot await the
+   * customer's default address itself — receiving it as a prop keeps the
+   * query, and the address, on the server.
+   */
+  deliverTo?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
@@ -77,7 +85,7 @@ export function ClientLayoutWrapper({
     <AppProvider>
       <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
         <AnnouncementBar />
-        <Header />
+        <Header deliverTo={deliverTo} />
         <main key={pathname} className="flex-1 w-full animate-in fade-in duration-700">
           {children}
         </main>

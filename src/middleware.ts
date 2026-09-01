@@ -6,7 +6,7 @@ import {
   isBlockedAgent,
   securityHeaders,
 } from '@/lib/security';
-import { rateLimit } from '@/lib/rate-limit';
+import { edgeRateLimit } from '@/lib/edge-rate-limit';
 
 /**
  * Edge middleware: security headers, bot mitigation, and the admin gate.
@@ -42,8 +42,17 @@ export async function middleware(request: NextRequest) {
 
   // Throttle bulk browsing. Search engines are exempt, since crawling fast is
   // their job and blocking them costs organic traffic.
+  //
+  // Counted in memory, not in Postgres: the driver cannot open a socket from
+  // the Edge runtime, so the database-backed limiter failed on every request
+  // here and — once it started hanging instead of erroring — took the site
+  // down. See lib/edge-rate-limit.ts for what this does and does not promise.
   if (!isAllowedCrawler(userAgent) && !path.startsWith('/api/')) {
-    const browse = await rateLimit('checkout', `browse:${clientAddress(request)}`, BROWSE_LIMIT);
+    const browse = edgeRateLimit(
+      `browse:${clientAddress(request)}`,
+      BROWSE_LIMIT.limit,
+      BROWSE_LIMIT.windowSeconds
+    );
     if (!browse.allowed) {
       return new NextResponse('Too many requests', {
         status: 429,
@@ -57,13 +66,16 @@ export async function middleware(request: NextRequest) {
 
   /* ------------------------------------------------------------- admin --- */
 
-  if (path.startsWith('/admin')) {
+  // Exact segment match, not a prefix: `startsWith('/admin')` also matches
+  // `/admin-login`, which made the operator login page redirect to itself.
+  if (path === '/admin' || path.startsWith('/admin/')) {
     const config = getAdminConfig();
     const token = request.cookies.get(SESSION_COOKIE)?.value;
     const session = config ? await verifySessionToken(token, config.sessionSecret) : null;
 
     if (!session) {
-      const loginUrl = new URL('/login', request.url);
+      // The operator entrance, not the customer one.
+      const loginUrl = new URL('/admin-login', request.url);
       loginUrl.searchParams.set('next', path);
       const redirect = NextResponse.redirect(loginUrl);
       if (token) redirect.cookies.set(SESSION_COOKIE, '', { path: '/', maxAge: 0 });
