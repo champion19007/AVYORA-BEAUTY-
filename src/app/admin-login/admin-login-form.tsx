@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -16,16 +16,37 @@ import { Label } from '@/components/ui/label';
 import { LogoDark } from '@/components/logo';
 import { useApp } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
-import { GoogleSignInButton } from '@/components/account-menu';
 
 
-export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
+/**
+ * Operator sign-in.
+ *
+ * Separate from the customer flow on purpose. This form previously sat on
+ * /login, so every shopper was shown a username and password box for an
+ * account they could never hold — and its presence advertised that an admin
+ * panel exists. Customers now get /login (Google); this is staff only.
+ */
+export function AdminLoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useApp();
   const { toast } = useToast();
   const router = useRouter();
+
+  /**
+   * Where to land after signing in.
+   *
+   * Pages that require an account send the visitor here with their own path in
+   * `callbackUrl`, so signing in returns them to what they were trying to do
+   * instead of dropping them on the homepage.
+   *
+   * Only same-site paths are honoured: an absolute URL here would let a crafted
+   * link bounce a freshly authenticated customer onto an attacker's page.
+   */
+  const searchParams = useSearchParams();
+  const requested = searchParams.get('callbackUrl') ?? '/';
+  const callbackUrl = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/';
 
   /**
    * Admin credentials are checked on the server.
@@ -68,13 +89,15 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         return;
       }
 
-      // Not an admin: fall back to the ordinary customer session.
-      if (username && password.length >= 6) {
-        login(username, false);
-        router.push('/');
-        return;
-      }
-
+      // There is deliberately no customer fallback here.
+      //
+      // This branch used to sign anyone in as a "customer" if they typed any
+      // username and any password of six characters or more — no lookup, no
+      // password check, no account required. It granted a session to a person
+      // who had never registered, on a credential nobody had ever set.
+      //
+      // Customer identity is Google sign-in, which verifies the person and
+      // writes a real session row. This form is the admin credential only.
       toast({
         variant: 'destructive',
         title: 'Authentication failed',
@@ -141,13 +164,12 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
           >
             {isLoading ? "Authenticating..." : "Login"}
           </Button>
-          <GoogleSignInButton enabled={googleEnabled} />
         </form>
         <div className="mt-8 text-center">
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-            No account?{' '}
-            <Link href="/signup" className="underline font-semibold text-foreground opacity-100">
-              Join the Circle
+            Shopping?{' '}
+            <Link href="/login" className="underline font-semibold text-foreground opacity-100">
+              Customer sign in
             </Link>
           </p>
         </div>

@@ -10,21 +10,42 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { calculateTotals, formatPaise } from '@/lib/money';
 import { placeOrder } from './actions';
-import { Loader2, Lock, ShoppingBag } from 'lucide-react';
+import { Loader2, Lock, MapPin, Plus, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Address } from '@/lib/addresses';
 
 type Errors = Record<string, string>;
 
-const FIELDS = [
+/**
+ * The address fields, shown only when entering a new address.
+ *
+ * Email is deliberately not among them: it is needed for every order, saved
+ * address or not, so it renders separately and always.
+ */
+const ADDRESS_FIELDS = [
   { name: 'fullName', label: 'Full name', autoComplete: 'name', span: 2 },
   { name: 'phone', label: 'Mobile number', autoComplete: 'tel', span: 1 },
-  { name: 'email', label: 'Email', autoComplete: 'email', type: 'email', span: 1 },
   { name: 'line1', label: 'Address', autoComplete: 'address-line1', span: 2 },
   { name: 'line2', label: 'Apartment, landmark (optional)', autoComplete: 'address-line2', span: 2 },
   { name: 'city', label: 'City', autoComplete: 'address-level2', span: 1 },
   { name: 'state', label: 'State', autoComplete: 'address-level1', span: 1 },
   { name: 'postalCode', label: 'PIN code', autoComplete: 'postal-code', span: 1 },
 ] as const;
+
+/** Flattens a saved address into the shape the form state holds. */
+function addressToValues(a: Address): Record<string, string> {
+  return {
+    fullName: a.fullName,
+    phone: a.phone,
+    line1: a.line1,
+    // The saved book has a separate landmark; checkout carries one line, so
+    // they are joined rather than dropped — the courier needs both.
+    line2: [a.line2, a.landmark].filter(Boolean).join(', '),
+    city: a.city,
+    state: a.state,
+    postalCode: a.postalCode,
+  };
+}
 
 /**
  * Confirmation URL. Guests carry a signed token because the order page shows
@@ -49,10 +70,31 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
-export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }) {
+export function CheckoutClient({
+  razorpayEnabled,
+  savedAddresses = [],
+  defaultEmail = '',
+}: {
+  razorpayEnabled: boolean;
+  /** The signed-in customer's address book. Empty for guests. */
+  savedAddresses?: Address[];
+  /** Email from the session, so it is not retyped. */
+  defaultEmail?: string;
+}) {
   const { cart, updateQuantity, removeFromCart } = useApp();
   const router = useRouter();
-  const [values, setValues] = useState<Record<string, string>>({});
+
+  // Pre-select the default address, so a returning customer can pay without
+  // touching the form at all.
+  const preselected = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0];
+
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    preselected?.id ?? null
+  );
+  const [values, setValues] = useState<Record<string, string>>(() => ({
+    email: defaultEmail,
+    ...(preselected ? addressToValues(preselected) : {}),
+  }));
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -236,8 +278,101 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
         <div className="lg:col-span-3">
           <h2 className="font-headline text-xl font-normal tracking-tight">Delivery details</h2>
 
-          <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
-            {FIELDS.map((f) => (
+          {/* Address book, when the customer has one. Choosing a saved address
+              fills the form state and hides the fields; "a new address" clears
+              them and brings the fields back. */}
+          {savedAddresses.length > 0 && (
+            <div className="mt-6 space-y-3" role="radiogroup" aria-label="Delivery address">
+              {savedAddresses.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedAddressId === a.id}
+                  onClick={() => {
+                    setSelectedAddressId(a.id);
+                    setValues((v) => ({ ...v, ...addressToValues(a) }));
+                    setErrors({});
+                  }}
+                  className={cn(
+                    'flex w-full gap-3 rounded-lg border p-5 text-left transition-colors',
+                    selectedAddressId === a.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  )}
+                >
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <span className="text-sm leading-relaxed">
+                    <span className="font-medium">{a.fullName}</span>
+                    {a.isDefault && (
+                      <span className="ml-2 text-[10px] uppercase tracking-[0.16em] text-primary">
+                        Default
+                      </span>
+                    )}
+                    <span className="mt-1 block text-muted-foreground">
+                      {a.line1}
+                      {a.line2 ? `, ${a.line2}` : ''}, {a.city}, {a.state} {a.postalCode}
+                      <span className="block">Phone: {a.phone}</span>
+                    </span>
+                  </span>
+                </button>
+              ))}
+
+              <button
+                type="button"
+                role="radio"
+                aria-checked={selectedAddressId === null}
+                onClick={() => {
+                  setSelectedAddressId(null);
+                  // Clear the address, keep the email — it is not part of it.
+                  setValues((v) => ({ email: v.email ?? '' }));
+                  setErrors({});
+                }}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg border p-5 text-left transition-colors',
+                  selectedAddressId === null
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <Plus className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <span className="text-sm font-medium">Deliver to a new address</span>
+              </button>
+            </div>
+          )}
+
+          {/* Email is required for every order, saved address or not. */}
+          <div className="mt-6">
+            <Label htmlFor="email" className="text-xs font-medium">
+              Email
+            </Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={values.email ?? ''}
+              onChange={(e) => set('email', e.target.value)}
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? 'email-error' : undefined}
+              className="mt-1.5 h-11 rounded-md"
+            />
+            {errors.email && (
+              <p id="email-error" className="mt-1.5 text-xs text-destructive">
+                {errors.email}
+              </p>
+            )}
+          </div>
+
+          <div
+            className={cn(
+              'mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2',
+              // A chosen saved address needs no fields; its values are already
+              // in state and submit reads from there.
+              selectedAddressId !== null && 'hidden'
+            )}
+          >
+            {ADDRESS_FIELDS.map((f) => (
               <div key={f.name} className={cn(f.span === 2 && 'sm:col-span-2')}>
                 <Label htmlFor={f.name} className="text-xs font-medium">
                   {f.label}
@@ -245,7 +380,8 @@ export function CheckoutClient({ razorpayEnabled }: { razorpayEnabled: boolean }
                 <Input
                   id={f.name}
                   name={f.name}
-                  type={'type' in f ? f.type : 'text'}
+                  // Every address field is plain text; email moved out above.
+                  type="text"
                   autoComplete={f.autoComplete}
                   value={values[f.name] ?? ''}
                   onChange={(e) => set(f.name, e.target.value)}

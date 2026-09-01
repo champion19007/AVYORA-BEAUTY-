@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { LoginForm } from './login-form';
+import { Suspense } from 'react';
+import { CustomerAuth } from './customer-auth';
 import { isCustomerAuthConfigured } from '@/auth';
 
 export const metadata: Metadata = {
@@ -12,5 +13,9 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default function LoginPage() {
-  return <LoginForm googleEnabled={isCustomerAuthConfigured()} />;
+  return (
+    <Suspense>
+      <CustomerAuth googleEnabled={isCustomerAuthConfigured()} mode="signin" />
+    </Suspense>
+  );
 }

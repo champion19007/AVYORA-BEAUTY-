@@ -82,7 +82,7 @@ function MegaColumn({
   );
 }
 
-export function Header() {
+export function Header({ deliverTo }: { deliverTo?: React.ReactNode }) {
   const { cart, setCartOpen } = useApp();
   const pathname = usePathname();
   const router = useRouter();
@@ -110,7 +110,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/90 backdrop-blur-md transition-colors duration-300">
-      <div className="container mx-auto flex h-20 items-center justify-between px-4">
+      <div className="mx-auto flex w-full max-w-[1720px] items-center justify-between px-5 sm:px-8 h-24 md:h-28">
         <div className="flex items-center gap-10">
           <Logo className="shrink-0" />
 
@@ -165,6 +165,9 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
+          {/* Server-rendered; absent when signed out or no address is saved. */}
+          {deliverTo}
+
           <Button
             variant="ghost"
             size="icon"
@@ -176,9 +179,13 @@ export function Header() {
             <Search className="h-4 w-4" />
           </Button>
 
-          <Button variant="ghost" size="icon" aria-label="Wishlist" className="hidden hover:text-primary sm:flex">
-            <Heart className="h-4 w-4" />
-          </Button>
+          {/* This was a button with no handler and no href — it looked like the
+              way into the wishlist and did nothing when clicked. */}
+          <Link href="/wishlist" className="hidden sm:flex">
+            <Button variant="ghost" size="icon" aria-label="Wishlist" className="hover:text-primary">
+              <Heart className="h-4 w-4" />
+            </Button>
+          </Link>
 
           <Button
             variant="ghost"
@@ -267,7 +274,7 @@ export function Header() {
           aria-label="Breadcrumb"
           className="border-t border-border/60 bg-muted/30 py-2.5 transition-colors duration-300"
         >
-          <ol className="container mx-auto flex items-center gap-1.5 px-4 text-[11px] text-muted-foreground">
+          <ol className="mx-auto flex w-full max-w-[1720px] items-center gap-1.5 px-5 text-[11px] text-muted-foreground sm:px-8">
             <li>
               <Link href="/" className="transition-colors hover:text-primary">
                 Home

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { signIn, signOut, useSession } from 'next-auth/react';
-import { User, LogOut, Package, LogIn } from 'lucide-react';
+import { User, LogOut, Package, LogIn, UserPlus, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -35,14 +35,45 @@ export function AccountMenu() {
   return authAvailable ? <SignedInMenu /> : <SignInLink />;
 }
 
-/** Neutral control shown when signed out, or when auth is unconfigured. */
+/**
+ * Control shown when signed out, or when auth is unconfigured.
+ *
+ * A menu rather than a bare link, because "sign in" and "create an account"
+ * are different intentions and a single icon answered neither. A first-time
+ * visitor clicking a person icon could not tell whether it would ask for
+ * credentials they do not have.
+ */
 function SignInLink() {
   return (
-    <Link href="/login" className="hidden sm:flex">
-      <Button variant="ghost" size="icon" aria-label="Sign in" className="hover:text-primary">
-        <User className="h-4 w-4" />
-      </Button>
-    </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Account" className="hover:text-primary">
+          <User className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem asChild>
+          <Link href="/login" className="cursor-pointer gap-2">
+            <LogIn className="h-4 w-4" />
+            Sign in
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/signup" className="cursor-pointer gap-2">
+            <UserPlus className="h-4 w-4" />
+            Create an account
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/track-order" className="cursor-pointer gap-2">
+            <Package className="h-4 w-4" />
+            Track an order
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -89,9 +120,15 @@ function SignedInMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
+          <Link href="/account" className="cursor-pointer gap-2">
+            <User className="h-4 w-4" />
+            Your account
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href="/track-order" className="cursor-pointer gap-2">
             <Package className="h-4 w-4" />
-            Your orders
+            Track an order
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { reportError } from '@/lib/observability';
-import { eq } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders, orderItems, addresses } from '@/db/schema';
 import { getProductById } from '@/lib/catalogue';
@@ -209,6 +209,41 @@ export async function getOrderByNumber(orderNumber: string) {
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
   return { ...order, items };
+}
+
+/**
+ * Every order belonging to a signed-in customer, newest first.
+ *
+ * Scoped by user id rather than email on purpose: email is mutable and a
+ * customer could change theirs at Google, whereas the user id is the stable
+ * identity the orders were filed under. Guest orders placed with the same
+ * address before signing up are therefore not included — claiming those needs
+ * a verification step, not a join on a string anyone could type.
+ */
+export async function getOrdersForUser(userId: string) {
+  const rows = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(orders.createdAt))
+    .limit(50);
+
+  if (rows.length === 0) return [];
+
+  // One query for all lines rather than one per order.
+  const lines = await db
+    .select()
+    .from(orderItems)
+    .where(inArray(orderItems.orderId, rows.map((o) => o.id)));
+
+  const byOrder = new Map<string, typeof lines>();
+  for (const line of lines) {
+    const bucket = byOrder.get(line.orderId);
+    if (bucket) bucket.push(line);
+    else byOrder.set(line.orderId, [line]);
+  }
+
+  return rows.map((o) => ({ ...o, items: byOrder.get(o.id) ?? [] }));
 }
 
 /**
