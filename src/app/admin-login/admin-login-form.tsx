@@ -73,7 +73,16 @@ export function AdminLoginForm() {
           title: 'Admin access granted',
           description: 'Welcome to the Avyora control panel.',
         });
-        router.push('/admin');
+        /*
+         * Land on the console the role can actually use.
+         *
+         * A manager sent to /admin would be bounced straight back out by the
+         * owner-only layout, which reads as a broken login rather than as a
+         * permission boundary. The role comes from the server's response, not
+         * from anything the form could set.
+         */
+        const body = await response.json().catch(() => ({}) as { role?: string });
+        router.push(body?.role === 'manager' ? '/manager' : '/admin');
         return;
       }
 

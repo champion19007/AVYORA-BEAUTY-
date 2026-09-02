@@ -8,6 +8,7 @@ import { isDatabaseConfigured } from '@/db';
 import { getOrderByNumber } from '@/lib/orders';
 import { verifyOrderAccessToken } from '@/lib/order-access';
 import { formatPaise } from '@/lib/money';
+import { OrderTracker } from '@/components/order-tracker';
 
 export const metadata: Metadata = {
   title: 'Order confirmed',
@@ -83,7 +84,12 @@ export default async function OrderPage({
         </p>
       </div>
 
-      <div className="mt-12 rounded-xl border border-border bg-card p-6">
+      {/* Where the parcel is, in words a customer uses. */}
+      <div className="mt-10">
+        <OrderTracker status={order.status} />
+      </div>
+
+      <div className="mt-6 rounded-xl border border-border bg-card p-6">
         <h2 className="font-headline text-xl font-normal tracking-tight">Order summary</h2>
         <ul className="mt-5 divide-y divide-border">
           {order.items.map((item) => (

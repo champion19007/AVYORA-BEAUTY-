@@ -5,12 +5,18 @@ import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
   createSessionToken,
-  getAdminConfig,
   verifyPassword,
 } from '@/lib/auth';
+import { encodeSubject, findStaffCredential, staffCredentials } from '@/lib/staff-auth';
 
 /**
- * Verifies admin credentials on the server and issues a signed session cookie.
+ * Verifies staff credentials and issues a signed session cookie.
+ *
+ * Serves both roles. The owner and the inventory manager sign in at the same
+ * door; which console they land in is decided by the role baked into the
+ * session subject, not by which URL they typed. That means a manager cannot
+ * reach the owner's screens by guessing a path, and there is one login to
+ * rate limit rather than two.
  *
  * The credentials never reach the client bundle, and the cookie is httpOnly so
  * page scripts cannot read or forge it.
@@ -27,7 +33,8 @@ export async function POST(request: Request) {
     return tooManyRequests(limit, 'Too many sign-in attempts. Try again later.');
   }
 
-  const config = getAdminConfig();
+  const secret = process.env.SESSION_SECRET;
+  const configured = staffCredentials();
 
   let username = '';
   let password = '';
@@ -41,25 +48,36 @@ export async function POST(request: Request) {
 
   // Fail closed when unconfigured, and do a comparison anyway so an
   // unconfigured deployment is not distinguishable by response time.
-  if (!config) {
+  if (configured.length === 0 || !secret || secret.length < 32) {
     await verifyPassword(password, 'pbkdf2:210000:AAAA:AAAA');
     return NextResponse.json(
-      { error: 'Admin access is not configured on this deployment.' },
+      { error: 'Staff access is not configured on this deployment.' },
       { status: 503 }
     );
   }
 
-  const passwordOk = await verifyPassword(password, config.passwordHash);
-  const usernameOk = username === config.username;
+  const credential = findStaffCredential(username);
 
-  if (!usernameOk || !passwordOk) {
+  // Always hash something, so a wrong username does not answer faster than a
+  // wrong password and hand back a way to enumerate the two staff logins.
+  const passwordOk = await verifyPassword(
+    password,
+    credential?.passwordHash ?? 'pbkdf2:210000:AAAA:AAAA'
+  );
+
+  if (!credential || !passwordOk) {
     // One generic message: revealing which half was wrong helps an attacker
     // enumerate usernames.
     return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
   }
 
-  const token = await createSessionToken(config.username, config.sessionSecret);
-  const response = NextResponse.json({ ok: true });
+  const token = await createSessionToken(
+    encodeSubject(credential.role, credential.username),
+    secret
+  );
+
+  // The client uses this to land on the right console.
+  const response = NextResponse.json({ ok: true, role: credential.role });
 
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,

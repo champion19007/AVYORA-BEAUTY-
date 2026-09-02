@@ -5,8 +5,10 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { eq, and } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
-import { orders, inventory } from '@/db/schema';
+import { orders, inventory, restockRequests } from '@/db/schema';
 import { isAdmin } from '@/lib/admin-guard';
+import { getStaffSession } from '@/lib/staff-auth';
+import { setPricing } from '@/lib/pricing';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { recordEvent } from '@/lib/activity';
 
@@ -96,6 +98,17 @@ export async function setStock(formData: FormData): Promise<void> {
   if (!isDatabaseConfigured()) return;
   if (!(await isAdmin())) return;
 
+  /*
+   * The owner is not the person holding the box.
+   *
+   * Stock counts belong to whoever is standing at the shelf, and a number the
+   * owner types from memory overwrites what the manager actually counted. The
+   * ability is kept — the manager is sometimes off sick — but the form must
+   * send an explicit confirmation, which the interface only produces after
+   * asking a second time.
+   */
+  if (formData.get('confirmed') !== 'yes') return;
+
   const productId = String(formData.get('productId') ?? '');
   const size = String(formData.get('size') ?? '');
   const raw = String(formData.get('quantity') ?? '');
@@ -160,4 +173,99 @@ export async function adminSignOut(): Promise<void> {
   });
 
   redirect('/admin-login');
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pricing and offers                                                           */
+/* -------------------------------------------------------------------------- */
+
+export type PriceFormState = { error?: string; saved?: boolean };
+
+/**
+ * Sets the price and any offer for one SKU.
+ *
+ * Amounts arrive as rupees, because that is what a person types, and are
+ * converted to paise here — the only unit the rest of the system uses.
+ */
+export async function savePrice(
+  _prev: PriceFormState,
+  formData: FormData
+): Promise<PriceFormState> {
+  if (!isDatabaseConfigured()) return { error: 'No database configured.' };
+
+  const session = await getStaffSession();
+  if (session?.role !== 'owner') return { error: 'Only the owner can change prices.' };
+
+  const productId = String(formData.get('productId') ?? '');
+  const size = String(formData.get('size') ?? '');
+  if (!productId || !size) return { error: 'Missing product.' };
+
+  const toPaise = (value: string): number | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const rupees = Number(trimmed);
+    if (!Number.isFinite(rupees) || rupees <= 0) return null;
+    // Rounded, not truncated: 12.345 should become 1235 paise, not 1234.
+    return Math.round(rupees * 100);
+  };
+
+  const price = toPaise(String(formData.get('price') ?? ''));
+  if (price === null) return { error: 'Enter a price greater than zero.' };
+
+  const salePrice = toPaise(String(formData.get('salePrice') ?? ''));
+  const offerLabel = String(formData.get('offerLabel') ?? '').trim().slice(0, 80) || null;
+
+  const endsRaw = String(formData.get('offerEndsAt') ?? '').trim();
+  const offerEndsAt = endsRaw ? new Date(endsRaw) : null;
+  if (offerEndsAt && Number.isNaN(offerEndsAt.getTime())) {
+    return { error: 'That end date is not valid.' };
+  }
+
+  const result = await setPricing({
+    productId,
+    size,
+    price,
+    salePrice,
+    offerLabel,
+    offerEndsAt,
+    updatedBy: session.username,
+  });
+
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath('/admin/pricing');
+  // The storefront reads these, so its cached pages must be rebuilt.
+  revalidatePath('/collections');
+  revalidatePath('/', 'layout');
+
+  return { saved: true };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Restock requests                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Closes a restock request.
+ *
+ * The owner closes it because closing means the stock was actually ordered.
+ * The manager raising and closing their own request would make the record
+ * worth nothing.
+ */
+export async function resolveRestockRequest(formData: FormData): Promise<void> {
+  if (!isDatabaseConfigured()) return;
+  if (!(await isAdmin())) return;
+
+  const id = String(formData.get('id') ?? '');
+  const outcome = String(formData.get('outcome') ?? '');
+  if (!id || (outcome !== 'ordered' && outcome !== 'declined')) return;
+
+  await db
+    .update(restockRequests)
+    .set({ status: outcome, resolvedAt: new Date() })
+    .where(eq(restockRequests.id, id));
+
+  revalidatePath('/admin/requests');
+  revalidatePath('/manager/requests');
+  revalidatePath('/admin');
 }

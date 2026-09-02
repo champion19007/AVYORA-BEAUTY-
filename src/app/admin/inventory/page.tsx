@@ -5,6 +5,7 @@ import { listInventory, listUntrackedSkus } from '@/lib/admin-data';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { setBackorder, setStock } from '../actions';
+import { ConfirmStockForm } from '../confirm-stock-form';
 
 export const metadata: Metadata = { title: 'Inventory' };
 export const dynamic = 'force-dynamic';
@@ -12,11 +13,10 @@ export const dynamic = 'force-dynamic';
 /**
  * Stock levels, and the SKUs that have none.
  *
- * The second half matters as much as the first. `reserveStock` treats a
- * missing inventory row as unlimited — the right default for launch, so the
- * shop keeps working before anyone counts a shelf, and a silent hole once
- * stock control is supposed to mean something. Those SKUs are listed
- * separately with a box to start counting them, rather than being invisible.
+ * The second half matters as much as the first. A SKU with no inventory row
+ * cannot be sold at all — `reserveStock` refuses it — so an uncounted product
+ * is invisibly unbuyable. Those are listed separately with a box to start
+ * counting them, rather than being left to fail quietly at checkout.
  */
 export default async function AdminInventoryPage() {
   if (!isDatabaseConfigured()) {
@@ -33,8 +33,9 @@ export default async function AdminInventoryPage() {
     <div className="space-y-10">
       <div>
         <h1 className="font-headline text-3xl font-normal tracking-tight">Inventory</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          Counts are absolute: enter what is on the shelf, not the difference.
+        <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
+          Read-only by habit. Counting belongs to the stockroom, who are at the shelf — changing a
+          number here overwrites what they counted, so it asks before it does.
         </p>
       </div>
 
@@ -87,25 +88,12 @@ export default async function AdminInventoryPage() {
                       </span>
                     </td>
                     <td className="p-4">
-                      <form action={setStock} className="flex items-center gap-2">
-                        <input type="hidden" name="productId" value={row.productId} />
-                        <input type="hidden" name="size" value={row.size} />
-                        <Input
-                          name="quantity"
-                          type="number"
-                          min={0}
-                          defaultValue={row.quantity}
-                          aria-label={`Stock for ${row.productName} ${row.size}`}
-                          className="h-10 w-24 rounded-md"
-                        />
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          className="h-10 rounded-md px-4 text-[11px] font-semibold uppercase tracking-[0.14em]"
-                        >
-                          Save
-                        </Button>
-                      </form>
+                      <ConfirmStockForm
+                        productId={row.productId}
+                        size={row.size}
+                        productName={row.productName}
+                        currentQuantity={row.quantity}
+                      />
                     </td>
                     <td className="p-4">
                       <form action={setBackorder}>
@@ -134,9 +122,10 @@ export default async function AdminInventoryPage() {
           <h2 className="font-headline text-xl font-normal tracking-tight">Not yet counted</h2>
           <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
             These {untracked.length} SKU{untracked.length === 1 ? '' : 's'} have no inventory row,
-            so they sell without limit. Enter a count to bring one under stock control.
+            so they cannot be sold at all. Enter a count to bring one under stock control.
           </p>
 
+          {/* No confirmation here: there is no counted value to overwrite. */}
           <ul className="mt-5 divide-y divide-border rounded-xl border border-border bg-card">
             {untracked.map((sku) => (
               <li
@@ -150,6 +139,7 @@ export default async function AdminInventoryPage() {
                 <form action={setStock} className="ml-auto flex items-center gap-2">
                   <input type="hidden" name="productId" value={sku.productId} />
                   <input type="hidden" name="size" value={sku.size} />
+                  <input type="hidden" name="confirmed" value="yes" />
                   <Input
                     name="quantity"
                     type="number"
