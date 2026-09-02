@@ -120,6 +120,32 @@ Verify in this order — each depends on the one before:
 4. Save an address at `/account/addresses`.
 5. Place a cash-on-delivery order and confirm the row lands in `orders`.
 
+## Email and SMS sign-in codes
+
+Both are optional, and neither option appears in the interface unless its
+delivery channel is configured — offering a method that cannot send is worse
+than not offering it.
+
+**Email (Resend).** A new Resend account can only send from
+`onboarding@resend.dev`, and **only to the account owner's own address**.
+Sending anywhere else returns 403:
+
+> You can only send testing emails to your own email address. To send emails
+> to other recipients, please verify a domain.
+
+So `RESEND_API_KEY` is safe to set locally for testing, and must **not** be set
+in production until a domain is verified at resend.com/domains — otherwise
+every customer who picks "email me a code" gets a failure. Verifying a domain
+needs a domain you control; `avyora-beauty.vercel.app` will not work, because
+DNS records must be added at the registrar.
+
+**SMS (MSG91).** Transactional SMS to Indian numbers requires DLT registration
+with TRAI before anything can be sent: the business registered with an
+operator, and the message template approved in advance. Messages from an
+unregistered sender are dropped by the carriers, not merely rate limited. This
+takes days to weeks and costs per message, so treat it as a procurement task
+rather than a configuration one.
+
 ## Known limits
 
 **Browse rate limiting is per-instance.** Middleware runs in the Edge runtime,
