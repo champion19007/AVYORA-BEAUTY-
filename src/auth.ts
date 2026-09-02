@@ -67,10 +67,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 
   callbacks: {
+    /**
+     * Build the session object explicitly.
+     *
+     * This must never spread the adapter's row. With the database strategy the
+     * `session` argument IS the `sessions` row joined to the whole `users`
+     * row, and returning it shipped `sessionToken` — the login credential
+     * itself — plus every user column to the browser. Once a `password_hash`
+     * column existed, that endpoint was serving password hashes to any script
+     * on the page, on every request, because SessionProvider polls it.
+     *
+     * So the shape is listed field by field. A new column added to `users`
+     * then stays server-side unless someone deliberately adds it here.
+     */
     session({ session, user }) {
-      // Expose the user id so server code can scope queries without a lookup.
-      if (session.user && user) session.user.id = user.id;
-      return session;
+      return {
+        expires: session.expires,
+        user: {
+          // The id lets server code scope queries without a second lookup.
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+        },
+      };
     },
   },
 

@@ -38,6 +38,28 @@ export const RATE_LIMITS = {
   checkout: { limit: 10, windowSeconds: 600 },
   /** Payment session creation. */
   payment: { limit: 15, windowSeconds: 600 },
+  /**
+   * Customer sign-in: password attempts and code checks.
+   *
+   * Looser than the admin limit because this is one credential among many
+   * thousands of customers rather than the single operator account, and
+   * because a real person mistyping a password twice must not be locked out.
+   */
+  customerLogin: { limit: 10, windowSeconds: 600 },
+  /**
+   * "Does this email have an account?"
+   *
+   * Tight, because this is the call that would be used to grind a mailing list
+   * to find out who shops here.
+   */
+  accountLookup: { limit: 20, windowSeconds: 60 },
+  /**
+   * Requesting a one-time code.
+   *
+   * Applied per IP *and* per identifier. Each SMS costs money, and a code sent
+   * to someone who did not ask for it is harassment paid for by the shop.
+   */
+  otpRequest: { limit: 5, windowSeconds: 300 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /**

@@ -199,6 +199,32 @@ if (!razorpayId || !razorpaySecret) {
   }
 }
 
+// --- Sign-in code delivery -------------------------------------------------
+const resend = env('RESEND_API_KEY');
+const emailFrom = env('EMAIL_FROM');
+
+if (resend && !emailFrom) {
+  fail('EMAIL_FROM', 'is required when RESEND_API_KEY is set, or no email can be sent');
+} else if (resend && emailFrom) {
+  pass('RESEND_API_KEY', 'email codes enabled');
+} else {
+  warn('RESEND_API_KEY', 'not set — the "email me a code" sign-in option is hidden');
+}
+
+const msg91Key = env('MSG91_AUTH_KEY');
+const msg91Template = env('MSG91_OTP_TEMPLATE_ID');
+
+if (msg91Key && !msg91Template) {
+  fail(
+    'MSG91_OTP_TEMPLATE_ID',
+    'is required when MSG91_AUTH_KEY is set. Indian carriers drop SMS without a DLT-approved template'
+  );
+} else if (msg91Key && msg91Template) {
+  pass('MSG91_AUTH_KEY', 'SMS codes enabled');
+} else {
+  warn('MSG91_AUTH_KEY', 'not set — the "use mobile number" sign-in option is hidden');
+}
+
 // --- Error monitoring ------------------------------------------------------
 if (PRODUCTION && !env('SENTRY_DSN') && !env('NEXT_PUBLIC_SENTRY_DSN')) {
   warn('SENTRY_DSN', 'not set — errors go to stdout only, with no alerting');

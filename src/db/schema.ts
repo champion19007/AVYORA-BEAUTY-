@@ -11,7 +11,7 @@ import {
   pgEnum,
   serial,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 /**
  * Avyora database schema.
@@ -36,9 +36,49 @@ export const users = pgTable('users', {
   emailVerified: timestamp('email_verified', { mode: 'date', withTimezone: true }),
   image: text('image'),
   phone: text('phone'),
+  phoneVerified: timestamp('phone_verified', { mode: 'date', withTimezone: true }),
+  /**
+   * PBKDF2 hash, or null.
+   *
+   * Null is the normal case, not an error: someone who only ever signs in with
+   * Google has no password, and must not be told they typed the wrong one —
+   * they should be told to use Google. Nullable makes that state explicit
+   * rather than encoding it as an empty string.
+   */
+  passwordHash: text('password_hash'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   emailIdx: uniqueIndex('users_email_idx').on(t.email),
+  // Phone is a login identifier, so two accounts cannot share one. Partial:
+  // most rows have no phone, and NULLs must not collide with each other.
+  phoneIdx: uniqueIndex('users_phone_idx').on(t.phone).where(sql`${t.phone} is not null`),
+}));
+
+/**
+ * One-time codes for email and SMS sign-in.
+ *
+ * Separate from `verification_tokens` (which Auth.js owns) because a
+ * six-digit code needs things a magic-link token does not: an attempt counter,
+ * so a code with a million possible values cannot be brute-forced, and a
+ * consumed marker, so a code works exactly once even if two requests race.
+ *
+ * The code is stored hashed. A leaked database backup should not hand over
+ * live login codes, and the same PBKDF2 helper already used for passwords
+ * costs nothing extra here.
+ */
+export const otpCodes = pgTable('otp_codes', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  /** Email address or E.164 phone number. */
+  identifier: text('identifier').notNull(),
+  channel: text('channel').notNull(),
+  codeHash: text('code_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  identifierIdx: index('otp_identifier_idx').on(t.identifier),
+  expiresIdx: index('otp_expires_idx').on(t.expiresAt),
 }));
 
 /** Federated identities (Google, and anything added later). */
