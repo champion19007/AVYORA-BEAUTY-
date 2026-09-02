@@ -204,7 +204,8 @@ export function CheckoutClient({
       currency,
       name: 'Avyora',
       description: `Order ${orderNumber}`,
-      image: '/logo-mark.png',
+      // No brand mark while the artwork is being reworked. Razorpay simply
+      // omits the image rather than showing a broken one.
       prefill: {
         name: values.fullName.trim(),
         email: values.email.trim(),

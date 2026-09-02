@@ -19,13 +19,24 @@ import { activityEvents, routineResults } from '@/db/schema';
  */
 
 export type EventName =
+  // Customer behaviour.
   | 'product_viewed'
   | 'product_added_to_cart'
   | 'cart_viewed'
   | 'checkout_started'
   | 'order_placed'
   | 'routine_completed'
-  | 'search_performed';
+  | 'search_performed'
+  /*
+   * Operator actions.
+   *
+   * Recorded in the same table because the question they answer is usually
+   * asked together with the customer events — "this order says shipped, who
+   * said so and when" sits next to "when did they place it". They are named
+   * with an `admin.` prefix so the two can always be told apart in a query.
+   */
+  | 'admin.order_status_changed'
+  | 'admin.stock_set';
 
 export type ActivityInput = {
   name: EventName;
