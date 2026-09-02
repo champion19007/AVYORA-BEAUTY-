@@ -4,6 +4,7 @@ import { CustomerAuth } from './customer-auth';
 import { isCustomerAuthConfigured } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { emailDeliveryConfigured, smsDeliveryConfigured } from '@/lib/notify';
+import { demoModeEnabled } from '@/lib/demo-access';
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -26,8 +27,11 @@ export default function LoginPage() {
         mode="signin"
         googleEnabled={isCustomerAuthConfigured()}
         passwordsEnabled={isDatabaseConfigured()}
-        emailCodesEnabled={isDatabaseConfigured() && emailDeliveryConfigured()}
-        smsCodesEnabled={isDatabaseConfigured() && smsDeliveryConfigured()}
+        // Offered when a provider can deliver, or when demo identifiers are
+        // configured — the code is then shown on screen for those addresses
+        // only. See lib/demo-access.ts.
+        emailCodesEnabled={isDatabaseConfigured() && (emailDeliveryConfigured() || demoModeEnabled())}
+        smsCodesEnabled={isDatabaseConfigured() && (smsDeliveryConfigured() || demoModeEnabled())}
       />
     </Suspense>
   );

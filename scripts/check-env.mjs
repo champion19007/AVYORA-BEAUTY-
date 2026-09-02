@@ -225,6 +225,33 @@ if (msg91Key && !msg91Template) {
   warn('MSG91_AUTH_KEY', 'not set — the "use mobile number" sign-in option is hidden');
 }
 
+// --- Demo allowlist --------------------------------------------------------
+const demo = env('DEMO_IDENTIFIERS')
+  .split(',')
+  .map((v) => v.trim())
+  .filter(Boolean);
+
+if (demo.length > 0) {
+  const emailLive = Boolean(resend && emailFrom);
+  const smsLive = Boolean(msg91Key && msg91Template);
+
+  if (emailLive && smsLive) {
+    warn(
+      'DEMO_IDENTIFIERS',
+      `is set with ${demo.length} identifier(s) but both channels are live, so it does nothing. Remove it`
+    );
+  } else if (PRODUCTION) {
+    // Not a failure: showing codes to a named allowlist is the point of it.
+    // But it must be a deliberate, visible choice on a public deployment.
+    warn(
+      'DEMO_IDENTIFIERS',
+      `is set on production. Sign-in codes will be SHOWN ON SCREEN for these ${demo.length} identifier(s): ${demo.join(', ')}. Remove it once delivery is live`
+    );
+  } else {
+    pass('DEMO_IDENTIFIERS', `${demo.length} demo identifier(s)`);
+  }
+}
+
 // --- Error monitoring ------------------------------------------------------
 if (PRODUCTION && !env('SENTRY_DSN') && !env('NEXT_PUBLIC_SENTRY_DSN')) {
   warn('SENTRY_DSN', 'not set — errors go to stdout only, with no alerting');

@@ -22,6 +22,8 @@ import {
   passwordSignIn,
   passwordSignUp,
   requestCode,
+  requestPasswordReset,
+  resetPassword,
   verifyCode,
   type ActionState,
 } from './actions';
@@ -40,7 +42,16 @@ import {
  * one is sending.
  */
 
-type Step = 'email' | 'choose' | 'password' | 'signup' | 'code' | 'phone' | 'phone-code';
+type Step =
+  | 'email'
+  | 'choose'
+  | 'password'
+  | 'signup'
+  | 'code'
+  | 'phone'
+  | 'phone-code'
+  | 'forgot'
+  | 'reset';
 
 export function CustomerAuth({
   googleEnabled,
@@ -70,6 +81,9 @@ export function CustomerAuth({
   // What the looked-up account can actually do, so the picker offers only
   // methods that will work for it.
   const [methods, setMethods] = useState<AccountMethods | null>(null);
+  // Only ever set for an allowlisted demo identifier with no live delivery
+  // channel; see lib/demo-access.ts.
+  const [demoCode, setDemoCode] = useState<string | undefined>();
 
   return (
     <div className="w-full px-4 py-12">
@@ -116,7 +130,33 @@ export function CustomerAuth({
           )}
 
           {step === 'password' && (
-            <PasswordStep email={email} onBack={() => setStep('choose')} next={callbackUrl} />
+            <PasswordStep
+              email={email}
+              resetEnabled={emailCodesEnabled}
+              onBack={() => setStep('choose')}
+              onForgot={() => setStep('forgot')}
+              next={callbackUrl}
+            />
+          )}
+
+          {step === 'forgot' && (
+            <ForgotStep
+              email={email}
+              onBack={() => setStep('password')}
+              onSent={(code) => {
+                setDemoCode(code);
+                setStep('reset');
+              }}
+            />
+          )}
+
+          {step === 'reset' && (
+            <ResetStep
+              email={email}
+              demoCode={demoCode}
+              onBack={() => setStep('forgot')}
+              next={callbackUrl}
+            />
           )}
 
           {step === 'signup' && (
@@ -127,8 +167,9 @@ export function CustomerAuth({
               prefill={email}
               callbackUrl={callbackUrl}
               next={callbackUrl}
-              onCode={(value) => {
+              onCode={(value, code) => {
                 setEmail(value);
+                setDemoCode(code);
                 setStep('code');
               }}
             />
@@ -138,6 +179,7 @@ export function CustomerAuth({
             <CodeStep
               channel="email"
               identifier={email}
+              demoCode={demoCode}
               onBack={() => setStep('choose')}
               next={callbackUrl}
             />
@@ -145,8 +187,9 @@ export function CustomerAuth({
 
           {step === 'phone' && (
             <PhoneStep
-              onSent={(value) => {
+              onSent={(value, code) => {
                 setPhone(value);
+                setDemoCode(code);
                 setStep('phone-code');
               }}
               onBack={() => setStep('email')}
@@ -157,6 +200,7 @@ export function CustomerAuth({
             <CodeStep
               channel="sms"
               identifier={phone}
+              demoCode={demoCode}
               onBack={() => setStep('phone')}
               next={callbackUrl}
             />
@@ -354,11 +398,16 @@ function ChooseStep({
 
 function PasswordStep({
   email,
+  resetEnabled,
   onBack,
+  onForgot,
   next,
 }: {
   email: string;
+  /** Resetting requires an inbox, so it is hidden without email delivery. */
+  resetEnabled: boolean;
   onBack: () => void;
+  onForgot: () => void;
   next: string;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(passwordSignIn, {});
@@ -372,9 +421,20 @@ function PasswordStep({
       <Back onClick={onBack} label={email} />
       <input type="hidden" name="email" value={email} />
 
-      <Label htmlFor="password" className="text-[13px] font-medium">
-        Password
-      </Label>
+      <div className="flex items-baseline justify-between">
+        <Label htmlFor="password" className="text-[13px] font-medium">
+          Password
+        </Label>
+        {resetEnabled && (
+          <button
+            type="button"
+            onClick={onForgot}
+            className="text-[12px] text-primary underline underline-offset-4"
+          >
+            Forgot password?
+          </button>
+        )}
+      </div>
       <Input
         id="password"
         name="password"
@@ -418,7 +478,7 @@ function SignUpStep({
   prefill: string;
   callbackUrl: string;
   next: string;
-  onCode: (email: string) => void;
+  onCode: (email: string, demoCode?: string) => void;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(passwordSignUp, {});
   const [emailValue, setEmailValue] = useState(prefill);
@@ -487,7 +547,7 @@ function SignUpStep({
           proof a returning customer gives, so a new one should not be forced
           to invent a password they will forget. */}
       {emailCodesEnabled && (
-        <CodeRequestButton email={emailValue} onSent={() => onCode(emailValue)} />
+        <CodeRequestButton email={emailValue} onSent={(code) => onCode(emailValue, code)} />
       )}
 
       <GoogleSignInButton enabled={googleEnabled} callbackUrl={callbackUrl} />
@@ -502,13 +562,140 @@ function SignUpStep({
   );
 }
 
+/** Asks for a reset code to be emailed. */
+function ForgotStep({
+  email,
+  onBack,
+  onSent,
+}: {
+  email: string;
+  onBack: () => void;
+  onSent: (demoCode?: string) => void;
+}) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(requestPasswordReset, {});
+
+  useEffect(() => {
+    if (state.sent) onSent(state.demoCode);
+  }, [state.sent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <form action={action}>
+      <Back onClick={onBack} label={email} />
+      <input type="hidden" name="email" value={email} />
+
+      <p className="mb-5 text-[15px] leading-relaxed text-muted-foreground">
+        We will email a code to <span className="text-foreground">{email}</span>. Use it to set a
+        new password.
+      </p>
+
+      {state.error && (
+        <p className="mb-3 text-xs text-destructive" role="alert">
+          {state.error}
+        </p>
+      )}
+
+      <Button
+        type="submit"
+        disabled={pending}
+        className="h-12 w-full rounded-md text-xs font-semibold uppercase tracking-[0.18em]"
+      >
+        {pending ? 'Sending…' : 'Send reset code'}
+      </Button>
+    </form>
+  );
+}
+
+/** Code plus new password, submitted together. */
+function ResetStep({
+  email,
+  demoCode,
+  onBack,
+  next,
+}: {
+  email: string;
+  /** Present only in demo mode; see lib/demo-access.ts. */
+  demoCode?: string;
+  onBack: () => void;
+  next: string;
+}) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(resetPassword, {});
+
+  useEffect(() => {
+    if (state.done) completeSignIn(next);
+  }, [state.done, next]);
+
+  return (
+    <form action={action}>
+      <Back onClick={onBack} label={email} />
+      <input type="hidden" name="email" value={email} />
+
+      {demoCode && (
+        <div className="mb-5 rounded-md border border-primary/40 bg-primary/5 p-4 text-center">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-primary">Demo mode</p>
+          <p className="mt-1.5 font-mono text-2xl tracking-[0.3em]">{demoCode}</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+            Shown here because email delivery is not live yet.
+          </p>
+        </div>
+      )}
+
+      <Label htmlFor="reset-code" className="text-[13px] font-medium">
+        6-digit code
+      </Label>
+      <Input
+        id="reset-code"
+        name="code"
+        inputMode="numeric"
+        maxLength={6}
+        autoComplete="one-time-code"
+        required
+        autoFocus
+        className="mb-4 mt-1.5 h-12 rounded-md text-center text-lg tracking-[0.4em]"
+      />
+
+      <Label htmlFor="reset-password" className="text-[13px] font-medium">
+        New password
+      </Label>
+      <Input
+        id="reset-password"
+        name="password"
+        type="password"
+        autoComplete="new-password"
+        required
+        className="mt-1.5 h-12 rounded-md"
+      />
+      <p className="mt-1.5 text-xs text-muted-foreground">At least 10 characters.</p>
+
+      {state.error && (
+        <p className="mt-2 text-xs text-destructive" role="alert">
+          {state.error}
+        </p>
+      )}
+
+      <Button
+        type="submit"
+        disabled={pending}
+        className="mt-4 h-12 w-full rounded-md text-xs font-semibold uppercase tracking-[0.18em]"
+      >
+        {pending ? 'Saving…' : 'Set password and sign in'}
+      </Button>
+    </form>
+  );
+}
+
 /** Phone number entry, before the code is sent. */
-function PhoneStep({ onSent, onBack }: { onSent: (phone: string) => void; onBack: () => void }) {
+function PhoneStep({
+  onSent,
+  onBack,
+}: {
+  onSent: (phone: string, demoCode?: string) => void;
+  onBack: () => void;
+}) {
   const [state, action, pending] = useActionState<ActionState, FormData>(requestCode, {});
   const [value, setValue] = useState('');
 
   useEffect(() => {
-    if (state.sent) onSent(value);
+    if (state.sent) onSent(value, state.demoCode);
   }, [state.sent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -554,11 +741,14 @@ function PhoneStep({ onSent, onBack }: { onSent: (phone: string) => void; onBack
 function CodeStep({
   channel,
   identifier,
+  demoCode,
   onBack,
   next,
 }: {
   channel: 'email' | 'sms';
   identifier: string;
+  /** Present only in demo mode, when nothing could actually be delivered. */
+  demoCode?: string;
   onBack: () => void;
   next: string;
 }) {
@@ -571,6 +761,9 @@ function CodeStep({
     {}
   );
 
+  // A resend supersedes the old code, so the displayed one must follow.
+  const shownCode = resendState.demoCode ?? demoCode;
+
   useEffect(() => {
     if (verifyState.done) completeSignIn(next);
   }, [verifyState.done, next]);
@@ -580,6 +773,20 @@ function CodeStep({
   return (
     <>
       <Back onClick={onBack} label={identifier} />
+
+      {/* Demo only. Labelled plainly so nobody mistakes it for normal
+          behaviour, and shown only for an allowlisted identifier whose
+          channel cannot deliver — see lib/demo-access.ts. */}
+      {shownCode && (
+        <div className="mb-5 rounded-md border border-primary/40 bg-primary/5 p-4 text-center">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-primary">Demo mode</p>
+          <p className="mt-1.5 font-mono text-2xl tracking-[0.3em]">{shownCode}</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+            Shown here because {channel === 'sms' ? 'SMS' : 'email'} delivery is not live yet.
+            Real customers receive it privately.
+          </p>
+        </div>
+      )}
 
       <form action={verifyAction}>
         <input type="hidden" name="channel" value={channel} />
@@ -650,11 +857,17 @@ function CodeStep({
  * password sign-up; nesting forms is invalid HTML and the browser would submit
  * the wrong one.
  */
-function CodeRequestButton({ email, onSent }: { email: string; onSent: () => void }) {
+function CodeRequestButton({
+  email,
+  onSent,
+}: {
+  email: string;
+  onSent: (demoCode?: string) => void;
+}) {
   const [state, action, pending] = useActionState<ActionState, FormData>(requestCode, {});
 
   useEffect(() => {
-    if (state.sent) onSent();
+    if (state.sent) onSent(state.demoCode);
   }, [state.sent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

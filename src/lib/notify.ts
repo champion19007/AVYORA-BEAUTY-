@@ -136,6 +136,21 @@ export async function sendOtpSms(phone: string, code: string): Promise<DeliveryR
 /* Message bodies                                                              */
 /* -------------------------------------------------------------------------- */
 
+/** The email carrying a password-reset code. */
+export function resetEmailBody(code: string): { subject: string; text: string } {
+  return {
+    subject: `${code} is your Avyora password reset code`,
+    text: [
+      `Use ${code} to set a new Avyora password.`,
+      '',
+      'It expires in 10 minutes and can be used once.',
+      '',
+      'If you did not ask to reset your password, ignore this email — your',
+      'current password still works and nothing has changed.',
+    ].join('\n'),
+  };
+}
+
 /** The email carrying a sign-in code. */
 export function otpEmailBody(code: string): { subject: string; text: string } {
   return {

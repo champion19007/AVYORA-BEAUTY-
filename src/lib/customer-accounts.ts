@@ -216,6 +216,32 @@ export async function findOrCreateByPhone(phone: string): Promise<string> {
   return row!.id;
 }
 
+/**
+ * Sets a password from a verified email address, returning the user id.
+ *
+ * Returns null when no such account exists, so a reset cannot quietly create
+ * one — the code proved control of an inbox, which is not the same as
+ * permission to register on someone's behalf.
+ */
+export async function setPasswordByEmail(
+  email: string,
+  password: string
+): Promise<string | null> {
+  const passwordHash = await hashPassword(password);
+
+  const [row] = await db
+    .update(users)
+    .set({
+      passwordHash,
+      // The reset proved the inbox, so record that while we are here.
+      emailVerified: new Date(),
+    })
+    .where(eq(users.email, email))
+    .returning({ id: users.id });
+
+  return row?.id ?? null;
+}
+
 /** Sets or replaces a password on an existing account. */
 export async function setPassword(userId: string, password: string): Promise<void> {
   await db
