@@ -104,13 +104,29 @@ describe('reserveStock (integration)', () => {
     expect(await stockNow()).toBe(0);
   });
 
-  it('treats an unknown SKU as not stock-managed rather than sold out', async () => {
-    // Introducing inventory must not take unseeded products offline.
+  it('refuses a SKU that has never been counted', async () => {
+    /*
+     * The rule this replaced treated an uncounted SKU as unlimited, which
+     * meant anything not yet seeded could be oversold without limit. "Never
+     * counted" and "none left" are the same fact from the customer's side:
+     * neither is a parcel anyone can post.
+     *
+     * The cost is that a fresh deployment sells nothing until stock is
+     * entered, which is the safer direction to fail in.
+     */
     const result = await reserveStock(
       [{ productId: 'not-in-inventory', size: '30ml', quantity: 5 }],
       db as never
     );
-    expect(result.ok).toBe(true);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.insufficient[0]).toEqual({
+        productId: 'not-in-inventory',
+        size: '30ml',
+        available: 0,
+      });
+    }
   });
 
   it('lets a backorder SKU go below zero deliberately', async () => {

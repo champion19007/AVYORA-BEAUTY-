@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { LayoutDashboard, Package, Boxes, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Boxes, LogOut, Tag, LineChart, PackagePlus } from 'lucide-react';
 import { isAdmin } from '@/lib/admin-guard';
 import { adminSignOut } from './actions';
 
@@ -34,9 +34,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <NavLink href="/admin" icon={<LayoutDashboard className="h-4 w-4" />} label="Overview" />
             <NavLink href="/admin/orders" icon={<Package className="h-4 w-4" />} label="Orders" />
             <NavLink href="/admin/inventory" icon={<Boxes className="h-4 w-4" />} label="Inventory" />
+            <NavLink href="/admin/pricing" icon={<Tag className="h-4 w-4" />} label="Pricing" />
+            <NavLink href="/admin/analytics" icon={<LineChart className="h-4 w-4" />} label="Analytics" />
+            <NavLink href="/admin/requests" icon={<PackagePlus className="h-4 w-4" />} label="Requests" />
           </nav>
 
-          <form action={adminSignOut} className="ml-auto">
+          {/* The owner can step into the stockroom to pack when needed. */}
+          <Link
+            href="/manager"
+            className="ml-auto text-[11px] font-semibold uppercase tracking-[0.16em] text-primary hover:opacity-70"
+          >
+            Stockroom
+          </Link>
+
+          <form action={adminSignOut}>
             <button
               type="submit"
               className="flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-primary"

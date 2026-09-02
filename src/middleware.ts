@@ -68,7 +68,18 @@ export async function middleware(request: NextRequest) {
 
   // Exact segment match, not a prefix: `startsWith('/admin')` also matches
   // `/admin-login`, which made the operator login page redirect to itself.
-  if (path === '/admin' || path.startsWith('/admin/')) {
+  //
+  // `/manager` is gated the same way. The middleware only checks that *a*
+  // valid staff session exists; which console a role may actually open is
+  // decided by the layouts, which can tell an owner from a manager. Putting
+  // that distinction here as well would mean maintaining it in two places.
+  const isStaffArea =
+    path === '/admin' ||
+    path.startsWith('/admin/') ||
+    path === '/manager' ||
+    path.startsWith('/manager/');
+
+  if (isStaffArea) {
     const config = getAdminConfig();
     const token = request.cookies.get(SESSION_COOKIE)?.value;
     const session = config ? await verifySessionToken(token, config.sessionSecret) : null;

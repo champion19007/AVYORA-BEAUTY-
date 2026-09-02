@@ -187,11 +187,21 @@ export const cartItems = pgTable('cart_items', {
 /* Orders                                                                       */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Fulfilment states, in the order they happen.
+ *
+ * These are internal names; what the customer is shown is mapped separately in
+ * lib/order-progress.ts. `fulfilled` means packed and waiting for the courier,
+ * `shipped` means the courier has it, and `out_for_delivery` is the last leg —
+ * the distinction customers ask about most, and the one a single "shipped"
+ * cannot answer.
+ */
 export const orderStatus = pgEnum('order_status', [
   'pending',
   'paid',
   'fulfilled',
   'shipped',
+  'out_for_delivery',
   'delivered',
   'cancelled',
   'refunded',
@@ -344,6 +354,79 @@ export const inventory = pgTable('inventory', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniq: uniqueIndex('inventory_product_size_idx').on(t.productId, t.size),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Restock requests                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * "We are running out of this — order more."
+ *
+ * Raised by the inventory manager, who sees the shelf, and read by the owner,
+ * who does the buying. It exists because those are two different people: the
+ * manager cannot place a purchase order and the owner cannot see the shelf, so
+ * without a record the request lives in a WhatsApp message and gets lost.
+ *
+ * The quantity on hand at the time of the request is captured, not looked up
+ * later. By the time anyone reads it the shelf has moved, and "we asked when
+ * there were 3 left" is the part that makes the request judgeable.
+ */
+export const restockRequests = pgTable('restock_requests', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  productId: text('product_id').notNull(),
+  size: text('size').notNull(),
+  /** How many the manager is asking for. */
+  requestedQuantity: integer('requested_quantity').notNull(),
+  /** Stock on hand when the request was raised. */
+  quantityAtRequest: integer('quantity_at_request').notNull(),
+  note: text('note'),
+  status: text('status').notNull().default('open'),
+  requestedBy: text('requested_by').notNull(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  statusIdx: index('restock_status_idx').on(t.status),
+  skuIdx: index('restock_sku_idx').on(t.productId, t.size),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Pricing and offers                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Owner-set prices and offers, overriding the catalogue file.
+ *
+ * Prices live in `data/mock-data.ts`, which is compiled into the bundle — so
+ * changing one is a code edit and a redeploy, which is not a thing a shop
+ * owner can do on a Friday evening. A row here wins over the file for that
+ * product and size.
+ *
+ * Money is integer paise, like everywhere else. A price stored as 12.99 in a
+ * float is a rounding error waiting to become a wrong total.
+ */
+export const productPricing = pgTable('product_pricing', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  productId: text('product_id').notNull(),
+  size: text('size').notNull(),
+  /** Replaces the catalogue price, in paise. */
+  price: integer('price').notNull(),
+  /**
+   * Discounted price, in paise. Null means no offer running.
+   *
+   * Kept separate from `price` rather than overwriting it, so the struck-out
+   * original still has something to show and ending an offer does not need the
+   * old price to be remembered by hand.
+   */
+  salePrice: integer('sale_price'),
+  /** Shown on the badge, e.g. "Festive 20% off". */
+  offerLabel: text('offer_label'),
+  offerStartsAt: timestamp('offer_starts_at', { withTimezone: true }),
+  offerEndsAt: timestamp('offer_ends_at', { withTimezone: true }),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  uniq: uniqueIndex('product_pricing_sku_idx').on(t.productId, t.size),
 }));
 
 /* -------------------------------------------------------------------------- */

@@ -26,11 +26,15 @@ describe('stockLabel', () => {
     expect(stockLabel(500).tone).toBe('in');
   });
 
-  it('treats unknown and unlimited stock as available', () => {
-    // A SKU with no inventory row is not stock-managed, so it must not read as
-    // sold out — that would take the whole catalogue offline the moment
-    // inventory is introduced.
-    expect(stockLabel(undefined).tone).toBe('in');
+  it('reads an uncounted SKU as out of stock, and a backorder one as available', () => {
+    /*
+     * These two must not be conflated. `undefined` means no inventory row —
+     * reserveStock will refuse the sale, so the badge has to say so; promising
+     * "In stock" over a checkout that then declines is worse than a plain
+     * refusal. `Infinity` is the backorder case, a SKU deliberately sold past
+     * zero, which really is available.
+     */
+    expect(stockLabel(undefined).tone).toBe('out');
     expect(stockLabel(Infinity).tone).toBe('in');
   });
 

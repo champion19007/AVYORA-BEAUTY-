@@ -67,8 +67,8 @@ export function ClientLayoutWrapper({
    * Pages that render without the storefront chrome.
    *
    * Sign-in pages are a deliberate dead end — a nav bar there is an invitation
-   * to wander off mid-authentication. The operations console is excluded for a
-   * different reason: an operator packing parcels has no use for a promotional
+   * to wander off mid-authentication. The staff consoles are excluded for a
+   * different reason: someone packing parcels has no use for a promotional
    * banner, a category mega-menu or a newsletter footer, and threading the
    * shop's chrome around order records makes the back office look like the
    * shop front.
@@ -76,7 +76,8 @@ export function ClientLayoutWrapper({
   const isBareLayout =
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
-    pathname.startsWith('/admin');
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/manager');
 
   if (isBareLayout) {
     return (

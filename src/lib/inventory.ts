@@ -51,9 +51,15 @@ export async function getStockMap(productIds: string[]): Promise<Map<string, num
  * Pass the transaction handle from the order insert so stock and order move
  * together: if the order fails afterwards, the reservation rolls back with it.
  *
- * A SKU with no inventory row is treated as unlimited. That keeps the shop
- * working for products not yet stock-managed rather than blocking every sale
- * the moment inventory is introduced; `seedInventory` fills the gaps.
+ * A SKU with no inventory row cannot be sold. That is a deliberate reversal of
+ * the earlier rule, which treated an uncounted SKU as unlimited: convenient at
+ * launch, and a way to oversell something nobody has ever counted. "We have
+ * never counted this" and "we have none" are the same fact from the customer's
+ * side — neither is a parcel anyone can post.
+ *
+ * The consequence is that a fresh deployment sells nothing until stock is
+ * entered. Run `npm run db:seed-inventory <n>`, or count each SKU in the
+ * stockroom console, before opening the shop.
  */
 export async function reserveStock(
   lines: StockLine[],
@@ -91,13 +97,11 @@ export async function reserveStock(
         )
         .limit(1);
 
-      // No row at all: not stock-managed, so allow it.
-      if (!row) continue;
-
+      // No row at all means uncounted, which is not the same as plentiful.
       insufficient.push({
         productId: line.productId,
         size: line.size,
-        available: Math.max(0, row.quantity),
+        available: row ? Math.max(0, row.quantity) : 0,
       });
     }
   }
@@ -120,12 +124,22 @@ export async function releaseStock(lines: StockLine[]): Promise<void> {
   }
 }
 
-/** Human-readable availability for a storefront badge. */
+/**
+ * Human-readable availability for a storefront badge.
+ *
+ * `undefined` means no inventory row, which now reads as out of stock rather
+ * than in stock — matching `reserveStock`, which will refuse the sale. A badge
+ * that says "In stock" over a checkout that then declines is worse than a
+ * plain refusal up front.
+ *
+ * `Infinity` is the backorder case: a SKU deliberately sold past zero.
+ */
 export function stockLabel(
   quantity: number | undefined,
   lowStockThreshold = 5
 ): { label: string; tone: 'in' | 'low' | 'out' } {
-  if (quantity === undefined || quantity === Infinity) return { label: 'In stock', tone: 'in' };
+  if (quantity === Infinity) return { label: 'In stock', tone: 'in' };
+  if (quantity === undefined) return { label: 'Out of stock', tone: 'out' };
   if (quantity <= 0) return { label: 'Out of stock', tone: 'out' };
   if (quantity <= lowStockThreshold)
     return { label: `Only ${quantity} left`, tone: 'low' };
