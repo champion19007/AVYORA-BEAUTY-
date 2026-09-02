@@ -123,8 +123,14 @@ export function CustomerAuth({
             <SignUpStep
               googleEnabled={googleEnabled}
               passwordsEnabled={passwordsEnabled}
+              emailCodesEnabled={emailCodesEnabled}
+              prefill={email}
               callbackUrl={callbackUrl}
               next={callbackUrl}
+              onCode={(value) => {
+                setEmail(value);
+                setStep('code');
+              }}
             />
           )}
 
@@ -399,15 +405,23 @@ function PasswordStep({
 function SignUpStep({
   googleEnabled,
   passwordsEnabled,
+  emailCodesEnabled,
+  prefill,
   callbackUrl,
   next,
+  onCode,
 }: {
   googleEnabled: boolean;
   passwordsEnabled: boolean;
+  emailCodesEnabled: boolean;
+  /** Carried over from the email step, so it is not typed twice. */
+  prefill: string;
   callbackUrl: string;
   next: string;
+  onCode: (email: string) => void;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(passwordSignUp, {});
+  const [emailValue, setEmailValue] = useState(prefill);
 
   useEffect(() => {
     if (state.done) completeSignIn(next);
@@ -432,6 +446,8 @@ function SignUpStep({
           type="email"
           autoComplete="email"
           required
+          value={emailValue}
+          onChange={(e) => setEmailValue(e.target.value)}
           className="mb-4 mt-1.5 h-12 rounded-md"
         />
 
@@ -466,6 +482,14 @@ function SignUpStep({
       </form>
 
       <Divider />
+
+      {/* Passwordless registration: proving you can read the inbox is the same
+          proof a returning customer gives, so a new one should not be forced
+          to invent a password they will forget. */}
+      {emailCodesEnabled && (
+        <CodeRequestButton email={emailValue} onSent={() => onCode(emailValue)} />
+      )}
+
       <GoogleSignInButton enabled={googleEnabled} callbackUrl={callbackUrl} />
 
       <p className="mt-6 text-center text-[13px] text-muted-foreground">
@@ -618,6 +642,44 @@ function CodeStep({
 /* -------------------------------------------------------------------------- */
 /* Small shared pieces                                                         */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Requests an email code from the sign-up step.
+ *
+ * Its own form, because it posts a different action to the same screen as the
+ * password sign-up; nesting forms is invalid HTML and the browser would submit
+ * the wrong one.
+ */
+function CodeRequestButton({ email, onSent }: { email: string; onSent: () => void }) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(requestCode, {});
+
+  useEffect(() => {
+    if (state.sent) onSent();
+  }, [state.sent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <>
+      <form action={action} className="mb-3">
+        <input type="hidden" name="channel" value="email" />
+        <input type="hidden" name="email" value={email} />
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={pending || !email}
+          className="h-12 w-full gap-2 rounded-md text-xs font-semibold uppercase tracking-[0.18em]"
+        >
+          <Mail className="h-4 w-4" />
+          {pending ? 'Sending…' : 'Email me a code instead'}
+        </Button>
+      </form>
+      {state.error && (
+        <p className="mb-3 text-center text-xs text-destructive" role="alert">
+          {state.error}
+        </p>
+      )}
+    </>
+  );
+}
 
 /**
  * Leaves the sign-in page after a successful password or code sign-in.
