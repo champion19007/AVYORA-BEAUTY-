@@ -10,18 +10,32 @@ import { useApp } from '@/lib/store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ProductCard } from '@/components/product/product-card';
 import { cn } from '@/lib/utils';
+import { stockLabel } from '@/lib/stock-label';
 
-export function ProductClient({ 
-  product, 
-  recommendations 
-}: { 
-  product: Product; 
+export function ProductClient({
+  product,
+  recommendations,
+  stockBySize,
+}: {
+  product: Product;
   recommendations: Product[];
+  /**
+   * Units available per size label.
+   *
+   * A size missing from this map, or present with zero, is out of stock — a
+   * SKU that has never been counted cannot be sold, so the badge must say so
+   * rather than let the customer discover it at checkout.
+   */
+  stockBySize: Record<string, number>;
 }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]?.label || '');
   const [quantity, setQuantity] = useState(1);
   const { addToCart, wishlist, toggleWishlist } = useApp();
+
+  const selectedStock = stockBySize[selectedSize] ?? 0;
+  const selectedOut = selectedStock <= 0;
+  const availability = stockLabel(selectedOut ? 0 : selectedStock);
 
   const isWishlisted = wishlist.includes(product.id);
 
@@ -126,19 +140,39 @@ export function ProductClient({
             <div className="space-y-4">
               <span className="text-[10px] font-semibold uppercase tracking-widest">Select Size</span>
               <div className="flex flex-wrap gap-3 md:gap-4">
-                {product.sizes.map(size => (
-                  <button 
-                    key={size.label}
-                    onClick={() => setSelectedSize(size.label)}
-                    className={cn(
-                      "px-6 py-3 border-2 text-[10px] font-semibold uppercase tracking-widest transition-all",
-                      selectedSize === size.label ? "bg-foreground text-background border-foreground" : "border-muted hover:border-primary"
-                    )}
-                  >
-                    {size.label}
-                  </button>
-                ))}
+                {product.sizes.map(size => {
+                  const soldOut = (stockBySize[size.label] ?? 0) <= 0;
+
+                  return (
+                    <button
+                      key={size.label}
+                      onClick={() => setSelectedSize(size.label)}
+                      disabled={soldOut}
+                      aria-label={soldOut ? `${size.label} — out of stock` : size.label}
+                      className={cn(
+                        "px-6 py-3 border-2 text-[10px] font-semibold uppercase tracking-widest transition-all",
+                        soldOut
+                          ? "cursor-not-allowed border-muted text-muted-foreground line-through opacity-50"
+                          : selectedSize === size.label
+                            ? "bg-foreground text-background border-foreground"
+                            : "border-muted hover:border-primary"
+                      )}
+                    >
+                      {size.label}
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Says the same thing checkout will, before the customer commits. */}
+              <p
+                className={cn(
+                  'text-[13px]',
+                  selectedOut ? 'font-medium text-destructive' : 'text-muted-foreground'
+                )}
+              >
+                {availability.label}
+              </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -159,11 +193,12 @@ export function ProductClient({
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
-              <Button 
-                className="flex-1 h-14 md:h-16 rounded-md bg-primary text-white font-semibold uppercase tracking-widest hover:bg-primary/90 text-[10px]"
+              <Button
+                disabled={selectedOut}
+                className="flex-1 h-14 md:h-16 rounded-md bg-primary text-white font-semibold uppercase tracking-widest hover:bg-primary/90 text-[10px] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => addToCart(product, selectedSize)}
               >
-                Add to Cart
+                {selectedOut ? 'Out of stock' : 'Add to Cart'}
               </Button>
             </div>
           </div>

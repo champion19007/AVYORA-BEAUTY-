@@ -1,5 +1,6 @@
 import { PRODUCTS } from '@/data/mock-data';
 import { getProductBySlug } from '@/lib/catalogue';
+import { getStockMap } from '@/lib/inventory';
 import { notFound } from 'next/navigation';
 import { ProductClient } from './product-client';
 import type { Metadata, ResolvingMetadata } from 'next';
@@ -7,6 +8,18 @@ import type { Metadata, ResolvingMetadata } from 'next';
 type Props = {
   params: Promise<{ slug: string }>;
 };
+
+/**
+ * Stock changes, the catalogue does not.
+ *
+ * The page stays statically generated — a storefront should not give up static
+ * rendering for a badge — but revalidates every minute so availability is at
+ * most a minute stale. That is the right trade because the badge is guidance,
+ * not the guarantee: `reserveStock` decides at checkout, atomically, and a
+ * customer who adds the last unit during that minute is refused there rather
+ * than being oversold.
+ */
+export const revalidate = 60;
 
 /**
  * The catalogue is fixed at build time, so every product detail page can be
@@ -45,6 +58,22 @@ export default async function ProductPage({ params }: Props) {
   }
 
   const recommendations = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 4);
+
+  /*
+   * Availability per size, keyed by label.
+   *
+   * A size with no inventory row is absent from the map, and the client treats
+   * absent as out of stock — matching `reserveStock`, which now refuses an
+   * uncounted SKU. Promising "In stock" over a checkout that then declines is
+   * worse than saying so up front.
+   */
+  const stock = await getStockMap([product.id]);
+  const stockBySize: Record<string, number> = {};
+  for (const size of product.sizes) {
+    const quantity = stock.get(`${product.id}::${size.label}`);
+    // Infinity is the backorder case; the badge should read as available.
+    stockBySize[size.label] = quantity === Infinity ? Number.MAX_SAFE_INTEGER : (quantity ?? 0);
+  }
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -86,7 +115,11 @@ export default async function ProductPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ProductClient product={product} recommendations={recommendations} />
+      <ProductClient
+        product={product}
+        recommendations={recommendations}
+        stockBySize={stockBySize}
+      />
     </>
   );
 }

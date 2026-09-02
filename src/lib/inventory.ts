@@ -124,24 +124,6 @@ export async function releaseStock(lines: StockLine[]): Promise<void> {
   }
 }
 
-/**
- * Human-readable availability for a storefront badge.
- *
- * `undefined` means no inventory row, which now reads as out of stock rather
- * than in stock — matching `reserveStock`, which will refuse the sale. A badge
- * that says "In stock" over a checkout that then declines is worse than a
- * plain refusal up front.
- *
- * `Infinity` is the backorder case: a SKU deliberately sold past zero.
- */
-export function stockLabel(
-  quantity: number | undefined,
-  lowStockThreshold = 5
-): { label: string; tone: 'in' | 'low' | 'out' } {
-  if (quantity === Infinity) return { label: 'In stock', tone: 'in' };
-  if (quantity === undefined) return { label: 'Out of stock', tone: 'out' };
-  if (quantity <= 0) return { label: 'Out of stock', tone: 'out' };
-  if (quantity <= lowStockThreshold)
-    return { label: `Only ${quantity} left`, tone: 'low' };
-  return { label: 'In stock', tone: 'in' };
-}
+// Availability wording lives in stock-label.ts, which imports no database
+// code, so client components can label a size without bundling the driver.
+export { stockLabel } from '@/lib/stock-label';
