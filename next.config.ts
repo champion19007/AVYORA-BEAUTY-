@@ -53,7 +53,7 @@ const nextConfig: NextConfig = {
     return [
       {
         // Brand assets are content-stable and requested on every page.
-        source: '/:file(logo.png|logo-on-dark.png|logo-mark.png|logo-beauty.png|logo-beauty-full.png|og-image.jpg)',
+        source: '/:file(logo.png|logo-mark.png|logo-beauty.png|logo-beauty-full.png|og-image.jpg)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
         ],
