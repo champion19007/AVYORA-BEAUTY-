@@ -4,7 +4,7 @@ import { Product, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ShieldCheck, Microscope, Leaf, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -25,13 +25,6 @@ const HERO_SLIDES = [
     image: 'https://images.unsplash.com/photo-1567721913486-6585f069b332?auto=format&fit=crop&w=1920&q=80',
     hint: 'skincare model',
   },
-];
-
-const VALUES = [
-  { icon: ShieldCheck, title: 'Transparency', desc: 'Every active concentration disclosed in full.' },
-  { icon: Microscope, title: 'Clinical efficacy', desc: 'In-house synthesis with batch-level quality control.' },
-  { icon: Leaf, title: 'Considered sourcing', desc: 'Botanical actives from leading global laboratories.' },
-  { icon: Sparkles, title: 'Fair pricing', desc: 'Premium dermal science without the retail markup.' },
 ];
 
 export function HomeClient({
@@ -338,35 +331,6 @@ export function HomeClient({
         </div>
       </section>
 
-      {/* --------------------------------------------------------------- Values */}
-      <section className="py-28" aria-labelledby="values-heading">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto mb-20 max-w-2xl text-center">
-            <h2
-              id="values-heading"
-              className="font-headline text-4xl font-normal leading-tight tracking-tight md:text-5xl"
-            >
-              The clinical future of personal care
-            </h2>
-            <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
-            <p className="mt-8 text-base leading-relaxed text-muted-foreground">
-              Full disclosure of every clinical ingredient and its exact concentration.
-              All Avyora products are formulated in-house for maximum efficacy.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
-            {VALUES.map((val) => (
-              <div key={val.title} className="group flex flex-col items-center text-center">
-                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-primary/35 text-primary transition-colors duration-500 group-hover:bg-primary group-hover:text-primary-foreground">
-                  <val.icon className="h-6 w-6" />
-                </div>
-                <h3 className="font-headline text-xl font-medium tracking-wide">{val.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{val.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </main>
   );
 }

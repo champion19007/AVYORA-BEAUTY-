@@ -9,6 +9,7 @@ import { orders, inventory, restockRequests } from '@/db/schema';
 import { isAdmin } from '@/lib/admin-guard';
 import { getStaffSession } from '@/lib/staff-auth';
 import { setPricing } from '@/lib/pricing';
+import { restoreOrderStock } from '@/lib/orders';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { recordEvent } from '@/lib/activity';
 
@@ -71,6 +72,17 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
 
   const allowed = FULFILMENT_FLOW[order.status as OrderStatus] ?? [];
   if (!allowed.includes(next as never)) return;
+
+  /*
+   * Cancelling returns the goods to the shelf.
+   *
+   * Done before the status changes, because restoreOrderStock refuses to act
+   * on an order already marked cancelled — the other order would silently skip
+   * the restore and leak the stock permanently.
+   */
+  if (next === 'cancelled') {
+    await restoreOrderStock(order.id);
+  }
 
   await db
     .update(orders)

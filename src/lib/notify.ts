@@ -133,6 +133,88 @@ export async function sendOtpSms(phone: string, code: string): Promise<DeliveryR
 }
 
 /* -------------------------------------------------------------------------- */
+/* WhatsApp — Meta Cloud API                                                   */
+/* -------------------------------------------------------------------------- */
+
+export function whatsappConfigured(): boolean {
+  return Boolean(
+    process.env.WHATSAPP_TOKEN &&
+      process.env.WHATSAPP_PHONE_NUMBER_ID &&
+      process.env.WHATSAPP_TO
+  );
+}
+
+/**
+ * Sends a WhatsApp message to the shop's own number.
+ *
+ * Meta's Cloud API rather than a reseller: no per-message markup, and the
+ * business-initiated message to your own number is the cheapest category there
+ * is. It needs a Meta Business account and a phone number id.
+ *
+ * Business-initiated messages outside a 24-hour customer window must use an
+ * approved template — free text is silently dropped. `WHATSAPP_TEMPLATE` names
+ * that template; without it this falls back to a plain text message, which
+ * works only while a conversation window is already open. For an owner alert
+ * that is usually fine, because you reply to your own alerts and keep the
+ * window alive, but the template is the reliable path.
+ */
+export async function sendWhatsApp(text: string): Promise<DeliveryResult> {
+  if (!whatsappConfigured()) {
+    return { ok: false, error: 'WhatsApp is not configured on this deployment.' };
+  }
+
+  const template = process.env.WHATSAPP_TEMPLATE;
+
+  const body = template
+    ? {
+        messaging_product: 'whatsapp',
+        to: process.env.WHATSAPP_TO,
+        type: 'template',
+        template: {
+          name: template,
+          language: { code: process.env.WHATSAPP_TEMPLATE_LANG ?? 'en' },
+          components: [{ type: 'body', parameters: [{ type: 'text', text }] }],
+        },
+      }
+    : {
+        messaging_product: 'whatsapp',
+        to: process.env.WHATSAPP_TO,
+        type: 'text',
+        text: { body: text },
+      };
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        // An order must never wait on a notification.
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      reportError(new Error(`WhatsApp responded ${response.status}`), {
+        scope: 'notify.whatsapp',
+        extra: { status: response.status, detail: detail.slice(0, 200) },
+      });
+      return { ok: false, error: 'WhatsApp message not sent.' };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    reportError(err, { scope: 'notify.whatsapp' });
+    return { ok: false, error: 'WhatsApp message not sent.' };
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Message bodies                                                              */
 /* -------------------------------------------------------------------------- */
 

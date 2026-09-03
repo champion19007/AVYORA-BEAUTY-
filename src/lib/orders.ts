@@ -4,9 +4,12 @@ import { desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders, orderItems, addresses } from '@/db/schema';
 import { getProductById } from '@/lib/catalogue';
+import { pricingMap, resolvePrice } from '@/lib/pricing';
 import { calculateTotals, generateOrderNumber, toPaise } from '@/lib/money';
-import { reserveStock } from '@/lib/inventory';
+import { releaseStock, reserveStock } from '@/lib/inventory';
 import { recordEvent } from '@/lib/activity';
+import { notifyOrderPlaced } from '@/lib/order-notifications';
+import { createOrderAccessToken } from '@/lib/order-access';
 
 /**
  * Order creation.
@@ -82,6 +85,16 @@ export async function createOrder(
   }
   const data = parsed.data;
 
+  /*
+   * Owner-set prices win over the catalogue file.
+   *
+   * Without this lookup the pricing screen was decorative: a price could be
+   * changed, saved and displayed, and the customer would still be charged the
+   * value compiled into the bundle. Fetched once for the whole basket rather
+   * than per line.
+   */
+  const overrides = await pricingMap();
+
   // Resolve every line against the catalogue; prices come from here, not the client.
   const lines: {
     productId: string;
@@ -99,8 +112,14 @@ export async function createOrder(
     }
 
     const size = product.sizes.find((s) => s.label === item.size) ?? product.sizes[0];
-    const unitRupees = product.salePrice ?? size.price;
-    const unitPrice = toPaise(unitRupees);
+
+    // Catalogue price in paise, then the override — including any live offer.
+    const cataloguePaise = toPaise(product.salePrice ?? size.price);
+    const effective = resolvePrice(
+      cataloguePaise,
+      overrides.get(`${product.id}::${size.label}`)
+    );
+    const unitPrice = effective.price;
 
     lines.push({
       productId: product.id,
@@ -183,6 +202,39 @@ export async function createOrder(
         itemCount: lines.reduce((n, l) => n + l.quantity, 0),
         paymentMethod: data.paymentMethod,
       },
+    });
+
+    /*
+     * Tell the customer and the shop.
+     *
+     * Awaited rather than fired and forgotten: on a serverless platform the
+     * function can be frozen the moment the response is returned, and a
+     * dangling promise is simply never finished. It cannot fail the order —
+     * notifyOrderPlaced swallows and reports everything — so the only cost is
+     * a few hundred milliseconds on the checkout response.
+     *
+     * The confirmation email carries the signed link, which for a guest is the
+     * only way back to their order once the tab is closed.
+     */
+    const accessToken = await createOrderAccessToken(orderNumber).catch(() => null);
+    const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://avyora-beauty.vercel.app';
+
+    await notifyOrderPlaced({
+      orderNumber,
+      email: data.email,
+      customerName: data.address.fullName,
+      total: totals.total,
+      paymentProvider: data.paymentMethod === 'cod' ? 'cod' : 'razorpay',
+      paid: false,
+      items: lines.map((l) => ({
+        productName: l.productName,
+        size: l.size,
+        quantity: l.quantity,
+      })),
+      address: data.address,
+      orderUrl: accessToken
+        ? `${base}/orders/${orderNumber}?t=${encodeURIComponent(accessToken)}`
+        : `${base}/orders/${orderNumber}`,
     });
 
     return { ok: true, orderNumber, orderId: createdOrderId, totalPaise: totals.total };
@@ -298,11 +350,81 @@ export async function markOrderPaid(
 }
 
 /** Marks a payment attempt failed, leaving the order recoverable. */
+/**
+ * Marks a payment failed and puts the goods back on the shelf.
+ *
+ * Stock is reserved when the order is created, before the customer has paid —
+ * which is right, because two people must not both buy the last unit while one
+ * of them is still on the payment screen. But it means an abandoned payment
+ * had decremented stock that nothing ever restored: the count drifted down
+ * every time someone changed their mind, and never back up. After enough of
+ * them the shop refuses sales for goods sitting on the shelf.
+ */
 export async function markOrderPaymentFailed(orderId: string) {
+  const restored = await restoreOrderStock(orderId);
+
   await db
     .update(orders)
     .set({ paymentStatus: 'failed', updatedAt: new Date() })
     .where(eq(orders.id, orderId));
+
+  return restored;
+}
+
+/**
+ * Returns an order's lines to stock, once.
+ *
+ * Guarded by the order's own state: only an order that still counts as live
+ * has its stock returned, so calling this twice — a retried webhook, a double
+ * click on cancel — cannot credit the shelf twice. Returns false when there
+ * was nothing to do.
+ */
+export async function restoreOrderStock(orderId: string): Promise<boolean> {
+  const [order] = await db
+    .select({ id: orders.id, status: orders.status, paymentStatus: orders.paymentStatus })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+
+  if (!order) return false;
+
+  // Already cancelled, refunded or failed: the stock went back the first time.
+  if (
+    order.status === 'cancelled' ||
+    order.status === 'refunded' ||
+    order.paymentStatus === 'failed' ||
+    order.paymentStatus === 'refunded'
+  ) {
+    return false;
+  }
+
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  if (items.length === 0) return false;
+
+  await releaseStock(
+    items.map((i) => ({ productId: i.productId, size: i.size, quantity: i.quantity }))
+  );
+
+  return true;
+}
+
+/**
+ * Cancels an order and returns its stock.
+ *
+ * The stock is restored before the status changes, because `restoreOrderStock`
+ * refuses to act on an already-cancelled order — doing it the other way round
+ * would silently skip the restore.
+ */
+export async function cancelOrder(orderId: string): Promise<boolean> {
+  await restoreOrderStock(orderId);
+
+  const updated = await db
+    .update(orders)
+    .set({ status: 'cancelled', updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+    .returning({ id: orders.id });
+
+  return updated.length > 0;
 }
 
 /** Finds an order by the payment reference stored against it. */
