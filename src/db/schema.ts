@@ -241,6 +241,15 @@ export const orders = pgTable('orders', {
   paymentReference: text('payment_reference'),
 
   notes: text('notes'),
+  /**
+   * When this order's stock went back on the shelf, or null.
+   *
+   * The restore claim: exactly one caller can move this from null, and only
+   * that caller releases. A retried webhook arriving while an operator clicks
+   * cancel would otherwise both pass a status check and both credit the same
+   * units, inventing stock out of a race.
+   */
+  stockRestoredAt: timestamp('stock_restored_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({

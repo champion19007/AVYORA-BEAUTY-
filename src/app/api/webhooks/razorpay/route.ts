@@ -55,9 +55,22 @@ export async function POST(request: Request) {
 
   const order = await getOrderByPaymentReference(razorpayOrderId);
   if (!order) {
-    console.error(`Webhook for unknown Razorpay order ${razorpayOrderId}`);
-    // 200 anyway: retrying will not make the order appear.
-    return NextResponse.json({ ok: true, ignored: 'unknown-order' });
+    /*
+     * Ask Razorpay to try again rather than acknowledging.
+     *
+     * This used to answer 200 on the reasoning that a retry would not make the
+     * order appear. That is wrong in the one case that matters: the webhook can
+     * arrive before our own checkout transaction has committed, so the order is
+     * moments away from existing. Acknowledging then would strand a real
+     * payment with no order ever marked paid, and nothing would ever revisit it.
+     *
+     * A 503 makes Razorpay redeliver on its own schedule. If the order is
+     * genuinely unknown the retries eventually stop, and the logged line is
+     * what someone investigates — which is the right outcome for money that
+     * arrived with nothing to attach it to.
+     */
+    console.error(`Webhook for unknown Razorpay order ${razorpayOrderId} — asking for retry`);
+    return NextResponse.json({ error: 'Order not found yet.' }, { status: 503 });
   }
 
   switch (event.event) {

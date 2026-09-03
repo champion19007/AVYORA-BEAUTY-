@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "stock_restored_at" timestamp with time zone;

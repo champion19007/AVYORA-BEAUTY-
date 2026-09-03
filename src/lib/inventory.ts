@@ -109,12 +109,21 @@ export async function reserveStock(
   return insufficient.length > 0 ? { ok: false, insufficient } : { ok: true };
 }
 
-/** Returns stock to the shelf, for cancellations and refunds. */
-export async function releaseStock(lines: StockLine[]): Promise<void> {
+/**
+ * Returns stock to the shelf, for cancellations and refunds.
+ *
+ * Takes an optional transaction handle so the release can commit together with
+ * whatever decided to release it — restoring stock and then failing to record
+ * that you restored it would let the next caller do it again.
+ */
+export async function releaseStock(
+  lines: StockLine[],
+  tx: Pick<typeof db, 'update'> = db
+): Promise<void> {
   if (!isDatabaseConfigured()) return;
 
   for (const line of lines) {
-    await db
+    await tx
       .update(inventory)
       .set({
         quantity: sql`${inventory.quantity} + ${line.quantity}`,

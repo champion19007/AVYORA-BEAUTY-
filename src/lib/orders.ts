@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { reportError } from '@/lib/observability';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders, orderItems, addresses } from '@/db/schema';
 import { getProductById } from '@/lib/catalogue';
@@ -380,32 +380,39 @@ export async function markOrderPaymentFailed(orderId: string) {
  * was nothing to do.
  */
 export async function restoreOrderStock(orderId: string): Promise<boolean> {
-  const [order] = await db
-    .select({ id: orders.id, status: orders.status, paymentStatus: orders.paymentStatus })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1);
+  /*
+   * Claiming the right to restore is a single conditional UPDATE.
+   *
+   * The first version of this read the status, decided, and then released —
+   * three statements with gaps between them. A retried webhook arriving while
+   * an operator clicked cancel could have both pass the check and both put the
+   * same units back, inventing stock out of a race. Postgres decides here
+   * instead: exactly one caller can move `stock_restored_at` from null, and
+   * only that caller releases.
+   *
+   * The whole thing runs in one transaction so a crash between claiming and
+   * releasing rolls the claim back rather than stranding it.
+   */
+  return db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(orders)
+      .set({ stockRestoredAt: new Date() })
+      .where(and(eq(orders.id, orderId), isNull(orders.stockRestoredAt)))
+      .returning({ id: orders.id });
 
-  if (!order) return false;
+    // Someone else already restored this order's stock.
+    if (claimed.length === 0) return false;
 
-  // Already cancelled, refunded or failed: the stock went back the first time.
-  if (
-    order.status === 'cancelled' ||
-    order.status === 'refunded' ||
-    order.paymentStatus === 'failed' ||
-    order.paymentStatus === 'refunded'
-  ) {
-    return false;
-  }
+    const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    if (items.length === 0) return false;
 
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
-  if (items.length === 0) return false;
+    await releaseStock(
+      items.map((i) => ({ productId: i.productId, size: i.size, quantity: i.quantity })),
+      tx as never
+    );
 
-  await releaseStock(
-    items.map((i) => ({ productId: i.productId, size: i.size, quantity: i.quantity }))
-  );
-
-  return true;
+    return true;
+  });
 }
 
 /**
