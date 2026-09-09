@@ -1,5 +1,4 @@
 import { eq } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import { orders } from '@/db/schema';
 import { drain, type DomainEvent, type DrainResult } from '@/lib/events';
@@ -7,6 +6,7 @@ import { getOrderByNumber, restoreOrderStock } from '@/lib/orders';
 import { notifyOrderPlaced } from '@/lib/order-notifications';
 import { createOrderAccessToken } from '@/lib/order-access';
 import { assessCodOrder } from '@/lib/cod-risk';
+import { revalidateProduct } from '@/lib/storefront-cache';
 import { reportError } from '@/lib/observability';
 
 /**
@@ -41,7 +41,7 @@ async function handleNotification(event: DomainEvent): Promise<void> {
   const address = (order.shippingAddress ?? {}) as Record<string, string>;
   const token = await createOrderAccessToken(orderNumber).catch(() => null);
 
-  await notifyOrderPlaced({
+  const outcome = await notifyOrderPlaced({
     orderNumber,
     email: order.email,
     customerName: address.fullName ?? 'there',
@@ -58,6 +58,25 @@ async function handleNotification(event: DomainEvent): Promise<void> {
       ? `${SITE}/orders/${orderNumber}?t=${encodeURIComponent(token)}`
       : `${SITE}/orders/${orderNumber}`,
   });
+
+  /*
+   * A send that failed must not be recorded as delivered.
+   *
+   * `notifyOrderPlaced` never throws — correct, because it must not be able to
+   * fail an order — but this consumer was discarding its result, so a customer
+   * whose confirmation was rejected left no trace except a log line. The
+   * delivery row said `done`, and the retry machinery built for exactly this
+   * never ran.
+   *
+   * Throwing here hands the event back to `drain`, which records the failure
+   * and retries up to MAX_ATTEMPTS before leaving it visibly stuck. Only the
+   * customer's own email is worth failing over: the owner's copy going astray
+   * is a nuisance, the customer never hearing that their order exists is the
+   * thing that generates a support message and a chargeback.
+   */
+  if (outcome.customerEmailAttempted && !outcome.customerEmailed) {
+    throw new Error(`Confirmation email for ${orderNumber} was not accepted`);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -139,8 +158,7 @@ async function handleRevalidation(event: DomainEvent): Promise<void> {
    * the customer has typed their address. Pushing the invalidation the moment
    * stock hits zero closes that window to about as long as this drain takes.
    */
-  revalidatePath(`/products/${productId}`);
-  revalidatePath('/products');
+  revalidateProduct(productId);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -126,6 +126,17 @@ function ownerWhatsApp(input: OrderNotificationInput): string {
 }
 
 export type NotificationOutcome = {
+  /**
+   * Whether a customer email was even tried.
+   *
+   * Separate from `customerEmailed` because the caller has to tell "no email
+   * provider is configured on this deployment" apart from "the provider
+   * refused this message". The first is a deployment state and retrying is
+   * pointless; the second is a failure and retrying is the entire point.
+   * Collapsing them into one boolean makes a demo deployment retry forever
+   * and makes a real failure invisible — the same wrong answer twice.
+   */
+  customerEmailAttempted: boolean;
   customerEmailed: boolean;
   ownerEmailed: boolean;
   ownerWhatsApped: boolean;
@@ -141,6 +152,7 @@ export async function notifyOrderPlaced(
   input: OrderNotificationInput
 ): Promise<NotificationOutcome> {
   const outcome: NotificationOutcome = {
+    customerEmailAttempted: false,
     customerEmailed: false,
     ownerEmailed: false,
     ownerWhatsApped: false,
@@ -151,6 +163,7 @@ export async function notifyOrderPlaced(
   const tasks: Promise<void>[] = [];
 
   if (emailDeliveryConfigured()) {
+    outcome.customerEmailAttempted = true;
     const customer = customerEmail(input);
     tasks.push(
       sendEmail(input.email, customer.subject, customer.text)

@@ -12,6 +12,7 @@ import { setPricing } from '@/lib/pricing';
 import { cancelOrder, restoreOrderStock } from '@/lib/orders';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { recordEvent } from '@/lib/activity';
+import { revalidateProduct } from '@/lib/storefront-cache';
 
 /**
  * Operations actions: fulfilment status and stock levels.
@@ -147,6 +148,9 @@ export async function setStock(formData: FormData): Promise<void> {
 
   revalidatePath('/admin/inventory');
   revalidatePath('/admin');
+  // The shop shows this count too. Without this the storefront kept selling
+  // goods the shelf no longer had, for up to a minute.
+  revalidateProduct(productId);
 }
 
 /** Turns backorder on or off for a SKU. */
@@ -166,6 +170,9 @@ export async function setBackorder(formData: FormData): Promise<void> {
     .where(and(eq(inventory.productId, productId), eq(inventory.size, size)));
 
   revalidatePath('/admin/inventory');
+  // Backorder decides whether an out-of-stock size is still sellable, so the
+  // storefront badge changes with it.
+  revalidateProduct(productId);
 }
 
 /**

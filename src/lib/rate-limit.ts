@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { reportError } from '@/lib/observability';
+import { edgeRateLimit } from '@/lib/edge-rate-limit';
 import { db, isDatabaseConfigured } from '@/db';
 
 /**
@@ -88,6 +89,19 @@ export function clientIp(request: Request): string {
 const RATE_LIMIT_TIMEOUT_MS = 1000;
 
 /**
+ * Buckets that guard a credential, where losing the limit matters more than a
+ * slow response.
+ *
+ * These get a longer budget because the alternative is worse. Neon suspends an
+ * idle compute, and the first query after a wake — from India to Singapore,
+ * through a pooler — regularly passes a second. That is not a hang, it is a
+ * cold start, and treating it as one silently disabled brute-force protection
+ * on the operator login. Observed twice in a single QA session.
+ */
+const AUTH_BUCKETS = new Set(['adminLogin', 'customerLogin', 'otpRequest', 'accountLookup']);
+const AUTH_TIMEOUT_MS = 2500;
+
+/**
  * Consumes one unit from a bucket.
  *
  * Fails **open** in every failure mode: no database configured, a query error,
@@ -112,8 +126,9 @@ export async function rateLimit(
 
   // Resolves to null if the query outruns its budget, so the caller proceeds.
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const budgetMs = AUTH_BUCKETS.has(bucket) ? AUTH_TIMEOUT_MS : RATE_LIMIT_TIMEOUT_MS;
   const budget = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), RATE_LIMIT_TIMEOUT_MS);
+    timer = setTimeout(() => resolve(null), budgetMs);
   });
 
   try {
@@ -142,10 +157,33 @@ export async function rateLimit(
     // Timed out. Let the request through rather than making the visitor wait
     // on a counter; the query is left to settle on its own.
     if (rows === null) {
-      reportError(new Error(`Rate limit query exceeded ${RATE_LIMIT_TIMEOUT_MS}ms`), {
+      reportError(new Error(`Rate limit query exceeded ${budgetMs}ms`), {
         scope: 'rateLimit',
         extra: { bucket, timedOut: true },
       });
+
+      /*
+       * Degrade to the in-memory limiter rather than to no limiter.
+       *
+       * Failing fully open is right for a browsing page — an unlimited product
+       * listing is harmless. It is wrong for a login: a slow database is
+       * exactly the condition under which someone grinding passwords would go
+       * unnoticed, and "the counter was slow" is not a reason to stop counting.
+       *
+       * The fallback is weaker on purpose. It lives in one process's memory,
+       * so it does not see attempts against other instances, and it forgets
+       * everything on a cold start. Weaker than the database and far stronger
+       * than nothing, and it cannot itself hang.
+       */
+      if (AUTH_BUCKETS.has(bucket)) {
+        const fallback = edgeRateLimit(key, rule.limit, rule.windowSeconds);
+        return {
+          allowed: fallback.allowed,
+          remaining: fallback.allowed ? rule.limit : 0,
+          retryAfterSeconds: fallback.retryAfterSeconds,
+        };
+      }
+
       return allowedResult;
     }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Product, CATEGORIES, CONCERNS } from '@/data/mock-data';
-import { ProductCard } from '@/components/product/product-card';
+import { ProductCard, type StockByKey } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Sparkles } from 'lucide-react';
@@ -28,12 +28,14 @@ const HERO_SLIDES = [
 ];
 
 export function HomeClient({
+  stock,
   products,
   categories,
   concerns,
   activeCategories,
   activeConcerns,
 }: {
+  stock: StockByKey;
   products: Product[];
   categories: typeof CATEGORIES;
   concerns: typeof CONCERNS;
@@ -137,7 +139,7 @@ export function HomeClient({
         </div>
         <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} stock={stock} />
           ))}
         </div>
       </section>
