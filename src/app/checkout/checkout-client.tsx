@@ -134,7 +134,27 @@ export function CheckoutClient({
     return Object.keys(e).length === 0;
   };
 
+  /*
+   * One key for this checkout attempt, held for the life of the form.
+   *
+   * Sent with every submission, so a retry after a timeout — or a second tap
+   * on a slow connection — resolves to the order that was already created
+   * rather than a second one. `submitting` disables the button, but that only
+   * helps in the browser: it does nothing about a request the network
+   * duplicated or the customer retried after giving up on a spinner.
+   *
+   * Deliberately not regenerated on failure. A failed attempt left no order
+   * behind, so the key is still free, and keeping it means a retry of an
+   * *apparent* failure that actually succeeded is still deduplicated.
+   */
+  const [idempotencyKey] = useState(() =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `chk_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`
+  );
+
   const buildPayload = () => ({
+    idempotencyKey,
     email: values.email.trim(),
     address: {
       fullName: values.fullName.trim(),
