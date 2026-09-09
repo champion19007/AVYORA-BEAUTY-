@@ -148,3 +148,67 @@ npm run check:env -- --production
 ```
 
 See `docs/deploy.md` for the full deployment steps.
+
+---
+
+## Orders held by the risk check
+
+Some cash-on-delivery orders are stopped automatically before they reach the
+stockroom. This exists because a fake COD order is expensive in a way a fake
+prepaid order is not: you pay to pick it, pack it, send it out and get it back,
+and you find out there was no customer only at the end.
+
+**What the stockroom sees.** A held order stays in the queue with a red line
+saying it is on hold, and the buttons to advance it are gone. That is
+deliberate — the order stays visible so somebody deals with it, but the picker
+cannot send it.
+
+**What the owner does.** Open the order in `/admin/orders`. A panel shows the
+score and the reasons it was flagged, with two choices:
+
+| Choice | What happens |
+|---|---|
+| **Release for dispatch** | The hold clears and it appears normally in the stockroom queue |
+| **Cancel and restock** | The order is cancelled and the stock goes back on the shelf |
+
+**Phone the customer before cancelling.** None of the reasons are proof. An
+address without a house number is common in older localities and in villages;
+a large first order is what a generous customer looks like. The check is there
+to make you look, not to decide for you.
+
+If you find yourself releasing nearly everything, the check is too strict.
+`REVIEW_AT` and `REJECT_AT` in `src/lib/cod-risk.ts` are the two numbers that
+control it, and they are meant to be tuned once you have real orders to tune
+against.
+
+---
+
+## The daily jobs
+
+Two things run on a schedule rather than when someone clicks:
+
+| Job | What it does | How often |
+|---|---|---|
+| Reservation sweep | Puts stock back from online orders abandoned at the payment screen | Every 15 min on Vercel Pro; **once a day on the free plan** |
+| Event drain | Backstop for order emails and risk checks that did not send first time | Same |
+
+On the free plan this matters: stock from an abandoned checkout can sit
+reserved for up to a day. Most order emails do not depend on it — they are
+sent immediately after the customer gets their confirmation — but if something
+ever looks stuck, this is why.
+
+---
+
+## Conditions in the customer's area
+
+A signed-in customer with a saved address sees a short note on their account
+page when the weather where they live is unusual: very high UV, very dry air,
+or bad air quality. It suggests when *not* to use exfoliating acids and when to
+use a richer moisturiser.
+
+It shows nothing on an ordinary day, which is the point — a panel that appears
+every time is one nobody reads on the day it matters.
+
+The readings are outdoor and cover a whole region. They describe the weather
+where an order is going, not the air a particular customer is sitting in, and
+the wording on the page says so.

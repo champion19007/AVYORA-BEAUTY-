@@ -231,23 +231,69 @@ export function normalisePhone(phone: string): string {
  * one judges. Retuning how cautious the shop is should never mean touching the
  * measurements.
  */
+/**
+ * Score at which an order is held for confirmation rather than picked.
+ *
+ * Set above the weight of any single weak signal on purpose. An address with
+ * no house number scores 35 and passes: plenty of genuine rural and
+ * older-locality addresses have no number, and holding all of them would
+ * punish real customers for how their street is written.
+ */
+export const REVIEW_AT = 40;
+
+/** Score at which an order is refused outright. */
+export const REJECT_AT = 70;
+
+/**
+ * How much each signal after the strongest one contributes.
+ *
+ * Summing raw weights reaches 100 from two mild suspicions — a short address
+ * and a large first order would total 60 on their own — and rejects people who
+ * have done nothing wrong. Taking the strongest signal in full and discounting
+ * the rest keeps corroboration meaningful without letting it run away.
+ */
+const CORROBORATION_WEIGHT = 0.4;
+
+/**
+ * Combines the signals into one decision.
+ *
+ * Deliberately separate from the signal functions above: those measure, this
+ * one judges. Retuning how cautious the shop is means changing the two
+ * constants above and nothing else.
+ *
+ * Two rules do the work:
+ *
+ *  1. Strongest signal, plus a fraction of the others. Not a sum — see
+ *     CORROBORATION_WEIGHT.
+ *  2. Rejection needs a second signal agreeing. One signal, however strong,
+ *     can hold an order but never refuse it.
+ *
+ * The asymmetry in rule 2 is the whole point. A wrong hold costs one
+ * confirmation message and a few hours. A wrong rejection costs a real
+ * customer who was told their order was cancelled, and they do not come back.
+ * Those errors are not worth the same, so the thresholds do not treat them
+ * the same.
+ */
 export function combineSignals(signals: RiskSignal[]): RiskAssessment {
-  // TODO(human): turn `signals` into a { score, status, signals } assessment.
-  //
-  // Each signal carries a `weight` from 0-100. Produce a single 0-100 `score`
-  // and one of three statuses:
-  //   'approved' — goes straight to the stockroom
-  //   'review'   — held; the customer is asked to confirm before it is picked
-  //   'rejected' — cancelled, stock released, customer told
-  //
-  // Worth deciding deliberately:
-  //  - Summing weights reaches 100 fast and rejects real customers. Capping,
-  //    or taking the strongest signal plus a fraction of the rest, is gentler.
-  //  - Should any single signal reject on its own, or should rejection always
-  //    need a second signal agreeing?
-  //  - Which way should a near-miss fall? A wrong 'review' costs one message.
-  //    A wrong 'rejected' costs a real customer, permanently.
-  return { score: 0, status: 'approved', signals };
+  if (signals.length === 0) return { score: 0, status: 'approved', signals };
+
+  const weights = signals.map((s) => s.weight).sort((a, b) => b - a);
+  const [strongest, ...rest] = weights;
+
+  const score = Math.min(
+    100,
+    Math.round(strongest + rest.reduce((sum, w) => sum + w, 0) * CORROBORATION_WEIGHT)
+  );
+
+  // Corroboration required to refuse. A lone signal caps out at a hold.
+  const status: RiskStatus =
+    score >= REJECT_AT && signals.length >= 2
+      ? 'rejected'
+      : score >= REVIEW_AT
+        ? 'review'
+        : 'approved';
+
+  return { score, status, signals };
 }
 
 /**

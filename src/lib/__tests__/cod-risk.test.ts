@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { normalisePhone, scoreAddress, scoreBasket } from '@/lib/cod-risk';
+import {
+  REJECT_AT,
+  combineSignals,
+  normalisePhone,
+  scoreAddress,
+  scoreBasket,
+  type RiskSignal,
+} from '@/lib/cod-risk';
 
 /**
  * The signals that need no database.
@@ -85,5 +92,71 @@ describe('phone normalisation', () => {
 
     expect(normalised.size).toBe(1);
     expect([...normalised][0]).toBe('9876543210');
+  });
+});
+
+describe('combining signals into a decision', () => {
+  const sig = (code: RiskSignal['code'], weight: number): RiskSignal => ({
+    code,
+    reason: code,
+    weight,
+  });
+
+  it('approves an order with nothing against it', () => {
+    expect(combineSignals([])).toMatchObject({ score: 0, status: 'approved' });
+  });
+
+  it('lets a lone weak signal through', () => {
+    // An address with no house number, and nothing else wrong. Plenty of
+    // genuine addresses read like this; holding them all would punish real
+    // customers for how their street is written.
+    expect(combineSignals([sig('address_incomplete', 35)]).status).toBe('approved');
+  });
+
+  it('holds on a single strong signal but never refuses on one', () => {
+    // The asymmetry that matters. A wrong hold costs one message; a wrong
+    // rejection costs a customer permanently, so one signal can never do it.
+    for (const weight of [50, 70, 100]) {
+      const result = combineSignals([sig('address_junk', weight)]);
+      expect(result.status, `weight ${weight}`).toBe('review');
+    }
+  });
+
+  it('refuses when two signals agree and the score is high', () => {
+    const result = combineSignals([sig('velocity', 70), sig('address_junk', 50)]);
+    expect(result.status).toBe('rejected');
+  });
+
+  it('does not sum weights into a rejection', () => {
+    /*
+     * Three mild suspicions total 110 if added up, which would refuse someone
+     * whose only crime is a short address and a generous first order. The
+     * strongest signal plus a discounted remainder keeps that a hold.
+     */
+    const result = combineSignals([
+      sig('address_incomplete', 35),
+      sig('high_value_first_order', 25),
+      sig('velocity', 30),
+    ]);
+
+    expect(result.score).toBeLessThan(REJECT_AT);
+    expect(result.status).toBe('review');
+  });
+
+  it('never scores above 100', () => {
+    const result = combineSignals([
+      sig('prior_returns', 80),
+      sig('velocity', 70),
+      sig('address_junk', 50),
+      sig('address_incomplete', 35),
+    ]);
+
+    expect(result.score).toBeLessThanOrEqual(100);
+    expect(result.status).toBe('rejected');
+  });
+
+  it('returns the signals it judged, so staff can see why', () => {
+    const signals = [sig('velocity', 70), sig('address_junk', 50)];
+    expect(combineSignals(signals).signals).toEqual(signals);
   });
 });
