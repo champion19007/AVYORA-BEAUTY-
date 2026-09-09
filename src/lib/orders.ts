@@ -1,12 +1,16 @@
+import { after } from 'next/server';
 import { z } from 'zod';
 import { reportError } from '@/lib/observability';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders, orderItems, addresses } from '@/db/schema';
 import { getProductById } from '@/lib/catalogue';
+import { pricingMap, resolvePrice } from '@/lib/pricing';
 import { calculateTotals, generateOrderNumber, toPaise } from '@/lib/money';
-import { reserveStock } from '@/lib/inventory';
+import { releaseStock, reserveStock } from '@/lib/inventory';
 import { recordEvent } from '@/lib/activity';
+import { emitEvent } from '@/lib/events';
+import { drainQuietly } from '@/lib/event-consumers';
 
 /**
  * Order creation.
@@ -42,6 +46,11 @@ export const checkoutSchema = z.object({
   email: z.string().trim().email('Enter a valid email address'),
   address: addressSchema,
   paymentMethod: z.enum(['cod', 'razorpay']),
+  /**
+   * Optional so a client that does not send one still works; when present it
+   * makes the whole request safe to retry. See `orders.idempotencyKey`.
+   */
+  idempotencyKey: z.string().trim().min(8).max(200).optional(),
   items: z
     .array(
       z.object({
@@ -58,6 +67,60 @@ export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type CreateOrderResult =
   | { ok: true; orderNumber: string; orderId: string; totalPaise: number }
   | { ok: false; error: string };
+
+/**
+ * Was this the idempotency index rejecting a duplicate?
+ *
+ * Two pieces of driver detail are load-bearing here, and both were found by a
+ * test rather than by reading:
+ *
+ *  - Drizzle wraps a driver error in its own `Failed query:` error, so the
+ *    Postgres code lives on `cause`, not on the error handed to the catch.
+ *    Reading `err.code` directly finds nothing and silently treats every
+ *    duplicate as a generic failure.
+ *  - The constraint name comes back as `constraint_name` from postgres-js and
+ *    `constraint` from node-postgres and PGlite. Both are checked so the
+ *    behaviour under test is the behaviour in production.
+ *
+ * Matched on the specific index rather than on 23505 alone: the order-number
+ * index is also unique, and a collision there is a genuine fault that must not
+ * be reported to the customer as a successful order.
+ */
+function isDuplicateOrderKey(err: unknown): boolean {
+  type PgError = { code?: string; constraint?: string; constraint_name?: string; cause?: unknown };
+
+  for (let current: unknown = err, depth = 0; current && depth < 4; depth += 1) {
+    const e = current as PgError;
+    if (
+      e.code === '23505' &&
+      (e.constraint === 'orders_idempotency_idx' ||
+        e.constraint_name === 'orders_idempotency_idx')
+    ) {
+      return true;
+    }
+    current = e.cause;
+  }
+
+  return false;
+}
+
+/** The order already placed under this key, if there is one. */
+async function findByIdempotencyKey(key: string): Promise<CreateOrderResult | null> {
+  const [existing] = await db
+    .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total })
+    .from(orders)
+    .where(eq(orders.idempotencyKey, key))
+    .limit(1);
+
+  if (!existing) return null;
+
+  return {
+    ok: true,
+    orderId: existing.id,
+    orderNumber: existing.orderNumber,
+    totalPaise: existing.total,
+  };
+}
 
 /** Thrown inside the order transaction to roll it back when stock runs out. */
 class OutOfStockError extends Error {
@@ -82,6 +145,28 @@ export async function createOrder(
   }
   const data = parsed.data;
 
+  /*
+   * A retry of a request that already succeeded returns the original order.
+   *
+   * This read is an optimisation, not the guarantee — two simultaneous
+   * requests would both find nothing here. The unique index below is what
+   * actually decides, and the duplicate is caught when it fails to insert.
+   */
+  if (data.idempotencyKey) {
+    const existing = await findByIdempotencyKey(data.idempotencyKey);
+    if (existing) return existing;
+  }
+
+  /*
+   * Owner-set prices win over the catalogue file.
+   *
+   * Without this lookup the pricing screen was decorative: a price could be
+   * changed, saved and displayed, and the customer would still be charged the
+   * value compiled into the bundle. Fetched once for the whole basket rather
+   * than per line.
+   */
+  const overrides = await pricingMap();
+
   // Resolve every line against the catalogue; prices come from here, not the client.
   const lines: {
     productId: string;
@@ -99,8 +184,14 @@ export async function createOrder(
     }
 
     const size = product.sizes.find((s) => s.label === item.size) ?? product.sizes[0];
-    const unitRupees = product.salePrice ?? size.price;
-    const unitPrice = toPaise(unitRupees);
+
+    // Catalogue price in paise, then the override — including any live offer.
+    const cataloguePaise = toPaise(product.salePrice ?? size.price);
+    const effective = resolvePrice(
+      cataloguePaise,
+      overrides.get(`${product.id}::${size.label}`)
+    );
+    const unitPrice = effective.price;
 
     lines.push({
       productId: product.id,
@@ -163,6 +254,13 @@ export async function createOrder(
           shippingAddressId: address.id,
           shippingAddress: data.address,
           paymentProvider: data.paymentMethod,
+          /*
+           * Cash on delivery starts unjudged and must be cleared before the
+           * stockroom sees it. Prepaid is approved on arrival: the money has
+           * already moved, so there is nothing left to protect against.
+           */
+          fraudStatus: data.paymentMethod === 'cod' ? 'pending' : 'approved',
+          idempotencyKey: data.idempotencyKey ?? null,
         })
         .returning({ id: orders.id });
 
@@ -171,6 +269,25 @@ export async function createOrder(
       await tx.insert(orderItems).values(
         lines.map((l) => ({ ...l, orderId: order.id }))
       );
+
+      /*
+       * The order and the fact that it happened commit together.
+       *
+       * Written inside the transaction on purpose. A queue written after the
+       * commit can lose an event when the process dies in the gap, and can
+       * announce an order that then rolled back; both failures appear only
+       * under load, which is to say only in front of customers. Here the two
+       * are the same write, so neither is possible.
+       *
+       * The payload carries identifiers and nothing else. Consumers re-read
+       * the order, so they act on what is true when they run rather than on a
+       * snapshot that may be minutes old.
+       */
+      await emitEvent('order.placed', order.id, { orderId: order.id, orderNumber }, tx);
+
+      for (const sku of reservation.depleted) {
+        await emitEvent('inventory.stock_out', sku.productId, sku, tx);
+      }
     });
 
     // Best-effort; recordEvent swallows its own failures.
@@ -185,12 +302,39 @@ export async function createOrder(
       },
     });
 
+    /*
+     * Everything downstream now runs after the response is flushed.
+     *
+     * Confirmation emails, the shop's WhatsApp message, the risk gate and
+     * cache invalidation used to happen inline, which meant a slow email
+     * provider was a slow checkout — the customer waiting on work that has
+     * nothing to do with whether their order exists. It exists the moment the
+     * transaction above commits; the rest is consequence.
+     *
+     * `after` runs the drain in this same invocation once the response has
+     * gone, so the customer waits for none of it and the notification still
+     * lands within a second or two. If the invocation dies first, the events
+     * are still in the log and the next drain — from the next checkout, or
+     * from cron — picks them up. Nothing is lost, only delayed.
+     */
+    after(drainQuietly);
+
     return { ok: true, orderNumber, orderId: createdOrderId, totalPaise: totals.total };
   } catch (err) {
     // Out-of-stock is an expected outcome, not a fault: tell the customer
     // exactly what happened rather than a generic failure.
     if (err instanceof OutOfStockError) {
       return { ok: false, error: err.detail };
+    }
+
+    /*
+     * Lost the race to an identical request. The transaction rolled back —
+     * including its stock reservation — so the winner's order is the only one,
+     * and returning it is exactly what the customer expects to see.
+     */
+    if (isDuplicateOrderKey(err) && data.idempotencyKey) {
+      const existing = await findByIdempotencyKey(data.idempotencyKey);
+      if (existing) return existing;
     }
     reportError(err, { scope: 'orders.createOrder', correlationId: orderNumber });
     return { ok: false, error: 'We could not place your order. Please try again.' };
@@ -298,11 +442,88 @@ export async function markOrderPaid(
 }
 
 /** Marks a payment attempt failed, leaving the order recoverable. */
+/**
+ * Marks a payment failed and puts the goods back on the shelf.
+ *
+ * Stock is reserved when the order is created, before the customer has paid —
+ * which is right, because two people must not both buy the last unit while one
+ * of them is still on the payment screen. But it means an abandoned payment
+ * had decremented stock that nothing ever restored: the count drifted down
+ * every time someone changed their mind, and never back up. After enough of
+ * them the shop refuses sales for goods sitting on the shelf.
+ */
 export async function markOrderPaymentFailed(orderId: string) {
+  const restored = await restoreOrderStock(orderId);
+
   await db
     .update(orders)
     .set({ paymentStatus: 'failed', updatedAt: new Date() })
     .where(eq(orders.id, orderId));
+
+  return restored;
+}
+
+/**
+ * Returns an order's lines to stock, once.
+ *
+ * Guarded by the order's own state: only an order that still counts as live
+ * has its stock returned, so calling this twice — a retried webhook, a double
+ * click on cancel — cannot credit the shelf twice. Returns false when there
+ * was nothing to do.
+ */
+export async function restoreOrderStock(orderId: string): Promise<boolean> {
+  /*
+   * Claiming the right to restore is a single conditional UPDATE.
+   *
+   * The first version of this read the status, decided, and then released —
+   * three statements with gaps between them. A retried webhook arriving while
+   * an operator clicked cancel could have both pass the check and both put the
+   * same units back, inventing stock out of a race. Postgres decides here
+   * instead: exactly one caller can move `stock_restored_at` from null, and
+   * only that caller releases.
+   *
+   * The whole thing runs in one transaction so a crash between claiming and
+   * releasing rolls the claim back rather than stranding it.
+   */
+  return db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(orders)
+      .set({ stockRestoredAt: new Date() })
+      .where(and(eq(orders.id, orderId), isNull(orders.stockRestoredAt)))
+      .returning({ id: orders.id });
+
+    // Someone else already restored this order's stock.
+    if (claimed.length === 0) return false;
+
+    const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    if (items.length === 0) return false;
+
+    await releaseStock(
+      items.map((i) => ({ productId: i.productId, size: i.size, quantity: i.quantity })),
+      tx as never
+    );
+
+    return true;
+  });
+}
+
+/**
+ * Cancels an order and returns its stock.
+ *
+ * The stock is restored before the status changes, because `restoreOrderStock`
+ * refuses to act on an already-cancelled order — doing it the other way round
+ * would silently skip the restore.
+ */
+export async function cancelOrder(orderId: string): Promise<boolean> {
+  await restoreOrderStock(orderId);
+
+  const updated = await db
+    .update(orders)
+    .set({ status: 'cancelled', updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+    .returning({ id: orders.id });
+
+  return updated.length > 0;
 }
 
 /** Finds an order by the payment reference stored against it. */

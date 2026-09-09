@@ -9,8 +9,25 @@ import { useApp } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Price } from '@/components/price';
 import { cn } from '@/lib/utils';
+import { stockLabel } from '@/lib/stock-label';
 
-export function ProductCard({ product }: { product: Product }) {
+/**
+ * Availability for the whole catalogue, keyed `productId::size`.
+ *
+ * A plain record rather than a Map so it survives the server/client boundary,
+ * and optional so the card still renders where stock has not been loaded —
+ * the wishlist, for instance. Absent data means "say nothing", never "sold
+ * out": an unfounded sold-out badge costs a sale.
+ */
+export type StockByKey = Record<string, number | undefined>;
+
+export function ProductCard({
+  product,
+  stock,
+}: {
+  product: Product;
+  stock?: StockByKey;
+}) {
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0].label);
   const { addToCart, wishlist, toggleWishlist } = useApp();
@@ -20,6 +37,22 @@ export function ProductCard({ product }: { product: Product }) {
   // the selection rather than always quoting the base SKU.
   const activeSize = product.sizes.find((s) => s.label === selectedSize) ?? product.sizes[0];
   // `salePrice`, when set, is the discounted figure the customer pays.
+  /*
+   * Availability for the size currently selected on this card.
+   *
+   * The listing showed every product as buyable regardless of stock, so a
+   * sold-out item was indistinguishable from an available one until the
+   * customer reached the product page — or, if they added it to the bag,
+   * until checkout refused the order after they had typed a full address.
+   *
+   * Only shown when stock was actually loaded. `stockLabel` treats an unknown
+   * SKU as out of stock, which is right at checkout where refusing to sell an
+   * uncounted item is the safe answer, and wrong here where it would put a
+   * sold-out badge on a shop that has simply not been counted yet.
+   */
+  const availability = stock ? stockLabel(stock[`${product.id}::${activeSize.label}`]) : null;
+  const soldOut = availability?.tone === 'out';
+
   const currentPrice = product.salePrice ?? activeSize.price;
   const wasPrice = product.salePrice ? activeSize.price : null;
 
@@ -149,11 +182,22 @@ export function ProductCard({ product }: { product: Product }) {
               <span className="ml-auto text-xs text-muted-foreground">{activeSize.label}</span>
             )}
           </div>
+          {availability && availability.tone !== 'in' && (
+            <p
+              className={cn(
+                'mb-3 text-xs font-medium',
+                soldOut ? 'text-muted-foreground' : 'text-primary'
+              )}
+            >
+              {availability.label}
+            </p>
+          )}
           <Button
             className="w-full rounded-md bg-foreground py-6 text-xs font-semibold uppercase tracking-[0.2em] text-background transition-colors duration-300 hover:bg-primary hover:text-primary-foreground"
             onClick={() => addToCart(product, selectedSize)}
+            disabled={soldOut}
           >
-            Add to Bag
+            {soldOut ? 'Sold out' : 'Add to Bag'}
           </Button>
         </div>
       </div>

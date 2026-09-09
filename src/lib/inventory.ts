@@ -20,7 +20,16 @@ import { inventory } from '@/db/schema';
 export type StockLine = { productId: string; size: string; quantity: number };
 
 export type ReserveResult =
-  | { ok: true }
+  /**
+   * `depleted` lists the SKUs this reservation took to zero.
+   *
+   * Reported because only the writer knows: reading the row back afterwards
+   * cannot distinguish "this order emptied the shelf" from "it was already
+   * empty and someone else emptied it". The caller uses it to invalidate the
+   * cached product page, so a sold-out size stops being buyable in seconds
+   * rather than at the next scheduled regeneration.
+   */
+  | { ok: true; depleted: { productId: string; size: string }[] }
   | { ok: false; insufficient: { productId: string; size: string; available: number }[] };
 
 /** Current stock for a product across its sizes. */
@@ -65,9 +74,10 @@ export async function reserveStock(
   lines: StockLine[],
   tx: Pick<typeof db, 'update' | 'select'> = db
 ): Promise<ReserveResult> {
-  if (!isDatabaseConfigured()) return { ok: true };
+  if (!isDatabaseConfigured()) return { ok: true, depleted: [] };
 
   const insufficient: { productId: string; size: string; available: number }[] = [];
+  const depleted: { productId: string; size: string }[] = [];
 
   for (const line of lines) {
     const updated = await tx
@@ -85,7 +95,11 @@ export async function reserveStock(
           sql`(${inventory.allowBackorder} = true OR ${inventory.quantity} >= ${line.quantity})`
         )
       )
-      .returning({ id: inventory.id });
+      .returning({ id: inventory.id, quantity: inventory.quantity });
+
+    if (updated[0]?.quantity === 0) {
+      depleted.push({ productId: line.productId, size: line.size });
+    }
 
     if (updated.length === 0) {
       // Either the SKU is not stock-managed, or there is not enough.
@@ -106,15 +120,24 @@ export async function reserveStock(
     }
   }
 
-  return insufficient.length > 0 ? { ok: false, insufficient } : { ok: true };
+  return insufficient.length > 0 ? { ok: false, insufficient } : { ok: true, depleted };
 }
 
-/** Returns stock to the shelf, for cancellations and refunds. */
-export async function releaseStock(lines: StockLine[]): Promise<void> {
+/**
+ * Returns stock to the shelf, for cancellations and refunds.
+ *
+ * Takes an optional transaction handle so the release can commit together with
+ * whatever decided to release it — restoring stock and then failing to record
+ * that you restored it would let the next caller do it again.
+ */
+export async function releaseStock(
+  lines: StockLine[],
+  tx: Pick<typeof db, 'update'> = db
+): Promise<void> {
   if (!isDatabaseConfigured()) return;
 
   for (const line of lines) {
-    await db
+    await tx
       .update(inventory)
       .set({
         quantity: sql`${inventory.quantity} + ${line.quantity}`,

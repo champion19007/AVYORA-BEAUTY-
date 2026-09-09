@@ -144,7 +144,16 @@ export default async function OrderPage({
         </div>
       )}
 
-      <div className="mt-10 flex justify-center gap-4">
+      <div className="mt-10 flex flex-wrap justify-center gap-4">
+        {/* Carries the access token through, so a guest keeps their access. */}
+        <Link href={t ? `/orders/${orderNumber}/invoice?t=${encodeURIComponent(t)}` : `/orders/${orderNumber}/invoice`}>
+          <Button
+            variant="outline"
+            className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]"
+          >
+            Tax invoice
+          </Button>
+        </Link>
         <Link href="/collections">
           <Button
             variant="outline"

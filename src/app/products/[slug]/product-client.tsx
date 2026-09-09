@@ -195,7 +195,13 @@ export function ProductClient({
               </div>
               <Button
                 disabled={selectedOut}
-                className="flex-1 h-14 md:h-16 rounded-md bg-primary text-white font-semibold uppercase tracking-widest hover:bg-primary/90 text-[10px] disabled:cursor-not-allowed disabled:opacity-60"
+                // `text-primary-foreground`, not `text-white`. The gold fill is a theme
+                // token that changes between light and dark; a hardcoded white does
+                // not, and measured 2.6:1 in light and 1.8:1 in dark — a shop's
+                // primary buy button, failing the contrast floor in both. The
+                // paired token is what the fill was designed against: 7:1 and
+                // 10.5:1 respectively.
+                className="flex-1 h-14 md:h-16 rounded-md bg-primary text-primary-foreground font-semibold uppercase tracking-widest hover:bg-primary/90 text-[10px] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => addToCart(product, selectedSize)}
               >
                 {selectedOut ? 'Out of stock' : 'Add to Cart'}

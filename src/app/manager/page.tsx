@@ -64,6 +64,17 @@ export default async function DispatchPage() {
           {cards.map(({ order, actions, progress }) => {
             const unpaid = order.paymentStatus !== 'paid';
 
+            /*
+             * Held by the risk check, or not yet checked.
+             *
+             * Both mean the same thing to the stockroom: do not pack this
+             * yet. Scoring runs moments after the order is placed, so
+             * `pending` is a brief state — but a brief state is exactly when
+             * a fast picker would otherwise send a parcel the gate was about
+             * to stop.
+             */
+            const onHold = order.fraudStatus === 'review' || order.fraudStatus === 'pending';
+
             return (
               <li key={order.id} className="rounded-xl border border-border bg-card p-6">
                 <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -102,6 +113,14 @@ export default async function DispatchPage() {
                   </p>
                 )}
 
+                {onHold && (
+                  <p className="mt-3 text-[13px] font-medium text-red-600 dark:text-red-400">
+                    {order.fraudStatus === 'review'
+                      ? 'On hold — this cash-on-delivery order failed an automatic check. Confirm with the customer before packing.'
+                      : 'Risk check still running. Wait a moment and refresh.'}
+                  </p>
+                )}
+
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
                     <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -135,7 +154,7 @@ export default async function DispatchPage() {
                   </div>
                 </div>
 
-                {actions.length > 0 && (
+                {!onHold && actions.length > 0 && (
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                     {actions.map(({ status, label }) => (
                       <form key={status} action={advanceDispatch}>

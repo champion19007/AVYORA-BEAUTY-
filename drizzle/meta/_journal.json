@@ -43,6 +43,34 @@
       "when": 1788361818863,
       "tag": "0005_true_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788418321810,
+      "tag": "0006_pink_stature",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788773666515,
+      "tag": "0007_new_stephen_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788957626449,
+      "tag": "0008_heavy_sentinel",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788958744574,
+      "tag": "0009_awesome_gabe_jones",
+      "breakpoints": true
     }
   ]
 }

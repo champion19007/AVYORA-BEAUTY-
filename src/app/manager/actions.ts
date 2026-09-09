@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { revalidateProduct } from '@/lib/storefront-cache';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { and, eq, sql } from 'drizzle-orm';
@@ -141,6 +142,8 @@ export async function adjustStock(formData: FormData): Promise<void> {
 
   revalidatePath('/manager/stock');
   revalidatePath('/admin/inventory');
+  // The shelf just changed, and the shop shows the shelf.
+  revalidateProduct(productId);
 }
 
 /**

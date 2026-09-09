@@ -7,7 +7,7 @@ import { getOrderDetail } from '@/lib/admin-data';
 import { formatPaise } from '@/lib/money';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '../../status-pill';
-import { allowedNextStatuses, updateOrderStatus } from '../../actions';
+import { allowedNextStatuses, resolveRiskHold, updateOrderStatus } from '../../actions';
 
 export const metadata: Metadata = { title: 'Order' };
 export const dynamic = 'force-dynamic';
@@ -126,6 +126,59 @@ export default async function AdminOrderPage({
               {order.email}
             </p>
           </section>
+
+          {/*
+            The way out of a risk hold.
+            
+            The stockroom cannot ship a held order and cannot clear it either,
+            which is deliberate — the person carrying the loss decides. What
+            was missing was any way to decide at all: a hold with no release is
+            a parcel that never ships and stock that never comes back.
+
+            The reasons are shown because "the computer said no" is not a
+            basis for cancelling someone's order.
+          */}
+          {order.fraudStatus === 'review' && (
+            <section className="rounded-xl border border-red-500/40 bg-card p-6">
+              <h2 className="font-headline text-xl font-normal tracking-tight">
+                Held by the risk check
+              </h2>
+
+              <p className="mt-2 text-[13px] text-muted-foreground">
+                Score {order.fraudScore ?? '—'} of 100. Nothing here is proof — decide with the
+                reasons in front of you, and when in doubt phone the customer.
+              </p>
+
+              <ul className="mt-4 space-y-2 text-[14px] leading-relaxed">
+                {((order.fraudReasons as { reason: string }[] | null) ?? []).map((signal, i) => (
+                  <li key={i} className="text-muted-foreground">
+                    · {signal.reason}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                {(
+                  [
+                    ['release', 'Release for dispatch'],
+                    ['cancel', 'Cancel and restock'],
+                  ] as const
+                ).map(([decision, label]) => (
+                  <form key={decision} action={resolveRiskHold}>
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <input type="hidden" name="orderNumber" value={order.orderNumber} />
+                    <input type="hidden" name="decision" value={decision} />
+                    <button
+                      type="submit"
+                      className="rounded-md border border-border px-4 py-2 text-[13px] font-medium hover:bg-accent"
+                    >
+                      {label}
+                    </button>
+                  </form>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="rounded-xl border border-border bg-card p-6">
             <h2 className="flex items-center gap-2 font-headline text-xl font-normal tracking-tight">

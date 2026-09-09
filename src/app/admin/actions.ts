@@ -9,8 +9,10 @@ import { orders, inventory, restockRequests } from '@/db/schema';
 import { isAdmin } from '@/lib/admin-guard';
 import { getStaffSession } from '@/lib/staff-auth';
 import { setPricing } from '@/lib/pricing';
+import { cancelOrder, restoreOrderStock } from '@/lib/orders';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { recordEvent } from '@/lib/activity';
+import { revalidateProduct } from '@/lib/storefront-cache';
 
 /**
  * Operations actions: fulfilment status and stock levels.
@@ -71,6 +73,17 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
 
   const allowed = FULFILMENT_FLOW[order.status as OrderStatus] ?? [];
   if (!allowed.includes(next as never)) return;
+
+  /*
+   * Cancelling returns the goods to the shelf.
+   *
+   * Done before the status changes, because restoreOrderStock refuses to act
+   * on an order already marked cancelled — the other order would silently skip
+   * the restore and leak the stock permanently.
+   */
+  if (next === 'cancelled') {
+    await restoreOrderStock(order.id);
+  }
 
   await db
     .update(orders)
@@ -135,6 +148,9 @@ export async function setStock(formData: FormData): Promise<void> {
 
   revalidatePath('/admin/inventory');
   revalidatePath('/admin');
+  // The shop shows this count too. Without this the storefront kept selling
+  // goods the shelf no longer had, for up to a minute.
+  revalidateProduct(productId);
 }
 
 /** Turns backorder on or off for a SKU. */
@@ -154,6 +170,9 @@ export async function setBackorder(formData: FormData): Promise<void> {
     .where(and(eq(inventory.productId, productId), eq(inventory.size, size)));
 
   revalidatePath('/admin/inventory');
+  // Backorder decides whether an out-of-stock size is still sellable, so the
+  // storefront badge changes with it.
+  revalidateProduct(productId);
 }
 
 /**
@@ -268,4 +287,47 @@ export async function resolveRestockRequest(formData: FormData): Promise<void> {
   revalidatePath('/admin/requests');
   revalidatePath('/manager/requests');
   revalidatePath('/admin');
+}
+
+/**
+ * Clears or confirms a cash-on-delivery hold.
+ *
+ * The gate exists so a risky order stops before the stockroom sees it, but a
+ * hold nobody can lift is a trap rather than a check: the parcel never ships,
+ * the customer never hears anything, and the stock stays reserved. This is the
+ * way out, and it is the owner's decision rather than the picker's — the
+ * person holding the risk is the person who should carry it.
+ *
+ * `release` sends it to dispatch. `cancel` refuses it and puts the stock back,
+ * reusing the same claim as every other cancellation so a second click cannot
+ * credit the units twice.
+ */
+export async function resolveRiskHold(formData: FormData): Promise<void> {
+  if (!(await isAdmin())) return;
+
+  const orderId = String(formData.get('orderId') ?? '');
+  const orderNumber = String(formData.get('orderNumber') ?? '');
+  const decision = String(formData.get('decision') ?? '');
+
+  if (!orderId || (decision !== 'release' && decision !== 'cancel')) return;
+
+  if (decision === 'release') {
+    await db
+      .update(orders)
+      .set({ fraudStatus: 'approved', updatedAt: new Date() })
+      .where(eq(orders.id, orderId));
+  } else {
+    // Order of operations matters: mark the decision first, then release the
+    // stock through the claim that guarantees it happens exactly once.
+    await db
+      .update(orders)
+      .set({ fraudStatus: 'rejected', updatedAt: new Date() })
+      .where(eq(orders.id, orderId));
+
+    await cancelOrder(orderId);
+  }
+
+  revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${orderNumber}`);
+  revalidatePath('/manager');
 }

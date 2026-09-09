@@ -99,7 +99,26 @@ export async function getStaffSession(): Promise<StaffSession | null> {
   const payload = await verifySessionToken(token, secret);
   if (!payload) return null;
 
-  return decodeSubject(payload.sub);
+  const session = decodeSubject(payload.sub);
+  if (!session) return null;
+
+  /*
+   * The cookie says who they were; this checks who they still are.
+   *
+   * A signed cookie is a claim made when it was issued. Removing a staff
+   * member from the environment used to change nothing until their session
+   * expired on its own — up to a fortnight of continued access for someone who
+   * had been let go. Re-reading the credential on every request means deleting
+   * MANAGER_USERNAME locks them out on their next click.
+   *
+   * It also catches a subtler case: a username that still exists but whose
+   * role has changed keeps the role it holds *now*, not the one baked into the
+   * cookie, so a demotion takes effect immediately.
+   */
+  const current = findStaffCredential(session.username);
+  if (!current) return null;
+
+  return { role: current.role, username: current.username };
 }
 
 /**

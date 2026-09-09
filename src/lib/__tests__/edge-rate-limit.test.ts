@@ -53,9 +53,22 @@ describe('edgeRateLimit', () => {
    * thousand distinct keys should stay bounded and keep serving.
    */
   it('stays bounded under a flood of unique keys', () => {
+    /*
+     * Results are collected and asserted once rather than checked inside the
+     * loop. 12,000 `expect` calls cost far more than the 12,000 limiter calls
+     * they wrap, so the test was really measuring vitest — it ran in under a
+     * second alone and over six under load, crossing the default timeout and
+     * failing for reasons that had nothing to do with the limiter.
+     */
+    let refused = 0;
     for (let i = 0; i < 12_000; i++) {
-      expect(edgeRateLimit(`ip:10.0.${Math.floor(i / 256)}.${i % 256}`, 5, 60).allowed).toBe(true);
+      if (!edgeRateLimit(`ip:10.0.${Math.floor(i / 256)}.${i % 256}`, 5, 60).allowed) {
+        refused += 1;
+      }
     }
+
+    // Every key is distinct, so nothing should have hit its own limit.
+    expect(refused).toBe(0);
 
     // A real visitor still gets through after the flood.
     expect(edgeRateLimit('ip:203.0.113.7', 5, 60).allowed).toBe(true);

@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db';
-import { users, accounts } from '@/db/schema';
+import { users, accounts, sessions } from '@/db/schema';
 import { hashPassword, verifyPassword } from '@/lib/auth';
 
 /**
@@ -239,7 +239,23 @@ export async function setPasswordByEmail(
     .where(eq(users.email, email))
     .returning({ id: users.id });
 
-  return row?.id ?? null;
+  if (!row) return null;
+
+  /*
+   * Every other session is ended.
+   *
+   * People reset a password precisely when they think someone else has it.
+   * Leaving existing sessions alive means the intruder stays signed in for the
+   * full ninety days while the customer believes they have locked the door —
+   * the one moment where database-backed sessions earn their extra query, so
+   * it would be perverse not to use it.
+   *
+   * The caller signs them straight back in afterwards, so this costs the
+   * genuine customer nothing.
+   */
+  await db.delete(sessions).where(eq(sessions.userId, row.id));
+
+  return row.id;
 }
 
 /** Sets or replaces a password on an existing account. */

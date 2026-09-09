@@ -1,10 +1,10 @@
 'use client';
 
 import { Product, CATEGORIES, CONCERNS } from '@/data/mock-data';
-import { ProductCard } from '@/components/product/product-card';
+import { ProductCard, type StockByKey } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ShieldCheck, Microscope, Leaf, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -27,20 +27,15 @@ const HERO_SLIDES = [
   },
 ];
 
-const VALUES = [
-  { icon: ShieldCheck, title: 'Transparency', desc: 'Every active concentration disclosed in full.' },
-  { icon: Microscope, title: 'Clinical efficacy', desc: 'In-house synthesis with batch-level quality control.' },
-  { icon: Leaf, title: 'Considered sourcing', desc: 'Botanical actives from leading global laboratories.' },
-  { icon: Sparkles, title: 'Fair pricing', desc: 'Premium dermal science without the retail markup.' },
-];
-
 export function HomeClient({
+  stock,
   products,
   categories,
   concerns,
   activeCategories,
   activeConcerns,
 }: {
+  stock: StockByKey;
   products: Product[];
   categories: typeof CATEGORIES;
   concerns: typeof CONCERNS;
@@ -144,7 +139,7 @@ export function HomeClient({
         </div>
         <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} stock={stock} />
           ))}
         </div>
       </section>
@@ -153,7 +148,7 @@ export function HomeClient({
       <section className="px-4 py-16" aria-labelledby="bundle-heading">
         <div className="container mx-auto">
           <div className="grid grid-cols-1 overflow-hidden rounded-xl bg-[hsl(224_60%_13%)] text-white shadow-luxe-lg lg:grid-cols-2">
-            <div className="flex flex-col justify-center space-y-8 p-12 md:p-16">
+            <div className="flex flex-col justify-center space-y-8 p-8 sm:p-12 md:p-16">
               <div>
                 <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
                   Build your ritual
@@ -182,8 +177,23 @@ export function HomeClient({
                   </li>
                 ))}
               </ul>
-              <Link href="/routine-finder" className="w-fit">
-                <Button className="rounded-md bg-primary px-12 py-7 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground transition-colors hover:bg-white hover:text-foreground">
+              {/*
+                Full width and wrapping below `sm`, fixed width above it.
+
+                The label is 29 characters at 0.22em tracking, so it needs
+                about 275px on its own. Inside a panel padded 48px a side, a
+                375px phone leaves 279px of content — and the button also
+                carried 48px of its own horizontal padding. Nothing fits, and
+                because `Button` sets `whitespace-nowrap` it could not wrap
+                either: it simply ran 59px past the screen and was clipped.
+
+                Letting it wrap and fill the column is the honest fix. Trimming
+                the padding alone would not have been enough at this width, and
+                shortening the label would have been a design change to work
+                around a layout bug.
+              */}
+              <Link href="/routine-finder" className="w-full sm:w-fit">
+                <Button className="h-auto w-full whitespace-normal rounded-md bg-primary px-8 py-5 text-xs font-semibold uppercase leading-relaxed tracking-[0.22em] text-primary-foreground transition-colors hover:bg-white hover:text-foreground sm:w-auto sm:px-12 sm:py-7">
                   Start with the routine finder
                 </Button>
               </Link>
@@ -338,35 +348,6 @@ export function HomeClient({
         </div>
       </section>
 
-      {/* --------------------------------------------------------------- Values */}
-      <section className="py-28" aria-labelledby="values-heading">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto mb-20 max-w-2xl text-center">
-            <h2
-              id="values-heading"
-              className="font-headline text-4xl font-normal leading-tight tracking-tight md:text-5xl"
-            >
-              The clinical future of personal care
-            </h2>
-            <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
-            <p className="mt-8 text-base leading-relaxed text-muted-foreground">
-              Full disclosure of every clinical ingredient and its exact concentration.
-              All Avyora products are formulated in-house for maximum efficacy.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
-            {VALUES.map((val) => (
-              <div key={val.title} className="group flex flex-col items-center text-center">
-                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-primary/35 text-primary transition-colors duration-500 group-hover:bg-primary group-hover:text-primary-foreground">
-                  <val.icon className="h-6 w-6" />
-                </div>
-                <h3 className="font-headline text-xl font-medium tracking-wide">{val.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{val.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </main>
   );
 }

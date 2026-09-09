@@ -24,12 +24,16 @@ type Errors = Record<string, string>;
  */
 const ADDRESS_FIELDS = [
   { name: 'fullName', label: 'Full name', autoComplete: 'name', span: 2 },
-  { name: 'phone', label: 'Mobile number', autoComplete: 'tel', span: 1 },
+  // `inputMode` decides which keyboard a phone shows. Without it a customer
+  // types ten digits on a QWERTY layout at the highest-value step in the
+  // funnel. `type` stays text: `type="number"` brings spinner arrows and
+  // silently drops a leading zero.
+  { name: 'phone', label: 'Mobile number', autoComplete: 'tel', span: 1, inputMode: 'numeric' as const },
   { name: 'line1', label: 'Address', autoComplete: 'address-line1', span: 2 },
   { name: 'line2', label: 'Apartment, landmark (optional)', autoComplete: 'address-line2', span: 2 },
   { name: 'city', label: 'City', autoComplete: 'address-level2', span: 1 },
   { name: 'state', label: 'State', autoComplete: 'address-level1', span: 1 },
-  { name: 'postalCode', label: 'PIN code', autoComplete: 'postal-code', span: 1 },
+  { name: 'postalCode', label: 'PIN code', autoComplete: 'postal-code', span: 1, inputMode: 'numeric' as const },
 ] as const;
 
 /** Flattens a saved address into the shape the form state holds. */
@@ -118,7 +122,14 @@ export function CheckoutClient({
     setErrors((e) => ({ ...e, [name]: '' }));
   };
 
-  const validate = () => {
+  /**
+   * Collects errors without touching state.
+   *
+   * Split out because the submit handler needs the errors *now* — to decide
+   * where to move focus — and reading them back from state would see the
+   * previous render's value.
+   */
+  const validateErrors = (): Errors => {
     const e: Errors = {};
     if (!values.fullName || values.fullName.trim().length < 2) e.fullName = 'Enter your full name';
     if (!/^(\+91[\s-]?)?[6-9]\d{9}$/.test((values.phone || '').trim()))
@@ -130,11 +141,30 @@ export function CheckoutClient({
     if (!values.state || values.state.trim().length < 2) e.state = 'Enter your state';
     if (!/^\d{6}$/.test((values.postalCode || '').trim()))
       e.postalCode = 'Enter a valid 6-digit PIN code';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    return e;
   };
 
+  /*
+   * One key for this checkout attempt, held for the life of the form.
+   *
+   * Sent with every submission, so a retry after a timeout — or a second tap
+   * on a slow connection — resolves to the order that was already created
+   * rather than a second one. `submitting` disables the button, but that only
+   * helps in the browser: it does nothing about a request the network
+   * duplicated or the customer retried after giving up on a spinner.
+   *
+   * Deliberately not regenerated on failure. A failed attempt left no order
+   * behind, so the key is still free, and keeping it means a retry of an
+   * *apparent* failure that actually succeeded is still deduplicated.
+   */
+  const [idempotencyKey] = useState(() =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `chk_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`
+  );
+
   const buildPayload = () => ({
+    idempotencyKey,
     email: values.email.trim(),
     address: {
       fullName: values.fullName.trim(),
@@ -153,10 +183,41 @@ export function CheckoutClient({
     })),
   });
 
+  /**
+   * Puts the cursor on the first field that failed.
+   *
+   * Validation used to set error text and stop there. On a phone the address
+   * form is taller than the screen, so a customer with an invalid PIN code
+   * taps "Place order", nothing appears to happen, and the message explaining
+   * why is several hundred pixels above them. They tap again, then leave.
+   *
+   * Focusing also announces the field and its error to a screen reader, which
+   * the silent version never did: `aria-describedby` is only read when the
+   * input has focus.
+   *
+   * Ordered by the DOM, not by the error object — the first *visible* problem
+   * is the one to send someone to, and object key order is not that.
+   */
+  const focusFirstError = (found: Errors) => {
+    const order = ['email', ...ADDRESS_FIELDS.map((f) => f.name)];
+    const firstBad = order.find((name) => found[name]);
+    if (!firstBad) return;
+
+    const el = document.getElementById(firstBad);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el?.focus({ preventScroll: true });
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setFormError(null);
-    if (!validate()) return;
+
+    const found = validateErrors();
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      focusFirstError(found);
+      return;
+    }
 
     setSubmitting(true);
 
@@ -383,6 +444,7 @@ export function CheckoutClient({
                   name={f.name}
                   // Every address field is plain text; email moved out above.
                   type="text"
+                  inputMode={'inputMode' in f ? f.inputMode : undefined}
                   autoComplete={f.autoComplete}
                   value={values[f.name] ?? ''}
                   onChange={(e) => set(f.name, e.target.value)}

@@ -18,6 +18,15 @@ export type DispatchOrder = {
   status: string;
   paymentStatus: string;
   paymentProvider: string | null;
+  /**
+   * `approved`, `pending` or `review` from the cash-on-delivery risk gate.
+   *
+   * Carried through to the dispatch card because a gate the picking list
+   * ignores is not a gate. Held orders stay visible rather than being filtered
+   * out — an order that silently vanishes from the queue is one nobody ever
+   * resolves.
+   */
+  fraudStatus: string;
   createdAt: Date;
   customerName: string;
   city: string;
@@ -73,6 +82,7 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
       status: row.status,
       paymentStatus: row.paymentStatus,
       paymentProvider: row.paymentProvider,
+      fraudStatus: row.fraudStatus,
       createdAt: row.createdAt,
       customerName: address.fullName ?? '—',
       city: address.city ?? '—',

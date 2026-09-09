@@ -169,7 +169,7 @@ export function AdminLoginForm() {
           <Button 
             type="submit" 
             disabled={isLoading}
-            className="w-full bg-foreground text-background hover:bg-primary hover:text-white h-14 rounded-md font-semibold uppercase tracking-widest text-[10px] transition-all"
+            className="w-full bg-foreground text-background hover:bg-primary hover:text-primary-foreground h-14 rounded-md font-semibold uppercase tracking-widest text-[10px] transition-all"
           >
             {isLoading ? "Authenticating..." : "Login"}
           </Button>

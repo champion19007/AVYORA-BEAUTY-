@@ -32,6 +32,9 @@ export default {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          // Gold that is legible as small text on a light surface. See the
+          // token's comment in globals.css for why it is not just --primary.
+          text: 'hsl(var(--primary-text))',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
