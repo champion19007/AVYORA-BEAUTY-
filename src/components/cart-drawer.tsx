@@ -18,12 +18,25 @@ export function CartDrawer() {
     <Sheet open={isCartOpen} onOpenChange={setCartOpen}>
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col border-l border-border">
         <SheetHeader className="p-8 border-b border-border bg-muted/30">
-          <SheetTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ShoppingBag className="h-5 w-5" />
-              <span className="text-sm font-semibold uppercase tracking-widest">Shopping Bag ({cart.length})</span>
-            </div>
-            <button onClick={() => setCartOpen(false)}><X className="h-5 w-5" /></button>
+          {/*
+            No close button here.
+
+            `SheetContent` already renders one, so this header had a second —
+            two crosses a few pixels apart, which reads as a bug even when both
+            work. The primitive's is the one to keep: it carries an accessible
+            name, sits where every other sheet on the site puts it, and this
+            one was a bare icon button a screen reader would announce as just
+            "button".
+
+            A heading is also the wrong place for a control. `SheetTitle` is
+            what assistive technology reads to say which dialog opened, and an
+            interactive element inside it muddles that.
+          */}
+          <SheetTitle className="flex items-center gap-3">
+            <ShoppingBag className="h-5 w-5" />
+            <span className="text-sm font-semibold uppercase tracking-widest">
+              Shopping Bag ({cart.length})
+            </span>
           </SheetTitle>
         </SheetHeader>
 
@@ -62,11 +75,15 @@ export function CartDrawer() {
                         <h4 className="text-[10px] font-semibold uppercase tracking-widest leading-tight mb-1">{item.name}</h4>
                         <p className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">{item.selectedSize}</p>
                       </div>
-                      <button 
+                      <button
                         onClick={() => removeFromCart(item.id, item.selectedSize)}
+                        // Named, because an icon-only control announces as
+                        // "button" otherwise — and there are several identical
+                        // ones on this panel, one per line.
+                        aria-label={`Remove ${item.name} (${item.selectedSize}) from your bag`}
                         className="text-muted-foreground hover:text-primary"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                       </button>
                     </div>
                     
