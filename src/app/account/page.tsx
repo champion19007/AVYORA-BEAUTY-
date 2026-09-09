@@ -5,6 +5,7 @@ import { MapPin, Package, ShieldCheck, Sparkles, LifeBuoy, LogIn } from 'lucide-
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { listAddresses } from '@/lib/addresses';
+import { ConditionsNotice } from '@/components/conditions-notice';
 import { getOrdersForUser } from '@/lib/orders';
 import { formatPaise } from '@/lib/money';
 
@@ -69,6 +70,15 @@ export default async function AccountPage() {
           </p>
         </div>
       </header>
+
+      {/*
+        Sits under the header, before the navigation cards, because it is the
+        one thing on this page that changes daily and might alter what someone
+        does tonight. It renders nothing at all on an ordinary day.
+      */}
+      <div className="mt-10">
+        <ConditionsNotice postalCode={defaultAddress?.postalCode ?? null} />
+      </div>
 
       <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <Tile
