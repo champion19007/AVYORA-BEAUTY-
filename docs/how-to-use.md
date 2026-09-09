@@ -189,11 +189,17 @@ Two things run on a schedule rather than when someone clicks:
 
 | Job | What it does | How often |
 |---|---|---|
-| Reservation sweep | Puts stock back from online orders abandoned at the payment screen | Every 15 min on Vercel Pro; **once a day on the free plan** |
-| Event drain | Backstop for order emails and risk checks that did not send first time | Same |
+| Reservation sweep | Puts stock back from online orders abandoned at the payment screen | **Once a day** — 03:15 |
+| Event drain | Backstop for order emails and risk checks that did not send first time | **Once a day** — 03:45 |
 
-On the free plan this matters: stock from an abandoned checkout can sit
-reserved for up to a day. Most order emails do not depend on it — they are
+Both are daily because Vercel's free plan will not accept a tighter schedule.
+It does not slow a frequent job down, it refuses to deploy at all, so the
+schedules in `vercel.json` are the ones the plan permits rather than the ones
+the jobs want. On the paid plan, change them to `*/15 * * * *` and
+`17 */6 * * *`.
+
+This matters: stock from an abandoned checkout can sit reserved for up to a
+day. Most order emails do not depend on it — they are
 sent immediately after the customer gets their confirmation — but if something
 ever looks stuck, this is why.
 

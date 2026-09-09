@@ -14,10 +14,16 @@ export const dynamic = 'force-dynamic';
  * not happen — the invocation was killed mid-drain, the email provider was
  * down for the whole batch, a consumer was deployed after the events it needs.
  *
- * Worth knowing before relying on it: Vercel's Hobby plan runs cron jobs once
- * per day and allows two of them. So on the free plan this is a daily backstop
- * against a rare failure, not a scheduler — which is exactly why the fast path
- * had to be the fast path rather than "the queue will get to it".
+ * Worth knowing before relying on it: Vercel's Hobby plan allows two cron jobs
+ * and only accepts expressions that run at most once per day. It does not
+ * quietly reduce the frequency of a tighter schedule — it refuses the whole
+ * deployment, which is how this was discovered. `vercel.json` therefore carries
+ * daily schedules; on Pro they become `*/15 * * * *` for the sweep and
+ * `17 */6 * * *` here.
+ *
+ * So on the free plan this is a daily backstop against a rare failure, not a
+ * scheduler — which is exactly why the fast path had to be the fast path
+ * rather than "the queue will get to it".
  *
  * Same bearer-token protection as the sweep. Draining is not destructive, but
  * it does send messages, and an open endpoint that sends messages is a way to
