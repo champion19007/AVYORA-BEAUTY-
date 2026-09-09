@@ -18,8 +18,10 @@ export const dynamic = 'force-dynamic';
  * and only accepts expressions that run at most once per day. It does not
  * quietly reduce the frequency of a tighter schedule — it refuses the whole
  * deployment, which is how this was discovered. `vercel.json` therefore carries
- * daily schedules; on Pro they become `*/15 * * * *` for the sweep and
- * `17 */6 * * *` here.
+ * daily schedules; on Pro, raise the sweep to every fifteen minutes and this
+ * drain to every six hours. The cron expressions are in `docs/how-to-use.md`,
+ * not here, because a slash-star sequence cannot appear inside a block comment
+ * without ending it — which is the second thing this change discovered.
  *
  * So on the free plan this is a daily backstop against a rare failure, not a
  * scheduler — which is exactly why the fast path had to be the fast path
