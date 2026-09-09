@@ -148,7 +148,7 @@ export function HomeClient({
       <section className="px-4 py-16" aria-labelledby="bundle-heading">
         <div className="container mx-auto">
           <div className="grid grid-cols-1 overflow-hidden rounded-xl bg-[hsl(224_60%_13%)] text-white shadow-luxe-lg lg:grid-cols-2">
-            <div className="flex flex-col justify-center space-y-8 p-12 md:p-16">
+            <div className="flex flex-col justify-center space-y-8 p-8 sm:p-12 md:p-16">
               <div>
                 <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
                   Build your ritual
@@ -177,8 +177,23 @@ export function HomeClient({
                   </li>
                 ))}
               </ul>
-              <Link href="/routine-finder" className="w-fit">
-                <Button className="rounded-md bg-primary px-12 py-7 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground transition-colors hover:bg-white hover:text-foreground">
+              {/*
+                Full width and wrapping below `sm`, fixed width above it.
+
+                The label is 29 characters at 0.22em tracking, so it needs
+                about 275px on its own. Inside a panel padded 48px a side, a
+                375px phone leaves 279px of content — and the button also
+                carried 48px of its own horizontal padding. Nothing fits, and
+                because `Button` sets `whitespace-nowrap` it could not wrap
+                either: it simply ran 59px past the screen and was clipped.
+
+                Letting it wrap and fill the column is the honest fix. Trimming
+                the padding alone would not have been enough at this width, and
+                shortening the label would have been a design change to work
+                around a layout bug.
+              */}
+              <Link href="/routine-finder" className="w-full sm:w-fit">
+                <Button className="h-auto w-full whitespace-normal rounded-md bg-primary px-8 py-5 text-xs font-semibold uppercase leading-relaxed tracking-[0.22em] text-primary-foreground transition-colors hover:bg-white hover:text-foreground sm:w-auto sm:px-12 sm:py-7">
                   Start with the routine finder
                 </Button>
               </Link>

@@ -24,6 +24,20 @@
        badges and hover states rather than large fills. */
     --primary: 43 68% 47%;
     --primary-foreground: 224 60% 12%;
+    /*
+     * The same gold, dark enough to read as small text on a light surface.
+     *
+     * `--primary` at 47% lightness measures 2.4:1 against the cream page
+     * background — well under the 4.5:1 that small text needs — so every gold
+     * eyebrow label on the site was decorative rather than legible. It cannot
+     * simply be darkened, because the same token fills buttons where the navy
+     * `--primary-foreground` sits on top: darkening it there would break that
+     * pairing instead.
+     *
+     * So: one gold for fills, a deeper one for type. 30% lightness measures
+     * about 4.7:1 on cream and stays recognisably the same colour.
+     */
+    --primary-text: 43 68% 30%;
 
     --secondary: 224 40% 96%;
     --secondary-foreground: 224 60% 16%;
@@ -65,6 +79,9 @@
 
     --primary: 43 76% 60%;
     --primary-foreground: 224 60% 8%;
+    /* On a dark surface the problem inverts: gold needs to be lighter, not
+       darker, and the fill colour is already bright enough to read as text. */
+    --primary-text: 43 76% 60%;
 
     --secondary: 224 35% 17%;
     --secondary-foreground: 40 30% 95%;
@@ -115,9 +132,16 @@
     );
   }
 
-  /* Small caps eyebrow above section headings. */
+  /*
+   * Small caps eyebrow above section headings.
+   *
+   * Uses the text-safe gold rather than the fill gold. At 11px with wide
+   * tracking this is the smallest type on the site, so it is the least
+   * forgiving place to spend contrast on brand colour.
+   */
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.32em] text-primary;
+    @apply text-[11px] font-semibold uppercase tracking-[0.32em];
+    color: hsl(var(--primary-text));
   }
 
   /* Soft, warm elevation. Replaces the old hard-offset brutalist shadow. */

@@ -105,7 +105,7 @@ export function Footer() {
               />
               <button
                 type="submit"
-                className="shrink-0 text-xs font-semibold uppercase tracking-[0.18em] text-primary transition-opacity hover:opacity-70"
+                className="shrink-0 text-xs font-semibold uppercase tracking-[0.18em] text-primary-text transition-opacity hover:opacity-70"
               >
                 Join
               </button>
