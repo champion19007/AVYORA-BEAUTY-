@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { z } from 'zod';
 import { reportError } from '@/lib/observability';
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
@@ -8,8 +9,8 @@ import { pricingMap, resolvePrice } from '@/lib/pricing';
 import { calculateTotals, generateOrderNumber, toPaise } from '@/lib/money';
 import { releaseStock, reserveStock } from '@/lib/inventory';
 import { recordEvent } from '@/lib/activity';
-import { notifyOrderPlaced } from '@/lib/order-notifications';
-import { createOrderAccessToken } from '@/lib/order-access';
+import { emitEvent } from '@/lib/events';
+import { drainQuietly } from '@/lib/event-consumers';
 
 /**
  * Order creation.
@@ -45,6 +46,11 @@ export const checkoutSchema = z.object({
   email: z.string().trim().email('Enter a valid email address'),
   address: addressSchema,
   paymentMethod: z.enum(['cod', 'razorpay']),
+  /**
+   * Optional so a client that does not send one still works; when present it
+   * makes the whole request safe to retry. See `orders.idempotencyKey`.
+   */
+  idempotencyKey: z.string().trim().min(8).max(200).optional(),
   items: z
     .array(
       z.object({
@@ -61,6 +67,60 @@ export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type CreateOrderResult =
   | { ok: true; orderNumber: string; orderId: string; totalPaise: number }
   | { ok: false; error: string };
+
+/**
+ * Was this the idempotency index rejecting a duplicate?
+ *
+ * Two pieces of driver detail are load-bearing here, and both were found by a
+ * test rather than by reading:
+ *
+ *  - Drizzle wraps a driver error in its own `Failed query:` error, so the
+ *    Postgres code lives on `cause`, not on the error handed to the catch.
+ *    Reading `err.code` directly finds nothing and silently treats every
+ *    duplicate as a generic failure.
+ *  - The constraint name comes back as `constraint_name` from postgres-js and
+ *    `constraint` from node-postgres and PGlite. Both are checked so the
+ *    behaviour under test is the behaviour in production.
+ *
+ * Matched on the specific index rather than on 23505 alone: the order-number
+ * index is also unique, and a collision there is a genuine fault that must not
+ * be reported to the customer as a successful order.
+ */
+function isDuplicateOrderKey(err: unknown): boolean {
+  type PgError = { code?: string; constraint?: string; constraint_name?: string; cause?: unknown };
+
+  for (let current: unknown = err, depth = 0; current && depth < 4; depth += 1) {
+    const e = current as PgError;
+    if (
+      e.code === '23505' &&
+      (e.constraint === 'orders_idempotency_idx' ||
+        e.constraint_name === 'orders_idempotency_idx')
+    ) {
+      return true;
+    }
+    current = e.cause;
+  }
+
+  return false;
+}
+
+/** The order already placed under this key, if there is one. */
+async function findByIdempotencyKey(key: string): Promise<CreateOrderResult | null> {
+  const [existing] = await db
+    .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total })
+    .from(orders)
+    .where(eq(orders.idempotencyKey, key))
+    .limit(1);
+
+  if (!existing) return null;
+
+  return {
+    ok: true,
+    orderId: existing.id,
+    orderNumber: existing.orderNumber,
+    totalPaise: existing.total,
+  };
+}
 
 /** Thrown inside the order transaction to roll it back when stock runs out. */
 class OutOfStockError extends Error {
@@ -84,6 +144,18 @@ export async function createOrder(
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid order details' };
   }
   const data = parsed.data;
+
+  /*
+   * A retry of a request that already succeeded returns the original order.
+   *
+   * This read is an optimisation, not the guarantee — two simultaneous
+   * requests would both find nothing here. The unique index below is what
+   * actually decides, and the duplicate is caught when it fails to insert.
+   */
+  if (data.idempotencyKey) {
+    const existing = await findByIdempotencyKey(data.idempotencyKey);
+    if (existing) return existing;
+  }
 
   /*
    * Owner-set prices win over the catalogue file.
@@ -182,6 +254,13 @@ export async function createOrder(
           shippingAddressId: address.id,
           shippingAddress: data.address,
           paymentProvider: data.paymentMethod,
+          /*
+           * Cash on delivery starts unjudged and must be cleared before the
+           * stockroom sees it. Prepaid is approved on arrival: the money has
+           * already moved, so there is nothing left to protect against.
+           */
+          fraudStatus: data.paymentMethod === 'cod' ? 'pending' : 'approved',
+          idempotencyKey: data.idempotencyKey ?? null,
         })
         .returning({ id: orders.id });
 
@@ -190,6 +269,25 @@ export async function createOrder(
       await tx.insert(orderItems).values(
         lines.map((l) => ({ ...l, orderId: order.id }))
       );
+
+      /*
+       * The order and the fact that it happened commit together.
+       *
+       * Written inside the transaction on purpose. A queue written after the
+       * commit can lose an event when the process dies in the gap, and can
+       * announce an order that then rolled back; both failures appear only
+       * under load, which is to say only in front of customers. Here the two
+       * are the same write, so neither is possible.
+       *
+       * The payload carries identifiers and nothing else. Consumers re-read
+       * the order, so they act on what is true when they run rather than on a
+       * snapshot that may be minutes old.
+       */
+      await emitEvent('order.placed', order.id, { orderId: order.id, orderNumber }, tx);
+
+      for (const sku of reservation.depleted) {
+        await emitEvent('inventory.stock_out', sku.productId, sku, tx);
+      }
     });
 
     // Best-effort; recordEvent swallows its own failures.
@@ -205,37 +303,21 @@ export async function createOrder(
     });
 
     /*
-     * Tell the customer and the shop.
+     * Everything downstream now runs after the response is flushed.
      *
-     * Awaited rather than fired and forgotten: on a serverless platform the
-     * function can be frozen the moment the response is returned, and a
-     * dangling promise is simply never finished. It cannot fail the order —
-     * notifyOrderPlaced swallows and reports everything — so the only cost is
-     * a few hundred milliseconds on the checkout response.
+     * Confirmation emails, the shop's WhatsApp message, the risk gate and
+     * cache invalidation used to happen inline, which meant a slow email
+     * provider was a slow checkout — the customer waiting on work that has
+     * nothing to do with whether their order exists. It exists the moment the
+     * transaction above commits; the rest is consequence.
      *
-     * The confirmation email carries the signed link, which for a guest is the
-     * only way back to their order once the tab is closed.
+     * `after` runs the drain in this same invocation once the response has
+     * gone, so the customer waits for none of it and the notification still
+     * lands within a second or two. If the invocation dies first, the events
+     * are still in the log and the next drain — from the next checkout, or
+     * from cron — picks them up. Nothing is lost, only delayed.
      */
-    const accessToken = await createOrderAccessToken(orderNumber).catch(() => null);
-    const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://avyora-beauty.vercel.app';
-
-    await notifyOrderPlaced({
-      orderNumber,
-      email: data.email,
-      customerName: data.address.fullName,
-      total: totals.total,
-      paymentProvider: data.paymentMethod === 'cod' ? 'cod' : 'razorpay',
-      paid: false,
-      items: lines.map((l) => ({
-        productName: l.productName,
-        size: l.size,
-        quantity: l.quantity,
-      })),
-      address: data.address,
-      orderUrl: accessToken
-        ? `${base}/orders/${orderNumber}?t=${encodeURIComponent(accessToken)}`
-        : `${base}/orders/${orderNumber}`,
-    });
+    after(drainQuietly);
 
     return { ok: true, orderNumber, orderId: createdOrderId, totalPaise: totals.total };
   } catch (err) {
@@ -243,6 +325,16 @@ export async function createOrder(
     // exactly what happened rather than a generic failure.
     if (err instanceof OutOfStockError) {
       return { ok: false, error: err.detail };
+    }
+
+    /*
+     * Lost the race to an identical request. The transaction rolled back —
+     * including its stock reservation — so the winner's order is the only one,
+     * and returning it is exactly what the customer expects to see.
+     */
+    if (isDuplicateOrderKey(err) && data.idempotencyKey) {
+      const existing = await findByIdempotencyKey(data.idempotencyKey);
+      if (existing) return existing;
     }
     reportError(err, { scope: 'orders.createOrder', correlationId: orderNumber });
     return { ok: false, error: 'We could not place your order. Please try again.' };

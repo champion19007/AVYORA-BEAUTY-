@@ -205,6 +205,11 @@ export const orderStatus = pgEnum('order_status', [
   'delivered',
   'cancelled',
   'refunded',
+  // Return to origin: the courier brought it back. Distinct from `cancelled`
+  // (nobody ever tried) and `refunded` (the customer had it and sent it back).
+  // This is the outcome cash-on-delivery risk scoring is trained on, so it has
+  // to be recordable as its own thing.
+  'returned',
 ]);
 
 export const paymentStatus = pgEnum('payment_status', [
@@ -241,6 +246,21 @@ export const orders = pgTable('orders', {
   paymentReference: text('payment_reference'),
 
   notes: text('notes'),
+
+  /**
+   * Client-supplied key that makes placing this order safe to retry.
+   *
+   * Without it, a customer on a slow connection who taps "Place Order" twice
+   * gets two orders and two stock reservations — and pays twice. The browser
+   * generates one key per checkout attempt and sends it with every retry, so
+   * the second request finds the first order instead of creating another.
+   *
+   * Nullable, and the unique index tolerates that: Postgres treats NULLs as
+   * distinct, so orders placed before this existed do not collide with each
+   * other. Enforcement lives in the index rather than in a prior read, because
+   * two simultaneous requests would both pass a read.
+   */
+  idempotencyKey: text('idempotency_key'),
   /**
    * When this order's stock went back on the shelf, or null.
    *
@@ -250,6 +270,20 @@ export const orders = pgTable('orders', {
    * units, inventing stock out of a race.
    */
   stockRestoredAt: timestamp('stock_restored_at', { withTimezone: true }),
+
+  /**
+   * Cash-on-delivery risk gate.
+   *
+   * `approved` for everything prepaid — money already changed hands, there is
+   * nothing to score. A COD order starts `pending` and must reach `approved`
+   * before the stockroom is allowed to see it, which is what makes this a
+   * checkpoint rather than an advisory flag.
+   */
+  fraudStatus: text('fraud_status').notNull().default('approved'),
+  /** 0-100. Higher is riskier. Null until scored. */
+  fraudScore: integer('fraud_score'),
+  /** The signals that fired, so a human reviewing the hold can see why. */
+  fraudReasons: jsonb('fraud_reasons'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
@@ -257,6 +291,7 @@ export const orders = pgTable('orders', {
   userIdx: index('orders_user_idx').on(t.userId),
   emailIdx: index('orders_email_idx').on(t.email),
   createdIdx: index('orders_created_idx').on(t.createdAt),
+  idempotencyIdx: uniqueIndex('orders_idempotency_idx').on(t.idempotencyKey),
 }));
 
 export const orderItems = pgTable('order_items', {
@@ -490,4 +525,208 @@ export const cartsRelations = relations(carts, ({ one, many }) => ({
 
 export const cartItemsRelations = relations(cartItems, ({ one }) => ({
   cart: one(carts, { fields: [cartItems.cartId], references: [carts.id] }),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Domain events — the outbox                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * An append-only log of things that happened, written in the same transaction
+ * as the thing itself.
+ *
+ * This is the free-tier stand-in for a broker. The property that actually
+ * matters is not throughput, it is that the order row and the "an order was
+ * placed" fact commit together: an event can never describe an order that
+ * rolled back, and an order can never exist with its event lost. A queue
+ * written to *after* the transaction gives up exactly that guarantee, and it
+ * fails in the worst possible way — silently, only under load.
+ *
+ * What this deliberately is not:
+ *  - Partitioned. One shop, one ordering. Global order is a feature here.
+ *  - Retained forever. Rows are pruned once every consumer is past them.
+ *  - High throughput. A few hundred events a day fits in a table trivially.
+ *
+ * Replay works the same way it does on a broker: reset a consumer's offset and
+ * the history is re-read. That is the reason for a log rather than a job queue
+ * — a risk model that gets retuned needs to re-score last week.
+ */
+export const domainEvents = pgTable('domain_events', {
+  /**
+   * Offset. Monotonic per insert — but see `readEvents`: an id is assigned at
+   * insert and becomes visible at commit, so ids can appear out of order.
+   */
+  id: serial('id').primaryKey(),
+  /** Dotted name, e.g. `order.placed`. */
+  name: text('name').notNull(),
+  /** What the event is about — an order id — for correlation and replay. */
+  subject: text('subject'),
+  payload: jsonb('payload').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  nameIdx: index('domain_events_name_idx').on(t.name),
+  createdIdx: index('domain_events_created_idx').on(t.createdAt),
+}));
+
+/**
+ * One row per (event, consumer): proof that this consumer handled this event.
+ *
+ * Deliberately not a watermark. A single "read up to id N" counter looks
+ * cheaper and is subtly wrong here: `serial` assigns ids at insert but rows
+ * appear at commit, so a transaction holding id 41 can commit after one
+ * holding 42. A consumer that stored 42 would skip 41 permanently — and only
+ * under concurrency, which is to say only in production. Avoiding it needs a
+ * delay before reading, and a delay is the one thing the fast path cannot
+ * afford.
+ *
+ * Recording deliveries individually means nothing ever advances past an
+ * unfinished event, because nothing advances at all. The cost is a row per
+ * event per consumer and the loss of strict ordering — neither matters for a
+ * notifier, a risk gate or a cache invalidation, none of which care which of
+ * two orders arrived first.
+ */
+export const eventDeliveries = pgTable('event_deliveries', {
+  eventId: integer('event_id')
+    .notNull()
+    .references(() => domainEvents.id, { onDelete: 'cascade' }),
+  consumer: text('consumer').notNull(),
+  /** `done` or `failed`. A failed row is retried until `attempts` runs out. */
+  status: text('status').notNull().default('done'),
+  attempts: integer('attempts').notNull().default(1),
+  lastError: text('last_error'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.eventId, t.consumer] }),
+  pending: index('event_deliveries_consumer_idx').on(t.consumer, t.status),
+}));
+
+/**
+ * Where each consumer started.
+ *
+ * A newly deployed consumer must not replay the entire history on first boot —
+ * for the notifier that means emailing every customer who has ever ordered.
+ * It registers at the current head instead, and everything before that is
+ * simply not its business. Replay stays a deliberate act: lower this number,
+ * or delete the delivery rows you want redone.
+ */
+export const consumerRegistrations = pgTable('consumer_registrations', {
+  consumer: text('consumer').primaryKey(),
+  startEventId: integer('start_event_id').notNull().default(0),
+  registeredAt: timestamp('registered_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* -------------------------------------------------------------------------- */
+/* Environmental conditions                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Current conditions per region, refreshed lazily.
+ *
+ * Keyed by a coarse region derived from the PIN code the customer already
+ * gives at checkout, not by browser geolocation — that costs a permission
+ * prompt most people decline, for data already on file.
+ *
+ * Regional rather than per-pincode on purpose. UV index and humidity do not
+ * differ meaningfully across a postal circle, and ~25 rows refreshed hourly is
+ * a table lookup, whereas 19,000 pincodes would be a synchronisation project.
+ *
+ * These are outdoor conditions for a wide area. They are a *prior* about the
+ * customer's environment, never a measurement of their exposure — someone in
+ * an air-conditioned office in Delhi is not living in Delhi's humidity. Every
+ * message built on this data has to be phrased accordingly.
+ */
+export const environmentalCache = pgTable('environmental_cache', {
+  /** Region key from `regionForPincode`, e.g. 'IN-MH'. */
+  region: text('region').primaryKey(),
+  /** Peak UV index forecast for today. Null when the provider had no value. */
+  uvIndex: integer('uv_index'),
+  /** Relative humidity, percent. */
+  humidity: integer('humidity'),
+  /** PM2.5, micrograms per cubic metre. */
+  pm25: integer('pm25'),
+  /** When this was last successfully fetched — the staleness check reads it. */
+  fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* -------------------------------------------------------------------------- */
+/* Ingredients and interactions                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One row per active ingredient the engine knows how to reason about.
+ *
+ * Molecule-level, not class-level. "Retinoid" is not a row, because the rule
+ * that benzoyl peroxide degrades tretinoin does not hold for adapalene — which
+ * is photostable and co-formulated with benzoyl peroxide deliberately. A
+ * class-wide rule would warn people off a combination dermatologists
+ * prescribe on purpose.
+ */
+export const ingredients = pgTable('ingredients', {
+  /** Stable slug, e.g. 'tretinoin'. */
+  id: text('id').primaryKey(),
+  /** INCI name as it appears on a label. */
+  inciName: text('inci_name').notNull(),
+  /** What a customer would call it. */
+  commonName: text('common_name').notNull(),
+  /** Other label spellings, for matching an ingredient list. */
+  synonyms: jsonb('synonyms').notNull().default(sql`'[]'::jsonb`),
+  /** True when this is normally prescription-only in India. */
+  prescriptionOnly: boolean('prescription_only').notNull().default(false),
+  /**
+   * Contraindicated in pregnancy.
+   *
+   * Kept as a column rather than an interaction because it is a property of
+   * the molecule alone, and because it outranks every pairwise rule: a
+   * teratogen warning must not depend on what else is in the routine.
+   */
+  pregnancyCaution: boolean('pregnancy_caution').notNull().default(false),
+  /** Raises photosensitivity, so the UV forecast becomes relevant. */
+  photosensitising: boolean('photosensitising').notNull().default(false),
+}, (t) => ({
+  inciIdx: index('ingredients_inci_idx').on(t.inciName),
+}));
+
+/**
+ * A documented interaction between two specific molecules.
+ *
+ * Tiered by evidence, because merging a pharmacological fact with a folk
+ * heuristic drags the fact down to the heuristic's credibility. Every Tier 2
+ * row carries a citation; a rule that cannot be cited belongs in Tier 3 or
+ * nowhere.
+ */
+export const ingredientInteractions = pgTable('ingredient_interactions', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  ingredientA: text('ingredient_a').notNull().references(() => ingredients.id, { onDelete: 'cascade' }),
+  ingredientB: text('ingredient_b').notNull().references(() => ingredients.id, { onDelete: 'cascade' }),
+  /** 2 = established deactivation, 3 = additive irritation, 4 = sequencing. */
+  tier: integer('tier').notNull(),
+  /** Shown to the customer. Plain language, no hedging, no jargon. */
+  summary: text('summary').notNull(),
+  /** What to actually do — the part that makes the warning useful. */
+  advice: text('advice').notNull(),
+  /** Source. Required for tier 2; a rule without one is not tier 2. */
+  citation: text('citation'),
+}, (t) => ({
+  pairIdx: uniqueIndex('interactions_pair_idx').on(t.ingredientA, t.ingredientB),
+}));
+
+/**
+ * What a customer says they are currently using.
+ *
+ * Products from any brand, not just this shop's six — which is the point. The
+ * engine's job is to make someone's whole routine safe, and a warning that
+ * only covers your own catalogue is marketing rather than a safety tool.
+ */
+export const routineItems = pgTable('routine_items', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** Free text as the customer typed it — brand and product name. */
+  label: text('label').notNull(),
+  /** Resolved ingredient ids. Empty until someone tells us what is in it. */
+  ingredientIds: jsonb('ingredient_ids').notNull().default(sql`'[]'::jsonb`),
+  /** Set when the customer says a doctor prescribed this. */
+  prescribed: boolean('prescribed').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index('routine_items_user_idx').on(t.userId),
 }));
