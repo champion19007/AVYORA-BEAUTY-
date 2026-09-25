@@ -166,3 +166,14 @@ describe('order idempotency', () => {
     expect(await orderCount()).toBe(2);
   });
 });
+
+describe('sizes', () => {
+  it('refuses a size the product is not sold in, rather than substituting another', async () => {
+    const result = await createOrder({
+      ...CHECKOUT,
+      items: [{ productId: SKU.productId, size: '999ml', quantity: 1 }],
+    });
+    expect(result.ok).toBe(false);
+    expect(await db.select().from(orders)).toHaveLength(0);
+  });
+});

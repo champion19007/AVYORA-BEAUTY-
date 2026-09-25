@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isDatabaseConfigured } from '@/db';
-import { recordProviderEvent } from '@/modules/payments/payment-service';
+import { recordProviderEvent, shouldRetryUnknownOrder } from '@/modules/payments/payment-service';
+import { reportError } from '@/lib/observability';
 import type { PaymentSignal } from '@/modules/payments/state-machine';
 import { getRazorpayConfig, verifyWebhookSignature } from '@/lib/razorpay';
 
@@ -74,15 +75,26 @@ export async function POST(request: Request) {
 
   if (result.status === 'unknown_order') {
     /*
-     * Ask Razorpay to try again rather than acknowledging.
+     * Ask Razorpay to try again rather than acknowledging — for a while.
      *
      * The webhook can arrive before our own checkout transaction has
      * committed, so the order may be moments away from existing. The event is
      * deliberately not recorded here, so the retry is processed rather than
-     * discarded as a duplicate.
+     * discarded as a duplicate. Past the grace period it is acknowledged and
+     * reported instead; see `shouldRetryUnknownOrder`.
      */
-    console.error(`Webhook for unknown Razorpay order ${razorpayOrderId}, asking for retry`);
-    return NextResponse.json({ error: 'Order not found yet.' }, { status: 503 });
+    const createdAt = payment?.created_at ?? event?.created_at;
+    if (shouldRetryUnknownOrder(typeof createdAt === 'number' ? createdAt : null)) {
+      console.error(`Webhook for unknown Razorpay order ${razorpayOrderId}, asking for retry`);
+      return NextResponse.json({ error: 'Order not found yet.' }, { status: 503 });
+    }
+
+    reportError(new Error('Payment event for an order that does not exist'), {
+      scope: 'webhook.razorpay.unknown_order',
+      correlationId: razorpayOrderId,
+      extra: { event: event?.event, paymentId: payment?.id, status: payment?.status, amount: payment?.amount },
+    });
+    return NextResponse.json({ ok: true, ignored: 'unknown_order' });
   }
 
   return NextResponse.json({ ok: true, duplicate: result.status === 'duplicate' });

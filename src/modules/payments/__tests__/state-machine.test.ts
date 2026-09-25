@@ -119,3 +119,13 @@ describe('payment state machine', () => {
     expect(isOpen('refunded')).toBe(false);
   });
 });
+
+describe('webhooks for orders we do not have', () => {
+  it('asks for redelivery while the order may still be committing, then stops', async () => {
+    const { shouldRetryUnknownOrder, UNKNOWN_ORDER_GRACE_MS } = await import('../payment-service');
+    const now = 1_800_000_000_000;
+    expect(shouldRetryUnknownOrder(now / 1000 - 5, now)).toBe(true);
+    expect(shouldRetryUnknownOrder((now - UNKNOWN_ORDER_GRACE_MS - 1000) / 1000, now)).toBe(false);
+    expect(shouldRetryUnknownOrder(null, now)).toBe(true);
+  });
+});

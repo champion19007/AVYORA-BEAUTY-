@@ -187,7 +187,18 @@ export async function createOrder(
       return { ok: false, error: `That product is no longer available: ${item.productId}` };
     }
 
-    const size = product.sizes.find((s) => s.label === item.size) ?? product.sizes[0];
+    /*
+     * The size asked for, or a refusal. This used to fall back to the first
+     * size, so a stale basket (a size since withdrawn) was charged for, and
+     * sent, a size the customer never chose.
+     */
+    const size = product.sizes.find((s) => s.label === item.size);
+    if (!size) {
+      return {
+        ok: false,
+        error: `${product.name} is no longer sold in ${item.size}. Please choose a size again.`,
+      };
+    }
 
     // The one pricing rule, shared with the storefront display. Here it is fed
     // a row read from Postgres on this request: that is what makes it the

@@ -79,7 +79,7 @@ export class ReadRouter<D> {
   private readonly now: () => number;
 
   constructor(private readonly options: ReadRouterOptions<D>) {
-    this.now = options.now ?? Date.now;
+    this.now = options.now ?? (() => Date.now());
   }
 
   get hasReplica(): boolean {

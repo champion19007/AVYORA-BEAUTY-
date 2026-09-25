@@ -274,3 +274,66 @@ describe('redis over http', () => {
     await expect(redis.get('k')).rejects.toThrow('WRONGPASS');
   });
 });
+
+describe('a load that races an invalidation', () => {
+  /** A loader that waits until released, like a slow database query. */
+  function gatedLoader(value: string) {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    return { load: async () => (await gate, value), release };
+  }
+
+  it('does not put the pre-write value back after the write invalidated it', async () => {
+    const c = clock();
+    const redis = sharedRedis(c.now);
+    const reader = new TieredCache(new MemoryStore(100, c.now), redis.layer, { now: c.now });
+    const writer = new TieredCache(new MemoryStore(100, c.now), redis.layer, { now: c.now });
+
+    // The reader queries the database and sees the old cart...
+    const slow = gatedLoader('old cart');
+    const reading = reader.getOrSet(noL1, 'u:1', slow.load);
+
+    // ...the writer commits a new cart and invalidates, on another instance...
+    await writer.invalidate(noL1, 'u:1');
+
+    // ...then the reader's query returns.
+    slow.release();
+    expect(await reading).toBe('old cart'); // its caller still gets an answer
+
+    // But the next read goes to the database instead of the stale copy.
+    expect(await reader.getOrSet(noL1, 'u:1', async () => 'new cart')).toBe('new cart');
+    expect(reader.stats.racedInvalidations).toBeGreaterThanOrEqual(1);
+
+    // Once past the clock-skew allowance, the fresh value is cached again.
+    c.advance(3_000);
+    await reader.getOrSet(noL1, 'u:1', async () => 'new cart');
+    expect(await reader.getOrSet(noL1, 'u:1', async () => 'should not load')).toBe('new cart');
+  });
+
+  it('does not hand a reader who arrives after the invalidation the in-flight stale load', async () => {
+    const c = clock();
+    const cache = new TieredCache(new MemoryStore(100, c.now), null, { now: c.now });
+
+    const slow = gatedLoader('old');
+    const first = cache.getOrSet(policy, 'k', slow.load);
+    await cache.invalidate(policy, 'k');
+    const second = cache.getOrSet(policy, 'k', async () => 'new');
+
+    slow.release();
+    expect(await first).toBe('old');
+    expect(await second).toBe('new');
+  });
+
+  it('caches normally again shortly after an invalidation', async () => {
+    const c = clock();
+    const redis = sharedRedis(c.now);
+    const cache = new TieredCache(new MemoryStore(100, c.now), redis.layer, { now: c.now });
+
+    await cache.invalidate(noL1, 'k');
+    c.advance(3_000);
+    await cache.getOrSet(noL1, 'k', async () => 'v');
+    const before = cache.stats.l2Hits;
+    await cache.getOrSet(noL1, 'k', async () => 'other');
+    expect(cache.stats.l2Hits).toBe(before + 1);
+  });
+});

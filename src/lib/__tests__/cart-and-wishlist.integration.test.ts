@@ -72,6 +72,10 @@ describe('cart', () => {
 
   it('never returns a pre-write cart from cache after a save', async () => {
     await saveCart([line('rice-bran-cleansing-oil', 1)], USER, null);
+    // Reads right after a write are deliberately not cached (they may have
+    // raced it); step past that allowance so this read fills the cache.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + 3_000);
     expect(await loadCart(USER, null)).toEqual([line('rice-bran-cleansing-oil', 1)]);
     // Prove the second read is cached, so the next assertion means something.
     const hitsBefore = cache.stats.l2Hits;
@@ -80,6 +84,7 @@ describe('cart', () => {
 
     await saveCart([line('rice-bran-cleansing-oil', 4)], USER, null);
     expect(await loadCart(USER, null)).toEqual([line('rice-bran-cleansing-oil', 4)]);
+    vi.useRealTimers();
   });
 
   it('reads straight from Postgres when the cache has lost everything', async () => {

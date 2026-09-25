@@ -20,7 +20,7 @@ export class MemoryStore implements CacheStore {
 
   constructor(
     private readonly maxEntries = 2_000,
-    private readonly now: () => number = Date.now
+    private readonly now: () => number = () => Date.now()
   ) {}
 
   async get(key: string): Promise<string | null> {

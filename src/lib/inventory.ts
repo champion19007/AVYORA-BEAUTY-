@@ -70,6 +70,12 @@ export async function getStockMap(productIds: string[]): Promise<Map<string, num
  * entered. Run `npm run db:seed-inventory <n>`, or count each SKU in the
  * stockroom console, before opening the shop.
  */
+/** Sorted by SKU: the one order every stock-locking path must take rows in. */
+export function inLockOrder<T extends { productId: string; size: string }>(lines: T[]): T[] {
+  const key = (l: T) => `${l.productId}::${l.size}`;
+  return [...lines].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+}
+
 export async function reserveStock(
   lines: StockLine[],
   tx: Pick<typeof db, 'update' | 'select'> = db
@@ -79,7 +85,14 @@ export async function reserveStock(
   const insufficient: { productId: string; size: string; available: number }[] = [];
   const depleted: { productId: string; size: string }[] = [];
 
-  for (const line of lines) {
+  /*
+   * Rows are locked in one global order, not the basket's. Two checkouts
+   * taking the same SKUs in opposite orders — A then B, and B then A — each
+   * held one row and waited for the other's: a deadlock, which Postgres
+   * resolves by aborting one of them, and that customer saw a failed
+   * checkout. Sorted, the second simply waits for the first.
+   */
+  for (const line of inLockOrder(lines)) {
     const updated = await tx
       .update(inventory)
       .set({
@@ -136,7 +149,7 @@ export async function releaseStock(
 ): Promise<void> {
   if (!isDatabaseConfigured()) return;
 
-  for (const line of lines) {
+  for (const line of inLockOrder(lines)) {
     await tx
       .update(inventory)
       .set({
