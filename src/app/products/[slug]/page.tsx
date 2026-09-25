@@ -1,6 +1,9 @@
 import { PRODUCTS } from '@/data/mock-data';
-import { getProductBySlug } from '@/lib/catalogue';
-import { getStockMap } from '@/lib/inventory';
+import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
+import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
+import { productCopy } from '@/modules/cms/content-read';
+import { recommendationsFor } from '@/modules/recommendations/recommendations';
+import { getProductById, getProductBySlug } from '@/lib/catalogue';
 import { notFound } from 'next/navigation';
 import { ProductClient } from './product-client';
 import type { Metadata, ResolvingMetadata } from 'next';
@@ -37,13 +40,14 @@ export async function generateMetadata(
   const product = getProductBySlug(slug);
 
   if (!product) return { title: 'Product Not Found' };
+  const tagline = (await productCopy(slug))?.tagline ?? product.tagline;
 
   return {
     title: product.name,
-    description: product.tagline,
+    description: tagline,
     openGraph: {
       title: `${product.name} | Avyora`,
-      description: product.tagline,
+      description: tagline,
       images: [product.images[0]],
     },
   };
@@ -51,13 +55,22 @@ export async function generateMetadata(
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const catalogueProduct = getProductBySlug(slug);
 
-  if (!product) {
+  if (!catalogueProduct) {
     notFound();
   }
 
-  const recommendations = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 4);
+  /*
+   * Published copy from the CMS replaces the catalogue's wording where it
+   * exists. Only the words: names, sizes, prices and ingredients stay with
+   * the catalogue and commerce tables, which are what checkout reads.
+   */
+  const copy = await productCopy(slug);
+  const product = copy
+    ? { ...catalogueProduct, tagline: copy.tagline, description: copy.description }
+    : catalogueProduct;
+
 
   /*
    * Availability per size, keyed by label.
@@ -67,13 +80,31 @@ export default async function ProductPage({ params }: Props) {
    * uncounted SKU. Promising "In stock" over a checkout that then declines is
    * worse than saying so up front.
    */
-  const stock = await getStockMap([product.id]);
+  const [stock, prices] = await Promise.all([catalogueStock(), displayPrices()]);
+
+  /*
+   * Was the first four other products in the catalogue, whatever this one
+   * was. Now ranked: bought together, then routine fit, never sold out and
+   * never an ingredient conflict with this product.
+   */
+  const recommendations = (await recommendationsFor(product.id, { stock }))
+    .map((r) => getProductById(r.productId))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
   const stockBySize: Record<string, number> = {};
+  const pricesBySize: Record<string, SkuPrice> = {};
   for (const size of product.sizes) {
-    const quantity = stock.get(`${product.id}::${size.label}`);
-    // Infinity is the backorder case; the badge should read as available.
-    stockBySize[size.label] = quantity === Infinity ? Number.MAX_SAFE_INTEGER : (quantity ?? 0);
+    const key = skuKey(product.id, size.label);
+    stockBySize[size.label] = stock[key] ?? 0;
+    pricesBySize[size.label] = prices[key];
   }
+
+  /*
+   * Search engines are told the same prices and availability a shopper sees.
+   * This used to advertise the catalogue's prices and a hard-coded "InStock",
+   * so a sold-out product still appeared in results as available.
+   */
+  const shownPrices = Object.values(pricesBySize).map((p) => p.price / 100);
+  const anyInStock = Object.values(stockBySize).some((q) => q > 0);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -89,10 +120,10 @@ export default async function ProductPage({ params }: Props) {
     offers: {
       '@type': 'AggregateOffer',
       priceCurrency: 'INR',
-      lowPrice: product.price,
-      highPrice: product.sizes[product.sizes.length - 1].price,
+      lowPrice: Math.min(...shownPrices),
+      highPrice: Math.max(...shownPrices),
       offerCount: product.sizes.length,
-      availability: 'https://schema.org/InStock',
+      availability: anyInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       url: `https://avyora.com/products/${product.slug}`,
     },
     // Only advertise an aggregateRating when real reviews back it. Emitting a
@@ -113,12 +144,19 @@ export default async function ProductPage({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // `<` escaped so editable text containing "</script>" cannot close
+        // this tag early and inject markup into the page.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
       <ProductClient
         product={product}
         recommendations={recommendations}
         stockBySize={stockBySize}
+        pricesBySize={pricesBySize}
+        catalogueStock={stock}
+        cataloguePrices={prices}
+        howToUse={copy?.howToUse || null}
+        highlights={copy?.highlights ?? []}
       />
     </>
   );

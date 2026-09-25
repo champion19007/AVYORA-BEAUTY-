@@ -9,9 +9,14 @@ export const dynamic = 'force-dynamic';
 
 /** Anonymous visitors get a stable id so their cart can be stored and later merged. */
 async function anonymousId(): Promise<string> {
+  return (await anonymousIdentity()).id;
+}
+
+/** The visitor's id, and whether it was minted just now. */
+async function anonymousIdentity(): Promise<{ id: string; fresh: boolean }> {
   const jar = await cookies();
   const existing = jar.get(ANONYMOUS_COOKIE)?.value;
-  if (existing) return existing;
+  if (existing) return { id: existing, fresh: false };
 
   const id = crypto.randomUUID();
   jar.set(ANONYMOUS_COOKIE, id, {
@@ -21,15 +26,20 @@ async function anonymousId(): Promise<string> {
     path: '/',
     maxAge: 60 * 60 * 24 * 90,
   });
-  return id;
+  return { id, fresh: true };
 }
 
 export async function GET() {
   if (!isDatabaseConfigured()) return NextResponse.json({ lines: [] });
 
   const session = await auth().catch(() => null);
-  const anon = await anonymousId();
-  const lines = await loadCart(session?.user?.id ?? null, anon);
+  const anon = await anonymousIdentity();
+
+  // An id minted on this request cannot have a cart yet: every new visitor's
+  // first page load, answered without touching the database.
+  if (!session?.user?.id && anon.fresh) return NextResponse.json({ lines: [] });
+
+  const lines = await loadCart(session?.user?.id ?? null, anon.id);
   return NextResponse.json({ lines });
 }
 

@@ -11,11 +11,18 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { ProductCard } from '@/components/product/product-card';
 import { cn } from '@/lib/utils';
 import { stockLabel } from '@/lib/stock-label';
+import type { SkuPrice } from '@/modules/catalog/sku-price';
+import type { DisplayPrices, StockByKey } from '@/modules/catalog/storefront-data';
 
 export function ProductClient({
   product,
   recommendations,
   stockBySize,
+  pricesBySize,
+  catalogueStock,
+  cataloguePrices,
+  howToUse,
+  highlights,
 }: {
   product: Product;
   recommendations: Product[];
@@ -27,6 +34,14 @@ export function ProductClient({
    * rather than let the customer discover it at checkout.
    */
   stockBySize: Record<string, number>;
+  /** Display price per size label, in paise, from the same rule checkout uses. */
+  pricesBySize: Record<string, SkuPrice>;
+  /** For the recommendation cards below. */
+  catalogueStock: StockByKey;
+  cataloguePrices: DisplayPrices;
+  /** From published CMS copy, when the owner has written some. */
+  howToUse: string | null;
+  highlights: string[];
 }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]?.label || '');
@@ -109,6 +124,13 @@ export function ProductClient({
               <p className="mt-4 text-[15px] md:text-base leading-relaxed text-foreground/80">
                 {product.description}
               </p>
+              {highlights.length > 0 && (
+                <ul className="mt-4 list-disc space-y-1 pl-5 text-[15px] leading-relaxed text-foreground/80">
+                  {highlights.map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {product.reviewCount && product.rating ? (
@@ -128,11 +150,21 @@ export function ProductClient({
 
             <div className="flex items-baseline gap-4 pt-2">
               {/* salePrice, when set, is what the customer pays; price becomes the "was". */}
+              {/*
+                The selected size's price, as checkout will charge it. This
+                showed the product's base price whatever size was chosen, so
+                picking 50ml left the 30ml price on screen.
+              */}
               <Price
-                amount={product.salePrice ?? product.price}
-                was={product.salePrice ? product.price : null}
+                amount={(pricesBySize[selectedSize]?.price ?? 0) / 100}
+                was={pricesBySize[selectedSize]?.wasPrice != null ? pricesBySize[selectedSize]!.wasPrice! / 100 : null}
                 size="hero"
               />
+              {pricesBySize[selectedSize]?.offerLabel && (
+                <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-primary-text">
+                  {pricesBySize[selectedSize]!.offerLabel}
+                </span>
+              )}
             </div>
           </div>
 
@@ -220,8 +252,8 @@ export function ProductClient({
               <AccordionItem value="how-to-use">
                 <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">How to Use</AccordionTrigger>
                 <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
-                  Apply to cleansed skin. Use twice daily for best results, and wear SPF during
-                  the day.
+                  {howToUse ??
+                    'Apply to cleansed skin. Use twice daily for best results, and wear SPF during the day.'}
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -236,7 +268,7 @@ export function ProductClient({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
           {recommendations.map(p => (
-            <ProductCard key={p.id} product={p} />
+            <ProductCard key={p.id} product={p} stock={catalogueStock} prices={cataloguePrices} />
           ))}
         </div>
       </section>

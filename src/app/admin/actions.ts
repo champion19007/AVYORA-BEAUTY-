@@ -8,7 +8,9 @@ import { db, isDatabaseConfigured } from '@/db';
 import { orders, inventory, restockRequests } from '@/db/schema';
 import { isAdmin } from '@/lib/admin-guard';
 import { getStaffSession } from '@/lib/staff-auth';
-import { setPricing } from '@/lib/pricing';
+import { setPrice } from '@/modules/catalog/pricing-commands';
+import { setStock as setStockCommand } from '@/modules/inventory/stock-commands';
+import { recordAudit } from '@/modules/audit/audit';
 import { cancelOrder, restoreOrderStock } from '@/lib/orders';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { recordEvent } from '@/lib/activity';
@@ -85,12 +87,35 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
     await restoreOrderStock(order.id);
   }
 
-  await db
+  /*
+   * Compare-and-set on the status this page was acting on. Two operators
+   * pressing different buttons on the same order — "packed" and "cancelled" —
+   * would otherwise both succeed in turn, and the order would end up in
+   * whichever state was written last rather than the one anybody chose.
+   */
+  const changed = await db
     .update(orders)
     .set({ status: next as typeof orders.$inferInsert.status, updatedAt: new Date() })
-    .where(eq(orders.id, order.id));
+    .where(and(eq(orders.id, order.id), eq(orders.status, order.status)))
+    .returning({ id: orders.id });
 
-  // Status changes are the audit trail for "where is my order".
+  if (changed.length === 0) {
+    revalidatePath(`/admin/orders/${orderNumber}`);
+    return;
+  }
+
+  const actor = await getStaffSession();
+  await recordAudit({
+    actor: actor?.username ?? 'unknown',
+    actorRole: actor?.role ?? null,
+    action: 'order.status',
+    entityType: 'order',
+    entityId: orderNumber,
+    before: { status: order.status },
+    after: { status: next },
+  }).catch(() => {});
+
+  // Also kept as an analytics event; the audit row is the record of who did it.
   await recordEvent({
     name: 'admin.order_status_changed',
     props: { orderNumber, from: order.status, to: next },
@@ -131,26 +156,30 @@ export async function setStock(formData: FormData): Promise<void> {
   const quantity = Number(raw);
   if (!Number.isInteger(quantity) || quantity < 0 || quantity > 1_000_000) return;
 
-  await db
-    .insert(inventory)
-    .values({ productId, size, quantity })
-    // Upsert, so a SKU with no row yet can be brought under stock control from
-    // this screen instead of needing the seed script.
-    .onConflictDoUpdate({
-      target: [inventory.productId, inventory.size],
-      set: { quantity, updatedAt: new Date() },
-    });
+  // The count the owner was looking at. Empty means the SKU had no row yet.
+  const expectedRaw = String(formData.get('expectedQuantity') ?? '');
+  const expectedQuantity = expectedRaw === '' ? null : Number(expectedRaw);
 
-  await recordEvent({
-    name: 'admin.stock_set',
-    props: { productId, size, quantity },
-  }).catch(() => {});
+  const session = await getStaffSession();
+  const result = await setStockCommand(
+    { productId, size, quantity, expectedQuantity },
+    session ? { id: session.username, role: session.role } : null
+  );
+
+  if (!result.ok) {
+    /*
+     * The count moved under the owner. Sending them back with a marker lets
+     * the page say which SKU and why, instead of the save silently doing
+     * nothing or silently overwriting a sale.
+     */
+    redirect(`/admin/inventory?stale=${encodeURIComponent(`${productId}::${size}`)}`);
+  }
 
   revalidatePath('/admin/inventory');
   revalidatePath('/admin');
   // The shop shows this count too. Without this the storefront kept selling
   // goods the shelf no longer had, for up to a minute.
-  revalidateProduct(productId);
+  await revalidateProduct(productId);
 }
 
 /** Turns backorder on or off for a SKU. */
@@ -169,10 +198,21 @@ export async function setBackorder(formData: FormData): Promise<void> {
     .set({ allowBackorder: allow, updatedAt: new Date() })
     .where(and(eq(inventory.productId, productId), eq(inventory.size, size)));
 
+  const actor = await getStaffSession();
+  await recordAudit({
+    actor: actor?.username ?? 'unknown',
+    actorRole: actor?.role ?? null,
+    action: 'inventory.backorder',
+    entityType: 'sku',
+    entityId: `${productId}::${size}`,
+    before: { allowBackorder: !allow },
+    after: { allowBackorder: allow },
+  }).catch(() => {});
+
   revalidatePath('/admin/inventory');
   // Backorder decides whether an out-of-stock size is still sellable, so the
   // storefront badge changes with it.
-  revalidateProduct(productId);
+  await revalidateProduct(productId);
 }
 
 /**
@@ -198,7 +238,7 @@ export async function adminSignOut(): Promise<void> {
 /* Pricing and offers                                                           */
 /* -------------------------------------------------------------------------- */
 
-export type PriceFormState = { error?: string; saved?: boolean };
+export type PriceFormState = { error?: string; saved?: boolean; conflict?: boolean };
 
 /**
  * Sets the price and any offer for one SKU.
@@ -240,22 +280,28 @@ export async function savePrice(
     return { error: 'That end date is not valid.' };
   }
 
-  const result = await setPricing({
-    productId,
-    size,
-    price,
-    salePrice,
-    offerLabel,
-    offerEndsAt,
-    updatedBy: session.username,
-  });
+  const expectedVersion = Number(formData.get('version') ?? '0');
 
-  if (!result.ok) return { error: result.error };
+  const result = await setPrice(
+    {
+      productId,
+      size,
+      price,
+      salePrice,
+      offerLabel,
+      offerEndsAt,
+      expectedVersion: Number.isInteger(expectedVersion) ? expectedVersion : -1,
+    },
+    { id: session.username, role: session.role }
+  );
+
+  if (!result.ok) return { error: result.message, conflict: result.code === 'conflict' };
 
   revalidatePath('/admin/pricing');
   // The storefront reads these, so its cached pages must be rebuilt.
   revalidatePath('/collections');
   revalidatePath('/', 'layout');
+  await revalidateProduct(productId);
 
   return { saved: true };
 }
@@ -327,7 +373,63 @@ export async function resolveRiskHold(formData: FormData): Promise<void> {
     await cancelOrder(orderId);
   }
 
+  const actor = await getStaffSession();
+  await recordAudit({
+    actor: actor?.username ?? 'unknown',
+    actorRole: actor?.role ?? null,
+    action: decision === 'release' ? 'order.risk_release' : 'order.risk_cancel',
+    entityType: 'order',
+    entityId: orderNumber || orderId,
+    before: { fraudStatus: 'review' },
+    after: { fraudStatus: decision === 'release' ? 'approved' : 'rejected' },
+  }).catch(() => {});
+
   revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${orderNumber}`);
+  revalidatePath('/manager');
+}
+
+/**
+ * Clears an order's attention hold once the owner has dealt with it.
+ *
+ * Requires a note, because the whole point of the hold is that a person made
+ * a judgement call — refunded, found stock, or confirmed with the customer —
+ * and the audit row should say which. Without this there was no way out: the
+ * stockroom would hold the parcel forever.
+ */
+export async function resolveAttention(formData: FormData): Promise<void> {
+  if (!isDatabaseConfigured()) return;
+  if (!(await isAdmin())) return;
+
+  const orderId = String(formData.get('orderId') ?? '');
+  const orderNumber = String(formData.get('orderNumber') ?? '');
+  const note = String(formData.get('note') ?? '').trim().slice(0, 500);
+  if (!orderId || !note) return;
+
+  const [previous] = await db
+    .select({ reason: orders.attentionReason })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  if (!previous?.reason) return;
+
+  await db
+    .update(orders)
+    .set({ attentionReason: null, updatedAt: new Date() })
+    .where(eq(orders.id, orderId));
+
+  const actor = await getStaffSession();
+  await recordAudit({
+    actor: actor?.username ?? 'unknown',
+    actorRole: actor?.role ?? null,
+    action: 'order.attention_resolved',
+    entityType: 'order',
+    entityId: orderNumber || orderId,
+    before: { attentionReason: previous.reason },
+    after: { attentionReason: null },
+    reason: note,
+  }).catch(() => {});
+
   revalidatePath(`/admin/orders/${orderNumber}`);
   revalidatePath('/manager');
 }

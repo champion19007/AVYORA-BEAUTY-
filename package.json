@@ -15,7 +15,9 @@
     "db:studio": "drizzle-kit studio",
     "db:seed-inventory": "node scripts/seed-inventory.mjs",
     "db:seed-ingredients": "node scripts/seed-ingredients.mjs",
-    "check:env": "node scripts/check-env.mjs"
+    "check:env": "node scripts/check-env.mjs",
+    "test:stress": "vitest run --config vitest.stress.config.ts",
+    "load-test": "node scripts/load-test.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

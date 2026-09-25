@@ -177,3 +177,36 @@ export async function fetchRazorpayPayment(
   if (!response.ok) return null;
   return response.json();
 }
+
+export type RazorpayOrderPayment = {
+  id: string;
+  amount: number;
+  /** created | authorized | captured | refunded | failed */
+  status: string;
+};
+
+/**
+ * Every payment attempt Razorpay holds for one of its orders.
+ *
+ * Returns null when Razorpay cannot be reached or refuses, which callers must
+ * treat as "unknown" and never as "unpaid". An empty array is a real answer:
+ * the order exists and nobody attempted to pay.
+ */
+export async function fetchRazorpayOrderPayments(
+  razorpayOrderId: string,
+  config: RazorpayConfig
+): Promise<RazorpayOrderPayment[] | null> {
+  try {
+    const auth = btoa(`${config.keyId}:${config.keySecret}`);
+    const response = await fetch(`${RAZORPAY_API}/orders/${encodeURIComponent(razorpayOrderId)}/payments`, {
+      headers: { Authorization: `Basic ${auth}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { items?: RazorpayOrderPayment[] };
+    return Array.isArray(body.items) ? body.items : [];
+  } catch {
+    return null;
+  }
+}

@@ -23,6 +23,7 @@ export function PriceRow({
   offerLabel,
   offerEndsAt,
   overridden,
+  version,
 }: {
   productId: string;
   size: string;
@@ -36,6 +37,11 @@ export function PriceRow({
   /** ISO date, for the date input. */
   offerEndsAt: string | null;
   overridden: boolean;
+  /**
+   * The pricing row version this form was rendered from. Sent back on save so
+   * a change made by someone else in the meantime is refused, not overwritten.
+   */
+  version: number;
 }) {
   const [state, action, pending] = useActionState<PriceFormState, FormData>(savePrice, {});
 
@@ -43,6 +49,7 @@ export function PriceRow({
     <form action={action} className="border-b border-border p-4 last:border-0">
       <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="size" value={size} />
+      <input type="hidden" name="version" value={version} />
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[220px] flex-1">

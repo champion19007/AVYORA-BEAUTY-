@@ -129,6 +129,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('wishlist', JSON.stringify(wishlist));
   }, [wishlist]);
 
+  /*
+   * The wishlist, for a signed-in customer, lives in Postgres.
+   *
+   * On load the saved list and this browser's list are combined rather than
+   * one replacing the other, so neither a new device nor a list built while
+   * signed out loses anything. After that, changes are mirrored up, debounced
+   * like the cart. The server ignores all of it for anonymous visitors, whose
+   * list stays in this browser alone.
+   */
+  const wishlistSynced = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/wishlist', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body: { signedIn?: boolean; productIds?: string[] } | null) => {
+        if (cancelled || !body?.signedIn || !Array.isArray(body.productIds)) return;
+        const saved = body.productIds;
+        setWishlist((local) => [...new Set([...saved, ...local])]);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) wishlistSynced.current = true;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Not before the first read has merged, or an empty local list would
+    // overwrite the saved one.
+    if (!wishlistSynced.current) return;
+    const timer = setTimeout(() => {
+      void fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: wishlist }),
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [wishlist]);
+
   const addToCart = (product: Product, size: string) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id && item.selectedSize === size);

@@ -6,7 +6,9 @@ import { getOrderByNumber, restoreOrderStock } from '@/lib/orders';
 import { notifyOrderPlaced } from '@/lib/order-notifications';
 import { createOrderAccessToken } from '@/lib/order-access';
 import { assessCodOrder } from '@/lib/cod-risk';
-import { revalidateProduct } from '@/lib/storefront-cache';
+import { revalidateContent, revalidateProduct } from '@/lib/storefront-cache';
+import { eventStreamProducer } from '@/infrastructure/streaming/producer';
+import { streamRelay } from '@/modules/analytics/stream-relay';
 import { reportError } from '@/lib/observability';
 
 /**
@@ -146,7 +148,20 @@ async function handleCodRisk(event: DomainEvent): Promise<void> {
 /* -------------------------------------------------------------------------- */
 
 async function handleRevalidation(event: DomainEvent): Promise<void> {
-  if (event.name !== 'inventory.stock_out') return;
+  if (event.name === 'content.published' || event.name === 'content.unpublished') {
+    const type = String(event.payload.type ?? '');
+    const slug = String(event.payload.slug ?? '');
+    if (type && slug) await revalidateContent(type, slug);
+    return;
+  }
+
+  // Every event that can change what a customer sees for a product.
+  const relevant: ReadonlyArray<DomainEvent['name']> = [
+    'inventory.stock_out',
+    'inventory.changed',
+    'pricing.changed',
+  ];
+  if (!relevant.includes(event.name)) return;
 
   const productId = String(event.payload.productId ?? '');
   if (!productId) return;
@@ -158,17 +173,26 @@ async function handleRevalidation(event: DomainEvent): Promise<void> {
    * the customer has typed their address. Pushing the invalidation the moment
    * stock hits zero closes that window to about as long as this drain takes.
    */
-  revalidateProduct(productId);
+  await revalidateProduct(productId);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Runner                                                                       */
 /* -------------------------------------------------------------------------- */
 
+const producer = eventStreamProducer();
+
 const CONSUMERS: { name: string; handle: (e: DomainEvent) => Promise<void> }[] = [
   { name: 'notifications', handle: handleNotification },
   { name: 'cod-risk', handle: handleCodRisk },
   { name: 'revalidate', handle: handleRevalidation },
+  /*
+   * Copies events to Kafka, only when a stream is configured. Registered as
+   * a consumer the first time it runs, it starts at the head of the log:
+   * wiring up a stream does not replay the shop's history into it (the
+   * landing zone already holds that).
+   */
+  ...(producer ? [{ name: 'stream-relay', handle: streamRelay(producer) }] : []),
 ];
 
 /**

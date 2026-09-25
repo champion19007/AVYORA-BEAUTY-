@@ -1,6 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
 import { ingredients, ingredientInteractions } from '@/db/schema';
+import { cache, POLICIES } from '@/infrastructure/cache';
 
 /**
  * Ingredient interaction checking.
@@ -170,7 +171,11 @@ export async function resolveIngredients(labelText: string): Promise<string[]> {
 
   if (tokens.length === 0) return [];
 
-  const all = await db.select().from(ingredients);
+  // The whole dictionary, cached: it changes only when the seed script runs,
+  // and reading every row on every label lookup was the slowest thing here.
+  const all = await cache.getOrSet(POLICIES.ingredients, 'dictionary', () =>
+    db.select().from(ingredients)
+  );
   const matched = new Set<string>();
 
   for (const ingredient of all) {

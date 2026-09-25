@@ -7,7 +7,12 @@ import { getOrderDetail } from '@/lib/admin-data';
 import { formatPaise } from '@/lib/money';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '../../status-pill';
-import { allowedNextStatuses, resolveRiskHold, updateOrderStatus } from '../../actions';
+import {
+  allowedNextStatuses,
+  resolveAttention,
+  resolveRiskHold,
+  updateOrderStatus,
+} from '../../actions';
 
 export const metadata: Metadata = { title: 'Order' };
 export const dynamic = 'force-dynamic';
@@ -138,6 +143,46 @@ export default async function AdminOrderPage({
             The reasons are shown because "the computer said no" is not a
             basis for cancelling someone's order.
           */}
+          {/*
+            A payment the system could not settle on its own — typically money
+            captured after the stock was released. Shown first, because until
+            the owner decides, the stockroom is holding this parcel.
+          */}
+          {order.attentionReason && (
+            <section role="alert" className="rounded-xl border border-amber-500/50 bg-card p-6">
+              <h2 className="font-headline text-xl font-normal tracking-tight">Needs your decision</h2>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+                {order.attentionReason}
+              </p>
+              <p className="mt-3 text-[13px] text-muted-foreground">
+                The stockroom cannot send this order until you clear this. Deal with it first —
+                refund from the Razorpay dashboard, or confirm with the customer — then say what you
+                did. The note is kept in the audit log.
+              </p>
+              <form action={resolveAttention} className="mt-4 flex flex-wrap items-end gap-2">
+                <input type="hidden" name="orderId" value={order.id} />
+                <input type="hidden" name="orderNumber" value={order.orderNumber} />
+                <label className="flex-1 text-[13px]">
+                  <span className="text-muted-foreground">What you did</span>
+                  <input
+                    id="attention-note"
+                    name="note"
+                    required
+                    maxLength={500}
+                    placeholder="Refunded in full on Razorpay"
+                    className="mt-1 h-10 w-full rounded-md border border-border bg-background px-3 text-[14px]"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="h-10 rounded-md border border-border px-4 text-[13px] font-medium hover:bg-accent"
+                >
+                  Clear the hold
+                </button>
+              </form>
+            </section>
+          )}
+
           {order.fraudStatus === 'review' && (
             <section className="rounded-xl border border-red-500/40 bg-card p-6">
               <h2 className="font-headline text-xl font-normal tracking-tight">

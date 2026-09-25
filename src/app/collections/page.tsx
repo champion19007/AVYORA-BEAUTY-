@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { stockForCatalogue } from '@/lib/catalogue-stock';
+import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
 import { CollectionsClient } from './collections-client';
 
 export const metadata: Metadata = {
@@ -20,5 +20,6 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function CollectionsPage() {
-  return <CollectionsClient stock={await stockForCatalogue()} />;
+  const [stock, prices] = await Promise.all([catalogueStock(), displayPrices()]);
+  return <CollectionsClient stock={stock} prices={prices} />;
 }

@@ -18,7 +18,12 @@ export const dynamic = 'force-dynamic';
  * is invisibly unbuyable. Those are listed separately with a box to start
  * counting them, rather than being left to fail quietly at checkout.
  */
-export default async function AdminInventoryPage() {
+export default async function AdminInventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ stale?: string }>;
+}) {
+  const { stale } = await searchParams;
   if (!isDatabaseConfigured()) {
     return (
       <p className="rounded-xl border border-border bg-card p-8 text-center text-[15px] text-muted-foreground">
@@ -31,6 +36,16 @@ export default async function AdminInventoryPage() {
 
   return (
     <div className="space-y-10">
+      {stale && (
+        <p
+          role="alert"
+          className="rounded-lg border border-amber-500/40 bg-amber-50 p-4 text-[14px] leading-relaxed text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+        >
+          <strong>{stale.replace('::', ' · ')}</strong> was not changed. Its count moved after this
+          page loaded — a sale or the stockroom changed it — so your number would have overwritten
+          theirs. The figures below are current; set it again if it still needs changing.
+        </p>
+      )}
       <div>
         <h1 className="font-headline text-3xl font-normal tracking-tight">Inventory</h1>
         <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
@@ -139,6 +154,8 @@ export default async function AdminInventoryPage() {
                 <form action={setStock} className="ml-auto flex items-center gap-2">
                   <input type="hidden" name="productId" value={sku.productId} />
                   <input type="hidden" name="size" value={sku.size} />
+                  {/* No row yet; the save fails if one appeared meanwhile. */}
+                  <input type="hidden" name="expectedQuantity" value="" />
                   <input type="hidden" name="confirmed" value="yes" />
                   <Input
                     name="quantity"

@@ -73,7 +73,10 @@ export default async function DispatchPage() {
              * a fast picker would otherwise send a parcel the gate was about
              * to stop.
              */
-            const onHold = order.fraudStatus === 'review' || order.fraudStatus === 'pending';
+            const onHold =
+              order.fraudStatus === 'review' ||
+              order.fraudStatus === 'pending' ||
+              order.attentionReason !== null;
 
             return (
               <li key={order.id} className="rounded-xl border border-border bg-card p-6">
@@ -115,7 +118,9 @@ export default async function DispatchPage() {
 
                 {onHold && (
                   <p className="mt-3 text-[13px] font-medium text-red-600 dark:text-red-400">
-                    {order.fraudStatus === 'review'
+                    {order.attentionReason
+                      ? 'On hold — the owner needs to decide what happens to this order before it is packed.'
+                      : order.fraudStatus === 'review'
                       ? 'On hold — this cash-on-delivery order failed an automatic check. Confirm with the customer before packing.'
                       : 'Risk check still running. Wait a moment and refresh.'}
                   </p>

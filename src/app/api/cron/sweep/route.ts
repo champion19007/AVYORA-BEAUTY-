@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sweepAbandonedReservations } from '@/lib/reservation-sweep';
+import { pruneExpiredIdempotencyKeys } from '@/infrastructure/idempotency/idempotency';
 
 /** Node runtime: the Postgres driver cannot open a socket at the edge. */
 export const runtime = 'nodejs';
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
   }
 
   const result = await sweepAbandonedReservations();
+  const idempotencyKeysPruned = await pruneExpiredIdempotencyKeys().catch(() => 0);
 
-  return NextResponse.json({ ok: true, ...result });
+  return NextResponse.json({ ok: true, ...result, idempotencyKeysPruned });
 }

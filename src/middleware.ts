@@ -7,6 +7,7 @@ import {
   securityHeaders,
 } from '@/lib/security';
 import { edgeRateLimit } from '@/lib/edge-rate-limit';
+import { REQUEST_ID_HEADER, normaliseRequestId } from '@/infrastructure/request-id';
 
 /**
  * Edge middleware: security headers, bot mitigation, and the admin gate.
@@ -97,7 +98,21 @@ export async function middleware(request: NextRequest) {
   /* ----------------------------------------------------------- headers --- */
 
   const isDev = process.env.NODE_ENV !== 'production';
-  const response = NextResponse.next();
+
+  /*
+   * Stamp the request id on the way in and on the way out.
+   *
+   * Forwarded as a request header so every server component, action and route
+   * handler downstream can read it; echoed as a response header so a customer
+   * reporting a problem, or a support tool, can quote it back. Assigned here
+   * because middleware is the one place every request passes through.
+   */
+  const requestId = normaliseRequestId(request.headers.get(REQUEST_ID_HEADER));
+  const forwarded = new Headers(request.headers);
+  forwarded.set(REQUEST_ID_HEADER, requestId);
+
+  const response = NextResponse.next({ request: { headers: forwarded } });
+  response.headers.set(REQUEST_ID_HEADER, requestId);
 
   response.headers.set('Content-Security-Policy', contentSecurityPolicy(isDev));
   for (const [key, value] of Object.entries(securityHeaders())) {

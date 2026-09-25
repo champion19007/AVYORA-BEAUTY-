@@ -28,6 +28,7 @@ const row = (over: Partial<PricingRow>): PricingRow => ({
   offerStartsAt: null,
   offerEndsAt: null,
   updatedBy: 'owner',
+  version: 1,
   updatedAt: new Date(),
   ...over,
 });

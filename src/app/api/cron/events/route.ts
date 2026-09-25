@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { drainAll } from '@/lib/event-consumers';
+import { runBackgroundWork, scheduleDailyJobs } from '@/lib/background';
 
 /** Node runtime: the Postgres driver cannot open a socket at the edge. */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+/** Room for the 45-second job run below; Hobby allows up to 60. */
+export const maxDuration = 60;
 
 /**
  * The safety net behind the event log.
@@ -42,5 +44,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
 
-  return NextResponse.json({ ok: true, consumers: await drainAll() });
+  // Queue the day's scheduled jobs first, so this same run can start them.
+  const daily = await scheduleDailyJobs();
+  const { consumers, jobs } = await runBackgroundWork({ deadlineMs: 45_000 });
+  return NextResponse.json({ ok: true, consumers, jobs, ...daily });
 }

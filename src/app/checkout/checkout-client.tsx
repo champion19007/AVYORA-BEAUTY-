@@ -13,6 +13,7 @@ import { placeOrder } from './actions';
 import { Loader2, Lock, MapPin, Plus, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Address } from '@/lib/addresses';
+import type { SkuPrice } from '@/modules/catalog/sku-price';
 
 type Errors = Record<string, string>;
 
@@ -77,11 +78,18 @@ function loadRazorpayScript(): Promise<boolean> {
 export function CheckoutClient({
   razorpayEnabled,
   savedAddresses = [],
+  prices,
   defaultEmail = '',
 }: {
   razorpayEnabled: boolean;
   /** The signed-in customer's address book. Empty for guests. */
   savedAddresses?: Address[];
+  /**
+   * Current prices in paise, read from Postgres for this render with the rule
+   * checkout charges by. The bag in the browser remembers the price at the
+   * moment an item was added, which may be days old; this is what is true now.
+   */
+  prices: Record<string, SkuPrice>;
   /** Email from the session, so it is not retyped. */
   defaultEmail?: string;
 }) {
@@ -102,19 +110,28 @@ export function CheckoutClient({
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  /*
+   * One line's price in rupees, from the server's current prices. The fallback
+   * to the bag's remembered price only applies to a SKU the server has never
+   * heard of, which checkout will then refuse anyway.
+   */
+  const unitRupees = (item: (typeof cart)[number]): number => {
+    const current = prices[`${item.id}::${item.selectedSize}`];
+    if (current) return current.price / 100;
+    return item.salePrice ?? item.sizes.find((s) => s.label === item.selectedSize)?.price ?? item.price;
+  };
   const [method, setMethod] = useState<'razorpay' | 'cod'>(razorpayEnabled ? 'razorpay' : 'cod');
 
   const totals = useMemo(
     () =>
       calculateTotals(
         cart.map((item) => ({
-          unitPrice:
-            item.salePrice ??
-            (item.sizes.find((s) => s.label === item.selectedSize)?.price ?? item.price),
+          unitPrice: unitRupees(item),
           quantity: item.quantity,
         }))
       ),
-    [cart]
+    [cart, prices]
   );
 
   const set = (name: string, value: string) => {
@@ -514,9 +531,7 @@ export function CheckoutClient({
 
             <ul className="mt-5 space-y-4">
               {cart.map((item) => {
-                const unit =
-                  item.salePrice ??
-                  (item.sizes.find((s) => s.label === item.selectedSize)?.price ?? item.price);
+                const unit = unitRupees(item);
                 return (
                   <li key={`${item.id}-${item.selectedSize}`} className="flex gap-3">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">

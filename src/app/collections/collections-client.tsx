@@ -4,9 +4,20 @@ import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard, type StockByKey } from '@/components/product/product-card';
+import type { DisplayPrices } from '@/modules/catalog/storefront-data';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { InMemoryCatalogSearch } from '@/modules/search/catalog-search';
+
+/*
+ * Built once per page load. The catalogue ships with the page, so search runs
+ * here in the browser with the same ranking the server would use.
+ */
+const catalogSearch = new InMemoryCatalogSearch(
+  PRODUCTS,
+  Object.fromEntries(CONCERNS.map((c) => [c.id, c.name]))
+);
 
 type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'rating' | 'newest';
 
@@ -18,7 +29,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'newest', label: 'New arrivals' },
 ];
 
-function CollectionsContent({ stock }: { stock: StockByKey }) {
+function CollectionsContent({ stock, prices }: { stock: StockByKey; prices: DisplayPrices }) {
   const searchParams = useSearchParams();
   const categoryFilter = searchParams.get('category');
   const concernFilter = searchParams.get('concern');
@@ -49,21 +60,27 @@ function CollectionsContent({ stock }: { stock: StockByKey }) {
     }
 
     if (query) {
-      const q = query.toLowerCase();
-      result = result.filter((p) =>
-        [p.name, p.tagline, p.description, ...p.ingredients, ...p.concerns]
-          .join(' ')
-          .toLowerCase()
-          .includes(q)
-      );
+      // Ranked: best match first, unless the shopper picks another order.
+      const rank = new Map(catalogSearch.search(query).map((hit, i) => [hit.productId, i]));
+      result = result
+        .filter((p) => rank.has(p.id))
+        .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
     }
+
+    /*
+     * Sort by the price the card shows — offers included — not the catalogue
+     * list price. Sorting by the latter put a product on offer in the wrong
+     * place next to the very number it was sorted by.
+     */
+    const shownPrice = (p: (typeof result)[number]) =>
+      prices[`${p.id}::${p.sizes[0]?.label}`]?.price ?? p.price * 100;
 
     switch (sort) {
       case 'price-asc':
-        result.sort((a, b) => a.price - b.price);
+        result.sort((a, b) => shownPrice(a) - shownPrice(b));
         break;
       case 'price-desc':
-        result.sort((a, b) => b.price - a.price);
+        result.sort((a, b) => shownPrice(b) - shownPrice(a));
         break;
       case 'rating':
         result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
@@ -76,7 +93,7 @@ function CollectionsContent({ stock }: { stock: StockByKey }) {
     }
 
     return result;
-  }, [categoryFilter, concernFilter, namedFilter, query, sort]);
+  }, [categoryFilter, concernFilter, namedFilter, query, sort, prices]);
 
   // A readable page title for whichever filter is active.
   const heading = query
@@ -131,7 +148,7 @@ function CollectionsContent({ stock }: { stock: StockByKey }) {
       {filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} stock={stock} />
+            <ProductCard key={product.id} product={product} stock={stock} prices={prices} />
           ))}
         </div>
       ) : (
@@ -169,10 +186,10 @@ function CollectionsFallback() {
   );
 }
 
-export function CollectionsClient({ stock }: { stock: StockByKey }) {
+export function CollectionsClient({ stock, prices }: { stock: StockByKey; prices: DisplayPrices }) {
   return (
     <Suspense fallback={<CollectionsFallback />}>
-      <CollectionsContent stock={stock} />
+      <CollectionsContent stock={stock} prices={prices} />
     </Suspense>
   );
 }

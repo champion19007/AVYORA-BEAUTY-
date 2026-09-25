@@ -39,6 +39,8 @@ export function ConfirmStockForm({
         <input type="hidden" name="productId" value={productId} />
         <input type="hidden" name="size" value={size} />
         <input type="hidden" name="quantity" value={quantity} />
+        {/* What the owner saw. The save only lands if it is still true. */}
+        <input type="hidden" name="expectedQuantity" value={currentQuantity} />
         <input type="hidden" name="confirmed" value="yes" />
 
         <span className="text-[13px] leading-snug text-amber-700 dark:text-amber-400">

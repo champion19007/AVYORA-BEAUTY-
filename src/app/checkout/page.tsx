@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { CheckoutClient } from './checkout-client';
+import { displayPrices } from '@/modules/catalog/storefront-data';
 import { isRazorpayConfigured } from '@/lib/razorpay';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
@@ -27,6 +28,7 @@ export default async function CheckoutPage() {
 
   return (
     <CheckoutClient
+      prices={await displayPrices({ fresh: true })}
       razorpayEnabled={isRazorpayConfigured()}
       savedAddresses={savedAddresses}
       defaultEmail={session?.user?.email ?? ''}

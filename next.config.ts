@@ -29,6 +29,10 @@ const nextConfig: NextConfig = {
   // package-level tree shaking for the heavier UI dependencies.
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
+    // Media uploads go through a server action, whose default limit is 1 MB.
+    // Vercel refuses request bodies over 4.5 MB whatever this says, so the
+    // upload code caps images at 4 MB to fail with a readable message first.
+    serverActions: { bodySizeLimit: '5mb' },
   },
 
   // A self-contained server bundle for container deploys (ECS, App Runner).

@@ -1,0 +1,86 @@
+name: Database backup
+
+# A daily logical backup, kept outside Neon.
+#
+# Why: the Neon free plan keeps 6 hours of point-in-time history and no
+# scheduled snapshots. A bad migration or a mistaken bulk edit noticed the
+# next morning is past that window, and without this there is nothing to go
+# back to. See docs/data-architecture.md, "Backup and recovery".
+#
+# The dump holds customer names, addresses and phone numbers, so it is
+# encrypted on the runner before upload and never written to the log.
+#
+# Does nothing until these repository secrets exist:
+#   BACKUP_DATABASE_URL        a direct (non-pooled) connection string
+#   BACKUP_PASSPHRASE          encryption passphrase; keep a copy offline
+#   BACKUP_S3_ENDPOINT         e.g. https://<account>.r2.cloudflarestorage.com
+#   BACKUP_S3_BUCKET           a private bucket, not the media bucket
+#   BACKUP_S3_ACCESS_KEY_ID
+#   BACKUP_S3_SECRET_ACCESS_KEY
+#
+# Retention is the bucket's job: set a lifecycle rule to expire objects under
+# db/ after 30 days.
+
+on:
+  schedule:
+    - cron: '30 20 * * *' # 02:00 IST, after the day's orders and before the sweep
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+      BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+    steps:
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$PASSPHRASE" ] || [ -z "$ENDPOINT" ] || [ -z "$BUCKET" ]; then
+            echo "::notice::Backup secrets are not configured; skipping."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install pg_dump matching the server (PostgreSQL 18)
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+
+      - name: Dump, check and encrypt
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          STAMP=$(date -u +%Y-%m-%dT%H%MZ)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          /usr/lib/postgresql/18/bin/pg_dump --format=custom --no-owner --no-privileges \
+            --file=avyora.dump "$DATABASE_URL"
+          # A dump that cannot be listed cannot be restored; fail now, not on the day it is needed.
+          /usr/lib/postgresql/18/bin/pg_restore --list avyora.dump > /dev/null
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in avyora.dump -out avyora.dump.enc -pass env:PASSPHRASE
+          sha256sum avyora.dump.enc | cut -d' ' -f1 > avyora.dump.enc.sha256
+          rm avyora.dump
+          ls -l avyora.dump.enc
+
+      - name: Upload
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          aws s3 cp avyora.dump.enc "s3://$BUCKET/db/$STAMP.dump.enc" --endpoint-url "$ENDPOINT" --only-show-errors
+          aws s3 cp avyora.dump.enc.sha256 "s3://$BUCKET/db/$STAMP.dump.enc.sha256" --endpoint-url "$ENDPOINT" --only-show-errors
+          echo "Uploaded db/$STAMP.dump.enc"

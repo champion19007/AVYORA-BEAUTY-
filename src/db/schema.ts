@@ -10,6 +10,7 @@ import {
   jsonb,
   pgEnum,
   serial,
+  bigserial,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -169,6 +170,15 @@ export const carts = pgTable('carts', {
 }, (t) => ({
   userIdx: index('carts_user_idx').on(t.userId),
   anonIdx: index('carts_anon_idx').on(t.anonymousId),
+  /*
+   * One cart per person. Finding-or-creating a cart was a SELECT then an
+   * INSERT with nothing to stop two requests both finding nothing; a few quick
+   * taps on "Add to bag" from a new visitor created two carts, and reading one
+   * back picked between them at random. Partial, because a cart belongs to a
+   * user or to an anonymous visitor, and the other column is null.
+   */
+  userUnique: uniqueIndex('carts_user_unique').on(t.userId).where(sql`${t.userId} is not null`),
+  anonUnique: uniqueIndex('carts_anon_unique').on(t.anonymousId).where(sql`${t.anonymousId} is not null`),
 }));
 
 export const cartItems = pgTable('cart_items', {
@@ -212,8 +222,19 @@ export const orderStatus = pgEnum('order_status', [
   'returned',
 ]);
 
+/**
+ * Where the money is, as far as the shop knows.
+ *
+ * `pending` means a payment session is open with the provider and the outcome
+ * is not yet known. It exists so that "we have not heard back" is represented
+ * as its own state instead of being read as failure, which is the mistake that
+ * let the abandonment sweep cancel orders Razorpay was still trying to confirm.
+ * Transitions between these are decided in one place:
+ * `modules/payments/state-machine.ts`.
+ */
 export const paymentStatus = pgEnum('payment_status', [
   'unpaid',
+  'pending',
   'authorized',
   'paid',
   'failed',
@@ -284,6 +305,17 @@ export const orders = pgTable('orders', {
   fraudScore: integer('fraud_score'),
   /** The signals that fired, so a human reviewing the hold can see why. */
   fraudReasons: jsonb('fraud_reasons'),
+
+  /**
+   * Set when an order needs a person, with the reason in words.
+   *
+   * The case that created it: a payment captured after the order's stock was
+   * released, from a late webhook for a cancelled or failed order. The money is
+   * real and must be honoured, but the goods may have gone to someone else. The
+   * system cannot choose between refunding and fulfilling from a backorder, so
+   * it records the problem and puts it in front of the owner.
+   */
+  attentionReason: text('attention_reason'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
@@ -304,6 +336,13 @@ export const orderItems = pgTable('order_items', {
   unitPrice: integer('unit_price').notNull(),
   quantity: integer('quantity').notNull(),
   lineTotal: integer('line_total').notNull(),
+  /**
+   * How the unit price was arrived at, frozen at purchase: catalogue price,
+   * owner override, any live offer with its label, and the pricing row's
+   * version. Without it an order can say what was charged but not why, and
+   * "why did I get 20% off" becomes unanswerable once the offer has ended.
+   */
+  pricingSnapshot: jsonb('pricing_snapshot'),
 }, (t) => ({
   orderIdx: index('order_items_order_idx').on(t.orderId),
 }));
@@ -468,6 +507,12 @@ export const productPricing = pgTable('product_pricing', {
   offerStartsAt: timestamp('offer_starts_at', { withTimezone: true }),
   offerEndsAt: timestamp('offer_ends_at', { withTimezone: true }),
   updatedBy: text('updated_by'),
+  /**
+   * Optimistic concurrency. Every save names the version it edited; a save
+   * against a stale version is refused rather than silently overwriting a
+   * colleague's change made in the meantime.
+   */
+  version: integer('version').notNull().default(1),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniq: uniqueIndex('product_pricing_sku_idx').on(t.productId, t.size),
@@ -562,6 +607,8 @@ export const domainEvents = pgTable('domain_events', {
   /** What the event is about — an order id — for correlation and replay. */
   subject: text('subject'),
   payload: jsonb('payload').notNull(),
+  /** The request that caused this, so one checkout can be followed through every consumer. */
+  requestId: text('request_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   nameIdx: index('domain_events_name_idx').on(t.name),
@@ -590,10 +637,15 @@ export const eventDeliveries = pgTable('event_deliveries', {
     .notNull()
     .references(() => domainEvents.id, { onDelete: 'cascade' }),
   consumer: text('consumer').notNull(),
-  /** `done` or `failed`. A failed row is retried until `attempts` runs out. */
+  /**
+   * `done`, `failed` (will be retried) or `dead` (retries exhausted). `dead`
+   * is the dead-letter state: shown in the operations console and replayable.
+   */
   status: text('status').notNull().default('done'),
   attempts: integer('attempts').notNull().default(1),
   lastError: text('last_error'),
+  /** Earliest time a failed delivery may be tried again. Exponential backoff. */
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.eventId, t.consumer] }),
@@ -730,3 +782,261 @@ export const routineItems = pgTable('routine_items', {
 }, (t) => ({
   userIdx: index('routine_items_user_idx').on(t.userId),
 }));
+
+
+/* -------------------------------------------------------------------------- */
+/* Idempotency                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One row per completed idempotent command.
+ *
+ * The guarantee is the unique index on (scope, key), not any read. The claim is
+ * inserted inside the same transaction as the command's own writes, so a
+ * concurrent duplicate blocks on the index until the first commits, then sees
+ * the finished row and returns its stored result. If the command fails, its
+ * transaction rolls back and takes the claim with it, so a retry is allowed.
+ *
+ * `request_hash` catches a key reused with a different payload, a client bug
+ * that would otherwise hand one caller another caller's result.
+ */
+export const idempotencyKeys = pgTable('idempotency_keys', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  scope: text('scope').notNull(),
+  key: text('key').notNull(),
+  requestHash: text('request_hash').notNull(),
+  status: text('status').notNull().default('completed'),
+  responseCode: integer('response_code'),
+  responseBody: jsonb('response_body'),
+  resourceType: text('resource_type'),
+  resourceId: text('resource_id'),
+  requestId: text('request_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+}, (t) => ({
+  scopeKey: uniqueIndex('idempotency_scope_key_idx').on(t.scope, t.key),
+  expiresIdx: index('idempotency_expires_idx').on(t.expiresAt),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Audit trail                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Who changed what, from what, to what.
+ *
+ * Separate from `domain_events` on purpose. Events are facts the system reacts
+ * to; this is a record kept for people, such as the owner asking why a price
+ * moved or an accountant asking who issued a refund. Append-only by convention
+ * and never read by application logic.
+ */
+export const auditLogs = pgTable('audit_logs', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  actor: text('actor').notNull(),
+  actorRole: text('actor_role'),
+  action: text('action').notNull(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  oldValue: jsonb('old_value'),
+  newValue: jsonb('new_value'),
+  reason: text('reason'),
+  requestId: text('request_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  entityIdx: index('audit_entity_idx').on(t.entityType, t.entityId),
+  createdIdx: index('audit_created_idx').on(t.createdAt),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Payment provider events                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every webhook the payment provider has sent, deduplicated by its own id.
+ *
+ * Delivery is at-least-once and unordered. The unique index answers "have we
+ * handled this exact event" without trusting a read, and the stored payload is
+ * what reconciliation and support look at when the order and the provider
+ * disagree.
+ */
+export const paymentEvents = pgTable('payment_events', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  provider: text('provider').notNull(),
+  providerEventId: text('provider_event_id').notNull(),
+  eventType: text('event_type').notNull(),
+  orderId: text('order_id'),
+  providerPaymentId: text('provider_payment_id'),
+  amount: integer('amount'),
+  payload: jsonb('payload').notNull(),
+  /** What the state machine did with it: applied, ignored, rejected, attention. */
+  outcome: text('outcome'),
+  requestId: text('request_id'),
+  receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  providerEventIdx: uniqueIndex('payment_events_provider_event_idx').on(t.provider, t.providerEventId),
+  orderIdx: index('payment_events_order_idx').on(t.orderId),
+}));
+
+
+/* -------------------------------------------------------------------------- */
+/* Wishlist                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Saved products, for signed-in customers.
+ *
+ * The wishlist lived only in the browser, so it vanished with cleared storage
+ * or a new device. Postgres is now the record for anyone signed in; the
+ * browser copy is a fast local mirror, and Redis, where configured, is a read
+ * cache in front of this table — never the only copy.
+ */
+export const wishlistItems = pgTable('wishlist_items', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  productId: text('product_id').notNull(),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.productId] }),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Content (CMS)                                                                */
+/* -------------------------------------------------------------------------- */
+
+export const contentStatus = pgEnum('content_status', ['draft', 'published', 'archived']);
+
+/**
+ * One piece of editable content: a product's copy, a journal article.
+ *
+ * A document carries two bodies. `draft` is what the editor is working on;
+ * `published` is what customers see, and changes only when someone presses
+ * publish. Editing never touches the live page, so a half-written paragraph
+ * is never on the storefront.
+ *
+ * `version` counts draft saves and is the optimistic-concurrency token: a save
+ * carries the version it was loaded at, and a stale one is refused rather than
+ * silently overwriting someone else's edit. `published_version` records which
+ * draft version is live, so "unpublished changes" is `version > published_version`.
+ *
+ * `(type, slug)` is unique: a product has one copy document, an article one URL.
+ */
+export const cmsDocuments = pgTable('cms_documents', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  /** `product_copy` or `article`; each has its own field schema in code. */
+  type: text('type').notNull(),
+  slug: text('slug').notNull(),
+  status: contentStatus('status').notNull().default('draft'),
+  draft: jsonb('draft').notNull(),
+  published: jsonb('published'),
+  version: integer('version').notNull().default(1),
+  publishedVersion: integer('published_version'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: text('updated_by'),
+}, (t) => ({
+  typeSlug: uniqueIndex('cms_documents_type_slug_idx').on(t.type, t.slug),
+  statusIdx: index('cms_documents_status_idx').on(t.type, t.status),
+}));
+
+/**
+ * Every saved version of every document, append-only.
+ *
+ * What makes rollback possible: restoring revision 4 copies its body into a
+ * new draft (version 7, say), so history is never rewritten and the rollback
+ * itself shows up as a revision.
+ */
+export const cmsRevisions = pgTable('cms_revisions', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  documentId: text('document_id')
+    .notNull()
+    .references(() => cmsDocuments.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  body: jsonb('body').notNull(),
+  /** `save`, `publish`, `unpublish` or `restore`. */
+  action: text('action').notNull(),
+  actor: text('actor').notNull(),
+  requestId: text('request_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  docVersion: index('cms_revisions_doc_idx').on(t.documentId, t.version),
+}));
+
+/**
+ * Uploaded media. The bytes live in object storage; this row is the index.
+ *
+ * `storage_key` is content-addressed (derived from the SHA-256 of the bytes),
+ * so uploading the same image twice stores it once, and a retried upload is
+ * harmless.
+ */
+export const mediaAssets = pgTable('media_assets', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  storageKey: text('storage_key').notNull(),
+  contentType: text('content_type').notNull(),
+  bytes: integer('bytes').notNull(),
+  sha256: text('sha256').notNull(),
+  alt: text('alt').notNull().default(''),
+  uploadedBy: text('uploaded_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  keyIdx: uniqueIndex('media_assets_storage_key_idx').on(t.storageKey),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Background jobs                                                              */
+/* -------------------------------------------------------------------------- */
+
+export const jobStatus = pgEnum('job_status', ['queued', 'running', 'succeeded', 'dead']);
+
+/**
+ * Work that must happen, but not while a customer waits for it.
+ *
+ * A queue in Postgres rather than a broker: one shop's background work is a
+ * few hundred rows a day, and a job enqueued inside a transaction commits
+ * or rolls back with the change that caused it, which no external queue can
+ * offer without an outbox of its own.
+ *
+ * Workers claim with `FOR UPDATE SKIP LOCKED`, so two workers never take the
+ * same job, and hold it until `locked_until`. A worker that dies mid-job
+ * simply lets the lock lapse and the job is claimed again. Completing or
+ * failing a job checks `locked_by`, so a slow worker whose lock expired
+ * cannot overwrite the result of the worker that took over.
+ *
+ * `dedupe_key` is unique among queued and running jobs only: "reconcile
+ * order X" can be enqueued many times but exists at most once in flight, and
+ * can be enqueued again after it finishes.
+ */
+export const jobs = pgTable('jobs', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  type: text('type').notNull(),
+  payload: jsonb('payload').notNull(),
+  status: jobStatus('status').notNull().default('queued'),
+  attempts: integer('attempts').notNull().default(0),
+  maxAttempts: integer('max_attempts').notNull().default(5),
+  runAt: timestamp('run_at', { withTimezone: true }).notNull().defaultNow(),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  lockedBy: text('locked_by'),
+  lastError: text('last_error'),
+  dedupeKey: text('dedupe_key'),
+  requestId: text('request_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (t) => ({
+  claimIdx: index('jobs_claim_idx').on(t.status, t.runAt),
+  dedupeIdx: uniqueIndex('jobs_dedupe_in_flight_idx')
+    .on(t.dedupeKey)
+    .where(sql`${t.dedupeKey} is not null and ${t.status} in ('queued', 'running')`),
+}));
+
+/**
+ * How far an export has read the event log. One row per export.
+ *
+ * Unlike event consumers this *is* a watermark, and safely so: the export
+ * only reads events more than a few minutes old, by which time every
+ * transaction that could have taken a lower id has long since committed.
+ */
+export const exportWatermarks = pgTable('export_watermarks', {
+  name: text('name').primaryKey(),
+  lastEventId: integer('last_event_id').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

@@ -1,33 +1,49 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin } from 'lucide-react';
-import { auth } from '@/auth';
-import { isDatabaseConfigured } from '@/db';
-import { getDefaultAddress } from '@/lib/addresses';
+
+type Line = { firstName: string; city: string; postalCode: string };
 
 /**
  * The "Deliver to <name>, <city> <PIN>" indicator in the header.
  *
- * A server component, because the default address lives in Postgres and the
- * header is otherwise a client component — rendering this on the server keeps
- * the address out of the client bundle and off the wire until it is needed.
- * The header receives it as a child rather than importing it, so the client
- * boundary stays where it is.
+ * Loaded in the browser, after the page. It used to be a server component in
+ * the root layout, which read the session cookie and so made every page on
+ * the site dynamic: nothing could be cached, and the storefront topped out
+ * at about fifty pages a second under load. Now pages are cached for
+ * everyone and this one line is fetched for the person looking at it.
  *
- * Renders nothing at all when signed out or when no address is saved. A
- * "Deliver to —" placeholder would take up the same room while telling the
- * visitor nothing.
+ * Refetched after visiting the account pages, where the address can change.
+ * Renders nothing when signed out or when no address is saved — a
+ * "Deliver to —" placeholder would take up room while telling the visitor
+ * nothing.
  */
-export async function DeliverTo() {
-  if (!isDatabaseConfigured()) return null;
+export function DeliverTo() {
+  const [line, setLine] = useState<Line | null>(null);
+  const pathname = usePathname();
+  const wasOnAccount = useRef(false);
+  const loaded = useRef(false);
 
-  const session = await auth().catch(() => null);
-  if (!session?.user?.id) return null;
+  useEffect(() => {
+    const onAccount = pathname?.startsWith('/account') ?? false;
+    const leftAccount = wasOnAccount.current && !onAccount;
+    wasOnAccount.current = onAccount;
+    if (loaded.current && !leftAccount) return;
+    loaded.current = true;
 
-  const address = await getDefaultAddress(session.user.id).catch(() => null);
-  if (!address) return null;
+    // No cancellation on cleanup: in development React runs this effect
+    // twice, and cancelling the first fetch while the flag above skips the
+    // second would leave the line blank.
+    fetch('/api/account/deliver-to', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body: { address?: Line | null } | null) => setLine(body?.address ?? null))
+      .catch(() => {});
+  }, [pathname]);
 
-  // First name only: the header has room for a reminder, not a full identity.
-  const firstName = address.fullName.trim().split(/\s+/)[0];
+  if (!line) return null;
 
   return (
     <Link
@@ -37,10 +53,10 @@ export async function DeliverTo() {
       <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       <span className="leading-tight">
         <span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-          Deliver to {firstName}
+          Deliver to {line.firstName}
         </span>
         <span className="block text-[13px] font-medium">
-          {address.city} {address.postalCode}
+          {line.city} {line.postalCode}
         </span>
       </span>
     </Link>

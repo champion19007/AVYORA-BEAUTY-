@@ -2,6 +2,7 @@ import { and, asc, eq, gt, or, sql } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
 import { consumerRegistrations, domainEvents, eventDeliveries } from '@/db/schema';
 import { reportError } from '@/lib/observability';
+import { runWithRequestId } from '@/infrastructure/request-context';
 
 /**
  * The event log, and the rules for reading it safely.
@@ -24,14 +25,22 @@ export type EventName =
   | 'order.placed'
   | 'order.paid'
   | 'order.payment_failed'
+  | 'order.refunded'
   | 'order.cancelled'
-  | 'inventory.stock_out';
+  | 'order.needs_attention'
+  | 'inventory.stock_out'
+  | 'inventory.changed'
+  | 'pricing.changed'
+  | 'content.published'
+  | 'content.unpublished';
 
 export type DomainEvent = {
   id: number;
   name: EventName;
   subject: string | null;
   payload: Record<string, unknown>;
+  requestId: string | null;
+  createdAt: Date;
 };
 
 /** Read at most this many per drain, so one invocation cannot run long. */
@@ -45,6 +54,18 @@ const BATCH_SIZE = 25;
  * going to accept it. Giving up loudly beats retrying silently.
  */
 export const MAX_ATTEMPTS = 5;
+
+/**
+ * Wait before retry number `attempt` (1-based): 30s, 1m, 2m, 4m, then 8m.
+ *
+ * A provider that is down for a minute should not have the same message
+ * hammered at it every few seconds, and a customer email that goes out eight
+ * minutes late is fine. Capped so a long outage still retries within the hour.
+ */
+export function backoffMs(attempt: number): number {
+  const base = 30_000 * 2 ** Math.max(0, attempt - 1);
+  return Math.min(base, 60 * 60 * 1000);
+}
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -60,10 +81,11 @@ export async function emitEvent(
   name: EventName,
   subject: string | null,
   payload: Record<string, unknown>,
-  tx?: Tx
+  tx?: Tx,
+  requestId?: string | null
 ): Promise<void> {
   const handle = tx ?? db;
-  await handle.insert(domainEvents).values({ name, subject, payload });
+  await handle.insert(domainEvents).values({ name, subject, payload, requestId: requestId ?? null });
 }
 
 /**
@@ -84,6 +106,8 @@ export async function pendingFor(consumer: string): Promise<DomainEvent[]> {
       name: domainEvents.name,
       subject: domainEvents.subject,
       payload: domainEvents.payload,
+      requestId: domainEvents.requestId,
+      createdAt: domainEvents.createdAt,
     })
     .from(domainEvents)
     .leftJoin(
@@ -100,7 +124,9 @@ export async function pendingFor(consumer: string): Promise<DomainEvent[]> {
           sql`${eventDeliveries.eventId} is null`,
           and(
             eq(eventDeliveries.status, 'failed'),
-            sql`${eventDeliveries.attempts} < ${MAX_ATTEMPTS}`
+            sql`${eventDeliveries.attempts} < ${MAX_ATTEMPTS}`,
+            // Backoff: not before the time the last failure scheduled.
+            sql`coalesce(${eventDeliveries.nextAttemptAt}, now()) <= now()`
           )
         )
       )
@@ -113,6 +139,8 @@ export async function pendingFor(consumer: string): Promise<DomainEvent[]> {
     name: r.name as EventName,
     subject: r.subject,
     payload: (r.payload ?? {}) as Record<string, unknown>,
+    requestId: r.requestId ?? null,
+    createdAt: r.createdAt,
   }));
 }
 
@@ -168,7 +196,14 @@ export async function markDelivered(consumer: string, eventId: number): Promise<
     });
 }
 
-/** Records a failure so the event is retried, and eventually left alone. */
+/**
+ * Records a failed delivery.
+ *
+ * Retried with exponential backoff until `MAX_ATTEMPTS`, then moved to `dead`
+ * — the dead-letter state. A dead delivery is never retried automatically; it
+ * waits in the operations console for a person to fix the cause and replay
+ * it. Retrying a permanently broken message forever just hides it.
+ */
 export async function markFailed(
   consumer: string,
   eventId: number,
@@ -178,17 +213,44 @@ export async function markFailed(
 
   await db
     .insert(eventDeliveries)
-    .values({ eventId, consumer, status: 'failed', attempts: 1, lastError: message })
+    .values({
+      eventId,
+      consumer,
+      status: 'failed',
+      attempts: 1,
+      lastError: message,
+      nextAttemptAt: new Date(Date.now() + backoffMs(1)),
+    })
     .onConflictDoUpdate({
       target: [eventDeliveries.eventId, eventDeliveries.consumer],
       set: {
-        status: 'failed',
         attempts: sql`${eventDeliveries.attempts} + 1`,
+        status: sql`case when ${eventDeliveries.attempts} + 1 >= ${MAX_ATTEMPTS} then 'dead' else 'failed' end`,
+        nextAttemptAt: sql`now() + (least(30 * power(2, ${eventDeliveries.attempts}), 3600) * interval '1 second')`,
         lastError: message,
         updatedAt: new Date(),
       },
     })
     .catch((e) => reportError(e, { scope: 'events.markFailed' }));
+}
+
+/**
+ * Puts a dead delivery back in line. Used by the operations console after the
+ * cause has been fixed.
+ */
+export async function replayDelivery(consumer: string, eventId: number): Promise<boolean> {
+  const updated = await db
+    .update(eventDeliveries)
+    .set({ status: 'failed', attempts: 0, nextAttemptAt: null, updatedAt: new Date() })
+    .where(
+      and(
+        eq(eventDeliveries.consumer, consumer),
+        eq(eventDeliveries.eventId, eventId),
+        eq(eventDeliveries.status, 'dead')
+      )
+    )
+    .returning({ eventId: eventDeliveries.eventId });
+  return updated.length > 0;
 }
 
 export type DrainResult = { consumer: string; handled: number; failed: number };
@@ -219,7 +281,9 @@ export async function drain(
 
   for (const event of events) {
     try {
-      await handle(event);
+      // Each event is handled inside the id of the request that caused it, so
+      // a consumer's log lines join the original checkout's trail.
+      await runWithRequestId(event.requestId, () => handle(event));
       await markDelivered(consumer, event.id);
       handled += 1;
     } catch (err) {

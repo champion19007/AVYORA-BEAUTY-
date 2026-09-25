@@ -2,6 +2,7 @@
 
 import { Product, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard, type StockByKey } from '@/components/product/product-card';
+import type { DisplayPrices } from '@/modules/catalog/storefront-data';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Sparkles } from 'lucide-react';
@@ -29,6 +30,7 @@ const HERO_SLIDES = [
 
 export function HomeClient({
   stock,
+  prices,
   products,
   categories,
   concerns,
@@ -36,6 +38,7 @@ export function HomeClient({
   activeConcerns,
 }: {
   stock: StockByKey;
+  prices: DisplayPrices;
   products: Product[];
   categories: typeof CATEGORIES;
   concerns: typeof CONCERNS;
@@ -139,7 +142,7 @@ export function HomeClient({
         </div>
         <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} stock={stock} />
+            <ProductCard key={product.id} product={product} stock={stock} prices={prices} />
           ))}
         </div>
       </section>

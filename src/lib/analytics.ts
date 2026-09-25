@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, ne, sql, sum } from 'drizzle-orm';
-import { db } from '@/db';
+import { readWith } from '@/db';
 import { orders, orderItems, inventory } from '@/db/schema';
 import { getProductById } from '@/lib/catalogue';
 
@@ -15,6 +15,11 @@ import { getProductById } from '@/lib/catalogue';
  * confident-looking numbers built on noise, and a shop owner ordering stock
  * against a fabricated trend loses real money. The honest version is a recent
  * average with its own sample size printed next to it.
+ *
+ * These are the heaviest reads in the application — every order in the
+ * window — and nothing here needs the last few seconds of data. So they run
+ * with 'eventual' consistency: on the read replica when one is configured,
+ * on the primary otherwise.
  */
 
 /** Orders that count as real sales. */
@@ -43,21 +48,23 @@ export type ProductSales = {
 export async function productSales(days = 30): Promise<ProductSales[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  const rows = await db
-    .select({
-      productId: orderItems.productId,
-      size: orderItems.size,
-      productName: sql<string>`max(${orderItems.productName})`,
-      units: sum(orderItems.quantity),
-      revenue: sum(orderItems.lineTotal),
-    })
-    .from(orderItems)
-    .innerJoin(orders, eq(orders.id, orderItems.orderId))
-    .where(and(gte(orders.createdAt, since), SOLD))
-    .groupBy(orderItems.productId, orderItems.size)
-    .orderBy(desc(sum(orderItems.quantity)));
+  const rows = await readWith('eventual', (db) =>
+    db
+      .select({
+        productId: orderItems.productId,
+        size: orderItems.size,
+        productName: sql<string>`max(${orderItems.productName})`,
+        units: sum(orderItems.quantity),
+        revenue: sum(orderItems.lineTotal),
+      })
+      .from(orderItems)
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(and(gte(orders.createdAt, since), SOLD))
+      .groupBy(orderItems.productId, orderItems.size)
+      .orderBy(desc(sum(orderItems.quantity)))
+  );
 
-  const stock = await db.select().from(inventory);
+  const stock = await readWith('eventual', (db) => db.select().from(inventory));
   const stockBySku = new Map(stock.map((s) => [`${s.productId}::${s.size}`, s.quantity]));
 
   return rows.map((row) => {
@@ -87,15 +94,17 @@ export async function dailySales(days = 30): Promise<DailyPoint[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   since.setHours(0, 0, 0, 0);
 
-  const rows = await db
-    .select({
-      day: sql<string>`to_char(${orders.createdAt}, 'YYYY-MM-DD')`,
-      count: sql<number>`count(*)`,
-      revenue: sum(orders.total),
-    })
-    .from(orders)
-    .where(and(gte(orders.createdAt, since), SOLD))
-    .groupBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD')`);
+  const rows = await readWith('eventual', (db) =>
+    db
+      .select({
+        day: sql<string>`to_char(${orders.createdAt}, 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)`,
+        revenue: sum(orders.total),
+      })
+      .from(orders)
+      .where(and(gte(orders.createdAt, since), SOLD))
+      .groupBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD')`)
+  );
 
   const byDay = new Map(
     rows.map((r) => [r.day, { orders: Number(r.count ?? 0), revenue: Number(r.revenue ?? 0) }])

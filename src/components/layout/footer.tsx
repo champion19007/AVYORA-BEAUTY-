@@ -18,6 +18,7 @@ const FOOTER_LINKS = {
     { name: 'Best Sellers', href: '/collections?filter=bestsellers' },
     { name: 'New Arrivals', href: '/collections?filter=new' },
     { name: 'Routine Finder', href: '/routine-finder' },
+    { name: 'Journal', href: '/journal' },
     { name: 'Track Order', href: '/track-order' },
   ],
   contact: [

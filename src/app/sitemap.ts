@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
+import { publishedArticles } from '@/modules/cms/content-read';
+import { reportError } from '@/lib/observability';
 
 const BASE_URL = 'https://avyora.com';
 
@@ -7,7 +9,7 @@ const BASE_URL = 'https://avyora.com';
  * Emits /sitemap.xml covering the marketing pages, every product detail
  * page and each filtered collection view.
  */
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -15,7 +17,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/collections`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${BASE_URL}/routine-finder`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${BASE_URL}/track-order`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${BASE_URL}/journal`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
   ];
+
+  // Published articles. A database hiccup costs the sitemap its articles,
+  // not the whole sitemap.
+  let articleRoutes: MetadataRoute.Sitemap = [];
+  try {
+    articleRoutes = (await publishedArticles()).map((a) => ({
+      url: `${BASE_URL}/journal/${a.slug}`,
+      lastModified: new Date(a.publishedAt),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    }));
+  } catch (err) {
+    reportError(err, { scope: 'sitemap.articles' });
+  }
 
   const productRoutes: MetadataRoute.Sitemap = PRODUCTS.map((p) => ({
     url: `${BASE_URL}/products/${p.slug}`,
@@ -38,5 +55,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...productRoutes, ...categoryRoutes, ...concernRoutes];
+  return [...staticRoutes, ...productRoutes, ...articleRoutes, ...categoryRoutes, ...concernRoutes];
 }
