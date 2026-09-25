@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { getProductById } from '@/lib/catalogue';
+import { invalidateStorefrontData } from '@/modules/catalog/storefront-data';
 
 /**
  * Refreshes the customer-facing pages that show availability or price.
@@ -21,7 +22,11 @@ import { getProductById } from '@/lib/catalogue';
  * is not a route — the listing is `/collections` — so half the invalidation
  * was quietly doing nothing.
  */
-export function revalidateProduct(productId: string): void {
+export async function revalidateProduct(productId: string): Promise<void> {
+  // The data cache first: a page rebuilt from a stale cache would just
+  // render the old price again.
+  await invalidateStorefrontData();
+
   const product = getProductById(productId);
 
   // The detail page is keyed by slug, not id.

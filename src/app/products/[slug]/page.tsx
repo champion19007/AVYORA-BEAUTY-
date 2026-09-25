@@ -1,6 +1,7 @@
 import { PRODUCTS } from '@/data/mock-data';
 import { getProductBySlug } from '@/lib/catalogue';
-import { getStockMap } from '@/lib/inventory';
+import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
+import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
 import { notFound } from 'next/navigation';
 import { ProductClient } from './product-client';
 import type { Metadata, ResolvingMetadata } from 'next';
@@ -67,13 +68,22 @@ export default async function ProductPage({ params }: Props) {
    * uncounted SKU. Promising "In stock" over a checkout that then declines is
    * worse than saying so up front.
    */
-  const stock = await getStockMap([product.id]);
+  const [stock, prices] = await Promise.all([catalogueStock(), displayPrices()]);
   const stockBySize: Record<string, number> = {};
+  const pricesBySize: Record<string, SkuPrice> = {};
   for (const size of product.sizes) {
-    const quantity = stock.get(`${product.id}::${size.label}`);
-    // Infinity is the backorder case; the badge should read as available.
-    stockBySize[size.label] = quantity === Infinity ? Number.MAX_SAFE_INTEGER : (quantity ?? 0);
+    const key = skuKey(product.id, size.label);
+    stockBySize[size.label] = stock[key] ?? 0;
+    pricesBySize[size.label] = prices[key];
   }
+
+  /*
+   * Search engines are told the same prices and availability a shopper sees.
+   * This used to advertise the catalogue's prices and a hard-coded "InStock",
+   * so a sold-out product still appeared in results as available.
+   */
+  const shownPrices = Object.values(pricesBySize).map((p) => p.price / 100);
+  const anyInStock = Object.values(stockBySize).some((q) => q > 0);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -89,10 +99,10 @@ export default async function ProductPage({ params }: Props) {
     offers: {
       '@type': 'AggregateOffer',
       priceCurrency: 'INR',
-      lowPrice: product.price,
-      highPrice: product.sizes[product.sizes.length - 1].price,
+      lowPrice: Math.min(...shownPrices),
+      highPrice: Math.max(...shownPrices),
       offerCount: product.sizes.length,
-      availability: 'https://schema.org/InStock',
+      availability: anyInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       url: `https://avyora.com/products/${product.slug}`,
     },
     // Only advertise an aggregateRating when real reviews back it. Emitting a
@@ -119,6 +129,9 @@ export default async function ProductPage({ params }: Props) {
         product={product}
         recommendations={recommendations}
         stockBySize={stockBySize}
+        pricesBySize={pricesBySize}
+        catalogueStock={stock}
+        cataloguePrices={prices}
       />
     </>
   );

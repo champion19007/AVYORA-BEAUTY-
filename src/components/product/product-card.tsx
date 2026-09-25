@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Price } from '@/components/price';
 import { cn } from '@/lib/utils';
 import { stockLabel } from '@/lib/stock-label';
+import type { SkuPrice } from '@/modules/catalog/sku-price';
 
 /**
  * Availability for the whole catalogue, keyed `productId::size`.
@@ -24,9 +25,16 @@ export type StockByKey = Record<string, number | undefined>;
 export function ProductCard({
   product,
   stock,
+  prices,
 }: {
   product: Product;
   stock?: StockByKey;
+  /**
+   * Display prices in paise, keyed `productId::size`, resolved by the same rule
+   * checkout charges with. Absent (the wishlist, say) falls back to the
+   * catalogue — correct unless the owner has overridden the price.
+   */
+  prices?: Record<string, SkuPrice>;
 }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0].label);
@@ -53,8 +61,11 @@ export function ProductCard({
   const availability = stock ? stockLabel(stock[`${product.id}::${activeSize.label}`]) : null;
   const soldOut = availability?.tone === 'out';
 
-  const currentPrice = product.salePrice ?? activeSize.price;
-  const wasPrice = product.salePrice ? activeSize.price : null;
+  const resolved = prices?.[`${product.id}::${activeSize.label}`];
+  const currentPrice = resolved ? resolved.price / 100 : (product.salePrice ?? activeSize.price);
+  const wasPrice = resolved
+    ? resolved.wasPrice !== null ? resolved.wasPrice / 100 : null
+    : product.salePrice ? activeSize.price : null;
 
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();

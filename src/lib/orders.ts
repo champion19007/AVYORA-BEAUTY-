@@ -5,7 +5,8 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders, orderItems, addresses } from '@/db/schema';
 import { getProductById } from '@/lib/catalogue';
-import { pricingMap, resolvePrice } from '@/lib/pricing';
+import { pricingMap } from '@/lib/pricing';
+import { skuKey, skuPrice } from '@/modules/catalog/sku-price';
 import { calculateTotals, generateOrderNumber, toPaise } from '@/lib/money';
 import { releaseStock, reserveStock } from '@/lib/inventory';
 import { recordEvent } from '@/lib/activity';
@@ -188,10 +189,12 @@ export async function createOrder(
 
     const size = product.sizes.find((s) => s.label === item.size) ?? product.sizes[0];
 
-    // Catalogue price in paise, then the override — including any live offer.
+    // The one pricing rule, shared with the storefront display. Here it is fed
+    // a row read from Postgres on this request: that is what makes it the
+    // authority, not the function itself.
     const cataloguePaise = toPaise(product.salePrice ?? size.price);
-    const pricingRow = overrides.get(`${product.id}::${size.label}`);
-    const effective = resolvePrice(cataloguePaise, pricingRow);
+    const pricingRow = overrides.get(skuKey(product.id, size.label));
+    const effective = skuPrice(product, size.label, pricingRow);
     const unitPrice = effective.price;
 
     lines.push({
@@ -210,7 +213,11 @@ export async function createOrder(
         cataloguePaise,
         chargedPaise: unitPrice,
         wasPaise: effective.wasPrice,
-        source: effective.overridden ? (effective.wasPrice !== null ? 'offer' : 'override') : 'catalogue',
+        // A struck-out price means a discount applied; which kind depends on
+        // whether the owner or the catalogue set it.
+        source: pricingRow
+          ? effective.wasPrice !== null ? 'offer' : 'override'
+          : effective.wasPrice !== null ? 'catalogue-sale' : 'catalogue',
         offerLabel: effective.offerLabel,
         pricingVersion: pricingRow?.version ?? null,
         offerEndsAt: pricingRow?.offerEndsAt?.toISOString() ?? null,

@@ -179,7 +179,7 @@ export async function setStock(formData: FormData): Promise<void> {
   revalidatePath('/admin');
   // The shop shows this count too. Without this the storefront kept selling
   // goods the shelf no longer had, for up to a minute.
-  revalidateProduct(productId);
+  await revalidateProduct(productId);
 }
 
 /** Turns backorder on or off for a SKU. */
@@ -212,7 +212,7 @@ export async function setBackorder(formData: FormData): Promise<void> {
   revalidatePath('/admin/inventory');
   // Backorder decides whether an out-of-stock size is still sellable, so the
   // storefront badge changes with it.
-  revalidateProduct(productId);
+  await revalidateProduct(productId);
 }
 
 /**
@@ -301,7 +301,7 @@ export async function savePrice(
   // The storefront reads these, so its cached pages must be rebuilt.
   revalidatePath('/collections');
   revalidatePath('/', 'layout');
-  revalidateProduct(productId);
+  await revalidateProduct(productId);
 
   return { saved: true };
 }

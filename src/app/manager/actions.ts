@@ -132,7 +132,7 @@ export async function adjustStock(formData: FormData): Promise<void> {
   revalidatePath('/manager/stock');
   revalidatePath('/admin/inventory');
   // The shelf just changed, and the shop shows the shelf.
-  revalidateProduct(productId);
+  await revalidateProduct(productId);
 }
 
 /**

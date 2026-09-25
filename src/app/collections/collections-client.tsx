@@ -4,6 +4,7 @@ import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { ProductCard, type StockByKey } from '@/components/product/product-card';
+import type { DisplayPrices } from '@/modules/catalog/storefront-data';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -18,7 +19,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'newest', label: 'New arrivals' },
 ];
 
-function CollectionsContent({ stock }: { stock: StockByKey }) {
+function CollectionsContent({ stock, prices }: { stock: StockByKey; prices: DisplayPrices }) {
   const searchParams = useSearchParams();
   const categoryFilter = searchParams.get('category');
   const concernFilter = searchParams.get('concern');
@@ -131,7 +132,7 @@ function CollectionsContent({ stock }: { stock: StockByKey }) {
       {filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} stock={stock} />
+            <ProductCard key={product.id} product={product} stock={stock} prices={prices} />
           ))}
         </div>
       ) : (
@@ -169,10 +170,10 @@ function CollectionsFallback() {
   );
 }
 
-export function CollectionsClient({ stock }: { stock: StockByKey }) {
+export function CollectionsClient({ stock, prices }: { stock: StockByKey; prices: DisplayPrices }) {
   return (
     <Suspense fallback={<CollectionsFallback />}>
-      <CollectionsContent stock={stock} />
+      <CollectionsContent stock={stock} prices={prices} />
     </Suspense>
   );
 }

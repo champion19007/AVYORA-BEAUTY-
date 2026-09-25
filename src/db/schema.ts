@@ -170,6 +170,15 @@ export const carts = pgTable('carts', {
 }, (t) => ({
   userIdx: index('carts_user_idx').on(t.userId),
   anonIdx: index('carts_anon_idx').on(t.anonymousId),
+  /*
+   * One cart per person. Finding-or-creating a cart was a SELECT then an
+   * INSERT with nothing to stop two requests both finding nothing; a few quick
+   * taps on "Add to bag" from a new visitor created two carts, and reading one
+   * back picked between them at random. Partial, because a cart belongs to a
+   * user or to an anonymous visitor, and the other column is null.
+   */
+  userUnique: uniqueIndex('carts_user_unique').on(t.userId).where(sql`${t.userId} is not null`),
+  anonUnique: uniqueIndex('carts_anon_unique').on(t.anonymousId).where(sql`${t.anonymousId} is not null`),
 }));
 
 export const cartItems = pgTable('cart_items', {
@@ -866,4 +875,25 @@ export const paymentEvents = pgTable('payment_events', {
 }, (t) => ({
   providerEventIdx: uniqueIndex('payment_events_provider_event_idx').on(t.provider, t.providerEventId),
   orderIdx: index('payment_events_order_idx').on(t.orderId),
+}));
+
+
+/* -------------------------------------------------------------------------- */
+/* Wishlist                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Saved products, for signed-in customers.
+ *
+ * The wishlist lived only in the browser, so it vanished with cleared storage
+ * or a new device. Postgres is now the record for anyone signed in; the
+ * browser copy is a fast local mirror, and Redis, where configured, is a read
+ * cache in front of this table — never the only copy.
+ */
+export const wishlistItems = pgTable('wishlist_items', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  productId: text('product_id').notNull(),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.productId] }),
 }));

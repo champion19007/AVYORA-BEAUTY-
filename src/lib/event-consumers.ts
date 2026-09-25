@@ -164,7 +164,7 @@ async function handleRevalidation(event: DomainEvent): Promise<void> {
    * the customer has typed their address. Pushing the invalidation the moment
    * stock hits zero closes that window to about as long as this drain takes.
    */
-  revalidateProduct(productId);
+  await revalidateProduct(productId);
 }
 
 /* -------------------------------------------------------------------------- */

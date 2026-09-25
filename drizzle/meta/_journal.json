@@ -78,6 +78,13 @@
       "when": 1790331344927,
       "tag": "0010_petite_iron_lad",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790335337824,
+      "tag": "0011_redundant_omega_red",
+      "breakpoints": true
     }
   ]
 }
