@@ -2,6 +2,7 @@ import { PRODUCTS } from '@/data/mock-data';
 import { getProductBySlug } from '@/lib/catalogue';
 import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
 import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
+import { productCopy } from '@/modules/cms/content-read';
 import { notFound } from 'next/navigation';
 import { ProductClient } from './product-client';
 import type { Metadata, ResolvingMetadata } from 'next';
@@ -38,13 +39,14 @@ export async function generateMetadata(
   const product = getProductBySlug(slug);
 
   if (!product) return { title: 'Product Not Found' };
+  const tagline = (await productCopy(slug))?.tagline ?? product.tagline;
 
   return {
     title: product.name,
-    description: product.tagline,
+    description: tagline,
     openGraph: {
       title: `${product.name} | Avyora`,
-      description: product.tagline,
+      description: tagline,
       images: [product.images[0]],
     },
   };
@@ -52,11 +54,21 @@ export async function generateMetadata(
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const catalogueProduct = getProductBySlug(slug);
 
-  if (!product) {
+  if (!catalogueProduct) {
     notFound();
   }
+
+  /*
+   * Published copy from the CMS replaces the catalogue's wording where it
+   * exists. Only the words: names, sizes, prices and ingredients stay with
+   * the catalogue and commerce tables, which are what checkout reads.
+   */
+  const copy = await productCopy(slug);
+  const product = copy
+    ? { ...catalogueProduct, tagline: copy.tagline, description: copy.description }
+    : catalogueProduct;
 
   const recommendations = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 4);
 
@@ -123,7 +135,9 @@ export default async function ProductPage({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // `<` escaped so editable text containing "</script>" cannot close
+        // this tag early and inject markup into the page.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
       <ProductClient
         product={product}
@@ -132,6 +146,8 @@ export default async function ProductPage({ params }: Props) {
         pricesBySize={pricesBySize}
         catalogueStock={stock}
         cataloguePrices={prices}
+        howToUse={copy?.howToUse || null}
+        highlights={copy?.highlights ?? []}
       />
     </>
   );

@@ -897,3 +897,86 @@ export const wishlistItems = pgTable('wishlist_items', {
 }, (t) => ({
   pk: primaryKey({ columns: [t.userId, t.productId] }),
 }));
+
+/* -------------------------------------------------------------------------- */
+/* Content (CMS)                                                                */
+/* -------------------------------------------------------------------------- */
+
+export const contentStatus = pgEnum('content_status', ['draft', 'published', 'archived']);
+
+/**
+ * One piece of editable content: a product's copy, a journal article.
+ *
+ * A document carries two bodies. `draft` is what the editor is working on;
+ * `published` is what customers see, and changes only when someone presses
+ * publish. Editing never touches the live page, so a half-written paragraph
+ * is never on the storefront.
+ *
+ * `version` counts draft saves and is the optimistic-concurrency token: a save
+ * carries the version it was loaded at, and a stale one is refused rather than
+ * silently overwriting someone else's edit. `published_version` records which
+ * draft version is live, so "unpublished changes" is `version > published_version`.
+ *
+ * `(type, slug)` is unique: a product has one copy document, an article one URL.
+ */
+export const cmsDocuments = pgTable('cms_documents', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  /** `product_copy` or `article`; each has its own field schema in code. */
+  type: text('type').notNull(),
+  slug: text('slug').notNull(),
+  status: contentStatus('status').notNull().default('draft'),
+  draft: jsonb('draft').notNull(),
+  published: jsonb('published'),
+  version: integer('version').notNull().default(1),
+  publishedVersion: integer('published_version'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: text('updated_by'),
+}, (t) => ({
+  typeSlug: uniqueIndex('cms_documents_type_slug_idx').on(t.type, t.slug),
+  statusIdx: index('cms_documents_status_idx').on(t.type, t.status),
+}));
+
+/**
+ * Every saved version of every document, append-only.
+ *
+ * What makes rollback possible: restoring revision 4 copies its body into a
+ * new draft (version 7, say), so history is never rewritten and the rollback
+ * itself shows up as a revision.
+ */
+export const cmsRevisions = pgTable('cms_revisions', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  documentId: text('document_id')
+    .notNull()
+    .references(() => cmsDocuments.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  body: jsonb('body').notNull(),
+  /** `save`, `publish`, `unpublish` or `restore`. */
+  action: text('action').notNull(),
+  actor: text('actor').notNull(),
+  requestId: text('request_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  docVersion: index('cms_revisions_doc_idx').on(t.documentId, t.version),
+}));
+
+/**
+ * Uploaded media. The bytes live in object storage; this row is the index.
+ *
+ * `storage_key` is content-addressed (derived from the SHA-256 of the bytes),
+ * so uploading the same image twice stores it once, and a retried upload is
+ * harmless.
+ */
+export const mediaAssets = pgTable('media_assets', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  storageKey: text('storage_key').notNull(),
+  contentType: text('content_type').notNull(),
+  bytes: integer('bytes').notNull(),
+  sha256: text('sha256').notNull(),
+  alt: text('alt').notNull().default(''),
+  uploadedBy: text('uploaded_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  keyIdx: uniqueIndex('media_assets_storage_key_idx').on(t.storageKey),
+}));

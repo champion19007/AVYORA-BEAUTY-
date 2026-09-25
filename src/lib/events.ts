@@ -31,7 +31,8 @@ export type EventName =
   | 'inventory.stock_out'
   | 'inventory.changed'
   | 'pricing.changed'
-  | 'content.published';
+  | 'content.published'
+  | 'content.unpublished';
 
 export type DomainEvent = {
   id: number;

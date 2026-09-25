@@ -48,3 +48,6 @@ firestore-debug.log.env
 
 # local editor/agent tooling config
 .claude/
+
+# Local development uploads (LocalDiskStorage)
+/public/media-local/

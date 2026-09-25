@@ -6,7 +6,7 @@ import { getOrderByNumber, restoreOrderStock } from '@/lib/orders';
 import { notifyOrderPlaced } from '@/lib/order-notifications';
 import { createOrderAccessToken } from '@/lib/order-access';
 import { assessCodOrder } from '@/lib/cod-risk';
-import { revalidateProduct } from '@/lib/storefront-cache';
+import { revalidateContent, revalidateProduct } from '@/lib/storefront-cache';
 import { reportError } from '@/lib/observability';
 
 /**
@@ -146,6 +146,13 @@ async function handleCodRisk(event: DomainEvent): Promise<void> {
 /* -------------------------------------------------------------------------- */
 
 async function handleRevalidation(event: DomainEvent): Promise<void> {
+  if (event.name === 'content.published' || event.name === 'content.unpublished') {
+    const type = String(event.payload.type ?? '');
+    const slug = String(event.payload.slug ?? '');
+    if (type && slug) await revalidateContent(type, slug);
+    return;
+  }
+
   // Every event that can change what a customer sees for a product.
   const relevant: ReadonlyArray<DomainEvent['name']> = [
     'inventory.stock_out',

@@ -21,6 +21,8 @@ export function ProductClient({
   pricesBySize,
   catalogueStock,
   cataloguePrices,
+  howToUse,
+  highlights,
 }: {
   product: Product;
   recommendations: Product[];
@@ -37,6 +39,9 @@ export function ProductClient({
   /** For the recommendation cards below. */
   catalogueStock: StockByKey;
   cataloguePrices: DisplayPrices;
+  /** From published CMS copy, when the owner has written some. */
+  howToUse: string | null;
+  highlights: string[];
 }) {
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]?.label || '');
@@ -119,6 +124,13 @@ export function ProductClient({
               <p className="mt-4 text-[15px] md:text-base leading-relaxed text-foreground/80">
                 {product.description}
               </p>
+              {highlights.length > 0 && (
+                <ul className="mt-4 list-disc space-y-1 pl-5 text-[15px] leading-relaxed text-foreground/80">
+                  {highlights.map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {product.reviewCount && product.rating ? (
@@ -240,8 +252,8 @@ export function ProductClient({
               <AccordionItem value="how-to-use">
                 <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">How to Use</AccordionTrigger>
                 <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
-                  Apply to cleansed skin. Use twice daily for best results, and wear SPF during
-                  the day.
+                  {howToUse ??
+                    'Apply to cleansed skin. Use twice daily for best results, and wear SPF during the day.'}
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
