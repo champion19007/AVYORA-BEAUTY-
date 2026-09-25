@@ -7,6 +7,8 @@ import { notifyOrderPlaced } from '@/lib/order-notifications';
 import { createOrderAccessToken } from '@/lib/order-access';
 import { assessCodOrder } from '@/lib/cod-risk';
 import { revalidateContent, revalidateProduct } from '@/lib/storefront-cache';
+import { eventStreamProducer } from '@/infrastructure/streaming/producer';
+import { streamRelay } from '@/modules/analytics/stream-relay';
 import { reportError } from '@/lib/observability';
 
 /**
@@ -178,10 +180,19 @@ async function handleRevalidation(event: DomainEvent): Promise<void> {
 /* Runner                                                                       */
 /* -------------------------------------------------------------------------- */
 
+const producer = eventStreamProducer();
+
 const CONSUMERS: { name: string; handle: (e: DomainEvent) => Promise<void> }[] = [
   { name: 'notifications', handle: handleNotification },
   { name: 'cod-risk', handle: handleCodRisk },
   { name: 'revalidate', handle: handleRevalidation },
+  /*
+   * Copies events to Kafka, only when a stream is configured. Registered as
+   * a consumer the first time it runs, it starts at the head of the log:
+   * wiring up a stream does not replay the shop's history into it (the
+   * landing zone already holds that).
+   */
+  ...(producer ? [{ name: 'stream-relay', handle: streamRelay(producer) }] : []),
 ];
 
 /**

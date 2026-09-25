@@ -18,7 +18,7 @@ const { client, db } = await createMigratedDb();
 
 vi.mock('@/db', () => ({ db, getDatabase: () => db, isDatabaseConfigured: () => true }));
 vi.mock('@/lib/activity', () => ({ recordEvent: async () => {} }));
-vi.mock('@/lib/event-consumers', () => ({ drainQuietly: async () => {} }));
+vi.mock('@/lib/background', () => ({ runBackgroundQuietly: async () => {} }));
 vi.mock('next/server', () => ({ after: () => {} }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 

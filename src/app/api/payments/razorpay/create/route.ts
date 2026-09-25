@@ -8,6 +8,7 @@ import { orders } from '@/db/schema';
 import { createOrder, type CheckoutInput } from '@/lib/orders';
 import { withIdempotency } from '@/infrastructure/idempotency/idempotency';
 import { applyPaymentSignalInTx } from '@/modules/payments/payment-service';
+import { scheduleReconciliation } from '@/modules/payments/jobs';
 import { createRazorpayOrder, getRazorpayConfig } from '@/lib/razorpay';
 import { createOrderAccessToken } from '@/lib/order-access';
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
@@ -97,6 +98,9 @@ export async function POST(request: Request) {
           .where(eq(orders.id, created.orderId));
 
         await applyPaymentSignalInTx(tx, created.orderId, { type: 'session_opened' });
+        // A later check with the provider, in case the webhook never arrives.
+        // Same transaction: no session, no check; no check, no session.
+        await scheduleReconciliation(created.orderId, tx);
 
         return {
           razorpayOrderId: rzpOrder.id,

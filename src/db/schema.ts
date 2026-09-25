@@ -980,3 +980,63 @@ export const mediaAssets = pgTable('media_assets', {
 }, (t) => ({
   keyIdx: uniqueIndex('media_assets_storage_key_idx').on(t.storageKey),
 }));
+
+/* -------------------------------------------------------------------------- */
+/* Background jobs                                                              */
+/* -------------------------------------------------------------------------- */
+
+export const jobStatus = pgEnum('job_status', ['queued', 'running', 'succeeded', 'dead']);
+
+/**
+ * Work that must happen, but not while a customer waits for it.
+ *
+ * A queue in Postgres rather than a broker: one shop's background work is a
+ * few hundred rows a day, and a job enqueued inside a transaction commits
+ * or rolls back with the change that caused it, which no external queue can
+ * offer without an outbox of its own.
+ *
+ * Workers claim with `FOR UPDATE SKIP LOCKED`, so two workers never take the
+ * same job, and hold it until `locked_until`. A worker that dies mid-job
+ * simply lets the lock lapse and the job is claimed again. Completing or
+ * failing a job checks `locked_by`, so a slow worker whose lock expired
+ * cannot overwrite the result of the worker that took over.
+ *
+ * `dedupe_key` is unique among queued and running jobs only: "reconcile
+ * order X" can be enqueued many times but exists at most once in flight, and
+ * can be enqueued again after it finishes.
+ */
+export const jobs = pgTable('jobs', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  type: text('type').notNull(),
+  payload: jsonb('payload').notNull(),
+  status: jobStatus('status').notNull().default('queued'),
+  attempts: integer('attempts').notNull().default(0),
+  maxAttempts: integer('max_attempts').notNull().default(5),
+  runAt: timestamp('run_at', { withTimezone: true }).notNull().defaultNow(),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  lockedBy: text('locked_by'),
+  lastError: text('last_error'),
+  dedupeKey: text('dedupe_key'),
+  requestId: text('request_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (t) => ({
+  claimIdx: index('jobs_claim_idx').on(t.status, t.runAt),
+  dedupeIdx: uniqueIndex('jobs_dedupe_in_flight_idx')
+    .on(t.dedupeKey)
+    .where(sql`${t.dedupeKey} is not null and ${t.status} in ('queued', 'running')`),
+}));
+
+/**
+ * How far an export has read the event log. One row per export.
+ *
+ * Unlike event consumers this *is* a watermark, and safely so: the export
+ * only reads events more than a few minutes old, by which time every
+ * transaction that could have taken a lower id has long since committed.
+ */
+export const exportWatermarks = pgTable('export_watermarks', {
+  name: text('name').primaryKey(),
+  lastEventId: integer('last_event_id').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

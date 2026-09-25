@@ -30,7 +30,7 @@ vi.mock('@/db', () => ({
 // Consequences of an order, not part of what is being tested. Each opens its
 // own connections and reaches for the network.
 vi.mock('@/lib/activity', () => ({ recordEvent: async () => {} }));
-vi.mock('@/lib/event-consumers', () => ({ drainQuietly: async () => {} }));
+vi.mock('@/lib/background', () => ({ runBackgroundQuietly: async () => {} }));
 vi.mock('next/server', () => ({ after: () => {} }));
 
 const { createOrder } = await import('../orders');

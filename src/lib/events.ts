@@ -40,6 +40,7 @@ export type DomainEvent = {
   subject: string | null;
   payload: Record<string, unknown>;
   requestId: string | null;
+  createdAt: Date;
 };
 
 /** Read at most this many per drain, so one invocation cannot run long. */
@@ -106,6 +107,7 @@ export async function pendingFor(consumer: string): Promise<DomainEvent[]> {
       subject: domainEvents.subject,
       payload: domainEvents.payload,
       requestId: domainEvents.requestId,
+      createdAt: domainEvents.createdAt,
     })
     .from(domainEvents)
     .leftJoin(
@@ -138,6 +140,7 @@ export async function pendingFor(consumer: string): Promise<DomainEvent[]> {
     subject: r.subject,
     payload: (r.payload ?? {}) as Record<string, unknown>,
     requestId: r.requestId ?? null,
+    createdAt: r.createdAt,
   }));
 }
 

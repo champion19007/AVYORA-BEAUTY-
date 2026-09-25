@@ -13,7 +13,7 @@ import { recordEvent } from '@/lib/activity';
 import { emitEvent } from '@/lib/events';
 import { applyPaymentSignal } from '@/modules/payments/payment-service';
 import { currentRequestId } from '@/infrastructure/request-context';
-import { drainQuietly } from '@/lib/event-consumers';
+import { runBackgroundQuietly } from '@/lib/background';
 
 /**
  * Order creation.
@@ -346,7 +346,7 @@ export async function createOrder(
      * are still in the log and the next drain — from the next checkout, or
      * from cron — picks them up. Nothing is lost, only delayed.
      */
-    after(drainQuietly);
+    after(runBackgroundQuietly);
 
     return { ok: true, orderNumber, orderId: createdOrderId, totalPaise: totals.total };
   } catch (err) {
