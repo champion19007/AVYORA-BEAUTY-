@@ -115,6 +115,15 @@ export default async function SystemPage() {
           this server instance started; other instances keep their own.
         </p>
       </section>
+
+      <section>
+        <h2 className={label}>Database reads on this instance</h2>
+        <p className="mt-2 text-[14px] tabular-nums text-muted-foreground">
+          {status.reads.replica
+            ? `${status.reads.replicaReads} on the replica · ${status.reads.primaryReads} on the primary · ${status.reads.fallbacks} fell back after a replica failure · ${status.reads.lagRejections} avoided a lagging replica.`
+            : 'No read replica configured: every read goes to the primary.'}
+        </p>
+      </section>
     </div>
   );
 }

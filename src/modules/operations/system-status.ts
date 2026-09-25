@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm';
-import { db } from '@/db';
+import { db, readRouting } from '@/db';
 import { domainEvents, eventDeliveries, jobs } from '@/db/schema';
 import { queueDepth } from '@/infrastructure/jobs/queue';
 import { cache } from '@/infrastructure/cache';
@@ -44,5 +44,11 @@ export async function systemStatus() {
       .limit(50),
   ]);
 
-  return { depth, deadJobs, deadDeliveries, cache: { ...cache.stats } };
+  return {
+    depth,
+    deadJobs,
+    deadDeliveries,
+    cache: { ...cache.stats },
+    reads: { replica: readRouting.hasReplica, ...readRouting.stats },
+  };
 }

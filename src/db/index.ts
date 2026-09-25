@@ -1,6 +1,8 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { sql as sqlTag } from 'drizzle-orm';
 import * as schema from './schema';
+import { ReadRouter, type Consistency } from './read-router';
 
 /**
  * Database client.
@@ -26,10 +28,10 @@ type Database = ReturnType<typeof drizzle<typeof schema>>;
 const globalForDb = globalThis as unknown as {
   __avyoraSql?: Sql;
   __avyoraDb?: Database;
+  __avyoraReplica?: Database;
 };
 
-function createClient(): Sql {
-  const url = process.env.DATABASE_URL;
+function createClient(url = process.env.DATABASE_URL): Sql {
   if (!url) {
     throw new Error(
       'DATABASE_URL is not set. Copy .env.example to .env.local and point it at your Postgres instance.'
@@ -91,3 +93,58 @@ export { schema };
 export function isDatabaseConfigured(): boolean {
   return Boolean(process.env.DATABASE_URL);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Read replica                                                                 */
+/* -------------------------------------------------------------------------- */
+
+function getReplica(): Database {
+  if (!globalForDb.__avyoraReplica) {
+    globalForDb.__avyoraReplica = drizzle(createClient(process.env.DATABASE_READ_URL), { schema });
+  }
+  return globalForDb.__avyoraReplica;
+}
+
+/**
+ * How far the replica is behind, in seconds.
+ *
+ * Replay-timestamp lag alone misreads an idle primary: with no writes, the
+ * last replayed transaction is old and the replica looks minutes behind while
+ * being fully caught up. So a replica that has replayed everything it has
+ * received counts as zero. Where the platform does not expose WAL positions
+ * (some managed replicas) the timestamp is all there is, and an idle primary
+ * can then push reads back to itself — safe, just not as cheap.
+ */
+async function replicaLagSeconds(replica: Database): Promise<number | null> {
+  const rows = (await replica.execute(sqlTag`
+    select case
+      when not pg_is_in_recovery() then null
+      when pg_last_wal_receive_lsn() is not null
+       and pg_last_wal_receive_lsn() = pg_last_wal_replay_lsn() then 0
+      else extract(epoch from now() - pg_last_xact_replay_timestamp())
+    end as lag`)) as unknown as { lag: number | string | null }[];
+  const lag = rows[0]?.lag;
+  return lag === null || lag === undefined ? null : Number(lag);
+}
+
+const router = new ReadRouter<Database>({
+  primary: getDb,
+  replica: process.env.DATABASE_READ_URL ? getReplica : null,
+  probeLag: replicaLagSeconds,
+  maxLagSeconds: Number(process.env.DATABASE_READ_MAX_LAG_SECONDS) || 30,
+});
+
+/**
+ * Runs a read with an explicit consistency requirement. See `read-router.ts`
+ * for which reads belong where; when unsure, the answer is 'strong'.
+ */
+export function readWith<T>(consistency: Consistency, query: (db: Database) => Promise<T>): Promise<T> {
+  return router.read(consistency, query);
+}
+
+export const readRouting = {
+  get hasReplica() {
+    return router.hasReplica;
+  },
+  stats: router.stats,
+};
