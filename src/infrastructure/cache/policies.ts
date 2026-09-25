@@ -63,6 +63,14 @@ export const POLICIES = {
   cart: { namespace: 'cart', l1Seconds: 0, l2Seconds: 1_800 },
   wishlist: { namespace: 'wishlist', l1Seconds: 0, l2Seconds: 1_800 },
 
+  /*
+   * Derived statistics (products bought together, ingredient conflicts
+   * between products). Nothing invalidates them: an hour-old co-purchase
+   * count is as good as a fresh one, and the ingredient rules change only
+   * when the seed script runs.
+   */
+  recommendations: { namespace: 'recommendations', l1Seconds: 300, l2Seconds: 3_600 },
+
   /* Derived from a public weather feed; already rate-limited upstream. */
   conditions: { namespace: 'conditions', l1Seconds: 300, l2Seconds: 1_800 },
 } as const satisfies Record<string, CachePolicy>;

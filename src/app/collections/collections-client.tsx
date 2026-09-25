@@ -8,6 +8,16 @@ import type { DisplayPrices } from '@/modules/catalog/storefront-data';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { InMemoryCatalogSearch } from '@/modules/search/catalog-search';
+
+/*
+ * Built once per page load. The catalogue ships with the page, so search runs
+ * here in the browser with the same ranking the server would use.
+ */
+const catalogSearch = new InMemoryCatalogSearch(
+  PRODUCTS,
+  Object.fromEntries(CONCERNS.map((c) => [c.id, c.name]))
+);
 
 type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'rating' | 'newest';
 
@@ -50,21 +60,27 @@ function CollectionsContent({ stock, prices }: { stock: StockByKey; prices: Disp
     }
 
     if (query) {
-      const q = query.toLowerCase();
-      result = result.filter((p) =>
-        [p.name, p.tagline, p.description, ...p.ingredients, ...p.concerns]
-          .join(' ')
-          .toLowerCase()
-          .includes(q)
-      );
+      // Ranked: best match first, unless the shopper picks another order.
+      const rank = new Map(catalogSearch.search(query).map((hit, i) => [hit.productId, i]));
+      result = result
+        .filter((p) => rank.has(p.id))
+        .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
     }
+
+    /*
+     * Sort by the price the card shows — offers included — not the catalogue
+     * list price. Sorting by the latter put a product on offer in the wrong
+     * place next to the very number it was sorted by.
+     */
+    const shownPrice = (p: (typeof result)[number]) =>
+      prices[`${p.id}::${p.sizes[0]?.label}`]?.price ?? p.price * 100;
 
     switch (sort) {
       case 'price-asc':
-        result.sort((a, b) => a.price - b.price);
+        result.sort((a, b) => shownPrice(a) - shownPrice(b));
         break;
       case 'price-desc':
-        result.sort((a, b) => b.price - a.price);
+        result.sort((a, b) => shownPrice(b) - shownPrice(a));
         break;
       case 'rating':
         result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
@@ -77,7 +93,7 @@ function CollectionsContent({ stock, prices }: { stock: StockByKey; prices: Disp
     }
 
     return result;
-  }, [categoryFilter, concernFilter, namedFilter, query, sort]);
+  }, [categoryFilter, concernFilter, namedFilter, query, sort, prices]);
 
   // A readable page title for whichever filter is active.
   const heading = query

@@ -1,8 +1,9 @@
 import { PRODUCTS } from '@/data/mock-data';
-import { getProductBySlug } from '@/lib/catalogue';
 import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
 import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
 import { productCopy } from '@/modules/cms/content-read';
+import { recommendationsFor } from '@/modules/recommendations/recommendations';
+import { getProductById, getProductBySlug } from '@/lib/catalogue';
 import { notFound } from 'next/navigation';
 import { ProductClient } from './product-client';
 import type { Metadata, ResolvingMetadata } from 'next';
@@ -70,7 +71,6 @@ export default async function ProductPage({ params }: Props) {
     ? { ...catalogueProduct, tagline: copy.tagline, description: copy.description }
     : catalogueProduct;
 
-  const recommendations = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 4);
 
   /*
    * Availability per size, keyed by label.
@@ -81,6 +81,15 @@ export default async function ProductPage({ params }: Props) {
    * worse than saying so up front.
    */
   const [stock, prices] = await Promise.all([catalogueStock(), displayPrices()]);
+
+  /*
+   * Was the first four other products in the catalogue, whatever this one
+   * was. Now ranked: bought together, then routine fit, never sold out and
+   * never an ingredient conflict with this product.
+   */
+  const recommendations = (await recommendationsFor(product.id, { stock }))
+    .map((r) => getProductById(r.productId))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
   const stockBySize: Record<string, number> = {};
   const pricesBySize: Record<string, SkuPrice> = {};
   for (const size of product.sizes) {
