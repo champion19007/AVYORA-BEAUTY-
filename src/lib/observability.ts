@@ -17,6 +17,27 @@
  * problem.
  */
 
+/**
+ * Supplies the current request id to log lines that were not given one.
+ *
+ * Injected rather than imported so this file stays free of Node-only modules;
+ * `infrastructure/request-context.ts` registers the real provider when it
+ * loads. Until then, and at the edge, lines simply carry no id.
+ */
+let requestIdProvider: () => string | null = () => null;
+
+export function setRequestIdProvider(provider: () => string | null): void {
+  requestIdProvider = provider;
+}
+
+function ambientRequestId(): string | null {
+  try {
+    return requestIdProvider();
+  } catch {
+    return null;
+  }
+}
+
 export type ErrorContext = {
   /** Where it happened, e.g. 'checkout.placeOrder'. */
   scope: string;
@@ -24,6 +45,8 @@ export type ErrorContext = {
   extra?: Record<string, unknown>;
   /** Order number, user id and similar, for correlating a support report. */
   correlationId?: string;
+  /** Overrides the ambient request id when the caller knows better. */
+  requestId?: string | null;
 };
 
 /** Keys never written to logs, whatever the caller passes. */
@@ -94,6 +117,7 @@ export function reportError(error: unknown, context: ErrorContext): void {
         level: 'error',
         scope: context.scope,
         correlationId: context.correlationId,
+        requestId: context.requestId ?? ambientRequestId(),
         error: normalised,
         extra: redact(context.extra),
         at: new Date().toISOString(),
@@ -125,6 +149,7 @@ export function logEvent(scope: string, message: string, extra?: Record<string, 
         level: 'info',
         scope,
         message,
+        requestId: ambientRequestId(),
         extra: redact(extra),
         at: new Date().toISOString(),
       })

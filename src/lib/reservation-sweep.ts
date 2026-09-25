@@ -1,7 +1,8 @@
-import { and, eq, isNull, lt } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
 import { orders } from '@/db/schema';
 import { restoreOrderStock } from '@/lib/orders';
+import { reconcileOrder, type PaymentProviderClient, configuredProvider } from '@/modules/payments/reconciliation';
 import { reportError } from '@/lib/observability';
 
 /**
@@ -35,6 +36,10 @@ export const RESERVATION_TTL_MINUTES = 30;
 export type SweepResult = {
   examined: number;
   released: number;
+  /** Found paid at the provider and applied instead of being cancelled. */
+  recovered: number;
+  /** The provider did not give a usable answer; left alone for next time. */
+  undetermined: number;
 };
 
 /**
@@ -45,9 +50,10 @@ export type SweepResult = {
  * finally arrives — cannot credit the same units twice.
  */
 export async function sweepAbandonedReservations(
-  ttlMinutes = RESERVATION_TTL_MINUTES
+  ttlMinutes = RESERVATION_TTL_MINUTES,
+  provider: PaymentProviderClient | null = configuredProvider()
 ): Promise<SweepResult> {
-  if (!isDatabaseConfigured()) return { examined: 0, released: 0 };
+  if (!isDatabaseConfigured()) return { examined: 0, released: 0, recovered: 0, undetermined: 0 };
 
   const cutoff = new Date(Date.now() - ttlMinutes * 60 * 1000);
 
@@ -57,7 +63,8 @@ export async function sweepAbandonedReservations(
     .where(
       and(
         eq(orders.status, 'pending'),
-        eq(orders.paymentStatus, 'unpaid'),
+        // `failed` already released its stock when the failure was recorded.
+        inArray(orders.paymentStatus, ['unpaid', 'pending']),
         // Online only. A COD order is unpaid on purpose.
         eq(orders.paymentProvider, 'razorpay'),
         // Not already swept.
@@ -68,9 +75,28 @@ export async function sweepAbandonedReservations(
     .limit(200);
 
   let released = 0;
+  let recovered = 0;
+  let undetermined = 0;
 
   for (const order of stale) {
     try {
+      /*
+       * Ask the provider first. Thirty minutes of silence from our side is not
+       * evidence the customer did not pay: Razorpay retries webhooks for a day,
+       * and a lost browser callback leaves no trace here at all. Releasing
+       * first and being told later is how a paid order ended up cancelled.
+       */
+      const outcome = await reconcileOrder(order.id, provider);
+
+      if (outcome === 'paid') {
+        recovered += 1;
+        continue;
+      }
+      if (outcome === 'unknown') {
+        undetermined += 1;
+        continue;
+      }
+
       const restored = await restoreOrderStock(order.id);
       if (restored) {
         released += 1;
@@ -88,5 +114,5 @@ export async function sweepAbandonedReservations(
     }
   }
 
-  return { examined: stale.length, released };
+  return { examined: stale.length, released, recovered, undetermined };
 }

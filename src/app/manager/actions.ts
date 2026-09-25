@@ -10,6 +10,7 @@ import { orders, inventory, restockRequests } from '@/db/schema';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { getStaffSession } from '@/lib/staff-auth';
 import { recordEvent } from '@/lib/activity';
+import { adjustStock as adjustStockCommand } from '@/modules/inventory/stock-commands';
 
 /**
  * Dispatch and stock actions for the inventory manager.
@@ -122,23 +123,11 @@ export async function adjustStock(formData: FormData): Promise<void> {
   if (!productId || !size) return;
   if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100_000) return;
 
-  await db
-    .insert(inventory)
-    // A SKU that was never counted starts from the delta itself, clamped at
-    // zero so "remove 3" from nothing does not create a negative shelf.
-    .values({ productId, size, quantity: Math.max(0, delta) })
-    .onConflictDoUpdate({
-      target: [inventory.productId, inventory.size],
-      set: {
-        quantity: sql`greatest(0, ${inventory.quantity} + ${delta})`,
-        updatedAt: new Date(),
-      },
-    });
-
-  await recordEvent({
-    name: 'admin.stock_set',
-    props: { productId, size, delta, by: session.username, role: session.role },
-  }).catch(() => {});
+  const result = await adjustStockCommand(
+    { productId, size, delta },
+    { id: session.username, role: session.role }
+  );
+  if (!result.ok) return;
 
   revalidatePath('/manager/stock');
   revalidatePath('/admin/inventory');

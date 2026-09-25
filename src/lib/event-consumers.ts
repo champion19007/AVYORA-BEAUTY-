@@ -146,7 +146,13 @@ async function handleCodRisk(event: DomainEvent): Promise<void> {
 /* -------------------------------------------------------------------------- */
 
 async function handleRevalidation(event: DomainEvent): Promise<void> {
-  if (event.name !== 'inventory.stock_out') return;
+  // Every event that can change what a customer sees for a product.
+  const relevant: ReadonlyArray<DomainEvent['name']> = [
+    'inventory.stock_out',
+    'inventory.changed',
+    'pricing.changed',
+  ];
+  if (!relevant.includes(event.name)) return;
 
   const productId = String(event.payload.productId ?? '');
   if (!productId) return;

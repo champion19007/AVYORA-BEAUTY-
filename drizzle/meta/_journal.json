@@ -71,6 +71,13 @@
       "when": 1788958744574,
       "tag": "0009_awesome_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790331344927,
+      "tag": "0010_petite_iron_lad",
+      "breakpoints": true
     }
   ]
 }

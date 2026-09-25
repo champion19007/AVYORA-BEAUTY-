@@ -4,7 +4,6 @@ import { isDatabaseConfigured } from '@/db';
 import {
   getOrderByPaymentReference,
   markOrderPaid,
-  markOrderPaymentFailed,
 } from '@/lib/orders';
 import {
   fetchRazorpayPayment,
@@ -59,7 +58,14 @@ export async function POST(request: Request) {
   }
 
   if (!valid) {
-    await markOrderPaymentFailed(order.id);
+    /*
+     * Refuse, and change nothing.
+     *
+     * This used to mark the order's payment failed and release its stock. A
+     * bad signature proves the *request* cannot be trusted; it says nothing
+     * about the payment. Acting on it let anyone holding a Razorpay order id
+     * flip a paid order to failed and put its goods back on sale.
+     */
     return NextResponse.json({ error: 'Payment verification failed.' }, { status: 400 });
   }
 

@@ -49,6 +49,8 @@ export default async function AdminPricingPage() {
           ? override.offerEndsAt.toISOString().slice(0, 10)
           : null,
         overridden: effective.overridden,
+        // The version this form edits. 0 means no override exists yet.
+        version: override?.version ?? 0,
       };
     })
   );

@@ -27,6 +27,8 @@ export type DispatchOrder = {
    * resolves.
    */
   fraudStatus: string;
+  /** Set when the owner must decide before this ships. See `orders.attention_reason`. */
+  attentionReason: string | null;
   createdAt: Date;
   customerName: string;
   city: string;
@@ -83,6 +85,7 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
       paymentStatus: row.paymentStatus,
       paymentProvider: row.paymentProvider,
       fraudStatus: row.fraudStatus,
+      attentionReason: row.attentionReason,
       createdAt: row.createdAt,
       customerName: address.fullName ?? '—',
       city: address.city ?? '—',

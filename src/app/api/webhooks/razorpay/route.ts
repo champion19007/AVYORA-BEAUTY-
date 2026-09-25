@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isDatabaseConfigured } from '@/db';
-import {
-  getOrderByPaymentReference,
-  markOrderPaid,
-  markOrderPaymentFailed,
-} from '@/lib/orders';
+import { recordProviderEvent } from '@/modules/payments/payment-service';
+import type { PaymentSignal } from '@/modules/payments/state-machine';
 import { getRazorpayConfig, verifyWebhookSignature } from '@/lib/razorpay';
 
 /**
@@ -18,8 +15,10 @@ import { getRazorpayConfig, verifyWebhookSignature } from '@/lib/razorpay';
  *
  *  - The body is read as raw text, because Razorpay signs the exact bytes it
  *    sent. Parsing and re-serialising changes them and every signature fails.
- *  - Delivery is at-least-once, so this must be idempotent. `markOrderPaid`
- *    returns early if the order is already paid.
+ *  - Delivery is at-least-once and unordered. Each delivery is recorded under
+ *    Razorpay's own event id, so a repeat is recognised by a unique index
+ *    rather than by reading the order first, and the payment state machine
+ *    decides what an out-of-order event may change.
  */
 export const dynamic = 'force-dynamic';
 
@@ -53,36 +52,70 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: event?.event ?? 'unknown' });
   }
 
-  const order = await getOrderByPaymentReference(razorpayOrderId);
-  if (!order) {
+  /*
+   * Razorpay's own id for this delivery. Retries of the same event carry the
+   * same id, which is what makes the insert below a reliable duplicate check.
+   * Should the header ever be missing, a hash of the signed body is the next
+   * best identity: an identical body is an identical event.
+   */
+  const providerEventId =
+    request.headers.get('x-razorpay-event-id') ?? `body:${await sha256Hex(rawBody)}`;
+
+  const result = await recordProviderEvent({
+    provider: 'razorpay',
+    providerEventId,
+    eventType: String(event.event ?? 'unknown'),
+    providerOrderRef: razorpayOrderId,
+    providerPaymentId: payment?.id ?? null,
+    amount: typeof payment?.amount === 'number' ? payment.amount : null,
+    payload: event,
+    signal: signalFor(String(event.event ?? ''), payment),
+  });
+
+  if (result.status === 'unknown_order') {
     /*
      * Ask Razorpay to try again rather than acknowledging.
      *
-     * This used to answer 200 on the reasoning that a retry would not make the
-     * order appear. That is wrong in the one case that matters: the webhook can
-     * arrive before our own checkout transaction has committed, so the order is
-     * moments away from existing. Acknowledging then would strand a real
-     * payment with no order ever marked paid, and nothing would ever revisit it.
-     *
-     * A 503 makes Razorpay redeliver on its own schedule. If the order is
-     * genuinely unknown the retries eventually stop, and the logged line is
-     * what someone investigates — which is the right outcome for money that
-     * arrived with nothing to attach it to.
+     * The webhook can arrive before our own checkout transaction has
+     * committed, so the order may be moments away from existing. The event is
+     * deliberately not recorded here, so the retry is processed rather than
+     * discarded as a duplicate.
      */
-    console.error(`Webhook for unknown Razorpay order ${razorpayOrderId} — asking for retry`);
+    console.error(`Webhook for unknown Razorpay order ${razorpayOrderId}, asking for retry`);
     return NextResponse.json({ error: 'Order not found yet.' }, { status: 503 });
   }
 
-  switch (event.event) {
-    case 'payment.captured':
-      await markOrderPaid(order.id, payment.id, payment.amount);
-      break;
-    case 'payment.failed':
-      await markOrderPaymentFailed(order.id);
-      break;
-    default:
-      break;
-  }
+  return NextResponse.json({ ok: true, duplicate: result.status === 'duplicate' });
+}
 
-  return NextResponse.json({ ok: true });
+/**
+ * What a Razorpay event means for an order, or null for events that mean
+ * nothing here. Each event describes one payment attempt; the state machine
+ * decides what that attempt means for the order as a whole.
+ */
+function signalFor(eventName: string, payment: any): PaymentSignal | null {
+  const amount = typeof payment?.amount === 'number' ? payment.amount : undefined;
+
+  switch (eventName) {
+    case 'payment.captured':
+    case 'order.paid':
+      return typeof amount === 'number' ? { type: 'captured', amount } : null;
+    case 'payment.authorized':
+      return { type: 'authorized', amount };
+    case 'payment.failed':
+      return { type: 'failed' };
+    case 'refund.processed':
+      // Only a full refund moves the order. A partial one is recorded on the
+      // event for the owner, and the order stays paid.
+      return typeof amount === 'number' && Number(payment?.amount_refunded) >= amount
+        ? { type: 'refunded' }
+        : null;
+    default:
+      return null;
+  }
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }

@@ -10,6 +10,8 @@ import { calculateTotals, generateOrderNumber, toPaise } from '@/lib/money';
 import { releaseStock, reserveStock } from '@/lib/inventory';
 import { recordEvent } from '@/lib/activity';
 import { emitEvent } from '@/lib/events';
+import { applyPaymentSignal } from '@/modules/payments/payment-service';
+import { currentRequestId } from '@/infrastructure/request-context';
 import { drainQuietly } from '@/lib/event-consumers';
 
 /**
@@ -175,6 +177,7 @@ export async function createOrder(
     unitPrice: number;
     quantity: number;
     lineTotal: number;
+    pricingSnapshot: Record<string, unknown>;
   }[] = [];
 
   for (const item of data.items) {
@@ -187,10 +190,8 @@ export async function createOrder(
 
     // Catalogue price in paise, then the override — including any live offer.
     const cataloguePaise = toPaise(product.salePrice ?? size.price);
-    const effective = resolvePrice(
-      cataloguePaise,
-      overrides.get(`${product.id}::${size.label}`)
-    );
+    const pricingRow = overrides.get(`${product.id}::${size.label}`);
+    const effective = resolvePrice(cataloguePaise, pricingRow);
     const unitPrice = effective.price;
 
     lines.push({
@@ -200,6 +201,20 @@ export async function createOrder(
       unitPrice,
       quantity: item.quantity,
       lineTotal: unitPrice * item.quantity,
+      /*
+       * Why this line cost what it did, frozen now. Read only by people
+       * explaining a past order; checkout's authority is the price above,
+       * computed from the database on this request and never from a cache.
+       */
+      pricingSnapshot: {
+        cataloguePaise,
+        chargedPaise: unitPrice,
+        wasPaise: effective.wasPrice,
+        source: effective.overridden ? (effective.wasPrice !== null ? 'offer' : 'override') : 'catalogue',
+        offerLabel: effective.offerLabel,
+        pricingVersion: pricingRow?.version ?? null,
+        offerEndsAt: pricingRow?.offerEndsAt?.toISOString() ?? null,
+      },
     });
   }
 
@@ -208,6 +223,7 @@ export async function createOrder(
   );
 
   const orderNumber = generateOrderNumber();
+  const requestId = await currentRequestId();
   let createdOrderId = '';
 
   try {
@@ -283,10 +299,16 @@ export async function createOrder(
        * the order, so they act on what is true when they run rather than on a
        * snapshot that may be minutes old.
        */
-      await emitEvent('order.placed', order.id, { orderId: order.id, orderNumber }, tx);
+      await emitEvent(
+        'order.placed',
+        order.id,
+        { orderId: order.id, orderNumber },
+        tx,
+        requestId
+      );
 
       for (const sku of reservation.depleted) {
-        await emitEvent('inventory.stock_out', sku.productId, sku, tx);
+        await emitEvent('inventory.stock_out', sku.productId, sku, tx, requestId);
       }
     });
 
@@ -402,65 +424,63 @@ export async function attachPaymentReference(orderId: string, reference: string)
 }
 
 /**
- * Marks an order paid.
+ * Records a captured payment against an order.
  *
- * Only ever called after a signature has been verified server-side, never
- * because the browser reported success. `expectedTotal` is checked against the
- * amount the provider actually captured, so a tampered or partial payment
- * cannot flip an order to paid.
+ * Delegates to the payment state machine, which owns every rule: the amount
+ * must match the order total, a duplicate capture is a no-op, a capture after
+ * the stock was released takes it back, and a capture after cancellation is
+ * honoured and flagged for the owner. See `modules/payments/state-machine.ts`.
+ *
+ * `paymentId` is no longer written over the order's payment reference. That
+ * column holds the provider's *order* id, which is what every later webhook
+ * for this order is looked up by; overwriting it with the *payment* id made
+ * each subsequent webhook, refunds included, fail to find the order. The
+ * payment id is recorded on the provider event instead.
  */
 export async function markOrderPaid(
   orderId: string,
   paymentId: string,
   capturedPaise?: number
 ): Promise<{ ok: boolean; error?: string }> {
-  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (!order) return { ok: false, error: 'Order not found' };
+  void paymentId;
 
-  if (typeof capturedPaise === 'number' && capturedPaise !== order.total) {
-    console.error(
-      `Payment amount mismatch for order ${order.orderNumber}: captured ${capturedPaise}, expected ${order.total}`
-    );
-    return { ok: false, error: 'Payment amount did not match the order total' };
+  let amount = capturedPaise;
+  if (typeof amount !== 'number') {
+    const [order] = await db
+      .select({ total: orders.total })
+      .from(orders)
+      .where(eq(orders.id, orderId))
+      .limit(1);
+    if (!order) return { ok: false, error: 'Order not found' };
+    amount = order.total;
   }
 
-  // Idempotent: webhooks are delivered more than once, and the browser
-  // callback often races the webhook for the same payment.
-  if (order.paymentStatus === 'paid') return { ok: true };
+  const applied = await applyPaymentSignal(orderId, { type: 'captured', amount });
+  if (!applied) return { ok: false, error: 'Order not found' };
 
-  await db
-    .update(orders)
-    .set({
-      paymentStatus: 'paid',
-      status: 'paid',
-      paymentReference: paymentId,
-      updatedAt: new Date(),
-    })
-    .where(eq(orders.id, orderId));
+  if (applied.outcome === 'rejected') {
+    reportError(new Error(applied.reason ?? 'Payment rejected'), {
+      scope: 'orders.markOrderPaid',
+      correlationId: orderId,
+    });
+    return { ok: false, error: 'Payment amount did not match the order total' };
+  }
 
   return { ok: true };
 }
 
-/** Marks a payment attempt failed, leaving the order recoverable. */
 /**
- * Marks a payment failed and puts the goods back on the shelf.
+ * Records a failed payment attempt.
  *
- * Stock is reserved when the order is created, before the customer has paid —
- * which is right, because two people must not both buy the last unit while one
- * of them is still on the payment screen. But it means an abandoned payment
- * had decremented stock that nothing ever restored: the count drifted down
- * every time someone changed their mind, and never back up. After enough of
- * them the shop refuses sales for goods sitting on the shelf.
+ * A failed *attempt* is not a failed *order*: a customer can retry in the
+ * same payment window, and Razorpay reports each attempt separately and out of
+ * order. The state machine therefore ignores a failure that arrives after a
+ * capture, and releases stock only for an order that is still unpaid. Returns
+ * true when stock went back on the shelf.
  */
-export async function markOrderPaymentFailed(orderId: string) {
-  const restored = await restoreOrderStock(orderId);
-
-  await db
-    .update(orders)
-    .set({ paymentStatus: 'failed', updatedAt: new Date() })
-    .where(eq(orders.id, orderId));
-
-  return restored;
+export async function markOrderPaymentFailed(orderId: string): Promise<boolean> {
+  const applied = await applyPaymentSignal(orderId, { type: 'failed' });
+  return Boolean(applied && applied.outcome === 'applied' && applied.stock === 'release');
 }
 
 /**

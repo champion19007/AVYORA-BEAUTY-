@@ -10,6 +10,7 @@ import {
   jsonb,
   pgEnum,
   serial,
+  bigserial,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -212,8 +213,19 @@ export const orderStatus = pgEnum('order_status', [
   'returned',
 ]);
 
+/**
+ * Where the money is, as far as the shop knows.
+ *
+ * `pending` means a payment session is open with the provider and the outcome
+ * is not yet known. It exists so that "we have not heard back" is represented
+ * as its own state instead of being read as failure, which is the mistake that
+ * let the abandonment sweep cancel orders Razorpay was still trying to confirm.
+ * Transitions between these are decided in one place:
+ * `modules/payments/state-machine.ts`.
+ */
 export const paymentStatus = pgEnum('payment_status', [
   'unpaid',
+  'pending',
   'authorized',
   'paid',
   'failed',
@@ -284,6 +296,17 @@ export const orders = pgTable('orders', {
   fraudScore: integer('fraud_score'),
   /** The signals that fired, so a human reviewing the hold can see why. */
   fraudReasons: jsonb('fraud_reasons'),
+
+  /**
+   * Set when an order needs a person, with the reason in words.
+   *
+   * The case that created it: a payment captured after the order's stock was
+   * released, from a late webhook for a cancelled or failed order. The money is
+   * real and must be honoured, but the goods may have gone to someone else. The
+   * system cannot choose between refunding and fulfilling from a backorder, so
+   * it records the problem and puts it in front of the owner.
+   */
+  attentionReason: text('attention_reason'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
@@ -304,6 +327,13 @@ export const orderItems = pgTable('order_items', {
   unitPrice: integer('unit_price').notNull(),
   quantity: integer('quantity').notNull(),
   lineTotal: integer('line_total').notNull(),
+  /**
+   * How the unit price was arrived at, frozen at purchase: catalogue price,
+   * owner override, any live offer with its label, and the pricing row's
+   * version. Without it an order can say what was charged but not why, and
+   * "why did I get 20% off" becomes unanswerable once the offer has ended.
+   */
+  pricingSnapshot: jsonb('pricing_snapshot'),
 }, (t) => ({
   orderIdx: index('order_items_order_idx').on(t.orderId),
 }));
@@ -468,6 +498,12 @@ export const productPricing = pgTable('product_pricing', {
   offerStartsAt: timestamp('offer_starts_at', { withTimezone: true }),
   offerEndsAt: timestamp('offer_ends_at', { withTimezone: true }),
   updatedBy: text('updated_by'),
+  /**
+   * Optimistic concurrency. Every save names the version it edited; a save
+   * against a stale version is refused rather than silently overwriting a
+   * colleague's change made in the meantime.
+   */
+  version: integer('version').notNull().default(1),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniq: uniqueIndex('product_pricing_sku_idx').on(t.productId, t.size),
@@ -562,6 +598,8 @@ export const domainEvents = pgTable('domain_events', {
   /** What the event is about — an order id — for correlation and replay. */
   subject: text('subject'),
   payload: jsonb('payload').notNull(),
+  /** The request that caused this, so one checkout can be followed through every consumer. */
+  requestId: text('request_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   nameIdx: index('domain_events_name_idx').on(t.name),
@@ -590,10 +628,15 @@ export const eventDeliveries = pgTable('event_deliveries', {
     .notNull()
     .references(() => domainEvents.id, { onDelete: 'cascade' }),
   consumer: text('consumer').notNull(),
-  /** `done` or `failed`. A failed row is retried until `attempts` runs out. */
+  /**
+   * `done`, `failed` (will be retried) or `dead` (retries exhausted). `dead`
+   * is the dead-letter state: shown in the operations console and replayable.
+   */
   status: text('status').notNull().default('done'),
   attempts: integer('attempts').notNull().default(1),
   lastError: text('last_error'),
+  /** Earliest time a failed delivery may be tried again. Exponential backoff. */
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.eventId, t.consumer] }),
@@ -729,4 +772,98 @@ export const routineItems = pgTable('routine_items', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   userIdx: index('routine_items_user_idx').on(t.userId),
+}));
+
+
+/* -------------------------------------------------------------------------- */
+/* Idempotency                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One row per completed idempotent command.
+ *
+ * The guarantee is the unique index on (scope, key), not any read. The claim is
+ * inserted inside the same transaction as the command's own writes, so a
+ * concurrent duplicate blocks on the index until the first commits, then sees
+ * the finished row and returns its stored result. If the command fails, its
+ * transaction rolls back and takes the claim with it, so a retry is allowed.
+ *
+ * `request_hash` catches a key reused with a different payload, a client bug
+ * that would otherwise hand one caller another caller's result.
+ */
+export const idempotencyKeys = pgTable('idempotency_keys', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  scope: text('scope').notNull(),
+  key: text('key').notNull(),
+  requestHash: text('request_hash').notNull(),
+  status: text('status').notNull().default('completed'),
+  responseCode: integer('response_code'),
+  responseBody: jsonb('response_body'),
+  resourceType: text('resource_type'),
+  resourceId: text('resource_id'),
+  requestId: text('request_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+}, (t) => ({
+  scopeKey: uniqueIndex('idempotency_scope_key_idx').on(t.scope, t.key),
+  expiresIdx: index('idempotency_expires_idx').on(t.expiresAt),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Audit trail                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Who changed what, from what, to what.
+ *
+ * Separate from `domain_events` on purpose. Events are facts the system reacts
+ * to; this is a record kept for people, such as the owner asking why a price
+ * moved or an accountant asking who issued a refund. Append-only by convention
+ * and never read by application logic.
+ */
+export const auditLogs = pgTable('audit_logs', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  actor: text('actor').notNull(),
+  actorRole: text('actor_role'),
+  action: text('action').notNull(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  oldValue: jsonb('old_value'),
+  newValue: jsonb('new_value'),
+  reason: text('reason'),
+  requestId: text('request_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  entityIdx: index('audit_entity_idx').on(t.entityType, t.entityId),
+  createdIdx: index('audit_created_idx').on(t.createdAt),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Payment provider events                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every webhook the payment provider has sent, deduplicated by its own id.
+ *
+ * Delivery is at-least-once and unordered. The unique index answers "have we
+ * handled this exact event" without trusting a read, and the stored payload is
+ * what reconciliation and support look at when the order and the provider
+ * disagree.
+ */
+export const paymentEvents = pgTable('payment_events', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  provider: text('provider').notNull(),
+  providerEventId: text('provider_event_id').notNull(),
+  eventType: text('event_type').notNull(),
+  orderId: text('order_id'),
+  providerPaymentId: text('provider_payment_id'),
+  amount: integer('amount'),
+  payload: jsonb('payload').notNull(),
+  /** What the state machine did with it: applied, ignored, rejected, attention. */
+  outcome: text('outcome'),
+  requestId: text('request_id'),
+  receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  providerEventIdx: uniqueIndex('payment_events_provider_event_idx').on(t.provider, t.providerEventId),
+  orderIdx: index('payment_events_order_idx').on(t.orderId),
 }));
