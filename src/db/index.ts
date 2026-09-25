@@ -17,9 +17,17 @@ import { ReadRouter, type Consistency } from './read-router';
  * variable at boot rather than letting individual routes degrade. The
  * connection is now opened on first query instead.
  *
- * The client is cached on globalThis because Next.js re-evaluates modules on
- * every hot reload in development, which would otherwise open a new pool per
- * reload until Postgres refuses connections.
+ * The client is created once per process and cached on globalThis, in every
+ * environment. globalThis rather than a module variable because Next.js
+ * re-evaluates modules on every hot reload in development, which would
+ * otherwise open a new pool per reload until Postgres refuses connections.
+ *
+ * It used to be cached in development only. In production `db` (a Proxy that
+ * resolves the client on every property access) therefore built a new pool,
+ * and opened a new TLS connection to the database, for every single query:
+ * about 700ms of handshakes on each cart read, measured under load testing,
+ * and a connection storm under traffic. Caching in production was the intent
+ * all along; the condition was simply on the wrong side.
  */
 
 type Sql = ReturnType<typeof postgres>;
@@ -42,7 +50,7 @@ function createClient(url = process.env.DATABASE_URL): Sql {
     // Serverless functions are short-lived and numerous; a large pool per
     // instance exhausts Postgres connection limits. Keep it small and let the
     // platform's pooler do the multiplexing.
-    max: process.env.NODE_ENV === 'production' ? 5 : 2,
+    max: Number(process.env.DATABASE_POOL_MAX) || (process.env.NODE_ENV === 'production' ? 5 : 2),
     idle_timeout: 20,
     connect_timeout: 10,
     prepare: false, // required when running through a transaction-mode pooler
@@ -51,11 +59,8 @@ function createClient(url = process.env.DATABASE_URL): Sql {
 
 function getDb(): Database {
   if (!globalForDb.__avyoraDb) {
-    const sql = globalForDb.__avyoraSql ?? createClient();
-    if (process.env.NODE_ENV !== 'production') globalForDb.__avyoraSql = sql;
-    const instance = drizzle(sql, { schema });
-    if (process.env.NODE_ENV !== 'production') globalForDb.__avyoraDb = instance;
-    return instance;
+    globalForDb.__avyoraSql ??= createClient();
+    globalForDb.__avyoraDb = drizzle(globalForDb.__avyoraSql, { schema });
   }
   return globalForDb.__avyoraDb;
 }
