@@ -42,8 +42,7 @@ jobs:
         run: npm audit --audit-level=critical
 
       - name: Build
-        run: npm run build
-        env:
-          # The build must succeed without secrets, which also proves the app
-          # degrades rather than crashing when unconfigured.
-          NODE_ENV: production
+        # No database in CI: the explicit offline build, which renders the
+        # catalogue-only fallbacks. This proves the app degrades rather than
+        # crashing when unconfigured; the artifact is never deployed.
+        run: npm run build:offline

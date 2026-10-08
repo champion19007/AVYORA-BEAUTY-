@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { SUPPORT_EMAIL } from '@/data/business-info';
+import { DELIVERY_TERMS } from '@/lib/money';
 
 export const metadata: Metadata = {
   title: 'Shipping Policy',
@@ -16,8 +18,8 @@ export default function Page() {
 
       <h2>Charges</h2>
       <p>
-        Delivery is &#8377;79 on orders below &#8377;1,199, and free at or above &#8377;1,199. The
-        exact charge is shown at checkout before you pay.
+        {/* Same constants checkout charges by; see lib/money.ts. */}
+        {DELIVERY_TERMS} The exact charge is shown at checkout before you pay.
       </p>
 
       <h2>Despatch and delivery times</h2>
@@ -29,14 +31,14 @@ export default function Page() {
 
       <h2>Tracking</h2>
       <p>
-        We email tracking details once your order is despatched. You can also use our
-        <a href="/track-order">order tracking page</a>.
+        Follow your order&apos;s status on our <a href="/track-order">order tracking page</a> with your
+        order number.
       </p>
 
       <h2>If something goes wrong</h2>
       <p>
-        If your order has not arrived within [TO CONFIRM] days of despatch, email
-        <a href="mailto:support@avyora.com">support@avyora.com</a> with your order number and we
+        If your order has not arrived within [TO CONFIRM] days of despatch, email{' '}
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your order number and we
         will chase it with the courier.
       </p>
     </>

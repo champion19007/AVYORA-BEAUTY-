@@ -1,7 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
 import { ingredients, ingredientInteractions } from '@/db/schema';
-import { cache, POLICIES } from '@/infrastructure/cache';
+import { resolveLabels, type LabelSetResolution } from '@/modules/ingredients/resolve';
 
 /**
  * Ingredient interaction checking.
@@ -42,6 +42,8 @@ export type RoutineEntry = {
   label: string;
   ingredientIds: string[];
   prescribed: boolean;
+  /** Ingredient labels that could not be identified. Reported, never ignored. */
+  unresolvedLabels?: string[];
 };
 
 /**
@@ -59,11 +61,29 @@ export async function evaluateRoutine(
 
   const findings: Finding[] = [];
 
+  /* ---- What could not be checked -------------------------------------- */
+
+  // Silence about an unidentified ingredient would read as "no interactions";
+  // say plainly that those were not checked.
+  const unchecked = routine.filter((item) => item.unresolvedLabels?.length);
+  const uncheckedFinding: Finding | null =
+    unchecked.length > 0
+      ? {
+          tier: 4,
+          title: 'Some ingredients could not be checked',
+          detail:
+            unchecked.map((u) => `${u.label}: ${u.unresolvedLabels!.join(', ')}`).join('; ') +
+            '. We do not recognise these yet, so no interaction check covers them.',
+          citation: null,
+          involves: [],
+        }
+      : null;
+
   const present = new Set<string>();
   for (const item of routine) for (const id of item.ingredientIds) present.add(id);
   for (const id of candidateIngredientIds) present.add(id);
 
-  if (present.size === 0) return [];
+  if (present.size === 0) return uncheckedFinding ? [uncheckedFinding] : [];
 
   const known = await db
     .select()
@@ -146,49 +166,21 @@ export async function evaluateRoutine(
     });
   }
 
+  if (uncheckedFinding) findings.push(uncheckedFinding);
   return findings.sort((x, y) => x.tier - y.tier);
 }
 
 /**
- * Resolves an ingredient list from a label into known ingredient ids.
+ * Resolves an ingredient list from a label into canonical ingredient ids.
  *
- * Matches on the INCI name and on recorded synonyms, because labels are not
- * consistent: the same molecule appears as "Tretinoin", "All-trans retinoic
- * acid", and "Retinoic acid" depending on who printed the carton.
- *
- * Unmatched entries are simply not returned. Silence about an ingredient we do
- * not recognise is correct — inventing a match would produce a confident
- * warning about the wrong molecule.
+ * Through the canonical alias map (`modules/ingredients/resolve`): a label is
+ * normalised first, so "Niacinamide 10%" and "Hyaluronic Acid (5 Weights)"
+ * resolve, which exact string comparison never did (audit #18). Ambiguous
+ * labels ("vitamin c", "AHA") and unknown ones are returned as such, never
+ * guessed and never dropped: a caller must not read them as "nothing here".
  */
-export async function resolveIngredients(labelText: string): Promise<string[]> {
-  if (!isDatabaseConfigured()) return [];
-
-  const tokens = labelText
-    .toLowerCase()
-    .split(/[,;\n]/)
-    .map((t) => t.trim())
-    .filter((t) => t.length > 2);
-
-  if (tokens.length === 0) return [];
-
-  // The whole dictionary, cached: it changes only when the seed script runs,
-  // and reading every row on every label lookup was the slowest thing here.
-  const all = await cache.getOrSet(POLICIES.ingredients, 'dictionary', () =>
-    db.select().from(ingredients)
-  );
-  const matched = new Set<string>();
-
-  for (const ingredient of all) {
-    const names = [
-      ingredient.inciName.toLowerCase(),
-      ingredient.commonName.toLowerCase(),
-      ...((ingredient.synonyms as string[] | null) ?? []).map((s) => s.toLowerCase()),
-    ];
-
-    if (tokens.some((token) => names.includes(token))) matched.add(ingredient.id);
-  }
-
-  return [...matched];
+export function resolveIngredients(labelText: string): LabelSetResolution {
+  return resolveLabels(labelText);
 }
 
 /** Whether any ingredient in a set raises sun sensitivity. */

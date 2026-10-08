@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
 import { productPricing } from '@/db/schema';
+import type { PricingRow } from '@/modules/catalog/sku-price';
 
 /**
  * Owner-set prices and offers.
@@ -15,54 +16,12 @@ import { productPricing } from '@/db/schema';
  * rounding error waiting to become a wrong total.
  */
 
-export type EffectivePrice = {
-  /** What the customer pays, in paise. */
-  price: number;
-  /** The struck-out original, when an offer is running. */
-  wasPrice: number | null;
-  offerLabel: string | null;
-  /** True when the price came from the database rather than the catalogue. */
-  overridden: boolean;
-};
-
-export type PricingRow = typeof productPricing.$inferSelect;
-
-/** Whether an offer is live right now, given its optional window. */
-function offerActive(row: PricingRow, now: Date): boolean {
-  if (row.salePrice === null) return false;
-  // A sale price above the list price is a data error, not an offer.
-  if (row.salePrice >= row.price) return false;
-  if (row.offerStartsAt && row.offerStartsAt > now) return false;
-  if (row.offerEndsAt && row.offerEndsAt <= now) return false;
-  return true;
-}
-
-/**
- * Resolves what a SKU actually costs.
- *
- * `cataloguePrice` is the fallback, so a product with no override behaves
- * exactly as before.
+/*
+ * The pricing rule itself lives in `modules/catalog/sku-price.ts`, which has
+ * no database imports so the bag can run it in the browser. Re-exported here
+ * for the existing callers.
  */
-export function resolvePrice(
-  cataloguePrice: number,
-  row: PricingRow | undefined,
-  now = new Date()
-): EffectivePrice {
-  if (!row) {
-    return { price: cataloguePrice, wasPrice: null, offerLabel: null, overridden: false };
-  }
-
-  if (offerActive(row, now)) {
-    return {
-      price: row.salePrice!,
-      wasPrice: row.price,
-      offerLabel: row.offerLabel,
-      overridden: true,
-    };
-  }
-
-  return { price: row.price, wasPrice: null, offerLabel: null, overridden: true };
-}
+export { resolvePrice, type EffectivePrice, type PricingRow } from '@/modules/catalog/sku-price';
 
 /** Every override, keyed `productId::size`. */
 export async function pricingMap(): Promise<Map<string, PricingRow>> {

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Price } from '@/components/price';
 import { cn } from '@/lib/utils';
 import { stockLabel } from '@/lib/stock-label';
-import type { SkuPrice } from '@/modules/catalog/sku-price';
+import { skuPrice, type SkuPrice } from '@/modules/catalog/sku-price';
 
 /**
  * Availability for the whole catalogue, keyed `productId::size`.
@@ -61,11 +61,10 @@ export function ProductCard({
   const availability = stock ? stockLabel(stock[`${product.id}::${activeSize.label}`]) : null;
   const soldOut = availability?.tone === 'out';
 
-  const resolved = prices?.[`${product.id}::${activeSize.label}`];
-  const currentPrice = resolved ? resolved.price / 100 : (product.salePrice ?? activeSize.price);
-  const wasPrice = resolved
-    ? resolved.wasPrice !== null ? resolved.wasPrice / 100 : null
-    : product.salePrice ? activeSize.price : null;
+  // The shared rule for this size; the catalogue figure when no prices were passed.
+  const resolved = prices?.[`${product.id}::${activeSize.label}`] ?? skuPrice(product, activeSize.label, undefined);
+  const currentPrice = resolved.price / 100;
+  const wasPrice = resolved.wasPrice !== null ? resolved.wasPrice / 100 : null;
 
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -114,7 +113,7 @@ export function ProductCard({
         <div className="absolute left-4 top-4 z-10 flex flex-col gap-2">
           {product.isBestSeller && (
             <span className="rounded-full bg-foreground/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-background backdrop-blur-sm">
-              Best Seller
+              Our pick
             </span>
           )}
           {product.isNewLaunch && (
@@ -205,7 +204,7 @@ export function ProductCard({
           )}
           <Button
             className="w-full rounded-md bg-foreground py-6 text-xs font-semibold uppercase tracking-[0.2em] text-background transition-colors duration-300 hover:bg-primary hover:text-primary-foreground"
-            onClick={() => addToCart(product, selectedSize)}
+            onClick={() => addToCart(product.id, selectedSize, 1, stock ? stock[`${product.id}::${selectedSize}`] ?? 0 : undefined)}
             disabled={soldOut}
           >
             {soldOut ? 'Sold out' : 'Add to Bag'}

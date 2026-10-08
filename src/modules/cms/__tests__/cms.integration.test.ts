@@ -115,6 +115,23 @@ describe('publishing', () => {
     expect((await productCopy(SLUG))?.tagline).toBe('Melts sunscreen, rinses clean.');
   });
 
+  it('refuses to publish placeholders, unsupported offers and absolute claims', async () => {
+    for (const tagline of [
+      'Ships from [TO CONFIRM]',
+      'Earn 5% cashback on this cleanser',
+      'Fast-acting with zero irritation',
+    ]) {
+      const saved = await saveDraft(
+        { type: 'product_copy', slug: `claim-${tagline.length}`, body: copy({ tagline }), expectedVersion: 0 },
+        owner
+      );
+      if (!saved.ok) throw new Error('save failed');
+      const result = await publishDocument({ documentId: saved.value.id, expectedVersion: 1 }, owner);
+      expect(result).toMatchObject({ ok: false, code: 'conflict' });
+      if (!result.ok) expect(result.message).toMatch(/^Not published:/);
+    }
+  });
+
   it('refuses to publish a version other than the one reviewed', async () => {
     const saved = await save();
     if (!saved.ok) throw new Error('save failed');

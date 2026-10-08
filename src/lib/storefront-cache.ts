@@ -53,5 +53,8 @@ export async function revalidateContent(type: string, slug: string): Promise<voi
   } else if (type === 'article') {
     revalidatePath('/journal');
     revalidatePath(`/journal/${slug}`);
+    // The sitemap lists articles; without this a new one is invisible to
+    // search engines until the next deploy.
+    revalidatePath('/sitemap.xml');
   }
 }

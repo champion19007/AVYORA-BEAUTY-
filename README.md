@@ -294,10 +294,16 @@ branch), then run `npm run db:migrate`.
 | --- | --- |
 | `npm run dev` | Development server on port 9002 |
 | `npm run build` / `npm start` | Production build, then serve it on port 3000 |
+| `npm run build:offline` | Production build with no database (CI, or a laptop without one). For checking the build only; never deploy it. |
 | `npm run typecheck` · `npm run lint` · `npm test` | Checks, as CI runs them |
 | `npm run db:migrate` | Apply pending migrations to `DATABASE_URL` |
 | `npm run db:seed-inventory` | Create stock rows for any catalogue size that has none |
 | `npm run check:env -- --production` | Check environment variables before a deploy (never prints secrets) |
+| `npm run db:import-knowledge` | Validate and write the ingredient dictionary, aliases, interaction rules, formulations, evidence and approved directions (refuses on any problem; safe to re-run; `db:seed-ingredients` does the same) |
+| `npm run kb -- build` | Compile approved knowledge into a release and list what awaits qualified review (`status`, `publish --confirm`, `rollback --reason`, `revoke <id> --reason` act on DATABASE_URL) |
+| `node scripts/measure-pages.mjs [url]` | Measure a running build: cache state, HTML and JS/CSS transfer per public page, and that private pages are never shared-cacheable |
+| `npm run db:check-catalog` | Read-only check that every product, size, stock row, price override and order line maps to a catalogue SKU (after migration 0014) |
+| `npm run check:launch` | List business details, claims and product directions still missing before launch; fails until none remain |
 | `npm run test:stress` | Concurrency tests against a scratch database (see section 12) |
 | `npm run load-test -- http://localhost:3000` | HTTP load test against a local build |
 
@@ -526,6 +532,7 @@ audit on every push.
 | A product edit doesn't show | Saved as a draft, not published | Press **Publish version N** |
 | "Someone else saved this…" | Two people edited the same item | Reload, then redo the change |
 | Something under System shows **dead** | A provider refused repeatedly | Fix the provider, then press **Replay** |
+| `npm run build` fails with `ECONNREFUSED` while generating pages | `DATABASE_URL` points at a database that isn't running | Deliberate: a build must not bake an outage into cached pages. Start the database, point at a Neon branch, or use `npm run build:offline`. |
 
 ---
 

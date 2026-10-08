@@ -35,6 +35,8 @@ export type RankingSignals = {
   coPurchases?: ReadonlyMap<string, number>;
   /** Products that must never be suggested next to this one. */
   conflicts?: ReadonlySet<string>;
+  /** Interaction check incomplete: may fill a slot, never scored as a routine fit. */
+  unchecked?: ReadonlySet<string>;
   /** Whether a product can be bought now. Omitted: assume it can. */
   available?: (productId: string) => boolean;
 };
@@ -63,7 +65,10 @@ export function rankRecommendations(
     const sharedIngredients = product.ingredients.filter((i) => ingredients.has(i.toLowerCase())).length;
     const otherStep = product.category !== target.category;
 
-    const fit = sharedConcerns > 0 ? sharedConcerns * 3 + (otherStep ? 2 : 0) + sharedIngredients : 0;
+    const fit =
+      sharedConcerns > 0 && !signals.unchecked?.has(product.id)
+        ? sharedConcerns * 3 + (otherStep ? 2 : 0) + sharedIngredients
+        : 0;
     const bought = together >= MIN_SUPPORT ? 100 + together * 10 : 0;
 
     const reason: Reason = bought ? 'bought_together' : fit ? 'routine_fit' : 'fill';

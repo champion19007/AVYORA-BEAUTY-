@@ -1,0 +1,26 @@
+{
+  "pdf_pages": 47,
+  "chapters": 30,
+  "embedded_visuals": 11,
+  "all_visual_sources_exist": true,
+  "pdf_visual_review": "All 16 changed pages inspected; 31 page bodies matched previously inspected desktop pages. Final accessibility-copy repair changed pages 11 to 13, which were rendered and reinspected.",
+  "docx_visual_review": "Unavailable: packaged renderer cannot find LibreOffice soffice.exe; native document session unavailable",
+  "application_code_changed": false,
+  "pdf_sha256": "f796357ab71f1dd17860af588e16a453c9e9a54b1d99ba0e0a559121e9aabd48",
+  "delivery_scope": "Desktop website first; mobile UI and setup only after owner desktop testing",
+  "primary_design_reference": "https://nuve-beauty.framer.website/",
+  "secondary_design_references": [
+    "https://lovi.care/",
+    "https://www.figma.com/community/file/1392577734404895491/lovi-landing-page-ui-web-to-figma"
+  ],
+  "reference_capture_viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "figma_access": "Public listing and preview only",
+  "firecrawl_interaction": "Timed out; successful page retrieval and native browser visual verification",
+  "archived_video_frames_seconds": [
+    2,
+    7
+  ]
+}

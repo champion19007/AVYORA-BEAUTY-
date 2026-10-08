@@ -12,6 +12,7 @@ import { ProductCard } from '@/components/product/product-card';
 import { cn } from '@/lib/utils';
 import { stockLabel } from '@/lib/stock-label';
 import type { SkuPrice } from '@/modules/catalog/sku-price';
+import { MAX_QUANTITY_PER_SKU } from '@/lib/cart';
 import type { DisplayPrices, StockByKey } from '@/modules/catalog/storefront-data';
 
 export function ProductClient({
@@ -46,11 +47,35 @@ export function ProductClient({
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]?.label || '');
   const [quantity, setQuantity] = useState(1);
+  const [notice, setNotice] = useState<string | null>(null);
   const { addToCart, wishlist, toggleWishlist } = useApp();
 
   const selectedStock = stockBySize[selectedSize] ?? 0;
   const selectedOut = selectedStock <= 0;
   const availability = stockLabel(selectedOut ? 0 : selectedStock);
+  // The selector cannot ask for more than this size has, or than one order allows.
+  const maxQuantity = Math.max(1, Math.min(MAX_QUANTITY_PER_SKU, selectedStock));
+
+  /*
+   * Adds the selected size at the selected quantity. Both used to be lost:
+   * the handler passed no quantity (one was always added) and the bag priced
+   * the line from the product's base size.
+   */
+  const handleAdd = () => {
+    const result = addToCart(product.id, selectedSize, quantity, selectedStock);
+    if (result.limitedBy === 'stock') {
+      setNotice(
+        result.added === 0
+          ? `Your bag already holds all ${selectedStock} available.`
+          : `Only ${result.added} more could be added: ${selectedStock} available.`
+      );
+    } else if (result.limitedBy === 'per_sku_cap') {
+      setNotice(`At most ${MAX_QUANTITY_PER_SKU} of one size per order.`);
+    } else {
+      setNotice(null);
+      setQuantity(1);
+    }
+  };
 
   const isWishlisted = wishlist.includes(product.id);
 
@@ -61,8 +86,8 @@ export function ProductClient({
         <div className="lg:col-span-7 flex flex-col-reverse md:flex-row gap-4">
           <div className="flex md:flex-col gap-2 md:gap-4 overflow-x-auto md:overflow-y-auto no-scrollbar">
             {product.images.map((img, i) => (
-              <button 
-                key={i} 
+              <button
+                key={i}
                 aria-label={`Show image ${i + 1}`}
                 onClick={() => setCurrentImage(i)}
                 className={cn(
@@ -70,10 +95,10 @@ export function ProductClient({
                   currentImage === i ? "border-foreground" : "border-transparent hover:border-muted"
                 )}
               >
-                <Image 
-                  src={img} 
-                  fill 
-                  alt={`${product.name} thumbnail ${i + 1}`} 
+                <Image
+                  src={img}
+                  fill
+                  alt={`${product.name} thumbnail ${i + 1}`}
                   className="object-cover"
                   sizes="(max-width: 768px) 64px, 80px"
                   data-ai-hint="skincare product"
@@ -81,18 +106,18 @@ export function ProductClient({
               </button>
             ))}
           </div>
-          
+
           <div className="relative flex-1 aspect-[4/5] border bg-muted overflow-hidden">
-            <Image 
-              src={product.images[currentImage]} 
-              fill 
-              alt={product.name} 
-              className="object-cover transition-transform duration-700 hover:scale-110" 
-              priority 
+            <Image
+              src={product.images[currentImage]}
+              fill
+              alt={product.name}
+              className="object-cover transition-transform duration-700 hover:scale-110"
+              priority
               sizes="(max-width: 1024px) 100vw, 60vw"
               data-ai-hint="skincare bottle"
             />
-            <button 
+            <button
               aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
               onClick={() => toggleWishlist(product.id)}
               className="absolute top-4 right-4 md:top-6 md:right-6 p-3 md:p-4 bg-white/50 backdrop-blur hover:bg-white transition-all z-10"
@@ -144,7 +169,8 @@ export function ProductClient({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No reviews yet — be the first to review this formulation.
+                {/* No review submission flow exists yet, so no invitation to leave one. */}
+                No reviews yet.
               </p>
             )}
 
@@ -178,7 +204,12 @@ export function ProductClient({
                   return (
                     <button
                       key={size.label}
-                      onClick={() => setSelectedSize(size.label)}
+                      onClick={() => {
+                        setSelectedSize(size.label);
+                        // A quantity chosen for one size may exceed another's stock.
+                        setQuantity((q) => Math.max(1, Math.min(q, MAX_QUANTITY_PER_SKU, stockBySize[size.label] ?? 0)));
+                        setNotice(null);
+                      }}
                       disabled={soldOut}
                       aria-label={soldOut ? `${size.label} — out of stock` : size.label}
                       className={cn(
@@ -209,18 +240,19 @@ export function ProductClient({
 
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex items-center border border-border h-14 md:h-16 shrink-0 w-full sm:w-auto justify-between sm:justify-start">
-                <button 
+                <button
                   aria-label="Decrease quantity"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))} 
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   className="px-6 h-full hover:bg-muted transition-colors"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
                 <span className="px-6 font-semibold text-sm" aria-label="Quantity">{quantity}</span>
-                <button 
+                <button
                   aria-label="Increase quantity"
-                  onClick={() => setQuantity(quantity + 1)} 
-                  className="px-6 h-full hover:bg-muted transition-colors"
+                  disabled={quantity >= maxQuantity}
+                  onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
+                  className="px-6 h-full hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -234,11 +266,16 @@ export function ProductClient({
                 // paired token is what the fill was designed against: 7:1 and
                 // 10.5:1 respectively.
                 className="flex-1 h-14 md:h-16 rounded-md bg-primary text-primary-foreground font-semibold uppercase tracking-widest hover:bg-primary/90 text-[10px] disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => addToCart(product, selectedSize)}
+                onClick={handleAdd}
               >
                 {selectedOut ? 'Out of stock' : 'Add to Cart'}
               </Button>
             </div>
+            {notice && (
+              <p className="text-[13px] text-muted-foreground" role="status">
+                {notice}
+              </p>
+            )}
           </div>
 
           <div className="pt-6 md:pt-10 border-t">
@@ -253,7 +290,7 @@ export function ProductClient({
                 <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">How to Use</AccordionTrigger>
                 <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
                   {howToUse ??
-                    'Apply to cleansed skin. Use twice daily for best results, and wear SPF during the day.'}
+                    'Directions specific to this product are being reviewed. Until they are published here, follow the directions on the pack and patch test first.'}
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

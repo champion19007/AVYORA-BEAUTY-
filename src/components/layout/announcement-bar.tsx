@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { FREE_DELIVERY_LINE } from '@/lib/money';
 
+/*
+ * Only what checkout actually applies. Buy 2 Get 3rd Free, "up to 33% off",
+ * free gifts and bundle savings were advertised here, but no order ever
+ * received them: there is no promotion engine, gift fulfilment or bundle
+ * pricing yet (audit #07). They return when that exists (prompt 29).
+ */
 const MESSAGES = [
-  "Buy 2, Get 3rd Free on Avyora Best Sellers",
-  "Up to 33% OFF + Freebies on orders above ₹1199",
-  "Get a Free Surprise Gift on orders above ₹1199",
-  "Build Your Own Bundle — Save an additional up to 15%"
+  FREE_DELIVERY_LINE,
+  'Not sure where to start? Try the routine finder',
 ];
 
 export function AnnouncementBar() {

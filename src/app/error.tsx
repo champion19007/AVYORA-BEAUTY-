@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { SUPPORT_EMAIL } from '@/data/business-info';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
@@ -34,8 +35,8 @@ export default function Error({
       </h1>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
         This is on us, not you. Try again, and if it keeps happening email{' '}
-        <a href="mailto:support@avyora.com" className="text-primary underline">
-          support@avyora.com
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="text-primary underline">
+          {SUPPORT_EMAIL}
         </a>
         .
       </p>

@@ -1,0 +1,83 @@
+{
+  "capturedOn": "2026-10-07",
+  "primaryReference": "https://nuve-beauty.framer.website/",
+  "ownerSelected": "Current live Nuve website",
+  "secondaryReferences": [
+    "https://lovi.care/",
+    "https://www.figma.com/community/file/1392577734404895491/lovi-landing-page-ui-web-to-figma"
+  ],
+  "firecrawl": [
+    {
+      "url": "https://nuve-beauty.framer.website/",
+      "title": "Nuvē — AI Skin Companion",
+      "statusCode": 200
+    },
+    {
+      "url": "https://lovi.care/",
+      "title": "Lovi — Smart Skin Care",
+      "statusCode": 200
+    },
+    {
+      "url": "https://www.figma.com/community/file/1392577734404895491/lovi-landing-page-ui-web-to-figma",
+      "title": "Lovi -- Landing Page UI -- Web To Figma | Figma",
+      "statusCode": 200
+    }
+  ],
+  "interactionLimitation": "Firecrawl interaction timed out; in-app browser verified hero, menu, Results grid and Lovi hero.",
+  "measuredViewport": {
+    "width": 1280,
+    "height": 720,
+    "contentWidth": 1265
+  },
+  "hero": {
+    "height": 720,
+    "gutter": 40,
+    "headingFont": "Inter",
+    "headingSize": 100,
+    "lineHeight": 100,
+    "fontWeight": 500,
+    "letterSpacing": -6,
+    "headingWidth": 900
+  },
+  "sectionHeading": {
+    "font": "Inter",
+    "size": 80,
+    "lineHeight": 88,
+    "fontWeight": 500,
+    "letterSpacing": -3.2
+  },
+  "wordmark": {
+    "font": "Instrument Serif",
+    "size": 28,
+    "lineHeight": 33.6,
+    "fontWeight": 400,
+    "letterSpacing": -0.8
+  },
+  "resultCards": {
+    "width": 588,
+    "height": 585,
+    "radius": 18,
+    "columns": 2
+  },
+  "colors": {
+    "background": "#FAFAFA",
+    "ink": "#1A1A1A",
+    "photoText": "#FFFFFF"
+  },
+  "figmaAccess": "Public listing and preview only; editable layers were not read or duplicated.",
+  "primarySectionOrder": [
+    "Hero",
+    "About Us",
+    "Results",
+    "Vision",
+    "Features",
+    "Services",
+    "Testimonials",
+    "Pricing",
+    "Image",
+    "FAQ",
+    "Consultation",
+    "Footer"
+  ],
+  "mobileDeferred": true
+}

@@ -1,9 +1,13 @@
 import type { MetadataRoute } from 'next';
+import { SITE_URL } from '@/data/business-info';
 import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { publishedArticles } from '@/modules/cms/content-read';
 import { reportError } from '@/lib/observability';
 
-const BASE_URL = 'https://avyora.com';
+const BASE_URL = SITE_URL;
+
+/** Hourly, and immediately on article publish (lib/storefront-cache.ts). */
+export const revalidate = 3600;
 
 /**
  * Emits /sitemap.xml covering the marketing pages, every product detail

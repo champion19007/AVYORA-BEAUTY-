@@ -180,3 +180,145 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Redesign tokens (Nuvē desktop reference, measured 8 Oct 2026;             */
+/* docs/redesign-reference/nuve-reference-2026-10-08.md)                      */
+/* -------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    /* Colour: measured. */
+    --nv-page: #fafafa;
+    --nv-ink: #1a1a1a;
+    --nv-muted: #696666;
+    --nv-faint: #adadad;
+    --nv-card: #ffffff;
+    --nv-line: #e8e8e8;
+    --nv-glass: rgba(255, 255, 255, 0.24);
+    /* Not in the reference: a status colour with 4.5:1 contrast on white for errors. */
+    --nv-danger: #b42318;
+    /* Geometry: measured. */
+    --nv-gutter: 40px;
+    --nv-container: 1240px;
+    --nv-gap: 8px;
+    --nv-radius-card: 18px;
+    --nv-radius-inner: 12px;
+    --nv-radius-pill: 100px;
+    --nv-header-height: 76px;
+    /* Motion: proposed (the reference's runtime timings are not measurable). */
+    --nv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --nv-duration-reveal: 600ms;
+    --nv-duration-overlay: 500ms;
+    --nv-duration-control: 300ms;
+  }
+}
+
+@layer components {
+  /* Visible keyboard focus everywhere in the redesign, never removed. */
+  .nv-focus,
+  .nv-focus-light {
+    @apply outline-none;
+  }
+  .nv-focus:focus-visible {
+    outline: 2px solid var(--nv-ink);
+    outline-offset: 4px;
+  }
+  .nv-focus-light:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 4px;
+  }
+
+  /*
+   * Scroll reveal with no JavaScript: content is visible by default and only
+   * animates where the browser supports view timelines and the visitor has
+   * not asked for reduced motion. Under reduced motion, or without support,
+   * the final state is all there is (the reference keeps unrevealed content
+   * hidden under reduced motion; Avyora does not).
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .nv-reveal {
+        animation: nv-reveal linear both;
+        animation-timeline: view();
+        animation-range: entry 0% entry 60%;
+      }
+    }
+  }
+}
+
+/* Under the redesign (body.font-nv) headings are Inter, not the old display serif set by the base layer. */
+.font-nv :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes nv-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * Hero entrance (observed: text and image settle on load, image slightly
+ * scaled; timings proposed). Only with no reduced-motion preference; the
+ * resting state is the final one, so nothing is hidden if CSS animations
+ * do not run.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .nv-hero-in {
+    animation: nv-hero-in 700ms var(--nv-ease) both;
+  }
+  .nv-hero-image {
+    animation: nv-hero-image 1400ms var(--nv-ease) both;
+  }
+}
+
+@keyframes nv-hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes nv-hero-image {
+  from {
+    transform: scale(1.05);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes nv-overlay-out {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes nv-overlay-in {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-motion {
+    animation: none !important;
+    transition: none !important;
+  }
+}

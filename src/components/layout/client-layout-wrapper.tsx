@@ -8,6 +8,8 @@ import { Footer } from './footer';
 import { CartDrawer } from '../cart-drawer';
 import { Toaster } from '@/components/ui/toaster';
 import { usePathname } from 'next/navigation';
+import { REDESIGN } from '@/lib/redesign';
+import { SiteHeader } from '@/components/nv/shell/site-header';
 
 import { createContext, useContext } from 'react';
 
@@ -25,7 +27,12 @@ export const useAuthAvailable = () => useContext(AuthAvailableContext);
 function MaybeSession({ enabled, children }: { enabled: boolean; children: React.ReactNode }) {
   return (
     <AuthAvailableContext.Provider value={enabled}>
-      {enabled ? <SessionProvider>{children}</SessionProvider> : children}
+      {/*
+        No refetch on window focus: sessions are database-backed, so each
+        check is a query, and focus refetches doubled the session calls of a
+        page view for no change in who is signed in.
+      */}
+      {enabled ? <SessionProvider refetchOnWindowFocus={false}>{children}</SessionProvider> : children}
     </AuthAvailableContext.Provider>
   );
 }
@@ -46,6 +53,7 @@ export function ClientLayoutWrapper({
   children,
   authEnabled,
   deliverTo,
+  footer,
 }: {
   children: React.ReactNode;
   /**
@@ -61,6 +69,8 @@ export function ClientLayoutWrapper({
    * query, and the address, on the server.
    */
   deliverTo?: React.ReactNode;
+  /** The redesign footer, rendered on the server by the root layout (redesign only). */
+  footer?: React.ReactNode;
 }) {
   const pathname = usePathname();
   /*
@@ -90,6 +100,29 @@ export function ClientLayoutWrapper({
           <Toaster />
         </div>
       </AppProvider>
+      </MaybeSession>
+    );
+  }
+
+  // Redesign shell (NEXT_PUBLIC_REDESIGN=1): measured header and menu, server-rendered footer,
+  // no announcement bar (its delivery line moves to the footer), no route-change fade.
+  if (REDESIGN) {
+    return (
+      <MaybeSession enabled={authEnabled}>
+        <AppProvider>
+          <div className="flex min-h-screen w-full flex-col bg-nv-page text-nv-ink">
+            <a href="#main" className="nv-focus sr-only z-50 rounded-nv-pill bg-nv-ink px-6 py-3 text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+              Skip to content
+            </a>
+            <SiteHeader />
+            <main id="main" className="w-full flex-1">
+              {children}
+            </main>
+            {footer}
+            <CartDrawer />
+            <Toaster />
+          </div>
+        </AppProvider>
       </MaybeSession>
     );
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import * as Sentry from '@sentry/nextjs';
+import { SUPPORT_EMAIL } from '@/data/business-info';
 
 /**
  * Last-resort boundary, for errors thrown in the root layout itself.
@@ -24,7 +24,8 @@ export default function GlobalError({
         at: new Date().toISOString(),
       })
     );
-    if (process.env.NEXT_PUBLIC_SENTRY_DSN) Sentry.captureException(error);
+    // Loaded on demand, so the SDK is not in every page's bundle (see instrumentation-client.ts).
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) void import('@sentry/nextjs').then((S) => S.captureException(error));
   }, [error]);
 
   return (
@@ -49,8 +50,8 @@ export default function GlobalError({
           </h1>
           <p style={{ lineHeight: 1.7, opacity: 0.75 }}>
             This is on us. Please try again in a moment, or email{' '}
-            <a href="mailto:support@avyora.com" style={{ color: '#C9A227' }}>
-              support@avyora.com
+            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#C9A227' }}>
+              {SUPPORT_EMAIL}
             </a>
             .
           </p>

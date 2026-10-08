@@ -11,7 +11,10 @@ import { applyPaymentSignalInTx } from '@/modules/payments/payment-service';
 import { scheduleReconciliation } from '@/modules/payments/jobs';
 import { createRazorpayOrder, getRazorpayConfig } from '@/lib/razorpay';
 import { createOrderAccessToken } from '@/lib/order-access';
-import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
+import { limit, limitResponse } from '@/lib/rate-limit';
+import { trustedClientIp } from '@/lib/client-ip';
+import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
+import { findByIdempotencyKey } from '@/lib/orders';
 
 /** What a payment session returns, stored and replayed by the idempotency claim. */
 type PaymentSession = { razorpayOrderId: string; amount: number; currency: string };
@@ -28,11 +31,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   }
 
-  const limit = await rateLimit('payment', clientIp(request));
-  if (!limit.allowed) {
-    return tooManyRequests(limit, 'Too many payment attempts. Please wait a moment.');
-  }
-
   const config = getRazorpayConfig();
   if (!config || !isDatabaseConfigured()) {
     return NextResponse.json(
@@ -41,21 +39,36 @@ export async function POST(request: Request) {
     );
   }
 
-  let input: CheckoutInput;
-  try {
-    input = (await request.json()) as CheckoutInput;
-  } catch {
+  const body = await readBoundedJson(request, BODY_LIMITS.paymentCreate);
+  if (!body.ok) return body.response;
+  if (!body.json || typeof body.json !== 'object') {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   }
+  const input = body.json as CheckoutInput;
 
   const session = await auth().catch(() => null);
+  const limited = await limit([
+    { policy: 'payment', subject: { kind: 'ip', address: trustedClientIp(request.headers) } },
+    session?.user?.id
+      ? { policy: 'payment', subject: { kind: 'user', id: session.user.id } }
+      : { policy: 'payment', subject: { kind: 'identifier', value: String(input.email ?? '') } },
+  ]);
+  // A retry of an existing order replays (createOrder and the Razorpay claim
+  // are both idempotent); only new work is refused.
+  if (!limited.allowed && !(input.idempotencyKey && (await findByIdempotencyKey(String(input.idempotencyKey))))) {
+    return limitResponse(limited);
+  }
   const created = await createOrder(
     { ...input, paymentMethod: 'razorpay' },
     session?.user?.id ?? null
   );
 
   if (!created.ok) {
-    return NextResponse.json({ error: created.error }, { status: 400 });
+    // 409 for a changed price: the request was fine, the quote it relied on is not.
+    return NextResponse.json(
+      { error: created.error, code: created.code },
+      { status: created.code === 'price_changed' ? 409 : 400 }
+    );
   }
 
   try {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
 import { cookies } from 'next/headers';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
@@ -32,9 +33,14 @@ export async function POST(request: Request) {
     return new NextResponse(null, { status: 204 });
   }
 
+  const read = await readBoundedJson(request, BODY_LIMITS.activity);
+  if (!read.ok) return read.response;
+
   try {
-    const body = await request.json();
-    if (!ALLOWED.has(body?.name)) return new NextResponse(null, { status: 204 });
+    const body = read.json as
+      | { name: EventName; path?: string; props?: Record<string, string | number | boolean | null> }
+      | undefined;
+    if (!body || !ALLOWED.has(body.name)) return new NextResponse(null, { status: 204 });
 
     const session = await auth().catch(() => null);
     const anon = (await cookies()).get(ANONYMOUS_COOKIE)?.value ?? null;

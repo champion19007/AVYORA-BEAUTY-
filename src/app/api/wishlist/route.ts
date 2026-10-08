@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
 import { auth } from '@/auth';
 import { isSameOrigin } from '@/lib/security';
 import { getWishlist, setWishlist } from '@/modules/wishlist/wishlist';
+import { accountKey } from '@/lib/cart-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,14 +32,19 @@ export async function POST(request: Request) {
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ signedIn: false, stored: false });
 
-  let productIds: unknown;
-  try {
-    productIds = (await request.json())?.productIds;
-  } catch {
-    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+  const read = await readBoundedJson(request, BODY_LIMITS.wishlist);
+  if (!read.ok) return read.response;
+  const body = read.json as { productIds?: unknown; accountKey?: unknown } | undefined;
+  // Same guard as the bag: never write one account's list into another's.
+  if (body?.accountKey !== undefined && body.accountKey !== accountKey(userId)) {
+    return NextResponse.json({ error: 'Account changed.', code: 'account_changed', accountKey: accountKey(userId) }, { status: 409 });
   }
+  const productIds = body?.productIds;
   if (!Array.isArray(productIds)) {
     return NextResponse.json({ error: 'productIds must be a list.' }, { status: 400 });
+  }
+  if (productIds.length > 100) {
+    return NextResponse.json({ error: 'Too many products.' }, { status: 413 });
   }
 
   const stored = await setWishlist(

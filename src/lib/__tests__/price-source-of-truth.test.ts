@@ -22,6 +22,7 @@ const row = (over: Partial<PricingRow>): PricingRow => ({
   id: 'x',
   productId: 'p',
   size: '30ml',
+  variantId: null,
   price: 100000,
   salePrice: null,
   offerLabel: null,

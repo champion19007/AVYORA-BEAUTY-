@@ -1,7 +1,12 @@
-import { eq, sql } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
-import { carts, cartItems } from '@/db/schema';
+import { carts, cartItems, wishlistItems } from '@/db/schema';
 import { cache, POLICIES } from '@/infrastructure/cache';
+import { getVariant } from '@/lib/catalogue';
+import { MAX_QUANTITY_PER_SKU } from '@/lib/cart';
+import { mergeCartLines, mergeWishlists, type MergeAdjustment } from '@/lib/cart-merge';
+import { keyedHash } from '@/lib/rate-limit';
+import { catalogueStock } from '@/modules/catalog/storefront-data';
 
 /**
  * Server-side carts.
@@ -13,14 +18,23 @@ import { cache, POLICIES } from '@/infrastructure/cache';
  *
  * The browser remains the fast path: localStorage still drives the UI so the
  * cart is instant and works offline. This layer mirrors it, so the cart can be
- * recovered and analysed. The two are reconciled by `mergeCarts` at sign-in,
- * taking the larger quantity for any line present in both, since a customer
- * removing something is rarer than adding on a second device.
+ * recovered and analysed. For a signed-in customer the server cart is the
+ * record: the browser reads it back (`/api/sync`) and adopts it. A guest's bag
+ * is folded into the account by `mergeIntoAccount` (policy: lib/cart-merge).
  */
 
 export type ServerCartLine = { productId: string; size: string; quantity: number };
 
 export const ANONYMOUS_COOKIE = 'avyora_cart_id';
+
+/**
+ * An opaque, stable key for an account, sent to the browser so it can tell
+ * whose bag it holds and notice when the signed-in account changes. A keyed
+ * hash, so it reveals nothing about the user id.
+ */
+export function accountKey(userId: string): string {
+  return keyedHash(`account:${userId}`);
+}
 
 /** Finds or creates the cart for a signed-in user or an anonymous visitor. */
 async function resolveCartId(
@@ -68,12 +82,13 @@ async function forgetCachedCart(userId: string | null, anonymousId: string | nul
 function mergeLines(lines: ServerCartLine[]): ServerCartLine[] {
   const merged = new Map<string, ServerCartLine>();
   for (const line of lines) {
-    if (line.quantity <= 0) continue;
+    // Only real SKUs are stored; the purchase limit is the bag's (lib/cart).
+    if (line.quantity <= 0 || !getVariant(line.productId, line.size)) continue;
     const key = `${line.productId}::${line.size}`;
     const existing = merged.get(key);
     merged.set(key, {
       ...line,
-      quantity: Math.min((existing?.quantity ?? 0) + line.quantity, 20),
+      quantity: Math.min((existing?.quantity ?? 0) + line.quantity, MAX_QUANTITY_PER_SKU),
     });
   }
   return [...merged.values()];
@@ -146,49 +161,99 @@ export async function loadCart(
   });
 }
 
+export type MergeOutcome = {
+  lines: ServerCartLine[];
+  wishlist: string[];
+  adjustments: MergeAdjustment[];
+};
+
 /**
- * Folds an anonymous cart into the user's cart at sign-in.
+ * Folds a guest's bag and wishlist into an account, in one transaction.
  *
- * Without this, a visitor who fills a basket and then signs in to pay would
- * watch it empty — the most expensive possible moment to lose a cart.
+ * Inputs: what the browser holds as a guest (`guestLines`, `guestWishlist`)
+ * and any server-side guest cart filed under the anonymous cookie. The
+ * account's cart row is locked first, so concurrent merges and saves for the
+ * same account run one after another. The policy (larger quantity per SKU,
+ * then purchase limit and counted stock) makes a retry a no-op: merging the
+ * same guest bag twice cannot add anything. The anonymous cart is deleted in
+ * the same transaction, so it is transferred exactly once.
  */
-export async function mergeCarts(userId: string, anonymousId: string): Promise<void> {
-  if (!isDatabaseConfigured()) return;
+export async function mergeIntoAccount(
+  userId: string,
+  anonymousId: string | null,
+  guestLines: ServerCartLine[],
+  guestWishlist: string[]
+): Promise<MergeOutcome> {
+  if (!isDatabaseConfigured()) return { lines: [], wishlist: [], adjustments: [] };
 
-  const [anonCart] = await db
-    .select({ id: carts.id })
-    .from(carts)
-    .where(eq(carts.anonymousId, anonymousId))
-    .limit(1);
-  if (!anonCart) return;
-
+  // Stock read outside the transaction: checkout re-checks it regardless.
+  const stock = await catalogueStock({ fresh: true }).catch(() => null);
   const userCartId = await resolveCartId(userId, null);
-  if (!userCartId || userCartId === anonCart.id) return;
+  if (!userCartId) return { lines: [], wishlist: [], adjustments: [] };
 
-  const anonItems = await db.select().from(cartItems).where(eq(cartItems.cartId, anonCart.id));
+  const outcome = await db.transaction(async (tx) => {
+    await tx.select({ id: carts.id }).from(carts).where(eq(carts.id, userCartId)).for('update');
 
-  await db.transaction(async (tx) => {
-    for (const item of anonItems) {
-      await tx
-        .insert(cartItems)
-        .values({
-          cartId: userCartId,
-          productId: item.productId,
-          size: item.size,
-          quantity: item.quantity,
-        })
-        // Same product and size in both carts: keep the larger quantity rather
-        // than summing, so signing in twice cannot inflate the basket.
-        .onConflictDoUpdate({
-          target: [cartItems.cartId, cartItems.productId, cartItems.size],
-          set: { quantity: sql`greatest(${cartItems.quantity}, ${item.quantity})` },
-        });
+    const accountLines = await tx
+      .select({ productId: cartItems.productId, size: cartItems.size, quantity: cartItems.quantity })
+      .from(cartItems)
+      .where(eq(cartItems.cartId, userCartId));
+
+    let anonLines: ServerCartLine[] = [];
+    if (anonymousId) {
+      const [anonCart] = await tx
+        .select({ id: carts.id })
+        .from(carts)
+        .where(eq(carts.anonymousId, anonymousId))
+        .for('update');
+      if (anonCart && anonCart.id !== userCartId) {
+        anonLines = await tx
+          .select({ productId: cartItems.productId, size: cartItems.size, quantity: cartItems.quantity })
+          .from(cartItems)
+          .where(eq(cartItems.cartId, anonCart.id));
+        // Transferred exactly once: gone in the same commit as the merge.
+        await tx.delete(carts).where(eq(carts.id, anonCart.id));
+      }
     }
 
-    await tx.delete(carts).where(eq(carts.id, anonCart.id));
+    // The guest's two copies (browser bag and server mirror) go in as one
+    // side: within a side the larger quantity per SKU is taken, and every
+    // cap and drop is reported once, here, rather than lost in a pre-merge.
+    const merged = mergeCartLines(accountLines, [...guestLines, ...anonLines], stock);
+
+    await tx.delete(cartItems).where(eq(cartItems.cartId, userCartId));
+    if (merged.lines.length > 0) {
+      await tx.insert(cartItems).values(merged.lines.map((l) => ({ cartId: userCartId, ...l })));
+    }
+    await tx.update(carts).set({ updatedAt: new Date() }).where(eq(carts.id, userCartId));
+
+    const accountWishlist = (
+      await tx
+        .select({ productId: wishlistItems.productId })
+        .from(wishlistItems)
+        .where(eq(wishlistItems.userId, userId))
+        .orderBy(asc(wishlistItems.addedAt))
+    ).map((r) => r.productId);
+    const wishlist = mergeWishlists(accountWishlist, guestWishlist);
+    const added = wishlist.filter((id) => !accountWishlist.includes(id));
+    if (added.length > 0) {
+      await tx.insert(wishlistItems).values(added.map((productId) => ({ userId, productId }))).onConflictDoNothing();
+    }
+
+    return { lines: merged.lines, wishlist, adjustments: merged.adjustments };
   });
 
-  await Promise.all([forgetCachedCart(userId, null), forgetCachedCart(null, anonymousId)]);
+  await Promise.all([
+    forgetCachedCart(userId, null),
+    anonymousId ? forgetCachedCart(null, anonymousId) : Promise.resolve(),
+    cache.invalidate(POLICIES.wishlist, userId),
+  ]);
+  return outcome;
+}
+
+/** Sign-in hook: folds the server-side guest cart (cookie) into the account. */
+export async function mergeCarts(userId: string, anonymousId: string): Promise<void> {
+  await mergeIntoAccount(userId, anonymousId, [], []);
 }
 
 /** Clears a cart once its contents have become an order. */

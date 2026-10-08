@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import { Jost } from 'next/font/google';
+import { Instrument_Serif, Inter, Jost } from 'next/font/google';
+import { REDESIGN } from '@/lib/redesign';
+import { SiteFooter } from '@/components/nv/shell/site-footer';
+import { SITE_URL } from '@/data/business-info';
 import localFont from 'next/font/local';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -37,17 +40,43 @@ const jost = Jost({
   display: 'swap',
 });
 
+/**
+ * Redesign faces (Nuvē reference, both SIL OFL): Inter 400 and 500 for all
+ * text, Instrument Serif 400 for the wordmark only. Self-hosted by next/font
+ * (never Framer's copies), swapped in after first paint with a
+ * metric-matched fallback so the swap does not shift layout. Not preloaded:
+ * next/font options must be literals, so preloading cannot follow the flag,
+ * and preloading them while the flag is off would cost every page two
+ * unused font downloads. Turn preload on when the redesign becomes the default.
+ */
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-inter',
+  display: 'swap',
+  preload: false,
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-wordmark',
+  display: 'swap',
+  preload: false,
+  fallback: ['Georgia', 'Times New Roman', 'serif'],
+});
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://avyora.com'),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Avyora | Science-Forward Clinical Skincare',
+    default: 'Avyora | Skincare built around a simple routine',
     template: '%s | Avyora Skincare',
   },
-  description: 'Pure, effective, and science-backed clinical skincare formulations. Face Wash, Vitamin C Serum, Retinol, and Sunscreen formulated for maximum efficacy.',
-  keywords: ['skincare', 'clinical skincare', 'science-backed', 'serums', 'sunscreen', 'face wash', 'body care', 'Avyora'],
-  authors: [{ name: 'Avyora Labs' }],
-  creator: 'Avyora Labs',
-  publisher: 'Avyora Labs',
+  // No "clinical", "science-backed" or "maximum efficacy": nothing on file
+  // substantiates them (audit #09). No author or publisher entity either:
+  // the registered business name is not yet confirmed (audit #10).
+  description: 'Cleansers, serums, moisturisers and sunscreen, with a routine finder that starts from the essentials.',
+  keywords: ['skincare', 'skincare routine', 'serums', 'sunscreen', 'face wash', 'body care', 'Avyora'],
   formatDetection: {
     email: false,
     address: false,
@@ -57,9 +86,9 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'Avyora | Science-Forward Clinical Skincare',
-    description: 'Pure, effective, and science-backed clinical skincare formulations formulated in-house.',
-    url: 'https://avyora.com',
+    title: 'Avyora | Skincare built around a simple routine',
+    description: 'Cleansers, serums, moisturisers and sunscreen, with a routine finder that starts from the essentials.',
+    url: SITE_URL,
     siteName: 'Avyora Skincare',
     locale: 'en_US',
     type: 'website',
@@ -68,15 +97,14 @@ export const metadata: Metadata = {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Avyora Clinical Skincare',
+        alt: 'Avyora Skincare',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Avyora | Science-Forward Clinical Skincare',
-    description: 'Pure, effective, and science-backed clinical skincare formulations.',
-    creator: '@avyora',
+    title: 'Avyora | Skincare built around a simple routine',
+    description: 'Cleansers, serums, moisturisers and sunscreen, with a routine finder that starts from the essentials.',
   },
   robots: {
     index: true,
@@ -106,10 +134,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${foglihten.variable} ${jost.variable}`}>
-      <body className="antialiased font-body bg-background">
+    <html lang="en" suppressHydrationWarning className={`${foglihten.variable} ${jost.variable} ${inter.variable} ${instrumentSerif.variable}`}>
+      <body className={REDESIGN ? 'antialiased bg-nv-page font-nv text-nv-ink' : 'antialiased font-body bg-background'}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <ClientLayoutWrapper authEnabled={isCustomerAuthConfigured()} deliverTo={<DeliverTo />}>
+          <ClientLayoutWrapper
+            authEnabled={isCustomerAuthConfigured()}
+            deliverTo={<DeliverTo />}
+            footer={REDESIGN ? <SiteFooter /> : undefined}
+          >
             {children}
           </ClientLayoutWrapper>
         </ThemeProvider>

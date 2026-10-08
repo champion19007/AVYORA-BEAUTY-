@@ -47,23 +47,28 @@ export async function displayPrices(options: { fresh?: boolean } = {}): Promise<
 }
 
 /**
- * Availability for every SKU, keyed `productId::size`.
+ * Availability for every SKU, keyed `productId::size`. Display only;
+ * `reserveStock` decides at checkout.
  *
  * `Infinity` (backorder) becomes a large finite number, because JSON cannot
  * carry Infinity. The label only asks whether the count clears the low-stock
  * threshold, and any large number answers that identically.
  */
-export async function catalogueStock(): Promise<StockByKey> {
+export async function catalogueStock(options: { fresh?: boolean } = {}): Promise<StockByKey> {
   if (!isDatabaseConfigured()) return {};
 
-  return cache.getOrSet(POLICIES.availability, 'all', async () => {
+  const compute = async (): Promise<StockByKey> => {
     const map = await getStockMap(PRODUCTS.map((p) => p.id));
     const out: StockByKey = {};
     for (const [key, quantity] of map) {
       out[key] = Number.isFinite(quantity) ? quantity : Number.MAX_SAFE_INTEGER;
     }
     return out;
-  });
+  };
+
+  // `fresh` for checkout, as with prices: the figure a customer acts on.
+  if (options.fresh) return compute();
+  return cache.getOrSet(POLICIES.availability, 'all', compute);
 }
 
 /** Called when anything about a product's price or stock changes. */

@@ -4,10 +4,10 @@ import { reportError } from '@/lib/observability';
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders, orderItems, addresses } from '@/db/schema';
-import { getProductById } from '@/lib/catalogue';
+import { getProductById, getVariant } from '@/lib/catalogue';
 import { pricingMap } from '@/lib/pricing';
 import { skuKey, skuPrice } from '@/modules/catalog/sku-price';
-import { calculateTotals, generateOrderNumber, toPaise } from '@/lib/money';
+import { calculateTotals, formatPaise, generateOrderNumber } from '@/lib/money';
 import { releaseStock, reserveStock } from '@/lib/inventory';
 import { recordEvent } from '@/lib/activity';
 import { emitEvent } from '@/lib/events';
@@ -57,19 +57,28 @@ export const checkoutSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.string().min(1),
-        size: z.string().min(1),
+        productId: z.string().min(1).max(100),
+        size: z.string().min(1).max(40),
         quantity: z.number().int().min(1).max(20),
+        /**
+         * The unit price, in paise, the customer was shown for this line.
+         * Optional for older clients. When present and no longer current, the
+         * order is refused with `price_changed` instead of charging an amount
+         * the customer never saw.
+         */
+        expectedUnitPaise: z.number().int().min(0).optional(),
       })
     )
-    .min(1, 'Your bag is empty'),
+    .min(1, 'Your bag is empty')
+    // A bag holds at most one line per SKU; 50 is far above the catalogue's 30.
+    .max(50, 'Too many items in one order'),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 export type CreateOrderResult =
   | { ok: true; orderNumber: string; orderId: string; totalPaise: number }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: 'price_changed' };
 
 /**
  * Was this the idempotency index rejecting a duplicate?
@@ -108,7 +117,7 @@ function isDuplicateOrderKey(err: unknown): boolean {
 }
 
 /** The order already placed under this key, if there is one. */
-async function findByIdempotencyKey(key: string): Promise<CreateOrderResult | null> {
+export async function findByIdempotencyKey(key: string): Promise<CreateOrderResult | null> {
   const [existing] = await db
     .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total })
     .from(orders)
@@ -173,6 +182,7 @@ export async function createOrder(
   // Resolve every line against the catalogue; prices come from here, not the client.
   const lines: {
     productId: string;
+    variantId: string | null;
     productName: string;
     size: string;
     unitPrice: number;
@@ -203,13 +213,16 @@ export async function createOrder(
     // The one pricing rule, shared with the storefront display. Here it is fed
     // a row read from Postgres on this request: that is what makes it the
     // authority, not the function itself.
-    const cataloguePaise = toPaise(product.salePrice ?? size.price);
+    const cataloguePaise = skuPrice(product, size.label, undefined).price;
     const pricingRow = overrides.get(skuKey(product.id, size.label));
     const effective = skuPrice(product, size.label, pricingRow);
     const unitPrice = effective.price;
 
     lines.push({
       productId: product.id,
+      // The SKU's stable id, alongside (not instead of) the frozen name, size
+      // and price below: those stay the record of what was sold.
+      variantId: getVariant(product.id, size.label)?.id ?? null,
       productName: product.name,
       size: size.label,
       unitPrice,
@@ -234,6 +247,29 @@ export async function createOrder(
         offerEndsAt: pricingRow?.offerEndsAt?.toISOString() ?? null,
       },
     });
+  }
+
+  /*
+   * Refuse rather than surprise. The checkout page showed the customer a
+   * price per line; if an owner edit or an offer ending changed it since,
+   * charging the new amount would be charging something they did not agree
+   * to. Nothing has been reserved yet, so refusing costs nothing: the page
+   * reloads its quote and the customer confirms the real figure.
+   */
+  const changed = data.items.flatMap((item, i) =>
+    item.expectedUnitPaise !== undefined && item.expectedUnitPaise !== lines[i].unitPrice
+      ? [{ line: lines[i], was: item.expectedUnitPaise }]
+      : []
+  );
+  if (changed.length > 0) {
+    const { line, was } = changed[0];
+    return {
+      ok: false,
+      code: 'price_changed',
+      error:
+        `The price of ${line.productName} (${line.size}) changed from ${formatPaise(was)} to ` +
+        `${formatPaise(line.unitPrice)}. Review your updated total, then place your order again.`,
+    };
   }
 
   const totals = calculateTotals(

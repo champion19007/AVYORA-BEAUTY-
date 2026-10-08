@@ -7,6 +7,8 @@ import {
   securityHeaders,
 } from '@/lib/security';
 import { edgeRateLimit } from '@/lib/edge-rate-limit';
+import { trustedClientIp } from '@/lib/client-ip';
+import { isPrivatePath, PRIVATE_CACHE_CONTROL } from '@/lib/cache-policy';
 import { REQUEST_ID_HEADER, normaliseRequestId } from '@/infrastructure/request-id';
 
 /**
@@ -20,11 +22,6 @@ import { REQUEST_ID_HEADER, normaliseRequestId } from '@/infrastructure/request-
 /** Requests per minute for an ordinary visitor. Generous; this targets bulk pulls. */
 const BROWSE_LIMIT = { limit: 120, windowSeconds: 60 };
 
-function clientAddress(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return request.headers.get('x-real-ip') ?? 'unknown';
-}
 
 export async function middleware(request: NextRequest) {
   const userAgent = request.headers.get('user-agent') ?? '';
@@ -48,9 +45,13 @@ export async function middleware(request: NextRequest) {
   // the Edge runtime, so the database-backed limiter failed on every request
   // here and — once it started hanging instead of erroring — took the site
   // down. See lib/edge-rate-limit.ts for what this does and does not promise.
-  if (!isAllowedCrawler(userAgent) && !path.startsWith('/api/')) {
+  //
+  // Only with a trusted address (lib/client-ip.ts): an address taken from a
+  // spoofable header could be rotated to dodge this, or aimed at someone else.
+  const address = trustedClientIp(request.headers);
+  if (address && !isAllowedCrawler(userAgent) && !path.startsWith('/api/')) {
     const browse = edgeRateLimit(
-      `browse:${clientAddress(request)}`,
+      `browse:${address}`,
       BROWSE_LIMIT.limit,
       BROWSE_LIMIT.windowSeconds
     );
@@ -117,6 +118,12 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Content-Security-Policy', contentSecurityPolicy(isDev));
   for (const [key, value] of Object.entries(securityHeaders())) {
     response.headers.set(key, value);
+  }
+
+  // Personal pages and APIs are never stored by a shared cache (lib/cache-policy.ts).
+  if (isPrivatePath(path)) {
+    response.headers.set('Cache-Control', PRIVATE_CACHE_CONTROL);
+    response.headers.set('Vary', 'Cookie');
   }
 
   return response;

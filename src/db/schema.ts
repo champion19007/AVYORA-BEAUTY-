@@ -11,6 +11,11 @@ import {
   pgEnum,
   serial,
   bigserial,
+  numeric,
+  uuid,
+  foreignKey,
+  smallint,
+  check,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -161,6 +166,51 @@ export const addresses = pgTable('addresses', {
  * survive a device change and the business cannot see abandoned carts. Anonymous
  * carts are keyed by a cookie id and adopted by the user on sign-in.
  */
+/* -------------------------------------------------------------------------- */
+/* Catalogue identities                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One row per product, and one per purchasable variant (SKU).
+ *
+ * Before 0014 a SKU was only the pair (product_id, size) repeated as free
+ * text in every table. Each of those tables now also carries `variant_id`,
+ * filled by the `resolve_catalog_variant` trigger from that same pair, so
+ * every existing writer keeps working while the stable id is recorded.
+ * `legacy_stock_key` (`product::size`) is the explicit compatibility map.
+ *
+ * Copy, prices and directions are deliberately not here yet: copy lives in
+ * the CMS, list prices in the catalogue file with owner overrides in
+ * `product_pricing`, and formulations arrive in a later migration. Seeded
+ * from `catalogRecords(PRODUCTS)`; see `scripts/catalog-seed-sql.ts`.
+ */
+export const catalogProducts = pgTable('catalog_products', {
+  id: text('id').primaryKey(),
+  slug: text('slug').notNull(),
+  name: text('name').notNull(),
+  category: text('category').notNull(),
+  published: boolean('published').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  slugIdx: uniqueIndex('catalog_products_slug_idx').on(t.slug),
+  categoryIdx: index('catalog_products_category_idx').on(t.category, t.published),
+}));
+
+export const catalogVariants = pgTable('catalog_variants', {
+  id: text('id').primaryKey(),
+  productId: text('product_id').notNull().references(() => catalogProducts.id, { onDelete: 'restrict' }),
+  legacyStockKey: text('legacy_stock_key').notNull(),
+  sizeLabel: text('size_label').notNull(),
+  /** Only when the label states millilitres; never converted from grams or counts. */
+  volumeMl: numeric('volume_ml', { precision: 8, scale: 2 }),
+  /** Retire a variant by switching this off; never delete one orders point at. */
+  active: boolean('active').notNull().default(true),
+}, (t) => ({
+  legacyIdx: uniqueIndex('catalog_variants_legacy_key_idx').on(t.legacyStockKey),
+  productSizeIdx: uniqueIndex('catalog_variants_product_size_idx').on(t.productId, t.sizeLabel),
+}));
+
 export const carts = pgTable('carts', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
@@ -186,11 +236,13 @@ export const cartItems = pgTable('cart_items', {
   cartId: text('cart_id').notNull().references(() => carts.id, { onDelete: 'cascade' }),
   productId: text('product_id').notNull(),
   size: text('size').notNull(),
+  variantId: text('variant_id').references(() => catalogVariants.id, { onDelete: 'restrict' }),
   quantity: integer('quantity').notNull().default(1),
   addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   // One row per product+size per cart; quantity carries the count.
   uniq: uniqueIndex('cart_items_unique').on(t.cartId, t.productId, t.size),
+  variantIdx: index('cart_items_variant_idx').on(t.variantId),
 }));
 
 /* -------------------------------------------------------------------------- */
@@ -330,6 +382,12 @@ export const orderItems = pgTable('order_items', {
   id: serial('id').primaryKey(),
   orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
   productId: text('product_id').notNull(),
+  /**
+   * The SKU, for joins and reporting. Name, size and prices below remain the
+   * record of the sale; this never replaces them. Null for a line whose
+   * (product, size) matched no variant when it was written.
+   */
+  variantId: text('variant_id').references(() => catalogVariants.id, { onDelete: 'restrict' }),
   /** Name and size copied in, so the order still reads correctly if a SKU is renamed or retired. */
   productName: text('product_name').notNull(),
   size: text('size').notNull(),
@@ -345,6 +403,7 @@ export const orderItems = pgTable('order_items', {
   pricingSnapshot: jsonb('pricing_snapshot'),
 }, (t) => ({
   orderIdx: index('order_items_order_idx').on(t.orderId),
+  variantIdx: index('order_items_variant_idx').on(t.variantId),
 }));
 
 /* -------------------------------------------------------------------------- */
@@ -377,15 +436,264 @@ export const reviews = pgTable('reviews', {
 /* -------------------------------------------------------------------------- */
 
 /** A saved routine-finder result, so a customer can return to it. */
+/* -------------------------------------------------------------------------- */
+/* Personal records: ownership and consent                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Every personal record has exactly one owner: an account (`user_id`) or a
+ * guest (`anonymous_owner_hash`, the SHA-256 of a server-generated secret
+ * held only in an HttpOnly cookie; see lib/guest-owner.ts). The raw secret
+ * is never stored, and a client-supplied id is never proof of ownership.
+ */
+const oneOwner = (userId: unknown, hash: unknown) => sql`num_nonnulls(${userId}, ${hash}) = 1`;
+const hashShape = (hash: unknown) => sql`${hash} IS NULL OR ${hash} ~ '^[0-9a-f]{64}$'`;
+
+export const CONSENT_PURPOSES = [
+  'photo_processing',
+  'routine_saving',
+  'progress_photo_storage',
+  'model_research',
+] as const;
+export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
+
+/**
+ * One grant of one purpose under one policy version. Withdrawal sets
+ * `withdrawn_at`; the row stays as the record that consent existed. At most
+ * one active grant per owner and purpose. Records needing consent reference
+ * it by (id, purpose), so a photo-processing grant can never stand in for
+ * routine saving.
+ */
+export const consentRecords = pgTable('consent_records', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  anonymousOwnerHash: text('anonymous_owner_hash'),
+  purpose: text('purpose').notNull(),
+  policyVersion: text('policy_version').notNull(),
+  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+  withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
+}, (t) => ({
+  oneOwner: check('consent_records_one_owner', oneOwner(t.userId, t.anonymousOwnerHash)),
+  hashShape: check('consent_records_hash_shape', hashShape(t.anonymousOwnerHash)),
+  purpose: check('consent_records_purpose', sql`${t.purpose} IN ('photo_processing', 'routine_saving', 'progress_photo_storage', 'model_research')`),
+  withdrawnAfterGrant: check('consent_records_withdrawn_after_grant', sql`${t.withdrawnAt} IS NULL OR ${t.withdrawnAt} >= ${t.grantedAt}`),
+  idPurpose: uniqueIndex('consent_records_id_purpose_idx').on(t.id, t.purpose),
+  userPurpose: index('consent_records_user_purpose_idx').on(t.userId, t.purpose),
+  guestPurpose: index('consent_records_guest_purpose_idx').on(t.anonymousOwnerHash, t.purpose),
+  oneActiveUser: uniqueIndex('consent_records_one_active_user_idx')
+    .on(t.userId, t.purpose)
+    .where(sql`withdrawn_at IS NULL AND user_id IS NOT NULL`),
+  oneActiveGuest: uniqueIndex('consent_records_one_active_guest_idx')
+    .on(t.anonymousOwnerHash, t.purpose)
+    .where(sql`withdrawn_at IS NULL AND anonymous_owner_hash IS NOT NULL`),
+}));
+
+/**
+ * Quiz answers saved on purpose, under a routine-saving consent. Never
+ * written automatically. Guest profiles expire within 30 days.
+ */
+export const skinProfiles = pgTable('skin_profiles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  anonymousOwnerHash: text('anonymous_owner_hash'),
+  consentId: uuid('consent_id').notNull(),
+  consentPurpose: text('consent_purpose').notNull().default('routine_saving'),
+  schemaVersion: integer('schema_version').notNull(),
+  answers: jsonb('answers').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, (t) => ({
+  oneOwner: check('skin_profiles_one_owner', oneOwner(t.userId, t.anonymousOwnerHash)),
+  hashShape: check('skin_profiles_hash_shape', hashShape(t.anonymousOwnerHash)),
+  purpose: check('skin_profiles_consent_purpose', sql`${t.consentPurpose} = 'routine_saving'`),
+  expiry: check('skin_profiles_expiry', sql`${t.expiresAt} > ${t.createdAt}`),
+  guestExpiry: check('skin_profiles_guest_expiry', sql`${t.anonymousOwnerHash} IS NULL OR ${t.expiresAt} <= ${t.createdAt} + interval '30 days'`),
+  schemaVersion: check('skin_profiles_schema_version', sql`${t.schemaVersion} >= 1`),
+  consent: foreignKey({
+    name: 'skin_profiles_consent_fk',
+    columns: [t.consentId, t.consentPurpose],
+    foreignColumns: [consentRecords.id, consentRecords.purpose],
+  }).onDelete('restrict'),
+  userIdx: index('skin_profiles_user_idx').on(t.userId, t.updatedAt),
+  guestIdx: index('skin_profiles_guest_idx').on(t.anonymousOwnerHash, t.updatedAt),
+  expiresIdx: index('skin_profiles_expires_idx').on(t.expiresAt),
+}));
+
+/**
+ * Saved routine results.
+ *
+ * Rows from before migration 0016 keep their ids and content as
+ * `schema_version = 0` (legacy): written automatically without consent and
+ * keyed by the cart cookie in plaintext. Account rows stay the account's;
+ * a legacy guest row has no provable owner, so it is retrievable by no one
+ * (nothing ever read these rows back). Every newer row has exactly one
+ * owner, a routine-saving consent, versions and an expiry.
+ */
 export const routineResults = pgTable('routine_results', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  /** Legacy only: the cart cookie value pre-0016 rows were keyed by. Never written now. */
   anonymousId: text('anonymous_id'),
+  anonymousOwnerHash: text('anonymous_owner_hash'),
+  profileId: uuid('profile_id').references(() => skinProfiles.id, { onDelete: 'set null' }),
+  consentId: uuid('consent_id'),
+  consentPurpose: text('consent_purpose'),
+  /** 0 = legacy pre-0016 row. */
+  schemaVersion: integer('schema_version').notNull(),
+  inputHash: text('input_hash'),
+  kbRelease: text('kb_release'),
+  engineVersion: text('engine_version'),
+  modelVersion: text('model_version'),
+  /** Inference module version (bayes.ts) used for the concern priorities. */
+  inferenceVersion: text('inference_version'),
+  /** The client's idempotency key, unique per owner; a retry returns this row. */
+  idempotencyKey: text('idempotency_key'),
+  /** SHA-256 of the validated request; the same key with a different request is a conflict. */
+  requestHash: text('request_hash'),
   answers: jsonb('answers').notNull(),
   result: jsonb('result').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
 }, (t) => ({
   userIdx: index('routine_results_user_idx').on(t.userId),
+  userCreatedIdx: index('routine_results_user_created_idx').on(t.userId, t.createdAt),
+  guestCreatedIdx: index('routine_results_guest_created_idx').on(t.anonymousOwnerHash, t.createdAt),
+  expiresIdx: index('routine_results_expires_idx').on(t.expiresAt),
+  dedupeIdx: index('routine_results_dedupe_idx').on(t.inputHash, t.kbRelease),
+  userIdempotencyIdx: uniqueIndex('routine_results_user_idempotency_idx')
+    .on(t.userId, t.idempotencyKey)
+    .where(sql`user_id IS NOT NULL AND idempotency_key IS NOT NULL`),
+  guestIdempotencyIdx: uniqueIndex('routine_results_guest_idempotency_idx')
+    .on(t.anonymousOwnerHash, t.idempotencyKey)
+    .where(sql`anonymous_owner_hash IS NOT NULL AND idempotency_key IS NOT NULL`),
+  idempotencyPair: check(
+    'routine_results_idempotency_pair',
+    sql`(${t.idempotencyKey} IS NULL) = (${t.requestHash} IS NULL)`
+  ),
+  hashShape: check('routine_results_hash_shape', hashShape(t.anonymousOwnerHash)),
+  versioned: check(
+    'routine_results_versioned_owner',
+    sql`${t.schemaVersion} = 0 OR (
+      num_nonnulls(${t.userId}, ${t.anonymousOwnerHash}) = 1
+      AND ${t.anonymousId} IS NULL
+      AND ${t.consentId} IS NOT NULL AND ${t.consentPurpose} = 'routine_saving'
+      AND ${t.inputHash} IS NOT NULL AND ${t.engineVersion} IS NOT NULL
+      AND ${t.expiresAt} IS NOT NULL AND ${t.expiresAt} > ${t.createdAt}
+      AND (${t.anonymousOwnerHash} IS NULL OR ${t.expiresAt} <= ${t.createdAt} + interval '30 days')
+    )`
+  ),
+  legacyShape: check(
+    'routine_results_legacy_shape',
+    sql`${t.schemaVersion} >= 1 OR (${t.anonymousOwnerHash} IS NULL AND ${t.consentId} IS NULL)`
+  ),
+  consent: foreignKey({
+    name: 'routine_results_consent_fk',
+    columns: [t.consentId, t.consentPurpose],
+    foreignColumns: [consentRecords.id, consentRecords.purpose],
+  }).onDelete('restrict'),
+}));
+
+/**
+ * The normalised seven-day schedule of a saved routine: one row per step,
+ * written in the same transaction as the result snapshot. Exactly one of a
+ * catalogue product (with its SKU) or an owned item.
+ */
+export const routineScheduleSlots = pgTable('routine_schedule_slots', {
+  routineId: text('routine_id').notNull().references(() => routineResults.id, { onDelete: 'cascade' }),
+  day: smallint('day').notNull(),
+  session: text('session').notNull(),
+  position: smallint('position').notNull(),
+  role: text('role').notNull(),
+  optional: boolean('optional').notNull(),
+  productId: text('product_id'),
+  skuId: text('sku_id'),
+  ownedItemId: text('owned_item_id'),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.routineId, t.day, t.session, t.position] }),
+  day: check('routine_schedule_slots_day', sql`${t.day} BETWEEN 1 AND 7`),
+  session: check('routine_schedule_slots_session', sql`${t.session} IN ('am', 'pm')`),
+  position: check('routine_schedule_slots_position', sql`${t.position} BETWEEN 1 AND 10`),
+  item: check(
+    'routine_schedule_slots_item',
+    sql`(${t.productId} IS NOT NULL AND ${t.skuId} IS NOT NULL AND ${t.ownedItemId} IS NULL)
+      OR (${t.productId} IS NULL AND ${t.skuId} IS NULL AND ${t.ownedItemId} IS NOT NULL)`
+  ),
+}));
+
+/**
+ * One hosted or local scan, under a photo-processing consent. Observations
+ * expire within 7 days; a hosted photo's private object within 24 hours.
+ * Object keys are private storage keys, never URLs. Progress-photo storage
+ * stays disabled: nothing here keeps a photo beyond its 24 hours.
+ */
+export const scanSessions = pgTable('scan_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  anonymousOwnerHash: text('anonymous_owner_hash'),
+  consentId: uuid('consent_id').notNull(),
+  consentPurpose: text('consent_purpose').notNull().default('photo_processing'),
+  status: text('status').notNull().default('created'),
+  mode: text('mode').notNull(),
+  modelVersion: text('model_version'),
+  quality: jsonb('quality'),
+  result: jsonb('result'),
+  objectKey: text('object_key'),
+  objectExpiresAt: timestamp('object_expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, (t) => ({
+  oneOwner: check('scan_sessions_one_owner', oneOwner(t.userId, t.anonymousOwnerHash)),
+  hashShape: check('scan_sessions_hash_shape', hashShape(t.anonymousOwnerHash)),
+  purpose: check('scan_sessions_consent_purpose', sql`${t.consentPurpose} = 'photo_processing'`),
+  status: check(
+    'scan_sessions_status',
+    sql`${t.status} IN ('created', 'uploaded', 'queued', 'processing', 'completed', 'failed', 'expired', 'revoked')`
+  ),
+  mode: check('scan_sessions_mode', sql`${t.mode} IN ('local', 'hosted')`),
+  expiry: check(
+    'scan_sessions_expiry',
+    sql`${t.expiresAt} > ${t.createdAt} AND ${t.expiresAt} <= ${t.createdAt} + interval '7 days'`
+  ),
+  privateObject: check(
+    'scan_sessions_private_object',
+    sql`${t.objectKey} IS NULL OR (
+      ${t.mode} = 'hosted'
+      AND ${t.objectKey} LIKE 'private/scans/%' AND ${t.objectKey} NOT LIKE '%..%'
+      AND ${t.objectExpiresAt} IS NOT NULL AND ${t.objectExpiresAt} <= ${t.createdAt} + interval '24 hours'
+    )`
+  ),
+  consent: foreignKey({
+    name: 'scan_sessions_consent_fk',
+    columns: [t.consentId, t.consentPurpose],
+    foreignColumns: [consentRecords.id, consentRecords.purpose],
+  }).onDelete('restrict'),
+  userIdx: index('scan_sessions_user_idx').on(t.userId, t.createdAt),
+  guestIdx: index('scan_sessions_guest_idx').on(t.anonymousOwnerHash, t.createdAt),
+  expiresIdx: index('scan_sessions_expires_idx').on(t.expiresAt),
+  statusIdx: index('scan_sessions_status_idx').on(t.status, t.createdAt),
+}));
+
+/**
+ * A customer's weekly report on a saved routine. Account-only, one per week
+ * per routine. Bounded values; never used as a clinical training label.
+ */
+export const routineFeedback = pgTable('routine_feedback', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  routineId: text('routine_id').notNull().references(() => routineResults.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  week: smallint('week').notNull(),
+  adherence: text('adherence').notNull(),
+  tolerability: text('tolerability').notNull(),
+  reportedChange: text('reported_change').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  oncePerWeek: uniqueIndex('routine_feedback_once_per_week_idx').on(t.routineId, t.userId, t.week),
+  userIdx: index('routine_feedback_user_idx').on(t.userId, t.createdAt),
+  week: check('routine_feedback_week', sql`${t.week} BETWEEN 1 AND 52`),
+  adherence: check('routine_feedback_adherence', sql`${t.adherence} IN ('every_day', 'most_days', 'some_days', 'not_at_all')`),
+  tolerability: check('routine_feedback_tolerability', sql`${t.tolerability} IN ('comfortable', 'mild_discomfort', 'irritated', 'stopped')`),
+  reportedChange: check('routine_feedback_change', sql`${t.reportedChange} IN ('better', 'same', 'worse', 'unsure')`),
 }));
 
 /**
@@ -429,6 +737,7 @@ export const inventory = pgTable('inventory', {
   id: serial('id').primaryKey(),
   productId: text('product_id').notNull(),
   size: text('size').notNull(),
+  variantId: text('variant_id').references(() => catalogVariants.id, { onDelete: 'restrict' }),
   quantity: integer('quantity').notNull().default(0),
   /** Below this, the storefront shows a low-stock notice. */
   lowStockThreshold: integer('low_stock_threshold').notNull().default(5),
@@ -437,6 +746,7 @@ export const inventory = pgTable('inventory', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniq: uniqueIndex('inventory_product_size_idx').on(t.productId, t.size),
+  variantIdx: uniqueIndex('inventory_variant_idx').on(t.variantId),
 }));
 
 /* -------------------------------------------------------------------------- */
@@ -459,6 +769,7 @@ export const restockRequests = pgTable('restock_requests', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   productId: text('product_id').notNull(),
   size: text('size').notNull(),
+  variantId: text('variant_id').references(() => catalogVariants.id, { onDelete: 'restrict' }),
   /** How many the manager is asking for. */
   requestedQuantity: integer('requested_quantity').notNull(),
   /** Stock on hand when the request was raised. */
@@ -471,6 +782,7 @@ export const restockRequests = pgTable('restock_requests', {
 }, (t) => ({
   statusIdx: index('restock_status_idx').on(t.status),
   skuIdx: index('restock_sku_idx').on(t.productId, t.size),
+  variantIdx: index('restock_variant_idx').on(t.variantId),
 }));
 
 /* -------------------------------------------------------------------------- */
@@ -492,6 +804,7 @@ export const productPricing = pgTable('product_pricing', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   productId: text('product_id').notNull(),
   size: text('size').notNull(),
+  variantId: text('variant_id').references(() => catalogVariants.id, { onDelete: 'restrict' }),
   /** Replaces the catalogue price, in paise. */
   price: integer('price').notNull(),
   /**
@@ -516,6 +829,7 @@ export const productPricing = pgTable('product_pricing', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniq: uniqueIndex('product_pricing_sku_idx').on(t.productId, t.size),
+  variantIdx: uniqueIndex('product_pricing_variant_idx').on(t.variantId),
 }));
 
 /* -------------------------------------------------------------------------- */
@@ -538,6 +852,8 @@ export const rateLimits = pgTable('rate_limits', {
   count: integer('count').notNull().default(0),
   /** Start of the current window. */
   windowStart: timestamp('window_start', { withTimezone: true }).notNull().defaultNow(),
+  /** Window length of the policy that wrote this row; null for rows from before 0018. */
+  windowSeconds: integer('window_seconds'),
 }, (t) => ({
   windowIdx: index('rate_limits_window_idx').on(t.windowStart),
 }));
@@ -734,6 +1050,8 @@ export const ingredients = pgTable('ingredients', {
   pregnancyCaution: boolean('pregnancy_caution').notNull().default(false),
   /** Raises photosensitivity, so the UV forecast becomes relevant. */
   photosensitising: boolean('photosensitising').notNull().default(false),
+  /** Ingredient class (retinoid, aha, ...), as in modules/ingredients/dictionary. */
+  class: text('class').notNull().default('other'),
 }, (t) => ({
   inciIdx: index('ingredients_inci_idx').on(t.inciName),
 }));
@@ -746,6 +1064,93 @@ export const ingredients = pgTable('ingredients', {
  * row carries a citation; a rule that cannot be cited belongs in Tier 3 or
  * nowhere.
  */
+/**
+ * Normalised label → canonical ingredient, or an explicit ambiguity.
+ *
+ * Exactly one of `ingredient_id` (resolves) and `ambiguous_candidates`
+ * (never resolves) is set. The primary key makes an alias mean one thing;
+ * a label that could mean two is stored as ambiguous rather than picked.
+ * Written by `npm run db:import-knowledge` from the dictionary module.
+ */
+export const ingredientAliases = pgTable('ingredient_aliases', {
+  alias: text('alias').primaryKey(),
+  ingredientId: text('ingredient_id').references(() => ingredients.id, { onDelete: 'cascade' }),
+  ambiguousCandidates: jsonb('ambiguous_candidates'),
+}, (t) => ({
+  ingredientIdx: index('ingredient_aliases_ingredient_idx').on(t.ingredientId),
+  oneMeaning: check('ingredient_aliases_one_meaning', sql`(${t.ingredientId} IS NULL) <> (${t.ambiguousCandidates} IS NULL)`),
+}));
+
+/** Where a formulation fact or approved direction came from. */
+export const evidenceSources = pgTable('evidence_sources', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  url: text('url'),
+  sourceType: text('source_type').notNull(),
+  retrievedAt: text('retrieved_at').notNull(),
+  limitations: text('limitations').notNull(),
+}, (t) => ({
+  httpsOnly: check('evidence_sources_https', sql`${t.url} IS NULL OR ${t.url} LIKE 'https://%'`),
+  sourceType: check('evidence_sources_type', sql`${t.sourceType} IN ('formulation_dossier', 'label', 'regulation', 'literature', 'clinician_note')`),
+}));
+
+/**
+ * One version of a finished product's formula. Coverage says how much of it
+ * is actually known; `complete` requires the declared INCI list.
+ */
+export const formulations = pgTable('formulations', {
+  /** `productId@vN` */
+  id: text('id').primaryKey(),
+  productId: text('product_id').notNull().references(() => catalogProducts.id, { onDelete: 'restrict' }),
+  version: integer('version').notNull(),
+  coverage: text('coverage').notNull(),
+  fullInci: text('full_inci'),
+  sourceId: text('source_id').notNull().references(() => evidenceSources.id, { onDelete: 'restrict' }),
+  reviewedBy: text('reviewed_by').notNull(),
+  reviewedAt: text('reviewed_at').notNull(),
+}, (t) => ({
+  productVersion: uniqueIndex('formulations_product_version_idx').on(t.productId, t.version),
+  coverage: check('formulations_coverage', sql`${t.coverage} IN ('complete', 'partial', 'unknown')`),
+  completeHasInci: check('formulations_complete_has_inci', sql`${t.coverage} <> 'complete' OR ${t.fullInci} IS NOT NULL`),
+  version: check('formulations_version_positive', sql`${t.version} >= 1`),
+}));
+
+/** Each declared INCI position, its canonical ingredient if known, and its concentration if known. */
+export const formulationIngredients = pgTable('formulation_ingredients', {
+  formulationId: text('formulation_id').notNull().references(() => formulations.id, { onDelete: 'cascade' }),
+  position: smallint('position').notNull(),
+  inciLabel: text('inci_label').notNull(),
+  ingredientId: text('ingredient_id').references(() => ingredients.id, { onDelete: 'restrict' }),
+  concentrationKnown: boolean('concentration_known').notNull().default(false),
+  concentration: numeric('concentration', { precision: 9, scale: 4 }),
+  unit: text('unit'),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.formulationId, t.position] }),
+  ingredientIdx: index('formulation_ingredients_ingredient_idx').on(t.ingredientId),
+  knownMeansValued: check(
+    'formulation_ingredients_concentration',
+    sql`(${t.concentrationKnown} AND ${t.concentration} > 0 AND ${t.unit} IN ('percent_w_w', 'percent_w_v', 'mg_per_g', 'mg_per_ml')
+        AND (${t.unit} NOT LIKE 'percent%' OR ${t.concentration} <= 100))
+     OR (NOT ${t.concentrationKnown} AND ${t.concentration} IS NULL AND ${t.unit} IS NULL)`
+  ),
+  position: check('formulation_ingredients_position', sql`${t.position} >= 1`),
+}));
+
+/** Approved, product-specific directions for one formulation version. */
+export const usageProfiles = pgTable('usage_profiles', {
+  formulationId: text('formulation_id').primaryKey().references(() => formulations.id, { onDelete: 'restrict' }),
+  session: text('session').notNull(),
+  frequency: text('frequency').notNull(),
+  directions: text('directions').notNull(),
+  maxWeeklyUses: smallint('max_weekly_uses'),
+  evidenceIds: jsonb('evidence_ids').notNull().default(sql`'[]'::jsonb`),
+  reviewedBy: text('reviewed_by').notNull(),
+  reviewedAt: text('reviewed_at').notNull(),
+}, (t) => ({
+  session: check('usage_profiles_session', sql`${t.session} IN ('am', 'pm', 'am_or_pm')`),
+  weekly: check('usage_profiles_weekly', sql`${t.maxWeeklyUses} IS NULL OR ${t.maxWeeklyUses} BETWEEN 1 AND 14`),
+}));
+
 export const ingredientInteractions = pgTable('ingredient_interactions', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   ingredientA: text('ingredient_a').notNull().references(() => ingredients.id, { onDelete: 'cascade' }),
@@ -1040,3 +1445,95 @@ export const exportWatermarks = pgTable('export_watermarks', {
   lastEventId: integer('last_event_id').notNull().default(0),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* -------------------------------------------------------------------------- */
+/* Knowledge releases                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Compiled knowledge releases (modules/knowledge/compile.ts). A release is
+ * immutable once stored: its manifest, artifacts and checksum can never
+ * change, only its status (`stored` → `published` → `revoked`, or
+ * `stored` → `revoked`). Old releases are kept for traceability; saved
+ * routines record the release they were computed with.
+ *
+ * Artifacts are stored inline (each is small JSON); the spec's artifact_key
+ * for object storage can replace this without changing the contract.
+ */
+export const kbReleases = pgTable('kb_releases', {
+  id: text('id').primaryKey(),
+  schemaVersion: integer('schema_version').notNull(),
+  isFixture: boolean('is_fixture').notNull(),
+  status: text('status').notNull().default('stored'),
+  manifest: jsonb('manifest').notNull(),
+  /** Artifact name → canonical JSON text, exactly as hashed. */
+  artifacts: jsonb('artifacts').notNull(),
+  /** SHA-256 of the canonical manifest. */
+  checksum: text('checksum').notNull(),
+  storedBy: text('stored_by').notNull(),
+  storedAt: timestamp('stored_at', { withTimezone: true }).notNull().defaultNow(),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  revokedReason: text('revoked_reason'),
+}, (t) => ({
+  status: check('kb_releases_status', sql`${t.status} IN ('stored', 'published', 'revoked')`),
+  revokedHasReason: check('kb_releases_revoked_reason', sql`${t.status} <> 'revoked' OR (${t.revokedAt} IS NOT NULL AND ${t.revokedReason} IS NOT NULL)`),
+  statusIdx: index('kb_releases_status_idx').on(t.status, t.storedAt),
+}));
+
+/**
+ * The one active release. A single row (the primary key can only be true);
+ * activation and rollback replace it in the same transaction as the status
+ * change and audit record. A trigger refuses fixture and revoked releases.
+ */
+export const kbActiveRelease = pgTable('kb_active_release', {
+  singleton: boolean('singleton').primaryKey().default(true),
+  releaseId: text('release_id').notNull().references(() => kbReleases.id, { onDelete: 'restrict' }),
+  previousReleaseId: text('previous_release_id').references(() => kbReleases.id, { onDelete: 'restrict' }),
+  activatedBy: text('activated_by').notNull(),
+  activatedAt: timestamp('activated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  singleton: check('kb_active_release_singleton', sql`${t.singleton}`),
+}));
+
+/* -------------------------------------------------------------------------- */
+/* Hosted scan admission and billable attempts                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One row per admitted hosted scan: the durable record the daily, rolling
+ * 30-day, per-IP and global admission budgets are counted from. Kept beside
+ * the scan rather than in a cache, so no outage can reset the spend cap, and
+ * outliving it: deleting an expired scan must not shrink the 30-day count.
+ * `ip_key` is a keyed hash, never the address.
+ */
+export const scanAdmissions = pgTable('scan_admissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** Set null when the scan expires and is deleted: the admission must still count. */
+  scanSessionId: uuid('scan_session_id').references(() => scanSessions.id, { onDelete: 'set null' }),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  anonymousOwnerHash: text('anonymous_owner_hash'),
+  ipKey: text('ip_key'),
+  admittedAt: timestamp('admitted_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  oneOwner: check('scan_admissions_one_owner', sql`num_nonnulls(${t.userId}, ${t.anonymousOwnerHash}) = 1`),
+  userIdx: index('scan_admissions_user_idx').on(t.userId, t.admittedAt),
+  guestIdx: index('scan_admissions_guest_idx').on(t.anonymousOwnerHash, t.admittedAt),
+  ipIdx: index('scan_admissions_ip_idx').on(t.ipKey, t.admittedAt),
+  admittedIdx: index('scan_admissions_admitted_idx').on(t.admittedAt),
+}));
+
+/**
+ * Billable inference attempts. The primary key and the CHECK make the
+ * per-scan budget (at most 2 attempts) a database fact: a third attempt,
+ * or a duplicate of one, cannot be recorded, so it cannot be billed.
+ */
+export const scanAttempts = pgTable('scan_attempts', {
+  scanSessionId: uuid('scan_session_id').notNull().references(() => scanSessions.id, { onDelete: 'cascade' }),
+  attempt: smallint('attempt').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.scanSessionId, t.attempt] }),
+  budget: check('scan_attempts_budget', sql`${t.attempt} BETWEEN 1 AND 2`),
+  startedIdx: index('scan_attempts_started_idx').on(t.startedAt),
+}));

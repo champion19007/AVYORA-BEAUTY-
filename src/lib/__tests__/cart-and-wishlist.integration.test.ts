@@ -25,7 +25,9 @@ const { getWishlist, setWishlist } = await import('@/modules/wishlist/wishlist')
 const { cache, POLICIES } = await import('@/infrastructure/cache');
 
 const USER = 'user-1';
-const line = (productId: string, quantity = 1) => ({ productId, size: '150ml', quantity });
+// Real SKUs: the server drops sizes the catalogue does not sell.
+const SIZES: Record<string, string> = { 'rice-bran-cleansing-oil': '150ml', 'centella-cleansing-balm': '100ml' };
+const line = (productId: string, quantity = 1) => ({ productId, size: SIZES[productId] ?? '150ml', quantity });
 
 beforeAll(async () => {
   process.env.DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://pglite/test';

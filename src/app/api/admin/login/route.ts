@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { isSameOrigin } from '@/lib/security';
-import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
+import { limit, limitResponse } from '@/lib/rate-limit';
+import { trustedClientIp } from '@/lib/client-ip';
+import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
@@ -26,25 +28,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   }
 
-  // Brute force protection: without this the PBKDF2 hash is only as strong as
-  // the number of guesses an attacker is allowed.
-  const limit = await rateLimit('adminLogin', clientIp(request));
-  if (!limit.allowed) {
-    return tooManyRequests(limit, 'Too many sign-in attempts. Try again later.');
-  }
-
   const secret = process.env.SESSION_SECRET;
   const configured = staffCredentials();
 
-  let username = '';
-  let password = '';
-  try {
-    const body = await request.json();
-    username = typeof body?.username === 'string' ? body.username : '';
-    password = typeof body?.password === 'string' ? body.password : '';
-  } catch {
-    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
-  }
+  const read = await readBoundedJson(request, BODY_LIMITS.adminLogin);
+  if (!read.ok) return read.response;
+  const body = read.json as { username?: unknown; password?: unknown } | undefined;
+  if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+  const username = typeof body.username === 'string' ? body.username : '';
+  const password = typeof body.password === 'string' ? body.password : '';
+
+  // Brute force protection, per IP and per operator name: without it the
+  // PBKDF2 hash is only as strong as the number of guesses allowed. Fails
+  // closed: no limiter, no staff sign-in.
+  const limited = await limit([
+    { policy: 'adminLogin', subject: { kind: 'ip', address: trustedClientIp(request.headers) } },
+    { policy: 'adminLogin', subject: { kind: 'identifier', value: username } },
+  ]);
+  if (!limited.allowed) return limitResponse(limited);
 
   // Fail closed when unconfigured, and do a comparison anyway so an
   // unconfigured deployment is not distinguishable by response time.
