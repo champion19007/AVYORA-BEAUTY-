@@ -9,6 +9,8 @@
  * must state accurately — registered entity name, address, GST number,
  * grievance officer — is marked with [TO CONFIRM] rather than invented,
  * because guessing those would be worse than leaving them visibly blank.
+ * `npm run check:launch` lists every remaining marker and fails until none
+ * is left, so these pages cannot be mistaken for launch-ready.
  */
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (

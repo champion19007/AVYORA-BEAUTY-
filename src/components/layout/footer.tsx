@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Facebook, Instagram, Youtube, Mail } from 'lucide-react';
 import { Logo } from '@/components/logo';
+import { SUPPORT_EMAIL } from '@/data/business-info';
 
 const FOOTER_LINKS = {
   // Every entry points somewhere real. Links previously pointed at "#", which
@@ -15,15 +16,16 @@ const FOOTER_LINKS = {
   ],
   quick: [
     { name: 'Shop All', href: '/collections' },
-    { name: 'Best Sellers', href: '/collections?filter=bestsellers' },
+    { name: 'Our Picks', href: '/collections?filter=bestsellers' },
     { name: 'New Arrivals', href: '/collections?filter=new' },
     { name: 'Routine Finder', href: '/routine-finder' },
     { name: 'Journal', href: '/journal' },
     { name: 'Track Order', href: '/track-order' },
   ],
+  // The WhatsApp number was a dummy. It returns only when
+  // the owner confirms a real one; see the launch check.
   contact: [
-    { name: 'WhatsApp: +91 99999 99999', href: 'https://wa.me/919999999999' },
-    { name: 'support@avyora.com', href: 'mailto:support@avyora.com' },
+    { name: SUPPORT_EMAIL, href: `mailto:${SUPPORT_EMAIL}` },
     { name: 'Contact us', href: '/contact' },
   ],
 };
@@ -37,7 +39,7 @@ const SOCIALS: { Icon: typeof Instagram; label: string; href: string | null }[] 
   { Icon: Instagram, label: 'Instagram', href: null },
   { Icon: Facebook, label: 'Facebook', href: null },
   { Icon: Youtube, label: 'YouTube', href: null },
-  { Icon: Mail, label: 'Email us', href: 'mailto:support@avyora.com' },
+  { Icon: Mail, label: 'Email us', href: `mailto:${SUPPORT_EMAIL}` },
 ];
 
 function LinkColumn({ heading, links }: { heading: string; links: { name: string; href: string }[] }) {
@@ -67,7 +69,7 @@ export function Footer() {
         <div className="space-y-6">
           <Logo />
           <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Science-forward personal care. Formulated in-house, delivered directly to your door.
+            Skincare built around a simple routine, delivered to your door.
           </p>
           <div className="flex gap-4">
             {SOCIALS.filter((s) => s.href).map(({ Icon, label, href }) => (
@@ -88,30 +90,11 @@ export function Footer() {
 
         <div>
           <LinkColumn heading="Contact" links={FOOTER_LINKS.contact} />
-          <div className="mt-10">
-            <h2 className="mb-3 font-headline text-lg font-medium tracking-wide">Newsletter</h2>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Formulation notes and early access, occasionally.
-            </p>
-            <form className="flex items-center gap-2 border-b border-border pb-2 focus-within:border-primary">
-              <label htmlFor="newsletter-email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="newsletter-email"
-                type="email"
-                required
-                placeholder="your@email.com"
-                className="w-full bg-transparent py-1.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="shrink-0 text-xs font-semibold uppercase tracking-[0.18em] text-primary-text transition-opacity hover:opacity-70"
-              >
-                Join
-              </button>
-            </form>
-          </div>
+          {/*
+            A newsletter form promising "early access" stood here. It had no
+            handler: submitting reloaded the page and the address went
+            nowhere. It returns with a real list and consent record.
+          */}
         </div>
       </div>
 

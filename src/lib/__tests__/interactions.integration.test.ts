@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { ingredientInteractions, ingredients } from '@/db/schema';
 
@@ -33,29 +34,8 @@ const item = (label: string, ingredientIds: string[], prescribed = false) => ({
 });
 
 beforeAll(async () => {
-  await client.exec(`
-    CREATE TABLE ingredients (
-      id text PRIMARY KEY,
-      inci_name text NOT NULL,
-      common_name text NOT NULL,
-      synonyms jsonb NOT NULL DEFAULT '[]'::jsonb,
-      prescription_only boolean NOT NULL DEFAULT false,
-      pregnancy_caution boolean NOT NULL DEFAULT false,
-      photosensitising boolean NOT NULL DEFAULT false
-    );
-
-    CREATE TABLE ingredient_interactions (
-      id text PRIMARY KEY,
-      ingredient_a text NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
-      ingredient_b text NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
-      tier integer NOT NULL,
-      summary text NOT NULL,
-      advice text NOT NULL,
-      citation text
-    );
-    CREATE UNIQUE INDEX interactions_pair_idx
-      ON ingredient_interactions (ingredient_a, ingredient_b);
-  `);
+  // The real migrations, not hand-written DDL that drifts from production.
+  await migrate(drizzlePglite(client), { migrationsFolder: 'drizzle' });
 
   await db.insert(ingredients).values([
     {
@@ -190,17 +170,27 @@ describe('interaction engine', () => {
     expect(await evaluateRoutine([])).toEqual([]);
   });
 
-  it('resolves ingredients from a label, including synonyms', async () => {
-    const ids = await resolveIngredients(
-      'Aqua, Glycolic Acid, Vitamin B3, Glycerin, Phenoxyethanol'
-    );
-    expect(ids).toEqual(expect.arrayContaining(['glycolic-acid', 'niacinamide']));
+  it('resolves ingredients from a label, including synonyms', () => {
+    const r = resolveIngredients('Aqua, Glycolic Acid, Vitamin B3, Glycerin, Phenoxyethanol');
+    expect(r.ids).toEqual(expect.arrayContaining(['glycolic-acid', 'niacinamide']));
   });
 
-  it('stays silent about ingredients it does not recognise', async () => {
+  it('reports ingredients it does not recognise instead of matching or dropping them', () => {
     // Inventing a match would produce a confident warning about the wrong
-    // molecule, which is worse than admitting we do not know this product.
-    expect(await resolveIngredients('Aqua, Glycerin, Parfum')).toEqual([]);
+    // molecule; dropping it would read as "nothing to check".
+    const r = resolveIngredients('Aqua, Glycerin, Parfum');
+    expect(r.ids).toEqual([]);
+    expect(r.unresolved.map((u) => u.label)).toEqual(['Aqua', 'Glycerin', 'Parfum']);
+    expect(r.complete).toBe(false);
+  });
+
+  it('says which ingredients it could not check, even when nothing else is found', async () => {
+    const findings = await evaluateRoutine([
+      { label: 'Night serum', ingredientIds: [], prescribed: false, unresolvedLabels: ['PDRN (Salmon DNA)'] },
+    ]);
+    expect(findings).toEqual([
+      expect.objectContaining({ title: 'Some ingredients could not be checked', detail: expect.stringContaining('PDRN (Salmon DNA)') }),
+    ]);
   });
 
   it('knows which ingredients raise sun sensitivity', async () => {

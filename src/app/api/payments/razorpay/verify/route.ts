@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
 import { isSameOrigin } from '@/lib/security';
 import { isDatabaseConfigured } from '@/db';
 import {
@@ -32,16 +33,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Payments are not configured.' }, { status: 503 });
   }
 
-  let body: {
+  const read = await readBoundedJson(request, BODY_LIMITS.paymentVerify);
+  if (!read.ok) return read.response;
+  if (!read.json || typeof read.json !== 'object') {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+  }
+  const body = read.json as {
     razorpay_order_id?: string;
     razorpay_payment_id?: string;
     razorpay_signature?: string;
   };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
-  }
 
   const orderId = body.razorpay_order_id ?? '';
   const paymentId = body.razorpay_payment_id ?? '';

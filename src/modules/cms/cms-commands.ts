@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
+import { findContentProblems } from '@/lib/content-claims';
 import { cmsDocuments, cmsRevisions } from '@/db/schema';
 import { CommandError, defineCommand, type CommandActor } from '@/infrastructure/commands/command';
 import type { Tx } from '@/infrastructure/idempotency/idempotency';
@@ -167,6 +168,16 @@ export const publishDocument = defineCommand({
       throw new CommandError(
         'conflict',
         `This draft no longer passes checks (${parsed.error.issues[0]?.message ?? 'invalid'}). Save it again first.`
+      );
+    }
+
+    // Unfinished or unsupported copy never goes live: placeholders, offers no
+    // order receives, and absolute claims (audit #07, #09, #10).
+    const problem = findContentProblems(JSON.stringify(parsed.data))[0];
+    if (problem) {
+      throw new CommandError(
+        'conflict',
+        `Not published: "${problem.match}" (${problem.why}). Edit the draft and try again.`
       );
     }
 

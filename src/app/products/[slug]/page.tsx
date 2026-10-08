@@ -1,7 +1,9 @@
 import { PRODUCTS } from '@/data/mock-data';
 import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
+import { SITE_URL } from '@/data/business-info';
 import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
 import { productCopy } from '@/modules/cms/content-read';
+import { APPROVED_DIRECTIONS } from '@/data/product-directions';
 import { recommendationsFor } from '@/modules/recommendations/recommendations';
 import { getProductById, getProductBySlug } from '@/lib/catalogue';
 import { notFound } from 'next/navigation';
@@ -124,7 +126,7 @@ export default async function ProductPage({ params }: Props) {
       highPrice: Math.max(...shownPrices),
       offerCount: product.sizes.length,
       availability: anyInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-      url: `https://avyora.com/products/${product.slug}`,
+      url: `${SITE_URL}/products/${product.slug}`,
     },
     // Only advertise an aggregateRating when real reviews back it. Emitting a
     // fabricated one breaches Google's structured-data policy and can get the
@@ -155,7 +157,14 @@ export default async function ProductPage({ params }: Props) {
         pricesBySize={pricesBySize}
         catalogueStock={stock}
         cataloguePrices={prices}
-        howToUse={copy?.howToUse || null}
+        // Approved product-specific directions first, then the owner's published
+        // copy. Never a generic schedule: "use twice daily" was shown for every
+        // product, including the retinal ampoule (audit #03).
+        howToUse={
+          APPROVED_DIRECTIONS[product.id]
+            ? `${APPROVED_DIRECTIONS[product.id].frequency}. ${APPROVED_DIRECTIONS[product.id].text}`
+            : copy?.howToUse || null
+        }
         highlights={copy?.highlights ?? []}
       />
     </>

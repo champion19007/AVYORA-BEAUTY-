@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
 import { drizzle } from 'drizzle-orm/pglite';
 import { sql, eq } from 'drizzle-orm';
 import { inventory } from '@/db/schema';
@@ -24,17 +25,8 @@ const UNION = "' UNION SELECT null, null, null --";
 beforeAll(async () => {
   client = new PGlite();
   db = drizzle(client, { schema: { inventory } });
-  await client.exec(`
-    CREATE TABLE inventory (
-      id serial PRIMARY KEY,
-      product_id text NOT NULL,
-      size text NOT NULL,
-      quantity integer NOT NULL DEFAULT 0,
-      low_stock_threshold integer NOT NULL DEFAULT 5,
-      allow_backorder boolean NOT NULL DEFAULT false,
-      updated_at timestamptz NOT NULL DEFAULT now()
-    );
-  `);
+  // The real migrations, not hand-written DDL that drifts from production.
+  await migrate(drizzle(client), { migrationsFolder: 'drizzle' });
 });
 
 afterAll(async () => {

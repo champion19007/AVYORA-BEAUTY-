@@ -10,21 +10,22 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { DELIVERY_TERMS, FREE_DELIVERY_LINE } from '@/lib/money';
 
+/*
+ * No cashback, credit or membership exists: orders carry no credit ledger and
+ * nothing is ever earned or redeemed (audit #07). The "Avyora Circle" slide
+ * and the cashback line are gone until that is built (prompt 29). "Clinical"
+ * and "evidence-led" went too: nothing in the repository substantiates them
+ * for the finished products (audit #09).
+ */
 const HERO_SLIDES = [
   {
-    title: 'Clinical science,\nquietly luxurious.',
-    subtitle: 'Pure, effective, evidence-led formulations for your skin.',
-    promo: '5% cashback on every order as Avyora Credit',
+    title: 'Considered skincare,\nquietly luxurious.',
+    subtitle: 'Start with the essentials, and add only what your skin needs.',
+    promo: FREE_DELIVERY_LINE,
     image: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?auto=format&fit=crop&w=1920&q=80',
     hint: 'skincare bottles',
-  },
-  {
-    title: 'The Avyora Circle',
-    subtitle: 'Our membership for those who value science-first care.',
-    promo: 'Earn and redeem credit on every purchase',
-    image: 'https://images.unsplash.com/photo-1567721913486-6585f069b332?auto=format&fit=crop&w=1920&q=80',
-    hint: 'skincare model',
   },
 ];
 
@@ -36,6 +37,7 @@ export function HomeClient({
   concerns,
   activeCategories,
   activeConcerns,
+  redesign = false,
 }: {
   stock: StockByKey;
   prices: DisplayPrices;
@@ -44,6 +46,8 @@ export function HomeClient({
   concerns: typeof CONCERNS;
   activeCategories: ReadonlySet<string>;
   activeConcerns: ReadonlySet<string>;
+  /** Redesign on: the server renders the new hero, and the layout already provides <main>. */
+  redesign?: boolean;
 }) {
   const [currentHero, setCurrentHero] = useState(0);
 
@@ -54,9 +58,11 @@ export function HomeClient({
     return () => clearInterval(timer);
   }, []);
 
+  const Root = redesign ? 'div' : 'main';
   return (
-    <main className="flex w-full flex-col bg-background transition-colors duration-300">
+    <Root className="flex w-full flex-col bg-background transition-colors duration-300">
       {/* ---------------------------------------------------------------- Hero */}
+      {!redesign && (
       <section className="relative h-[82vh] w-full overflow-hidden bg-muted" aria-label="Featured">
         {HERO_SLIDES.map((slide, i) => (
           <div
@@ -105,7 +111,7 @@ export function HomeClient({
           </div>
         ))}
         <div className="absolute bottom-10 left-1/2 z-20 flex -translate-x-1/2 gap-3">
-          {HERO_SLIDES.map((_, i) => (
+          {HERO_SLIDES.length > 1 && HERO_SLIDES.map((_, i) => (
             <button
               key={i}
               aria-label={`Go to slide ${i + 1}`}
@@ -120,11 +126,13 @@ export function HomeClient({
         </div>
       </section>
 
+      )}
+
       {/* ------------------------------------------------------------ Products */}
       <section className="container mx-auto px-4 py-24" aria-labelledby="products-heading">
         <div className="mb-14 flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
-            <span className="eyebrow">Clinical formulations</span>
+            <span className="eyebrow">The range</span>
             <h2
               id="products-heading"
               className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl"
@@ -160,14 +168,20 @@ export function HomeClient({
                   id="bundle-heading"
                   className="mt-4 font-headline text-4xl font-normal leading-tight tracking-tight md:text-5xl"
                 >
-                  Compose your own bundle
+                  Build your routine
                 </h2>
               </div>
               <ul className="space-y-4">
+                {/*
+                  Previously: 15% off every bundle, 5% back as credit and
+                  "complimentary delivery, always". None was applied to any
+                  order, and delivery costs money below the threshold
+                  (audit #07, #08). These lines describe what happens.
+                */}
                 {[
-                  'An additional 15% off every bundle',
-                  '5% back as Avyora Credit',
-                  'Complimentary delivery, always',
+                  'Three essentials first: cleanse, moisturise, protect',
+                  'Optional additions are always marked optional',
+                  DELIVERY_TERMS,
                 ].map((text) => (
                   <li key={text} className="flex items-center gap-4">
                     <span
@@ -204,7 +218,7 @@ export function HomeClient({
             <div className="relative aspect-square lg:aspect-auto">
               <Image
                 src="https://images.unsplash.com/photo-1590439471364-192aa70c0b53?auto=format&fit=crop&w=1200&q=80"
-                alt="An Avyora skincare bundle"
+                alt="Skincare products"
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -351,6 +365,6 @@ export function HomeClient({
         </div>
       </section>
 
-    </main>
+    </Root>
   );
 }

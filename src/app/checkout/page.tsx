@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { CheckoutClient } from './checkout-client';
-import { displayPrices } from '@/modules/catalog/storefront-data';
+import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
 import { isRazorpayConfigured } from '@/lib/razorpay';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
@@ -26,9 +26,17 @@ export default async function CheckoutPage() {
       ? await listAddresses(session.user.id).catch(() => [])
       : [];
 
+  // Both fresh: these are the figures the customer agrees to. Stock is null
+  // with no database, where there is nothing to check it against.
+  const [prices, stock] = await Promise.all([
+    displayPrices({ fresh: true }),
+    isDatabaseConfigured() ? catalogueStock({ fresh: true }) : Promise.resolve(null),
+  ]);
+
   return (
     <CheckoutClient
-      prices={await displayPrices({ fresh: true })}
+      prices={prices}
+      stock={stock}
       razorpayEnabled={isRazorpayConfigured()}
       savedAddresses={savedAddresses}
       defaultEmail={session?.user?.email ?? ''}

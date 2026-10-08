@@ -18,6 +18,14 @@ export default defineConfig({
      * fails fast; only the WASM startup is given room.
      */
     hookTimeout: 60_000,
+    /**
+     * Bounded, because every integration file boots its own PGlite instance.
+     * The default (one worker per CPU, minus one) started seven at once on an
+     * 8-core, 16 GB machine, and on a busy run two workers died with V8's
+     * "Fatal process out of memory: Zone", losing their files' tests. Four
+     * workers finished in the same wall-clock time (about 46s) without it.
+     */
+    maxWorkers: 4,
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },

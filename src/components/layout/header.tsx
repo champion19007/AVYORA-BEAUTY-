@@ -16,7 +16,7 @@ import { PRODUCTS, CATEGORIES, CONCERNS } from '@/data/mock-data';
 
 const NAV_ITEMS = [
   { name: 'Shop', href: '/collections' },
-  { name: 'Best Sellers', href: '/collections?filter=bestsellers' },
+  { name: 'Our Picks', href: '/collections?filter=bestsellers' },
   {
     name: 'Shop by Category',
     href: '/collections',
@@ -150,7 +150,7 @@ export function Header({ deliverTo }: { deliverTo?: React.ReactNode }) {
                         }))}
                       />
                       <MegaColumn
-                        heading="Best sellers"
+                        heading="Our picks"
                         links={BESTSELLERS.map((p) => ({
                           label: p.name,
                           href: `/products/${p.slug}`,

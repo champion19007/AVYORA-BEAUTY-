@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { SITE_URL } from '@/data/business-info';
 
 /**
  * Keeps the authenticated and administrative areas out of search results
@@ -12,6 +13,6 @@ export default function robots(): MetadataRoute.Robots {
       // The finance-app routes these used to cover have been deleted.
       disallow: ['/admin', '/api', '/checkout', '/orders', '/login', '/signup'],
     },
-    sitemap: 'https://avyora.com/sitemap.xml',
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

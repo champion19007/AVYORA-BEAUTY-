@@ -7,7 +7,6 @@ import { ProductCard, type StockByKey } from '@/components/product/product-card'
 import type { DisplayPrices } from '@/modules/catalog/storefront-data';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { InMemoryCatalogSearch } from '@/modules/search/catalog-search';
 
 /*
@@ -29,12 +28,26 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'newest', label: 'New arrivals' },
 ];
 
-function CollectionsContent({ stock, prices }: { stock: StockByKey; prices: DisplayPrices }) {
+type Filters = { category: string | null; concern: string | null; filter: string | null; q: string | null };
+const NO_FILTERS: Filters = { category: null, concern: null, filter: null, q: null };
+
+/** Reads the URL's filters; only rendered in the browser, inside Suspense. */
+function CollectionsFromUrl({ stock, prices }: { stock: StockByKey; prices: DisplayPrices }) {
   const searchParams = useSearchParams();
-  const categoryFilter = searchParams.get('category');
-  const concernFilter = searchParams.get('concern');
-  const namedFilter = searchParams.get('filter');
-  const query = searchParams.get('q');
+  const filters: Filters = {
+    category: searchParams.get('category'),
+    concern: searchParams.get('concern'),
+    filter: searchParams.get('filter'),
+    q: searchParams.get('q'),
+  };
+  return <CollectionsContent stock={stock} prices={prices} filters={filters} />;
+}
+
+function CollectionsContent({ stock, prices, filters }: { stock: StockByKey; prices: DisplayPrices; filters: Filters }) {
+  const categoryFilter = filters.category;
+  const concernFilter = filters.concern;
+  const namedFilter = filters.filter;
+  const query = filters.q;
 
   const [sort, setSort] = useState<SortKey>('featured');
 
@@ -99,7 +112,7 @@ function CollectionsContent({ stock, prices }: { stock: StockByKey; prices: Disp
   const heading = query
     ? `Results for “${query}”`
     : namedFilter === 'bestsellers'
-      ? 'Best sellers'
+      ? 'Our picks'
       : namedFilter === 'new'
         ? 'New arrivals'
         : concernFilter
@@ -111,7 +124,7 @@ function CollectionsContent({ stock, prices }: { stock: StockByKey; prices: Disp
   return (
     <div className="container mx-auto px-4 py-16">
       <header className="mx-auto mb-12 max-w-2xl text-center">
-        <span className="eyebrow">Clinical catalogue</span>
+        <span className="eyebrow">The range</span>
         <h1 className="mt-3 font-headline text-5xl font-normal capitalize tracking-tight md:text-6xl">
           {heading}
         </h1>
@@ -165,31 +178,21 @@ function CollectionsContent({ stock, prices }: { stock: StockByKey; prices: Disp
         </div>
       )}
 
-      <p className="mt-28 border-t border-border pt-12 text-center text-sm italic text-muted-foreground">
-        Every Avyora product is made in small clinical batches for maximum active stability.
-      </p>
-    </div>
-  );
-}
-
-/** Skeleton shown while the search params resolve on the client. */
-function CollectionsFallback() {
-  return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="mx-auto mb-12 h-40 max-w-2xl animate-pulse rounded-lg bg-muted" />
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className={cn('aspect-[3/4] animate-pulse rounded-lg bg-muted')} />
-        ))}
-      </div>
     </div>
   );
 }
 
 export function CollectionsClient({ stock, prices }: { stock: StockByKey; prices: DisplayPrices }) {
   return (
-    <Suspense fallback={<CollectionsFallback />}>
-      <CollectionsContent stock={stock} prices={prices} />
+    /*
+     * The fallback is the full, unfiltered grid, not a skeleton. A static page
+     * that reads the query string renders only its Suspense fallback on the
+     * server, so with a skeleton here the HTML held no products at all: a
+     * crawler, or a visitor before the JavaScript loaded, saw an empty shop.
+     * Filters from the URL apply once the browser has them.
+     */
+    <Suspense fallback={<CollectionsContent stock={stock} prices={prices} filters={NO_FILTERS} />}>
+      <CollectionsFromUrl stock={stock} prices={prices} />
     </Suspense>
   );
 }

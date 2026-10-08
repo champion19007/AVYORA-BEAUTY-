@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
-import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
+import { drizzle, drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { and, eq } from 'drizzle-orm';
 import { inventory } from '@/db/schema';
 
@@ -32,18 +33,8 @@ const { reserveStock, releaseStock } = await import('../inventory');
 const SKU = { productId: 'pdrn-booster', size: '30ml' };
 
 beforeAll(async () => {
-  await client.exec(`
-    CREATE TABLE inventory (
-      id serial PRIMARY KEY,
-      product_id text NOT NULL,
-      size text NOT NULL,
-      quantity integer NOT NULL DEFAULT 0,
-      low_stock_threshold integer NOT NULL DEFAULT 5,
-      allow_backorder boolean NOT NULL DEFAULT false,
-      updated_at timestamptz NOT NULL DEFAULT now()
-    );
-    CREATE UNIQUE INDEX inventory_product_size_idx ON inventory (product_id, size);
-  `);
+  // The real migrations, not hand-written DDL that drifts from production.
+  await migrate(drizzle(client), { migrationsFolder: 'drizzle' });
   process.env.DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://pglite/test';
 });
 

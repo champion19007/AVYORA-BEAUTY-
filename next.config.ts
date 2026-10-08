@@ -2,6 +2,16 @@ import type {NextConfig} from 'next';
 
 import path from 'node:path';
 
+/*
+ * A production deployment without a database would prerender the public pages
+ * from catalogue fallbacks (no stock, no journal) and cache them as if real.
+ * Refuse that build outright; `npm run build:offline` exists for verifying the
+ * build where no database is available, and refuses to run on Vercel.
+ */
+if (process.env.VERCEL_ENV === 'production' && !process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is not set for this production build. Refusing to prerender pages without a database.');
+}
+
 const nextConfig: NextConfig = {
   /**
    * Pin the workspace root to this project.

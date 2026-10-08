@@ -2,7 +2,8 @@
 
 import { headers } from 'next/headers';
 import { isDatabaseConfigured } from '@/db';
-import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { limit, limitMessage, type PolicyName } from '@/lib/rate-limit';
+import { trustedClientIp } from '@/lib/client-ip';
 import {
   accountMethods,
   emailSchema,
@@ -30,18 +31,30 @@ import {
 /**
  * Customer sign-in actions: password, email code, and phone code.
  *
- * Every entry point here is rate limited by IP before it touches the database.
+ * Every entry point here is rate limited by identity and trusted IP before it
+ * touches accounts or sends anything.
  * These are the endpoints an attacker actually reaches for — password
  * guessing, address enumeration, and OTP spam that costs real money per SMS —
  * and they run in Node, where the durable Postgres counter works.
  */
 
-/** Best-effort client address; the platform overwrites these at the edge. */
-async function clientAddress(): Promise<string> {
-  const h = await headers();
-  const forwarded = h.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return h.get('x-real-ip') ?? 'unknown';
+/**
+ * Consumes `policy` for this IP and, when known, this identity (email or
+ * phone, normalised and hashed by the limiter). Identity is the primary key;
+ * IP is a secondary one with a higher allowance, so a shared mobile network
+ * does not lock out its users. Fails closed: if the limiter is unavailable,
+ * sign-in work is refused rather than unprotected.
+ *
+ * Returns the error message to show, or null to proceed.
+ */
+async function throttled(policies: PolicyName[], identity?: string): Promise<string | null> {
+  const address = trustedClientIp(await headers());
+  const checks = policies.flatMap((policy) => [
+    { policy, subject: { kind: 'ip' as const, address } },
+    ...(identity ? [{ policy, subject: { kind: 'identifier' as const, value: identity } }] : []),
+  ]);
+  const result = await limit(checks);
+  return result.allowed ? null : limitMessage(result);
 }
 
 export type ActionState = {
@@ -78,13 +91,11 @@ const UNAVAILABLE: ActionState = {
 export async function lookupAccount(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!isDatabaseConfigured()) return UNAVAILABLE;
 
-  const limit = await rateLimit('accountLookup', await clientAddress());
-  if (!limit.allowed) {
-    return { error: 'Too many attempts. Please wait a minute and try again.' };
-  }
-
   const parsed = emailSchema.safeParse(formData.get('email'));
   if (!parsed.success) return { error: parsed.error.issues[0]!.message };
+
+  const refused = await throttled(['accountLookup'], parsed.data);
+  if (refused) return { error: refused };
 
   const methods = await accountMethods(parsed.data);
   return { methods };
@@ -97,16 +108,14 @@ export async function lookupAccount(_prev: ActionState, formData: FormData): Pro
 export async function passwordSignIn(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!isDatabaseConfigured()) return UNAVAILABLE;
 
-  const limit = await rateLimit('customerLogin', await clientAddress());
-  if (!limit.allowed) {
-    return { error: 'Too many sign-in attempts. Please wait and try again.' };
-  }
-
   const email = emailSchema.safeParse(formData.get('email'));
   const password = String(formData.get('password') ?? '');
 
   if (!email.success) return { error: email.error.issues[0]!.message };
   if (!password) return { error: 'Enter your password.' };
+
+  const refused = await throttled(['login'], email.data);
+  if (refused) return { error: refused };
 
   const result = await signInWithPassword(email.data, password);
 
@@ -126,12 +135,14 @@ export async function passwordSignIn(_prev: ActionState, formData: FormData): Pr
 export async function passwordSignUp(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!isDatabaseConfigured()) return UNAVAILABLE;
 
-  const limit = await rateLimit('customerLogin', await clientAddress());
-  if (!limit.allowed) return { error: 'Too many attempts. Please wait and try again.' };
-
   const email = emailSchema.safeParse(formData.get('email'));
   const password = passwordSchema.safeParse(formData.get('password'));
   const name = String(formData.get('name') ?? '').trim() || null;
+
+  if (email.success) {
+    const refused = await throttled(['login'], email.data);
+    if (refused) return { error: refused };
+  }
 
   if (!email.success) return { error: email.error.issues[0]!.message };
   if (!password.success) return { error: password.error.issues[0]!.message };
@@ -184,13 +195,10 @@ export async function requestCode(_prev: ActionState, formData: FormData): Promi
     };
   }
 
-  const byIp = await rateLimit('otpRequest', await clientAddress());
-  if (!byIp.allowed) return { error: 'Too many requests. Please wait a minute.' };
-
-  const byIdentifier = await rateLimit('otpRequest', `id:${identifier}`);
-  if (!byIdentifier.allowed) {
-    return { error: 'A code was just sent. Please wait before asking for another.' };
-  }
+  // Three codes per identifier and five per IP every 15 minutes, and at most
+  // one per identifier per minute. Each SMS costs money.
+  const refused = await throttled(['otpSend', 'otpResend'], identifier);
+  if (refused) return { error: refused };
 
   const code = await issueOtp(identifier, channel);
 
@@ -213,9 +221,6 @@ export async function requestCode(_prev: ActionState, formData: FormData): Promi
 export async function verifyCode(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!isDatabaseConfigured()) return UNAVAILABLE;
 
-  const limit = await rateLimit('customerLogin', await clientAddress());
-  if (!limit.allowed) return { error: 'Too many attempts. Please wait and try again.' };
-
   const channel = formData.get('channel') === 'sms' ? 'sms' : 'email';
 
   const parsed =
@@ -224,6 +229,9 @@ export async function verifyCode(_prev: ActionState, formData: FormData): Promis
       : emailSchema.safeParse(formData.get('email'));
 
   if (!parsed.success) return { error: parsed.error.issues[0]!.message };
+
+  const refused = await throttled(['login'], parsed.data);
+  if (refused) return { error: refused, sent: true };
 
   const code = String(formData.get('code') ?? '').trim();
   if (!/^\d{6}$/.test(code)) return { error: 'Enter the 6-digit code.', sent: true };
@@ -283,13 +291,8 @@ export async function requestPasswordReset(
     return { error: 'Password reset is not available on this deployment. Try Google sign-in.' };
   }
 
-  const byIp = await rateLimit('otpRequest', await clientAddress());
-  if (!byIp.allowed) return { error: 'Too many requests. Please wait a minute.' };
-
-  const byIdentifier = await rateLimit('otpRequest', `reset:${parsed.data}`);
-  if (!byIdentifier.allowed) {
-    return { error: 'A code was just sent. Please wait before asking for another.' };
-  }
+  const refused = await throttled(['otpSend', 'otpResend'], parsed.data);
+  if (refused) return { error: refused };
 
   const methods = await accountMethods(parsed.data);
 
@@ -316,13 +319,13 @@ export async function resetPassword(
 ): Promise<ActionState> {
   if (!isDatabaseConfigured()) return UNAVAILABLE;
 
-  const limit = await rateLimit('customerLogin', await clientAddress());
-  if (!limit.allowed) return { error: 'Too many attempts. Please wait and try again.', sent: true };
-
   const email = emailSchema.safeParse(formData.get('email'));
   const password = passwordSchema.safeParse(formData.get('password'));
 
   if (!email.success) return { error: email.error.issues[0]!.message, sent: true };
+
+  const refused = await throttled(['login'], email.data);
+  if (refused) return { error: refused, sent: true };
   if (!password.success) return { error: password.error.issues[0]!.message, sent: true };
 
   const code = String(formData.get('code') ?? '').trim();

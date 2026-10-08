@@ -5,7 +5,9 @@ import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { createOrder, type CheckoutInput, type CreateOrderResult } from '@/lib/orders';
 import { createOrderAccessToken } from '@/lib/order-access';
-import { rateLimit } from '@/lib/rate-limit';
+import { limit, limitMessage } from '@/lib/rate-limit';
+import { trustedClientIp } from '@/lib/client-ip';
+import { findByIdempotencyKey } from '@/lib/orders';
 
 /**
  * Places an order.
@@ -16,22 +18,11 @@ import { rateLimit } from '@/lib/rate-limit';
  */
 export type PlaceOrderResult =
   | { ok: true; orderNumber: string; accessToken: string | null }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: 'price_changed' };
 
 export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult> {
   // Server actions receive no Request object, so the address comes from the
   // incoming headers instead.
-  const headerList = await headers();
-  const ip =
-    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    headerList.get('x-real-ip') ??
-    'unknown';
-
-  const limit = await rateLimit('checkout', ip);
-  if (!limit.allowed) {
-    return { ok: false, error: 'Too many orders from this connection. Please wait a moment.' };
-  }
-
   if (!isDatabaseConfigured()) {
     return {
       ok: false,
@@ -40,6 +31,21 @@ export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult
   }
 
   const session = await auth().catch(() => null);
+  const address = trustedClientIp(await headers());
+  const email = typeof input?.email === 'string' ? input.email : '';
+  const limited = await limit([
+    { policy: 'checkout', subject: { kind: 'ip', address } },
+    session?.user?.id
+      ? { policy: 'checkout', subject: { kind: 'user', id: session.user.id } }
+      : { policy: 'checkout', subject: { kind: 'identifier', value: email } },
+  ]);
+  if (!limited.allowed) {
+    // A retry of an order that already exists is a replay, not new work:
+    // answer it rather than refusing a customer whose order went through.
+    const replay = input?.idempotencyKey ? await findByIdempotencyKey(String(input.idempotencyKey)) : null;
+    if (!replay) return { ok: false, error: limitMessage(limited) };
+  }
+
   const result = await createOrder(input, session?.user?.id ?? null);
   if (!result.ok) return result;
 

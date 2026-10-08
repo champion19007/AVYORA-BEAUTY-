@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
-    "build": "NODE_ENV=production next build",
+    "build": "next build",
+    "build:offline": "node scripts/build-offline.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -14,8 +15,12 @@
     "db:migrate": "tsx scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio",
     "db:seed-inventory": "node scripts/seed-inventory.mjs",
-    "db:seed-ingredients": "node scripts/seed-ingredients.mjs",
+    "db:seed-ingredients": "tsx scripts/import-knowledge.ts",
+    "db:import-knowledge": "tsx scripts/import-knowledge.ts",
+    "kb": "tsx scripts/kb.ts",
+    "db:check-catalog": "tsx scripts/check-catalog.ts",
     "check:env": "node scripts/check-env.mjs",
+    "check:launch": "tsx scripts/check-launch.ts",
     "test:stress": "vitest run --config vitest.stress.config.ts",
     "load-test": "node scripts/load-test.mjs"
   },

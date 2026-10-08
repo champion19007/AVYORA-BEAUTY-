@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { isDatabaseConfigured } from '@/db';
-import { recordProviderEvent, shouldRetryUnknownOrder } from '@/modules/payments/payment-service';
+import { recordProviderEvent } from '@/modules/payments/payment-service';
+import { shouldRetryUnknownOrder } from '@/modules/payments/webhook-policy';
 import { reportError } from '@/lib/observability';
 import type { PaymentSignal } from '@/modules/payments/state-machine';
 import { getRazorpayConfig, verifyWebhookSignature } from '@/lib/razorpay';
+import { BODY_LIMITS, readBoundedText } from '@/lib/request-body';
 
 /**
  * Razorpay webhook — the authoritative record of what was actually paid.
@@ -29,7 +31,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Webhook not configured.' }, { status: 503 });
   }
 
-  const rawBody = await request.text();
+  // Bounded, but never rate limited: a customer quota here could discard a
+  // genuine paid confirmation. Signature, replay dedupe and reconciliation
+  // are the protections for this endpoint.
+  const read = await readBoundedText(request, BODY_LIMITS.paymentWebhook);
+  if (!read.ok) return read.response;
+  const rawBody = read.text;
   const signature = request.headers.get('x-razorpay-signature') ?? '';
 
   const valid = await verifyWebhookSignature(rawBody, signature, config.webhookSecret);

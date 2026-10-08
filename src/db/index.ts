@@ -57,10 +57,20 @@ function createClient(url = process.env.DATABASE_URL): Sql {
   });
 }
 
+/**
+ * Opt-in query log for measuring database work per request: set
+ * DB_LOG_QUERIES=1. Logs the statement's first words only, never parameters
+ * (they can contain personal data). Off by default.
+ */
+function queryLogger() {
+  if (process.env.DB_LOG_QUERIES !== '1') return undefined;
+  return { logQuery: (query: string) => console.log(`[db-query] ${query.replace(/\s+/g, ' ').slice(0, 80)}`) };
+}
+
 function getDb(): Database {
   if (!globalForDb.__avyoraDb) {
     globalForDb.__avyoraSql ??= createClient();
-    globalForDb.__avyoraDb = drizzle(globalForDb.__avyoraSql, { schema });
+    globalForDb.__avyoraDb = drizzle(globalForDb.__avyoraSql, { schema, logger: queryLogger() });
   }
   return globalForDb.__avyoraDb;
 }

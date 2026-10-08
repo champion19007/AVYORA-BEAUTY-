@@ -14,6 +14,7 @@ const BASE: PricingRow = {
   id: 'x',
   productId: 'p',
   size: '30ml',
+  variantId: null,
   price: 149900,
   salePrice: null,
   offerLabel: null,

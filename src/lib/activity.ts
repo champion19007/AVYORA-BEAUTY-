@@ -1,6 +1,6 @@
 import { db, isDatabaseConfigured } from '@/db';
 import { reportError } from '@/lib/observability';
-import { activityEvents, routineResults } from '@/db/schema';
+import { activityEvents } from '@/db/schema';
 
 /**
  * Behavioural events and saved routine results.
@@ -91,37 +91,5 @@ export async function recordEvent(input: ActivityInput): Promise<void> {
     });
   } catch (err) {
     reportError(err, { scope: 'activity.recordEvent' });
-  }
-}
-
-/**
- * Saves a routine-finder result so a customer can return to it, and so the
- * answers can inform which products to stock.
- *
- * Returns the row id, which is how a saved routine gets a shareable link.
- */
-export async function saveRoutineResult(params: {
-  answers: unknown;
-  result: unknown;
-  userId?: string | null;
-  anonymousId?: string | null;
-}): Promise<string | null> {
-  if (!isDatabaseConfigured()) return null;
-
-  try {
-    const [row] = await db
-      .insert(routineResults)
-      .values({
-        answers: params.answers as never,
-        result: params.result as never,
-        userId: params.userId ?? null,
-        anonymousId: params.anonymousId ?? null,
-      })
-      .returning({ id: routineResults.id });
-
-    return row?.id ?? null;
-  } catch (err) {
-    reportError(err, { scope: 'activity.saveRoutineResult' });
-    return null;
   }
 }

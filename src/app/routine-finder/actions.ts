@@ -4,35 +4,29 @@ import { cookies } from 'next/headers';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { ANONYMOUS_COOKIE } from '@/lib/cart-server';
-import { recordEvent, saveRoutineResult } from '@/lib/activity';
+import { recordEvent } from '@/lib/activity';
 
 /**
- * Persists a completed routine so the customer can return to it, and so the
- * answers can inform which products to stock.
+ * Called when a routine is shown. Records an aggregate event (skin type and
+ * concern only, never the answers) and saves nothing personal.
  *
- * Never throws: a failed save must not stop someone seeing their routine.
+ * Saving moved to `POST /api/routines` (prompt 16), which recomputes the
+ * routine on the server from validated inputs. This action used to store
+ * the browser's result JSON under consent; a client result is never stored
+ * now, so it no longer accepts one.
+ *
+ * Never throws: a failed event must not stop someone seeing their routine.
  */
-export async function persistRoutine(answers: unknown, result: unknown): Promise<void> {
+export async function persistRoutine(answers: unknown): Promise<void> {
   if (!isDatabaseConfigured()) return;
-
   try {
     const session = await auth().catch(() => null);
-    const anon = (await cookies()).get(ANONYMOUS_COOKIE)?.value ?? null;
-
-    await saveRoutineResult({
-      answers,
-      result,
-      userId: session?.user?.id ?? null,
-      anonymousId: anon,
-    });
-
     await recordEvent({
       name: 'routine_completed',
       path: '/routine-finder',
       userId: session?.user?.id ?? null,
-      anonymousId: anon,
+      anonymousId: (await cookies()).get(ANONYMOUS_COOKIE)?.value ?? null,
       props: {
-        // Aggregate signal only; the full answers live in routine_results.
         skinType: String((answers as Record<string, unknown>)?.skinType ?? 'unknown'),
         concern: String((answers as Record<string, unknown>)?.concern ?? 'unknown'),
       },

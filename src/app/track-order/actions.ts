@@ -4,7 +4,8 @@ import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
 import { orders } from '@/db/schema';
-import { rateLimit } from '@/lib/rate-limit';
+import { limit, limitMessage } from '@/lib/rate-limit';
+import { trustedClientIp } from '@/lib/client-ip';
 import { orderProgress, type OrderProgress } from '@/lib/order-progress';
 
 /**
@@ -31,12 +32,6 @@ export type TrackState = {
   };
 };
 
-async function clientAddress(): Promise<string> {
-  const h = await headers();
-  const forwarded = h.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return h.get('x-real-ip') ?? 'unknown';
-}
 
 export async function trackOrder(_prev: TrackState, formData: FormData): Promise<TrackState> {
   if (!isDatabaseConfigured()) {
@@ -45,13 +40,14 @@ export async function trackOrder(_prev: TrackState, formData: FormData): Promise
 
   // Rate limited because this is a guessing surface: order numbers are short
   // and an unbounded endpoint invites enumeration.
-  const limit = await rateLimit('accountLookup', await clientAddress());
-  if (!limit.allowed) {
-    return { error: 'Too many lookups. Please wait a minute and try again.' };
-  }
+  const orderNumber = String(formData.get('orderNumber') ?? '').trim().toUpperCase().slice(0, 40);
+  const email = String(formData.get('email') ?? '').trim().toLowerCase().slice(0, 254);
 
-  const orderNumber = String(formData.get('orderNumber') ?? '').trim().toUpperCase();
-  const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  const limited = await limit([
+    { policy: 'accountLookup', subject: { kind: 'ip', address: trustedClientIp(await headers()) } },
+    { policy: 'accountLookup', subject: { kind: 'identifier', value: email || 'none' } },
+  ]);
+  if (!limited.allowed) return { error: limitMessage(limited) };
 
   if (!orderNumber) return { error: 'Enter your order number.' };
   if (!email) return { error: 'Enter the email you ordered with.' };

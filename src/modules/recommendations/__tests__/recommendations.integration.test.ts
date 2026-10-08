@@ -18,7 +18,7 @@ vi.mock('@/db', () => ({
 }));
 
 const { rankRecommendations, MIN_SUPPORT } = await import('../ranking');
-const { recommendationsFor, coPurchases } = await import('../recommendations');
+const { conflictingProducts, recommendationsFor, coPurchases } = await import('../recommendations');
 const { cache, POLICIES } = await import('@/infrastructure/cache');
 
 const product = (id: string) => PRODUCTS.find((p) => p.id === id)!;
@@ -71,6 +71,13 @@ describe('ranking (pure)', () => {
     const recs = rankRecommendations(product('ha-toner'), PRODUCTS);
     expect(recs[0].reason).toBe('routine_fit');
     expect(product(recs[0].productId).category).not.toBe('toner');
+  });
+
+  it('never scores a product whose interaction check is incomplete as a routine fit', () => {
+    const unchecked = new Set(PRODUCTS.map((p) => p.id));
+    const recs = rankRecommendations(product('ha-toner'), PRODUCTS, { unchecked });
+    expect(recs.length).toBeGreaterThan(0);
+    expect(recs.every((r) => r.reason !== 'routine_fit')).toBe(true);
   });
 
   it('ignores co-purchases below the support threshold', () => {
@@ -149,6 +156,20 @@ describe('ingredient conflicts', () => {
   it('works in both directions of the rule', async () => {
     const ids = (await recommendationsFor('vitamin-c-serum', { limit: 30 })).map((r) => r.productId);
     expect(ids).not.toContain('retinol');
+  });
+
+  it('treats an ambiguous label as a possible conflict, not as no conflict', async () => {
+    // vitamin-c-serum's only highlight is "vitamin c", which is ambiguous;
+    // one of its candidates is ascorbic acid, which the test rule pairs with retinol.
+    const check = await conflictingProducts('retinol');
+    expect(check.conflicts.has('vitamin-c-serum')).toBe(true);
+  });
+
+  it('marks products it could not fully check as unchecked', async () => {
+    // "Zinc PCA" is not in the dictionary, so niacinamide-drops cannot be cleared.
+    const check = await conflictingProducts('retinol');
+    expect(check.unchecked.has('niacinamide-drops')).toBe(true);
+    expect(check.conflicts.has('niacinamide-drops')).toBe(false);
   });
 
   it('keeps a product whose interaction is only irritation advice', async () => {

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SUPPORT_EMAIL } from '@/data/business-info';
 
 export const metadata: Metadata = {
   title: 'Refund and Cancellation Policy',
@@ -13,8 +14,8 @@ export default function Page() {
 
       <h2>Cancelling an order</h2>
       <p>
-        You can cancel free of charge any time before despatch by emailing
-        <a href="mailto:support@avyora.com">support@avyora.com</a> with your order number. Once
+        You can cancel free of charge any time before despatch by emailing{' '}
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your order number. Once
         despatched an order cannot be cancelled, but it may be returnable below.
       </p>
 

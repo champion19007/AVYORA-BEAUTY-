@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SUPPORT_EMAIL } from '@/data/business-info';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -14,7 +15,7 @@ export default function Page() {
       <h2>Who we are</h2>
       <p>
         Avyora is operated by [TO CONFIRM] (registered entity name), at [TO CONFIRM] (registered address). For any
-        privacy question, contact <a href="mailto:support@avyora.com">support@avyora.com</a>.
+        privacy question, contact <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
       </p>
 
       <h2>What we collect</h2>
@@ -51,7 +52,7 @@ export default function Page() {
       <h2>Your rights</h2>
       <p>
         You can ask for a copy of your data, ask us to correct or delete it, or object to how we use
-        it. Write to <a href="mailto:support@avyora.com">support@avyora.com</a> and we will respond
+        it. Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> and we will respond
         within 30 days.
       </p>
 

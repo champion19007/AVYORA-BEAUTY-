@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
+import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
 import { isSameOrigin } from '@/lib/security';
 import { cookies } from 'next/headers';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
-import { ANONYMOUS_COOKIE, loadCart, saveCart, type ServerCartLine } from '@/lib/cart-server';
+import { accountKey, ANONYMOUS_COOKIE, loadCart, saveCart, type ServerCartLine } from '@/lib/cart-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,13 +58,15 @@ export async function POST(request: Request) {
 
   if (!isDatabaseConfigured()) return NextResponse.json({ ok: true, stored: false });
 
-  let lines: ServerCartLine[];
-  try {
-    const body = await request.json();
-    lines = Array.isArray(body?.lines) ? body.lines : [];
-  } catch {
-    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+  const read = await readBoundedJson(request, BODY_LIMITS.cart);
+  if (!read.ok) return read.response;
+  const body = read.json as { lines?: unknown; accountKey?: unknown } | undefined;
+  if (!body) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+  // A bag holds one line per SKU; anything longer is not a real bag.
+  if (Array.isArray(body.lines) && body.lines.length > 50) {
+    return NextResponse.json({ error: 'Too many lines.' }, { status: 413 });
   }
+  const lines: ServerCartLine[] = Array.isArray(body.lines) ? body.lines : [];
 
   const clean = lines
     .filter(
@@ -80,6 +83,15 @@ export async function POST(request: Request) {
     .slice(0, 100);
 
   const session = await auth().catch(() => null);
+
+  // The browser says whose bag this is. If that is not who is signed in now
+  // (a tab left open across a sign-out, or another account signed in), the
+  // save is refused rather than written into the wrong account's cart.
+  const expected = session?.user?.id ? accountKey(session.user.id) : null;
+  if (body.accountKey !== undefined && body.accountKey !== expected) {
+    return NextResponse.json({ error: 'Account changed.', code: 'account_changed', accountKey: expected }, { status: 409 });
+  }
+
   const anon = await anonymousId();
 
   try {

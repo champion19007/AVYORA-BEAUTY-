@@ -99,6 +99,48 @@
       "when": 1790337261423,
       "tag": "0013_nasty_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791388119899,
+      "tag": "0014_catalog_variants",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791438199058,
+      "tag": "0015_knowledge_records",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791443681329,
+      "tag": "0016_personal_records",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791445877632,
+      "tag": "0017_knowledge_releases",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791448485944,
+      "tag": "0018_durable_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791461811103,
+      "tag": "0019_routine_api",
+      "breakpoints": true
     }
   ]
 }

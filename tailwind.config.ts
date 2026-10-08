@@ -17,6 +17,41 @@ export default {
         sans: ['var(--font-jost)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         body: ['var(--font-jost)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         headline: ['var(--font-display)', 'ui-serif', 'Georgia', 'serif'],
+        /* Redesign (Nuvē reference): Inter for everything, Instrument Serif for the wordmark only. */
+        nv: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        wordmark: ['var(--font-wordmark)', 'ui-serif', 'Georgia', 'serif'],
+      },
+      /* Measured type scale: [size, { lineHeight, letterSpacing, fontWeight }]. Identical at 1280, 1440 and 1920. */
+      fontSize: {
+        'nv-hero': ['100px', { lineHeight: '100px', letterSpacing: '-6px', fontWeight: '500' }],
+        'nv-display': ['80px', { lineHeight: '88px', letterSpacing: '-3.2px', fontWeight: '500' }],
+        'nv-figure': ['48px', { lineHeight: '48px', letterSpacing: '-1.92px', fontWeight: '500' }],
+        'nv-statement': ['40px', { lineHeight: '52px', letterSpacing: '-1.6px', fontWeight: '500' }],
+        'nv-title': ['32px', { lineHeight: '35.2px', letterSpacing: '-1.28px', fontWeight: '500' }],
+        'nv-lead': ['28px', { lineHeight: '30.8px', letterSpacing: '-1.12px', fontWeight: '500' }],
+        'nv-contact': ['24px', { lineHeight: '28.8px', letterSpacing: '-0.96px', fontWeight: '500' }],
+        'nv-quote': ['22px', { lineHeight: '28.6px', letterSpacing: '-0.66px', fontWeight: '500' }],
+        'nv-intro': ['20px', { lineHeight: '26px', letterSpacing: '-0.6px', fontWeight: '500' }],
+        'nv-body': ['18px', { lineHeight: '23.4px', letterSpacing: '-0.3px' }],
+        'nv-label': ['16px', { lineHeight: '20.8px', letterSpacing: '-0.64px', fontWeight: '500' }],
+        'nv-small': ['14px', { lineHeight: '19.6px', letterSpacing: '-0.56px' }],
+        'nv-wordmark': ['28px', { lineHeight: '33.6px', letterSpacing: '-0.8px', fontWeight: '400' }],
+        'nv-wordmark-lg': ['48px', { lineHeight: '48px', letterSpacing: '-0.8px', fontWeight: '400' }],
+      },
+      maxWidth: {
+        'nv-container': 'var(--nv-container)',
+      },
+      spacing: {
+        'nv-gutter': 'var(--nv-gutter)',
+        'nv-gap': 'var(--nv-gap)',
+        'nv-header': 'var(--nv-header-height)',
+      },
+      transitionTimingFunction: {
+        nv: 'var(--nv-ease)',
+      },
+      transitionDuration: {
+        'nv-control': '300ms',
+        'nv-overlay': '500ms',
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -49,6 +84,16 @@ export default {
           foreground: 'hsl(var(--accent-foreground))',
         },
         leaf: 'hsl(var(--leaf))',
+        nv: {
+          page: 'var(--nv-page)',
+          ink: 'var(--nv-ink)',
+          muted: 'var(--nv-muted)',
+          faint: 'var(--nv-faint)',
+          card: 'var(--nv-card)',
+          line: 'var(--nv-line)',
+          glass: 'var(--nv-glass)',
+          danger: 'var(--nv-danger)',
+        },
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
@@ -61,6 +106,9 @@ export default {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        'nv-card': 'var(--nv-radius-card)',
+        'nv-inner': 'var(--nv-radius-inner)',
+        'nv-pill': 'var(--nv-radius-pill)',
       },
       letterSpacing: {
         luxe: '0.28em',
@@ -88,6 +136,8 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-up': 'fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both',
         'ken-burns': 'ken-burns 12s ease-out both',
+        'nv-overlay-in': 'nv-overlay-in var(--nv-duration-overlay) var(--nv-ease) both',
+        'nv-overlay-out': 'nv-overlay-out 350ms var(--nv-ease) both',
       },
     },
   },

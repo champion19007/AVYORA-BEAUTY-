@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SUPPORT_EMAIL } from '@/data/business-info';
 
 export const metadata: Metadata = {
   title: 'Contact Us',
@@ -12,14 +13,8 @@ export default function Page() {
 
       <h2>Customer support</h2>
       <p>
-        Email <a href="mailto:support@avyora.com">support@avyora.com</a>. We aim to reply within one
-        business day.
-      </p>
-
-      <h2>WhatsApp</h2>
-      <p>
-        <a href="https://wa.me/919999999999">+91 99999 99999</a> &mdash; [TO CONFIRM] confirm this number
-        before publishing.
+        Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your order number if you
+        have one. Reply time: [TO CONFIRM].
       </p>
 
       <h2>Registered address</h2>

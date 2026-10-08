@@ -1,0 +1,26 @@
+{
+  "url": "https://nuve-beauty.framer.website/",
+  "capturedAt": "2026-10-08T14:46:26.100Z",
+  "browser": "Edg/156.0.4314.8",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+  "widths": {
+    "1280": {
+      "width": 1280,
+      "height": 800,
+      "contentWidth": 1280,
+      "pageHeight": 11131
+    },
+    "1440": {
+      "width": 1440,
+      "height": 900,
+      "contentWidth": 1440,
+      "pageHeight": 11400
+    },
+    "1920": {
+      "width": 1920,
+      "height": 1080,
+      "contentWidth": 1920,
+      "pageHeight": 11940
+    }
+  }
+}

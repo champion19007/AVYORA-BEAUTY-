@@ -1,4 +1,6 @@
 import { PRODUCTS, Product } from '@/data/mock-data';
+import { catalogRecords, type CatalogVariantRecord } from '@/modules/catalog/catalog-records';
+import { skuKey } from '@/modules/catalog/sku-price';
 
 /**
  * Indexed, read-only view of the product catalogue.
@@ -27,6 +29,27 @@ for (const product of PRODUCTS) {
     list.push(product);
     byConcern.set(concern, list);
   }
+}
+
+/*
+ * Variants, by stable id and by the legacy (product, size) key. Every lookup
+ * of "is this a real SKU" goes through here, so a size label that drifts from
+ * the catalogue resolves to nothing instead of to a guess.
+ */
+const variantsById = new Map<string, CatalogVariantRecord>();
+const variantsByLegacyKey = new Map<string, CatalogVariantRecord>();
+for (const v of catalogRecords(PRODUCTS).variants) {
+  variantsById.set(v.id, v);
+  variantsByLegacyKey.set(v.legacyStockKey, v);
+}
+
+/** The variant sold as `size` of `productId`, or undefined. */
+export function getVariant(productId: string, size: string): CatalogVariantRecord | undefined {
+  return variantsByLegacyKey.get(skuKey(productId, size));
+}
+
+export function getVariantById(id: string): CatalogVariantRecord | undefined {
+  return variantsById.get(id);
 }
 
 /** Every product, in catalogue order. */

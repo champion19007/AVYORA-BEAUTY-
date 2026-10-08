@@ -13,7 +13,9 @@ import { placeOrder } from './actions';
 import { Loader2, Lock, MapPin, Plus, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Address } from '@/lib/addresses';
-import type { SkuPrice } from '@/modules/catalog/sku-price';
+import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
+import type { StockByKey } from '@/modules/catalog/storefront-data';
+import { MAX_QUANTITY_PER_SKU, stockProblems, unitPrice } from '@/lib/cart';
 
 type Errors = Record<string, string>;
 
@@ -79,6 +81,7 @@ export function CheckoutClient({
   razorpayEnabled,
   savedAddresses = [],
   prices,
+  stock = null,
   defaultEmail = '',
 }: {
   razorpayEnabled: boolean;
@@ -90,10 +93,15 @@ export function CheckoutClient({
    * moment an item was added, which may be days old; this is what is true now.
    */
   prices: Record<string, SkuPrice>;
+  /**
+   * Current stock per SKU, read fresh for this render; null with no database.
+   * Display only: the order transaction reserves stock and is the authority.
+   */
+  stock?: StockByKey | null;
   /** Email from the session, so it is not retyped. */
   defaultEmail?: string;
 }) {
-  const { cart, updateQuantity, removeFromCart } = useApp();
+  const { cart, updateQuantity, removeFromCart, clearCart } = useApp();
   const router = useRouter();
 
   // Pre-select the default address, so a returning customer can pay without
@@ -112,24 +120,17 @@ export function CheckoutClient({
   const [formError, setFormError] = useState<string | null>(null);
 
   /*
-   * One line's price in rupees, from the server's current prices. The fallback
-   * to the bag's remembered price only applies to a SKU the server has never
-   * heard of, which checkout will then refuse anyway.
+   * Lines asking for more than is in stock, so the customer can fix them here
+   * rather than after submitting. The order transaction still decides.
    */
-  const unitRupees = (item: (typeof cart)[number]): number => {
-    const current = prices[`${item.id}::${item.selectedSize}`];
-    if (current) return current.price / 100;
-    return item.salePrice ?? item.sizes.find((s) => s.label === item.selectedSize)?.price ?? item.price;
-  };
+  const problems = stock ? stockProblems(cart, stock) : [];
   const [method, setMethod] = useState<'razorpay' | 'cod'>(razorpayEnabled ? 'razorpay' : 'cod');
 
   const totals = useMemo(
     () =>
       calculateTotals(
-        cart.map((item) => ({
-          unitPrice: unitRupees(item),
-          quantity: item.quantity,
-        }))
+        // Each line at the current price for its own SKU, from this render.
+        cart.map((line) => ({ unitPrice: unitPrice(line, prices).price / 100, quantity: line.quantity }))
       ),
     [cart, prices]
   );
@@ -193,10 +194,15 @@ export function CheckoutClient({
       country: 'IN',
       phone: values.phone.trim(),
     },
-    items: cart.map((i) => ({
-      productId: i.id,
-      size: i.selectedSize,
-      quantity: i.quantity,
+    items: cart.map((line) => ({
+      productId: line.productId,
+      size: line.size,
+      quantity: line.quantity,
+      // What the customer was shown. The server refuses the order if a price
+      // has moved since, rather than charging an amount nobody agreed to.
+      ...(prices[skuKey(line.productId, line.size)]
+        ? { expectedUnitPaise: prices[skuKey(line.productId, line.size)].price }
+        : {}),
     })),
   });
 
@@ -241,10 +247,15 @@ export function CheckoutClient({
     if (method === 'cod') {
       const result = await placeOrder({ ...buildPayload(), paymentMethod: 'cod' });
       if (result.ok) {
+        // The bag was never emptied after an order, so a customer who had
+        // just ordered was one click from ordering the same items again.
+        clearCart();
         router.push(orderUrl(result.orderNumber, result.accessToken));
         return;
       }
       setFormError(result.error);
+      // A changed price: fetch the current quote so the summary shows it.
+      if (result.code === 'price_changed') router.refresh();
       setSubmitting(false);
       return;
     }
@@ -262,6 +273,7 @@ export function CheckoutClient({
 
     if (!created.ok) {
       setFormError(created.body?.error ?? 'We could not start the payment. Please try again.');
+      if (created.body?.code === 'price_changed') router.refresh();
       setSubmitting(false);
       return;
     }
@@ -302,6 +314,7 @@ export function CheckoutClient({
           .catch(() => ({ ok: false, body: null as any }));
 
         if (verified.ok) {
+          clearCart();
           router.push(orderUrl(orderNumber, accessToken));
           return;
         }
@@ -530,10 +543,12 @@ export function CheckoutClient({
             <h2 className="font-headline text-xl font-normal tracking-tight">Your order</h2>
 
             <ul className="mt-5 space-y-4">
-              {cart.map((item) => {
-                const unit = unitRupees(item);
+              {cart.map(({ product: item, ...line }) => {
+                const unit = unitPrice(line, prices);
+                const available = stock ? stock[skuKey(line.productId, line.size)] ?? 0 : null;
+                const cap = Math.min(MAX_QUANTITY_PER_SKU, available ?? MAX_QUANTITY_PER_SKU);
                 return (
-                  <li key={`${item.id}-${item.selectedSize}`} className="flex gap-3">
+                  <li key={`${line.productId}-${line.size}`} className="flex gap-3">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
                       <Image
                         src={item.images[0]}
@@ -545,28 +560,37 @@ export function CheckoutClient({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.selectedSize}</p>
+                      <p className="text-xs text-muted-foreground">{line.size}</p>
+                      {available !== null && line.quantity > available && (
+                        <p className="mt-0.5 text-xs text-destructive">
+                          {available === 0
+                            ? 'Out of stock. Remove it to continue.'
+                            : `Only ${available} available. Reduce the quantity to continue.`}
+                        </p>
+                      )}
                       <div className="mt-1.5 flex items-center gap-2">
                         <button
                           type="button"
                           aria-label={`Decrease quantity of ${item.name}`}
-                          onClick={() => updateQuantity(item.id, item.selectedSize, -1)}
-                          className="h-6 w-6 rounded border border-border text-xs"
+                          disabled={line.quantity <= 1}
+                          onClick={() => updateQuantity(line.productId, line.size, -1)}
+                          className="h-6 w-6 rounded border border-border text-xs disabled:opacity-40"
                         >
                           −
                         </button>
-                        <span className="text-xs tabular-nums">{item.quantity}</span>
+                        <span className="text-xs tabular-nums">{line.quantity}</span>
                         <button
                           type="button"
                           aria-label={`Increase quantity of ${item.name}`}
-                          onClick={() => updateQuantity(item.id, item.selectedSize, 1)}
-                          className="h-6 w-6 rounded border border-border text-xs"
+                          disabled={line.quantity >= cap}
+                          onClick={() => updateQuantity(line.productId, line.size, 1)}
+                          className="h-6 w-6 rounded border border-border text-xs disabled:opacity-40"
                         >
                           +
                         </button>
                         <button
                           type="button"
-                          onClick={() => removeFromCart(item.id, item.selectedSize)}
+                          onClick={() => removeFromCart(line.productId, line.size)}
                           className="ml-2 text-xs text-muted-foreground underline hover:text-destructive"
                         >
                           Remove
@@ -574,7 +598,7 @@ export function CheckoutClient({
                       </div>
                     </div>
                     <span className="text-sm tabular-nums">
-                      {formatPaise(Math.round(unit * 100) * item.quantity)}
+                      {formatPaise(unit.price * line.quantity)}
                     </span>
                   </li>
                 );
@@ -601,6 +625,13 @@ export function CheckoutClient({
               </p>
             </dl>
 
+            {problems.length > 0 && (
+              <p role="alert" className="mt-5 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                Some items are no longer available in the quantity in your bag. Adjust them above to
+                continue.
+              </p>
+            )}
+
             {formError && (
               <p
                 role="alert"
@@ -612,7 +643,7 @@ export function CheckoutClient({
 
             <Button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || problems.length > 0}
               className="mt-6 w-full gap-2 rounded-md py-6 text-xs font-semibold uppercase tracking-[0.2em]"
             >
               {submitting ? (

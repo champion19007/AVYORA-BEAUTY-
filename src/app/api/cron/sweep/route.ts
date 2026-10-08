@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { sweepAbandonedReservations } from '@/lib/reservation-sweep';
 import { pruneExpiredIdempotencyKeys } from '@/infrastructure/idempotency/idempotency';
+import { pruneRateLimits } from '@/lib/rate-limit';
+import { db } from '@/db';
+import { purgeExpiredRoutines } from '@/modules/personal/routines';
 
 /** Node runtime: the Postgres driver cannot open a socket at the edge. */
 export const runtime = 'nodejs';
@@ -32,6 +35,8 @@ export async function GET(request: Request) {
 
   const result = await sweepAbandonedReservations();
   const idempotencyKeysPruned = await pruneExpiredIdempotencyKeys().catch(() => 0);
+  const rateLimitsPruned = await pruneRateLimits().catch(() => 0);
+  const expiredRoutinesDeleted = await purgeExpiredRoutines(db).catch(() => 0);
 
-  return NextResponse.json({ ok: true, ...result, idempotencyKeysPruned });
+  return NextResponse.json({ ok: true, ...result, idempotencyKeysPruned, rateLimitsPruned, expiredRoutinesDeleted });
 }

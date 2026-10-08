@@ -1,111 +1,138 @@
-import {
+import type {
   SkinProfile,
   RecommendationResult,
   RoutineStep,
   RoutineLevel,
   ExperienceLevel,
   ReactivityLevel,
+  RoutineMode,
+  OmittedTreatment,
+  TriState,
 } from './routine-types';
 import { SLOTS, SlotName, productForSlot, assertSlotsResolve } from './routine-slots';
+import { getProductById } from './catalogue';
+import { APPROVED_DIRECTIONS, TREATMENTS, type ProductDirections } from '@/data/product-directions';
+import { EVIDENCE_SOURCES, FORMULATIONS } from '@/data/formulations';
+import { treatmentReadiness, type EvidenceSource, type Formulation, type Knowledge } from '@/modules/ingredients/formulations';
 
 /**
  * AVYORA ROUTINE ENGINE
  *
- * Deterministic: the same answers always produce the same routine, so a
- * customer can revisit their result and see the same thing.
+ * Deterministic: the same answers always produce the same routine.
  *
- * The recommendation rules follow mainstream dermatological guidance:
+ * The order of work is fixed, and it is the point of this module:
  *
- *  - Vitamin C goes on clean skin early in the morning routine, before the
- *    hydrating essence layers, then sits under sunscreen.
- *  - Retinoids are evening-only and are never scheduled on the same night as
- *    a chemical exfoliant; stacking the two is the most common cause of a
- *    damaged barrier. The two are alternated instead.
- *  - Retinoids are withheld entirely during pregnancy and breastfeeding, under
- *    18, and while skin is actively irritated.
- *  - Retinoid frequency ramps up slowly from one or two nights a week, with
- *    moisturiser buffering offered to reactive skin.
+ *   1. normalise answers (unknown stays unknown)
+ *   2. decide the mode: recovery (irritated now), gentle (very reactive),
+ *      otherwise essentials, upgraded to treatment if one survives step 3
+ *   3. every treatment candidate passes every exclusion before anything is
+ *      added: mode, beginner, pregnancy, age, approved directions, then the
+ *      treatment limit
+ *   4. build the essential sessions (cleanse, moisturise, protect), add the
+ *      surviving treatments, list optional additions separately
+ *   5. explanations and warnings are generated from what was actually chosen
+ *      and omitted, so they cannot contradict the products
  *
- * Sources are listed in docs/routine-methodology.md.
+ * It used to remove only the retinoid for irritated skin and keep vitamin C
+ * and an exfoliant beside a "barrier repair only" message; it treated "prefer
+ * not to say" as "not pregnant"; and it gave a beginner six steps a session.
+ *
+ * What it does not do: invent medical rules, concentrations or efficacy
+ * claims. A treatment enters a routine only with approved, product-specific
+ * directions (`src/data/product-directions.ts`), and none exist yet, so today
+ * every routine is essentials plus clearly optional additions, and the result
+ * says which treatments are waiting for reviewed directions.
  */
 
 // Fail fast if a slot ever points at a SKU the catalogue no longer carries.
 assertSlotsResolve();
 
-export function getRecommendation(answers: any): RecommendationResult {
+/** Recorded on saved routines so a result can be traced to the rules that produced it. */
+export const ROUTINE_ENGINE_VERSION = 'rules-2026-10-08';
+
+/** Beginners get no more than this many steps in a morning or evening session. */
+export const BEGINNER_SESSION_STEP_CAP = 3;
+
+export type EngineOptions = {
+  /** Approved directions by product id. Defaults to the reviewed registry. */
+  directions?: Readonly<Record<string, ProductDirections>>;
+  /** Verified formulations and evidence. Default to the reviewed registries. */
+  formulations?: readonly Formulation[];
+  evidence?: readonly EvidenceSource[];
+};
+
+type Candidate = { productId: string; session: 'am' | 'pm' };
+
+export function getRecommendation(answers: any, options: EngineOptions = {}): RecommendationResult {
   const profile = normalizeAnswers(answers);
+  const directions = options.directions ?? APPROVED_DIRECTIONS;
+  const knowledge: Knowledge = {
+    directions,
+    formulations: options.formulations ?? FORMULATIONS,
+    evidence: options.evidence ?? EVIDENCE_SOURCES,
+  };
 
-  const retinoidBlocked = retinoidExclusion(profile);
-  const vitCEligible = checkVitCEligibility(profile);
-  const retinolEligible = !retinoidBlocked && checkRetinolQualifying(profile);
+  const baseMode: RoutineMode | null =
+    profile.currentCondition === 'irritated' ? 'recovery' : profile.reactivity === 'very_high' ? 'gentle' : null;
+  const beginner = isBeginner(profile);
 
-  const { recommendVitaminC, recommendRetinol } = selectActives(profile, vitCEligible, retinolEligible);
+  /* ---- treatments: exclusions first, then the limit ---------------------- */
+  const omitted: OmittedTreatment[] = [];
+  const eligible: Candidate[] = [];
+  for (const candidate of treatmentCandidates(profile)) {
+    const reason = exclusion(profile, candidate.productId, baseMode, beginner, knowledge);
+    if (reason) omitted.push({ productId: candidate.productId, reason });
+    else eligible.push({ ...candidate, session: sessionFor(candidate, directions) });
+  }
 
-  const vitCFreq = getVitCFrequency(profile, recommendVitaminC);
-  const retinolFreq = getRetinolFrequency(profile, recommendRetinol);
+  const chosen: Candidate[] = [];
+  const limit = treatmentLimit(profile);
+  for (const c of eligible) {
+    const sessionTaken = chosen.some((x) => x.session === c.session);
+    if (chosen.length < limit && !sessionTaken) chosen.push(c);
+    else omitted.push({ productId: c.productId, reason: 'treatment_limit' });
+  }
 
-  // Exfoliation and retinoid nights must not collide.
-  const exfoliationFreq = getExfoliationFrequency(profile, recommendRetinol);
+  const mode: RoutineMode = baseMode ?? (chosen.length > 0 ? 'treatment' : 'essentials');
 
-  const morningRoutine = buildMorning(profile, recommendVitaminC, vitCFreq);
-  const eveningRoutine = buildEvening(profile, recommendRetinol, retinolFreq, exfoliationFreq);
+  /* ---- sessions ---------------------------------------------------------- */
+  const morningRoutine = buildMorning(profile, mode, chosen, directions);
+  const eveningRoutine = buildEvening(profile, mode, chosen, directions);
+  const optionalSteps = buildOptional(profile, mode, beginner, chosen, knowledge, omitted);
   const bodyRoutine = buildBodyRoutine(profile);
-
-  const recommendedProducts = mapProductSizes(morningRoutine, eveningRoutine, bodyRoutine);
 
   return {
     profile,
+    mode,
     experienceLevelName: getExperienceName(profile.experienceLevel),
-    morningTitle: getMorningTitle(profile),
-    eveningTitle: getEveningTitle(profile),
+    morningTitle: 'Cleanse & Protect',
+    eveningTitle: chosen.some((c) => c.session === 'pm') ? 'Cleanse, Treat & Moisturise' : 'Cleanse & Moisturise',
     morningRoutine,
     eveningRoutine,
+    optionalSteps,
     bodyRoutine,
-    underEyeGuidance: getUnderEyeGuidance(profile),
-    warnings: getWarnings(profile, recommendRetinol, retinoidBlocked),
+    underEyeGuidance: getUnderEyeGuidance(profile, mode),
+    omitted,
+    warnings: getWarnings(profile, mode, chosen, omitted),
     explanations: [],
-    priorities: getPriorities(profile),
-    whyThisRoutine: generateWhyThisRoutine(profile, recommendVitaminC, recommendRetinol, retinoidBlocked),
-    recommendedProducts,
-    treatmentSchedule: {
-      retinol: recommendRetinol ? getRetinolSchedule(profile) : undefined,
-    },
+    priorities: getPriorities(chosen),
+    whyThisRoutine: generateWhyThisRoutine(profile, mode, beginner, chosen, omitted),
+    recommendedProducts: mapProductSizes(morningRoutine, eveningRoutine, bodyRoutine, optionalSteps),
   };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Step construction                                                           */
+/* Answers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Builds a step from a slot, pulling the display name and default size from
- * the catalogue so the two can never drift out of sync.
- */
-function step(
-  order: number,
-  category: RoutineStep['category'],
-  label: string,
-  slotName: string,
-  slot: SlotName,
-  explanation: string,
-  frequency?: string
-): RoutineStep {
-  const product = productForSlot(slot);
-  return {
-    order,
-    category,
-    label,
-    slotName,
-    productId: SLOTS[slot],
-    productName: product?.name,
-    productSize: product?.sizes[0]?.label,
-    frequency,
-    explanation,
-    isAvyoraProduct: true,
-  };
+function triState(value: unknown): TriState {
+  // Anything but an explicit yes or no — "prefer not to say", a skipped
+  // question, an old saved answer — is unknown, and unknown never establishes
+  // eligibility for a restricted treatment.
+  return value === 'yes' || value === 'no' ? value : 'unknown';
 }
 
-function normalizeAnswers(a: any): SkinProfile {
+export function normalizeAnswers(a: any): SkinProfile {
   const expMap: Record<string, ExperienceLevel> = {
     none: 'N0',
     beginner: 'N1',
@@ -126,7 +153,8 @@ function normalizeAnswers(a: any): SkinProfile {
     primaryConcern: a.concern,
     secondaryConcerns: a.secondaryConcerns || [],
     skinType: a.skinType,
-    reactivity: reactMap[a.reactivity] || 'low',
+    // An unanswered reactivity question is not evidence of tolerant skin.
+    reactivity: reactMap[a.reactivity] || 'high',
     ageRange: a.age,
     sunExposure: a.sun,
     experienceLevel: exp,
@@ -136,13 +164,13 @@ function normalizeAnswers(a: any): SkinProfile {
     darkCircles: a.darkCircles || 'no',
     darkSpots: a.darkSpots || 'no',
     bodyCare: a.bodyCare === 'yes',
-    pregnancy: a.pregnancy === 'yes',
+    pregnancy: triState(a.pregnancy),
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Eligibility                                                                 */
-/* -------------------------------------------------------------------------- */
+function isBeginner(p: SkinProfile): boolean {
+  return p.experienceLevel === 'N0' || p.experienceLevel === 'N1';
+}
 
 function matchesConcern(p: SkinProfile, needles: string[]): boolean {
   const haystack = [p.primaryConcern, ...p.secondaryConcerns]
@@ -151,211 +179,243 @@ function matchesConcern(p: SkinProfile, needles: string[]): boolean {
   return haystack.some((c) => needles.some((n) => c.includes(n)));
 }
 
-function checkVitCEligibility(p: SkinProfile): boolean {
-  return matchesConcern(p, ['dark spot', 'pigment', 'dull', 'uneven', 'tanning']);
-}
+/* -------------------------------------------------------------------------- */
+/* Treatments                                                                  */
+/* -------------------------------------------------------------------------- */
 
-function checkRetinolQualifying(p: SkinProfile): boolean {
-  return matchesConcern(p, ['aging', 'fine line', 'texture', 'rough', 'dark spot', 'pigment']);
-}
-
-/** Returns the reason retinoids are withheld, or null when they are allowed. */
-function retinoidExclusion(p: SkinProfile): string | null {
-  if (p.pregnancy) return 'pregnancy';
-  if (p.ageRange === 'under18') return 'under18';
-  if (p.reactivity === 'very_high') return 'reactivity';
-  if (p.currentCondition === 'irritated') return 'irritated';
-  if (p.routineLevel === 4) return 'newToRoutine';
-  return null;
-}
-
-function selectActives(p: SkinProfile, vitC: boolean, retinol: boolean) {
-  if (p.routineLevel === 4) return { recommendVitaminC: false, recommendRetinol: false };
-
-  // At level 5 the routine carries a single active so the skin has one
-  // variable to adapt to at a time.
-  if (p.routineLevel === 5 && vitC && retinol) {
-    const agingLed = matchesConcern(p, ['aging', 'fine line', 'texture']);
-    return { recommendVitaminC: !agingLed, recommendRetinol: agingLed };
+/** Treatments that match what the customer asked about, in priority order. */
+function treatmentCandidates(p: SkinProfile): Candidate[] {
+  const out: Candidate[] = [];
+  if (matchesConcern(p, ['aging', 'fine line', 'texture', 'rough'])) out.push({ productId: SLOTS.retinol, session: 'pm' });
+  if (matchesConcern(p, ['dark spot', 'pigment', 'dull', 'uneven', 'tanning'])) {
+    out.push({ productId: SLOTS.vitaminC, session: 'am' });
   }
-
-  return { recommendVitaminC: vitC, recommendRetinol: retinol };
-}
-
-function getVitCFrequency(p: SkinProfile, rec: boolean) {
-  if (!rec) return '';
-  if (p.routineLevel === 5) return '2–3 mornings a week';
-  if (p.routineLevel === 6) return '3–5 mornings a week';
-  return 'Every morning, as tolerated';
-}
-
-function getRetinolFrequency(p: SkinProfile, rec: boolean) {
-  if (!rec) return '';
-  if (p.reactivity === 'high') return '1 night a week to start';
-  if (p.routineLevel === 5) return '1 night a week to start';
-  if (p.routineLevel === 6) return '2 nights a week, building to 3';
-  return '3 nights a week, building to 5 as tolerated';
+  if (matchesConcern(p, ['acne', 'breakout', 'oil', 'pore'])) out.push({ productId: SLOTS.niacinamide, session: 'am' });
+  return out;
 }
 
 /**
- * Exfoliation is scheduled around the retinoid rather than alongside it.
- * Using both on one night is the most reliable way to compromise the barrier.
+ * The first reason this treatment cannot be recommended, or null.
+ *
+ * Order matters only for which reason is reported; any one is enough to
+ * exclude. The safety reasons come before "directions pending" so a customer
+ * learns the reason that will still apply once directions are approved.
  */
-function getExfoliationFrequency(p: SkinProfile, retinol: boolean) {
-  if (p.reactivity === 'very_high') return 'Once a week at most, on a night you skip other actives';
-  if (retinol) return '1–2 nights a week, never on a retinol night';
-  if (p.reactivity === 'high') return '1 night a week';
-  return '2–3 nights a week';
+function exclusion(
+  p: SkinProfile,
+  productId: string,
+  baseMode: RoutineMode | null,
+  beginner: boolean,
+  knowledge: Knowledge
+): OmittedTreatment['reason'] | null {
+  const treatment = TREATMENTS[productId];
+  if (baseMode === 'recovery') return 'irritated';
+  if (baseMode === 'gentle') return 'very_reactive';
+  if (beginner) return 'beginner';
+  if (treatment?.class === 'retinoid') {
+    if (p.pregnancy === 'yes') return 'pregnancy_yes';
+    if (p.pregnancy === 'unknown') return 'pregnancy_unknown';
+    if (p.ageRange === 'under18') return 'under18';
+  }
+  // Approved directions for a specific, complete, verified formulation.
+  // Missing formulation data blocks the treatment; it is never assumed fine.
+  if (!treatment) return knowledge.directions[productId] ? null : 'directions_pending';
+  const readiness = treatmentReadiness(productId, treatment.class, knowledge);
+  return readiness.ready ? null : readiness.reason;
+}
+
+/** One active at a time for less experienced or reactive skin; two otherwise, one per session. */
+function treatmentLimit(p: SkinProfile): number {
+  if (p.experienceLevel === 'N2' || p.reactivity === 'high') return 1;
+  return 2;
+}
+
+function sessionFor(c: Candidate, directions: Readonly<Record<string, ProductDirections>>): 'am' | 'pm' {
+  const session = directions[c.productId]?.session;
+  return session === 'am' || session === 'pm' ? session : c.session;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Routines                                                                    */
+/* Steps                                                                       */
 /* -------------------------------------------------------------------------- */
 
-function buildMorning(p: SkinProfile, vitC: boolean, freq: string): RoutineStep[] {
-  const isDry = p.skinType === 'dry';
-  const isOily = p.skinType === 'oily';
-  const steps: RoutineStep[] = [];
-  let n = 1;
+/** A step from a catalogue slot; name and size come from the catalogue. */
+function slotStep(
+  category: RoutineStep['category'],
+  slotName: string,
+  slot: SlotName,
+  explanation: string,
+  extra: Partial<RoutineStep> = {}
+): RoutineStep {
+  const product = productForSlot(slot);
+  return {
+    order: 0,
+    category,
+    label: slotName.toUpperCase(),
+    slotName,
+    productId: SLOTS[slot],
+    productName: product?.name,
+    productSize: product?.sizes[0]?.label,
+    explanation,
+    isAvyoraProduct: true,
+    ...extra,
+  };
+}
 
-  steps.push(
-    step(n++, 'cleanse', `0${n - 1} — CLEANSE`, 'Cleanse', 'gelCleanser',
-      'A low-pH gel cleanser removes overnight oil without stripping the barrier.')
-  );
+function treatmentStep(c: Candidate, directions: Readonly<Record<string, ProductDirections>>): RoutineStep {
+  const product = getProductById(c.productId);
+  const approved = directions[c.productId];
+  const category: RoutineStep['category'] =
+    TREATMENTS[c.productId]?.class === 'retinoid' ? 'renew' : TREATMENTS[c.productId]?.class === 'vitamin_c' ? 'brighten' : 'treatment';
+  return {
+    order: 0,
+    category,
+    label: 'TREAT',
+    slotName: 'Treat',
+    productId: c.productId,
+    productName: product?.name,
+    productSize: product?.sizes[0]?.label,
+    // Only approved, product-specific directions — never a generic schedule.
+    frequency: approved.frequency,
+    explanation: approved.text,
+    isAvyoraProduct: true,
+  };
+}
 
-  steps.push(
-    step(n++, 'tone', `0${n - 1} — TONE`, 'Tone', isDry ? 'tonerRich' : 'tonerHydrating',
-      'A hydrating toner rebalances the skin and preps it to absorb what follows.')
-  );
+function numbered(steps: RoutineStep[]): RoutineStep[] {
+  return steps.map((s, i) => ({ ...s, order: i + 1 }));
+}
 
-  // Vitamin C goes on clean, barely-damp skin before the heavier hydrating
-  // layers, so nothing blocks its penetration.
-  if (vitC) {
-    steps.push(
-      step(n++, 'brighten', `0${n - 1} — TREAT`, 'Treat', 'vitaminC',
-        'Vitamin C sits directly on cleansed skin to target pigmentation and buffer daily oxidative stress. It works alongside your sunscreen, not instead of it.',
-        freq)
-    );
-  } else {
-    steps.push(
-      step(n++, 'treatment', `0${n - 1} — TREAT`, 'Treat', 'niacinamide',
-        'Niacinamide is well tolerated alongside almost everything, regulating oil and calming redness.')
-    );
-  }
+/**
+ * A cleanser for the mode. The default gel cleanser lists LHA, an exfoliating
+ * acid, among its highlights, so recovery, very reactive and sensitive skin
+ * get the centella balm the catalogue tags for sensitivity and redness.
+ */
+function cleanser(p: SkinProfile, mode: RoutineMode): SlotName {
+  return mode === 'recovery' || mode === 'gentle' || p.skinType === 'sensitive' ? 'cleansingBalm' : 'gelCleanser';
+}
 
-  steps.push(
-    step(n++, 'essence', `0${n - 1} — ESSENCE`, 'Essence', 'essenceBrightening',
-      'A light ferment essence layers hydration over the treatment step.')
-  );
+function moisturiser(p: SkinProfile, mode: RoutineMode): SlotName {
+  if (mode === 'recovery' || mode === 'gentle') return 'moisturizerRich';
+  return p.skinType === 'oily' ? 'moisturizerLight' : 'moisturizerRich';
+}
 
-  if (p.darkCircles !== 'no') {
-    steps.push(
-      step(n++, 'eye', `0${n - 1} — EYE CARE`, 'Eye Care', 'eyePatches',
-        'Caffeine and peptides help de-puff and soften fine lines around the eye.')
-    );
-  }
-
-  steps.push(
-    step(n++, 'hydrate', `0${n - 1} — MOISTURISE`, 'Moisturise',
-      isOily ? 'moisturizerLight' : 'moisturizerRich',
-      'Seal the preceding layers with a texture suited to your skin type.')
-  );
-
-  steps.push(
-    step(n++, 'protect', `0${n - 1} — PROTECT`, 'Protect', 'sunscreen',
-      'SPF is the final morning step and the single highest-impact one. Reapply every two hours outdoors.')
-  );
-
-  return steps;
+function buildMorning(
+  p: SkinProfile,
+  mode: RoutineMode,
+  chosen: Candidate[],
+  directions: Readonly<Record<string, ProductDirections>>
+): RoutineStep[] {
+  const steps = [
+    slotStep('cleanse', 'Cleanse', cleanser(p, mode), 'Cleanse your face and pat it dry.'),
+    ...chosen.filter((c) => c.session === 'am').map((c) => treatmentStep(c, directions)),
+    slotStep('hydrate', 'Moisturise', moisturiser(p, mode), 'A moisturiser chosen for your skin type.'),
+    slotStep('protect', 'Protect', 'sunscreen', 'Sunscreen, as the last step of the morning.'),
+  ];
+  return numbered(steps);
 }
 
 function buildEvening(
   p: SkinProfile,
-  retinol: boolean,
-  retinolFreq: string,
-  exfoliationFreq: string
+  mode: RoutineMode,
+  chosen: Candidate[],
+  directions: Readonly<Record<string, ProductDirections>>
 ): RoutineStep[] {
-  const isDry = p.skinType === 'dry';
-  const isOily = p.skinType === 'oily';
-  const steps: RoutineStep[] = [];
-  let n = 1;
+  const steps = [
+    slotStep('cleanse', 'Cleanse', cleanser(p, mode), 'Cleanse away the day, including sunscreen.'),
+    ...chosen.filter((c) => c.session === 'pm').map((c) => treatmentStep(c, directions)),
+    slotStep('hydrate', 'Moisturise', moisturiser(p, mode), 'A moisturiser chosen for your skin type.'),
+  ];
+  return numbered(steps);
+}
 
-  steps.push(
-    step(n++, 'cleanse', `0${n - 1} — FIRST CLEANSE`, 'First Cleanse', 'cleansingOil',
-      'An oil cleanse dissolves sunscreen and sebum, which water alone cannot shift.')
-  );
+/**
+ * Additions the customer may choose. Never part of the essential routine,
+ * never counted against a session's step cap, and none in recovery or gentle
+ * modes, where the point is to keep the routine as small as possible.
+ *
+ * Exfoliation is an optional addition only when it passes the same
+ * exclusions as any treatment; otherwise it is reported as omitted.
+ */
+function buildOptional(
+  p: SkinProfile,
+  mode: RoutineMode,
+  beginner: boolean,
+  chosen: Candidate[],
+  knowledge: Knowledge,
+  omitted: OmittedTreatment[]
+): RoutineStep[] {
+  if (mode === 'recovery' || mode === 'gentle') return [];
+  const optional: RoutineStep[] = [];
+  const opt = { optional: true };
 
-  steps.push(
-    step(n++, 'cleanse', `0${n - 1} — SECOND CLEANSE`, 'Second Cleanse', 'gelCleanser',
-      'The water-based follow-up clears what the oil left behind.')
-  );
-
-  steps.push(
-    step(n++, 'exfoliate', `0${n - 1} — EXFOLIATE`, 'Exfoliate',
-      isOily ? 'exfoliantOily' : 'exfoliantGentle',
-      retinol
-        ? 'Use on the nights you are not applying retinol. Combining acids and a retinoid in one session is the fastest route to a compromised barrier.'
-        : 'Chemical exfoliation keeps texture smooth. Build up slowly and stop if skin feels tight.',
-      exfoliationFreq)
-  );
-
-  steps.push(
-    step(n++, 'tone', `0${n - 1} — TONE`, 'Tone', isDry ? 'tonerRich' : 'tonerHydrating',
-      'Restore hydration after cleansing and prepare skin for the treatment step.')
-  );
-
-  if (retinol) {
-    steps.push(
-      step(n++, 'renew', `0${n - 1} — TREAT`, 'Treat', 'retinol',
-        'Retinol drives cell turnover and collagen synthesis. Apply to completely dry skin, start at the frequency shown, and increase only once there is no flaking.',
-        retinolFreq)
+  if (p.skinType === 'dry' || matchesConcern(p, ['dry'])) {
+    optional.push(
+      slotStep('tone', 'Toner (optional)', p.skinType === 'dry' ? 'tonerRich' : 'tonerHydrating',
+        'Optional. A hydrating toner after cleansing, if your skin feels tight.', opt)
     );
-  } else {
-    steps.push(
-      step(n++, 'treatment', `0${n - 1} — TREAT`, 'Treat',
-        p.reactivity === 'very_high' || p.skinType === 'sensitive' ? 'essenceSoothing' : 'essenceRepair',
-        'A repairing treatment supports the barrier overnight, when the skin does most of its recovery.')
+  }
+
+  if (!beginner && matchesConcern(p, ['dull', 'uneven', 'glow'])) {
+    optional.push(
+      slotStep('essence', 'Essence (optional)', 'essenceBrightening', 'Optional. A light layer before moisturiser.', opt)
     );
   }
 
   if (p.darkCircles !== 'no') {
-    steps.push(
-      step(n++, 'eye', `0${n - 1} — EYE CARE`, 'Eye Care', 'eyePatches',
-        'Optional overnight hydration for the eye area.')
-    );
+    optional.push(slotStep('eye', 'Eye patches (optional)', 'eyePatches', 'Optional, for the under-eye area.', opt));
   }
 
-  steps.push(
-    step(n++, 'hydrate', `0${n - 1} — MOISTURISE`, 'Moisturise', 'moisturizerRich',
-      retinol
-        ? 'Apply generously after retinol. If your skin stings, you can also apply moisturiser before the retinol to buffer it.'
-        : 'An occlusive final layer limits water loss overnight.')
-  );
+  if (matchesConcern(p, ['texture', 'rough', 'acne', 'breakout'])) {
+    const exfoliant = SLOTS[p.skinType === 'oily' ? 'exfoliantOily' : 'exfoliantGentle'];
+    const retinoidInPlan = chosen.some((c) => TREATMENTS[c.productId]?.class === 'retinoid');
+    const reason =
+      exclusion(p, exfoliant, null, beginner, knowledge) ??
+      // Never offered beside a retinoid until the planner can schedule them
+      // on separate days; prose saying "alternate" is not a schedule.
+      (retinoidInPlan || p.reactivity === 'high' ? 'treatment_limit' : null);
+    if (reason) {
+      omitted.push({ productId: exfoliant, reason });
+    } else {
+      const approved = knowledge.directions[exfoliant];
+      const product = getProductById(exfoliant);
+      optional.push({
+        order: 0,
+        category: 'exfoliate',
+        label: 'EXFOLIATE',
+        slotName: 'Exfoliate (optional)',
+        productId: exfoliant,
+        productName: product?.name,
+        productSize: product?.sizes[0]?.label,
+        frequency: approved.frequency,
+        explanation: approved.text,
+        isAvyoraProduct: true,
+        optional: true,
+      });
+    }
+  }
 
-  return steps;
+  return numbered(optional);
 }
 
 function buildBodyRoutine(p: SkinProfile): RoutineStep[] {
   if (!p.bodyCare) return [];
-  return [
-    step(1, 'body', 'BODY CARE', 'Body care', 'bodyLotion',
-      'Apply to damp skin straight after bathing, while the surface still holds water.'),
-  ];
+  return numbered([slotStep('body', 'Body care', 'bodyLotion', 'Body moisturiser, after bathing.')]);
 }
 
-/** Collapses the routines into a de-duplicated purchase list. */
-function mapProductSizes(am: RoutineStep[], pm: RoutineStep[], body: RoutineStep[]) {
-  const unique = new Map<string, string>();
-  [...am, ...pm, ...body].forEach((s) => {
+/** De-duplicated purchase list; an essential occurrence wins over an optional one. */
+function mapProductSizes(am: RoutineStep[], pm: RoutineStep[], body: RoutineStep[], optional: RoutineStep[]) {
+  const unique = new Map<string, { size: string; optional: boolean }>();
+  for (const s of [...am, ...pm, ...body, ...optional]) {
     if (s.isAvyoraProduct && s.productId && !unique.has(s.productId)) {
-      unique.set(s.productId, s.productSize ?? '');
+      unique.set(s.productId, { size: s.productSize ?? '', optional: Boolean(s.optional) });
     }
-  });
-  return Array.from(unique.entries()).map(([productId, size]) => ({ productId, size }));
+  }
+  return [...unique.entries()].map(([productId, v]) => ({ productId, size: v.size, optional: v.optional }));
 }
 
 /* -------------------------------------------------------------------------- */
-/* Copy                                                                        */
+/* Copy — generated from the decisions above, never independently             */
 /* -------------------------------------------------------------------------- */
 
 function getExperienceName(exp: ExperienceLevel) {
@@ -363,88 +423,83 @@ function getExperienceName(exp: ExperienceLevel) {
   return map[exp] || 'PERSONAL';
 }
 
-function getMorningTitle(p: SkinProfile) {
-  if (matchesConcern(p, ['dull', 'uneven', 'tanning'])) return 'Brighten & Protect';
-  return 'Protect & Prep';
-}
-
-function getEveningTitle(p: SkinProfile) {
-  if (matchesConcern(p, ['aging', 'fine line'])) return 'Renew & Repair';
-  return 'Recover & Hydrate';
-}
-
-function getUnderEyeGuidance(p: SkinProfile) {
+function getUnderEyeGuidance(p: SkinProfile, mode: RoutineMode) {
   if (p.darkCircles === 'no') return undefined;
-  return 'You flagged an under-eye concern, so we have added our caffeine and peptide patches. Note that dark circles are often structural or genetic, and topical products soften rather than remove them.';
+  if (mode === 'recovery' || mode === 'gentle') {
+    return 'You mentioned dark circles. We have kept this routine to the essentials for now, so eye products are not included.';
+  }
+  return 'You mentioned dark circles, so eye patches are listed as an optional addition. Dark circles are often structural or genetic, and no topical product can be promised to remove them.';
 }
 
-function getWarnings(p: SkinProfile, retinol: boolean, blockedReason: string | null) {
+const NAMES = (ids: string[]) => ids.map((id) => getProductById(id)?.name ?? id).join(', ');
+
+function getWarnings(p: SkinProfile, mode: RoutineMode, chosen: Candidate[], omitted: OmittedTreatment[]) {
   const w: string[] = [];
+  const has = (reason: OmittedTreatment['reason']) => omitted.some((o) => o.reason === reason);
 
   w.push('Patch test any new product on your inner forearm for a few days before applying it to your face.');
 
   if (p.reactivity === 'high' || p.reactivity === 'very_high') {
-    w.push('Your skin is reactive, so introduce one new product at a time and leave about two weeks between additions.');
+    w.push('Your skin is reactive, so introduce one new product at a time.');
   }
-
-  if (retinol) {
-    w.push('Retinol increases sun sensitivity. Daily SPF is not optional while you use it.');
-    w.push('Do not use retinol on the same night as your exfoliant.');
-    w.push('A short adjustment period with dryness or small breakouts is common in the first two to six weeks. Persistent burning or swelling is not, and means you should stop.');
+  if (mode === 'recovery') {
+    w.push('Your skin is irritated right now, so this routine has no actives or exfoliation: only cleansing, moisturiser and sunscreen. If irritation persists or is painful, see a dermatologist.');
   }
-
-  if (blockedReason === 'pregnancy') {
-    w.push('You told us you are pregnant or breastfeeding, so we have left retinoids out entirely. Vitamin C, niacinamide and azelaic acid are the usual alternatives, but confirm anything new with your doctor or midwife.');
+  if (mode === 'gentle') {
+    w.push('Because your skin is very reactive, this routine has no actives or exfoliation.');
   }
-  if (blockedReason === 'irritated') {
-    w.push('Your skin is irritated right now. This routine keeps to barrier repair only; reintroduce actives once it has settled.');
+  if (has('pregnancy_yes')) {
+    w.push('You told us you are pregnant or breastfeeding, so retinoids are left out. Check any new product with your doctor or midwife.');
   }
-  if (blockedReason === 'under18') {
-    w.push('We do not recommend retinoids under 18. Consistent cleansing, moisturiser and SPF do most of the work at this stage.');
+  if (has('pregnancy_unknown')) {
+    w.push('You preferred not to say whether you are pregnant or breastfeeding, so retinoids are left out of this routine.');
+  }
+  if (has('under18')) {
+    w.push('Retinoids are left out for customers under 18.');
+  }
+  if (chosen.some((c) => TREATMENTS[c.productId]?.class === 'retinoid')) {
+    w.push('Use daily sunscreen while using a retinoid, and follow its directions exactly.');
   }
 
   w.push('This is general guidance, not medical advice. Persistent or painful skin conditions deserve a dermatologist.');
-
   return w;
 }
 
-function getPriorities(p: SkinProfile) {
-  const prio: string[] = [];
-  if (matchesConcern(p, ['acne', 'breakout'])) prio.push('01 — CLEARING PORES');
-  else prio.push('01 — BARRIER HEALTH');
-  prio.push('02 — CELLULAR REPAIR');
-  prio.push('03 — UV DEFENCE');
+function getPriorities(chosen: Candidate[]) {
+  const prio = ['01 — CLEANSE', '02 — MOISTURISE', '03 — PROTECT'];
+  if (chosen.length > 0) prio.push(`04 — TREAT: ${NAMES(chosen.map((c) => c.productId)).toUpperCase()}`);
   return prio;
 }
 
 function generateWhyThisRoutine(
   p: SkinProfile,
-  vitC: boolean,
-  retinol: boolean,
-  blockedReason: string | null
+  mode: RoutineMode,
+  beginner: boolean,
+  chosen: Candidate[],
+  omitted: OmittedTreatment[]
 ) {
   const concern = String(p.primaryConcern || 'your concern').toLowerCase();
-  const parts = [
-    `You told us ${concern} matters most and that your skin is ${p.skinType}.`,
-  ];
+  const parts = [`You told us ${concern} matters most and that your skin is ${p.skinType}.`];
 
-  if (vitC && retinol) {
-    parts.push('We split your actives across the day: vitamin C in the morning under sunscreen, retinol at night. That keeps them from irritating each other and suits how each one works.');
-  } else if (vitC) {
-    parts.push('Vitamin C sits in your morning routine, where it pairs naturally with sunscreen.');
-  } else if (retinol) {
-    parts.push('Retinol sits in your evening routine, introduced slowly so your skin can adapt.');
-  } else if (blockedReason) {
-    parts.push('We have kept strong actives out of this routine for now and focused on cleansing, hydration and daily SPF, which is where most visible improvement comes from anyway.');
+  if (mode === 'recovery') {
+    parts.push('Your skin is irritated right now, so this routine is cleanse, moisturise and protect, with no actives or exfoliation. Reintroduce treatments one at a time once it has settled.');
+  } else if (mode === 'gentle') {
+    parts.push('Your skin is very reactive, so the routine keeps to cleansing, moisturiser and sunscreen, with no actives or exfoliation.');
+  } else if (beginner) {
+    parts.push(`A simple routine to start: cleanse, moisturise and sunscreen, never more than ${BEGINNER_SESSION_STEP_CAP} steps at a time. Any optional additions are listed separately; add them only if you want to.`);
+  } else if (chosen.length > 0) {
+    parts.push(`The essentials, plus ${NAMES(chosen.map((c) => c.productId))}, used exactly as its directions describe.`);
+  } else {
+    parts.push('This routine covers the essentials: cleanse, moisturise and protect.');
   }
 
-  parts.push('Consistency matters more than the number of steps. Skip anything that stings.');
+  if (omitted.some((o) => o.reason === 'directions_pending')) {
+    parts.push('Some treatments that match your concern are not included yet, because their usage directions are still being reviewed.');
+  }
+  if (omitted.some((o) => o.reason === 'formulation_incomplete')) {
+    parts.push('Some treatments that match your concern are not included yet, because their full formulation has not been verified.');
+  }
+
+  parts.push('Consistency matters more than the number of steps. Stop anything that stings or burns.');
   return parts.join(' ');
-}
-
-function getRetinolSchedule(p: SkinProfile) {
-  if (p.reactivity === 'high') {
-    return 'Weeks 1–4: one night a week. Weeks 5–8: two nights. Increase only if there is no flaking or stinging.';
-  }
-  return 'Weeks 1–2: one night a week. Weeks 3–4: two nights. Week 5 onward: increase gradually to your target frequency.';
 }

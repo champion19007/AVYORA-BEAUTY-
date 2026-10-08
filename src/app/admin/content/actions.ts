@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { isDatabaseConfigured } from '@/db';
 import { getStaffSession } from '@/lib/staff-auth';
+import { limit } from '@/lib/rate-limit';
 import { revalidateContent } from '@/lib/storefront-cache';
 import {
   publishDocument,
@@ -95,9 +96,14 @@ async function afterPublishChange(form: FormData) {
   return editorPath(type, slug);
 }
 
+/** Publication changes what customers see: 5 per minute per staff user, refused if the limiter is down. */
+async function publicationAllowed(actor: { id: string }): Promise<boolean> {
+  return (await limit([{ policy: 'staffPublish', subject: { kind: 'user', id: `staff:${actor.id}` } }])).allowed;
+}
+
 export async function publishContent(form: FormData): Promise<void> {
   const actor = await ownerActor();
-  if (!actor) return;
+  if (!actor || !(await publicationAllowed(actor))) return;
   const result = await publishDocument(
     { documentId: field(form, 'documentId'), expectedVersion: Number(field(form, 'version')) },
     actor
@@ -108,7 +114,7 @@ export async function publishContent(form: FormData): Promise<void> {
 
 export async function unpublishContent(form: FormData): Promise<void> {
   const actor = await ownerActor();
-  if (!actor) return;
+  if (!actor || !(await publicationAllowed(actor))) return;
   await unpublishDocument({ documentId: field(form, 'documentId') }, actor);
   await afterPublishChange(form);
 }

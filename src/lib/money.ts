@@ -43,6 +43,16 @@ export const FREE_SHIPPING_THRESHOLD_PAISE = toPaise(1199);
 export const STANDARD_SHIPPING_PAISE = toPaise(79);
 
 /**
+ * The delivery rule in words, built from the constants `calculateTotals`
+ * charges. Every banner, panel and policy that mentions delivery uses these,
+ * so the copy cannot drift from what checkout actually charges.
+ */
+export const FREE_DELIVERY_LINE = `Free delivery on orders of ${formatPaise(FREE_SHIPPING_THRESHOLD_PAISE)} or more`;
+export const DELIVERY_TERMS =
+  `Delivery is ${formatPaise(STANDARD_SHIPPING_PAISE)} on orders below ${formatPaise(FREE_SHIPPING_THRESHOLD_PAISE)}, ` +
+  `and free at or above ${formatPaise(FREE_SHIPPING_THRESHOLD_PAISE)}.`;
+
+/**
  * GST on cosmetics in India is 18%, and catalogue prices are treated as
  * inclusive of it — which is what Indian customers expect to see. Tax is
  * therefore extracted from the total for the invoice rather than added on top.
