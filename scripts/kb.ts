@@ -91,20 +91,26 @@ async function main() {
       await withDb(async (db) => {
         const stored = await storeRelease(db, release, actor);
         if (!stored.ok) throw new Error(stored.error);
-        console.log(JSON.stringify(await activateRelease(db, release.manifest.releaseId, actor)));
+        report(await activateRelease(db, release.manifest.releaseId, actor));
       });
       return;
     }
     case 'rollback':
-      await withDb(async (db) => console.log(JSON.stringify(await rollbackRelease(db, actor, flag('reason') ?? ''))));
+      await withDb(async (db) => report(await rollbackRelease(db, actor, flag('reason') ?? '')));
       return;
     case 'revoke':
-      await withDb(async (db) => console.log(JSON.stringify(await revokeRelease(db, rest[0], actor, flag('reason') ?? ''))));
+      await withDb(async (db) => report(await revokeRelease(db, rest[0], actor, flag('reason') ?? '')));
       return;
     default:
       console.error('Usage: npm run kb -- build|status|publish --confirm|rollback --reason "…"|revoke <id> --reason "…"');
       process.exitCode = 1;
   }
+}
+
+/** Prints a release command's result; a refused command exits non-zero so automation sees the failure. */
+function report(result: { ok: boolean }) {
+  console.log(JSON.stringify(result));
+  if (!result.ok) process.exitCode = 1;
 }
 
 main().catch((err) => {
