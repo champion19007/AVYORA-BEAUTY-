@@ -30,6 +30,11 @@ const UNKNOWN_ANSWER: Record<string, string> = {
   prescribedTreatment: 'prescribed treatments',
 };
 const rupees = (paise: number) => paise / 100;
+/** The counted stock to cap an add at; undefined when not counted (saved routines carry no quote). */
+const stockCap = (stock: SessionState['stock'], skuId: string) => {
+  const n = stock[skuId];
+  return typeof n === 'number' ? n : undefined;
+};
 
 type Slot = RoutineSnapshot['days'][number]['am'][number];
 type Line = { key: string; slot: Slot; skuId?: string; pricePaise?: number; reasons: string[] };
@@ -148,10 +153,10 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
           ) : (
             <>
               <WeekTable result={result} />
-              <ProductGroup title="Essentials" lines={essential} result={result} session={session} disabled={busy || saving} />
-              {owned.length > 0 && <ProductGroup title="Already yours" lines={owned} result={result} session={session} disabled />}
+              <ProductGroup title="Essentials" lines={essential} result={result} stock={state.stock} session={session} disabled={busy || saving} />
+              {owned.length > 0 && <ProductGroup title="Already yours" lines={owned} result={result} session={session} stock={state.stock} disabled />}
               {optional.length > 0 && (
-                <ProductGroup title="Optional additions" note="Not needed for the routine to work." lines={optional} result={result} session={session} disabled={busy || saving} />
+                <ProductGroup title="Optional additions" note="Not needed for the routine to work." lines={optional} result={result} stock={state.stock} session={session} disabled={busy || saving} />
               )}
             </>
           )}
@@ -161,7 +166,7 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
         </div>
 
         <aside className="space-y-6">
-          <Totals result={result} essential={essential} optional={optional} />
+          <Totals result={result} essential={essential} optional={optional} stock={state.stock} />
           <BudgetForm key={result.budgetPaise} budgetPaise={result.budgetPaise} disabled={busy || saving} onSubmit={(p) => session.setBudget(p)} />
           {state.excluded.length > 0 && (
             <Button variant="outline" className="w-full gap-2 rounded-full" disabled={busy || saving} onClick={() => session.undoSwaps()}>
@@ -254,9 +259,9 @@ function WeekTable({ result }: { result: RoutineSnapshot }) {
   );
 }
 
-function ProductGroup({ title, note, lines, result, session, disabled }: { title: string; note?: string; lines: Line[]; result: RoutineSnapshot; session: RoutineSession; disabled: boolean }) {
-  const { addToCart } = useApp();
-  const [added, setAdded] = useState<Set<string>>(new Set());
+function ProductGroup({ title, note, lines, result, session, disabled, stock }: { title: string; note?: string; lines: Line[]; result: RoutineSnapshot; session: RoutineSession; disabled: boolean; stock: SessionState['stock'] }) {
+  const { addToCart, cart } = useApp();
+  const inBag = (productId: string, size: string) => cart.some((c) => c.productId === productId && c.size === size);
   if (lines.length === 0) return null;
   return (
     <section aria-label={title}>
@@ -302,15 +307,14 @@ function ProductGroup({ title, note, lines, result, session, disabled }: { title
                   {l.pricePaise !== undefined && <Price amount={rupees(l.pricePaise)} size="base" />}
                   <Button
                     size="sm"
-                    variant={added.has(l.key) ? 'secondary' : 'outline'}
+                    variant={inBag(product.id, sku.sizeLabel) ? 'secondary' : 'outline'}
                     className="gap-2 rounded-full"
-                    onClick={() => {
-                      addToCart(product.id, sku.sizeLabel);
-                      setAdded(new Set(added).add(l.key));
-                    }}
+                    // "In bag" is read from the bag itself, so a repeat click cannot add another unit.
+                    disabled={inBag(product.id, sku.sizeLabel)}
+                    onClick={() => addToCart(product.id, sku.sizeLabel, 1, stockCap(stock, sku.id))}
                   >
-                    {added.has(l.key) ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <ShoppingBag className="h-3.5 w-3.5" aria-hidden="true" />}
-                    {added.has(l.key) ? 'In bag' : 'Add to bag'}
+                    {inBag(product.id, sku.sizeLabel) ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <ShoppingBag className="h-3.5 w-3.5" aria-hidden="true" />}
+                    {inBag(product.id, sku.sizeLabel) ? 'In bag' : 'Add to bag'}
                     <span className="sr-only"> {product.name}</span>
                   </Button>
                   <Button size="sm" variant="ghost" className="gap-2 rounded-full" disabled={disabled} onClick={() => session.swap(product.id)}>
@@ -326,11 +330,13 @@ function ProductGroup({ title, note, lines, result, session, disabled }: { title
   );
 }
 
-function Totals({ result, essential, optional }: { result: RoutineSnapshot; essential: Line[]; optional: Line[] }) {
-  const { addToCart } = useApp();
-  const [added, setAdded] = useState(false);
+function Totals({ result, essential, optional, stock }: { result: RoutineSnapshot; essential: Line[]; optional: Line[]; stock: SessionState['stock'] }) {
+  const { addToCart, cart } = useApp();
   const sum = (ls: Line[]) => ls.reduce((n, l) => n + (l.pricePaise ?? 0), 0);
   const toBuy = essential.filter((l) => l.pricePaise !== undefined);
+  const missing = toBuy
+    .map((l) => SKU.get(l.skuId!))
+    .filter((sku): sku is NonNullable<typeof sku> => Boolean(sku) && !cart.some((c) => c.productId === sku!.productId && c.size === sku!.sizeLabel));
   return (
     <section className="rounded-3xl bg-muted/60 p-6" aria-labelledby="totals-heading">
       <h2 id="totals-heading" className="text-sm uppercase tracking-[0.18em] text-muted-foreground">
@@ -360,15 +366,13 @@ function Totals({ result, essential, optional }: { result: RoutineSnapshot; esse
       {toBuy.length > 0 && (
         <Button
           className="mt-5 w-full rounded-full"
+          // Adds only essentials not already in the bag, so repeat clicks cannot raise quantities.
+          disabled={missing.length === 0}
           onClick={() => {
-            for (const l of toBuy) {
-              const sku = SKU.get(l.skuId!);
-              if (sku) addToCart(sku.productId, sku.sizeLabel);
-            }
-            setAdded(true);
+            for (const sku of missing) addToCart(sku.productId, sku.sizeLabel, 1, stockCap(stock, sku.id));
           }}
         >
-          {added ? 'Essentials added to bag' : 'Add essentials to bag'}
+          {missing.length === 0 ? 'Essentials in your bag' : 'Add essentials to bag'}
         </Button>
       )}
     </section>

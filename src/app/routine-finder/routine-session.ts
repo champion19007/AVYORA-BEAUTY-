@@ -39,6 +39,8 @@ export type SessionState = {
   published: boolean | null;
   /** Local time after which the prices used are stale. */
   pricesExpireAt: number | null;
+  /** Counted stock per SKU id from the same quote (null: not counted); caps "add to bag". */
+  stock: Readonly<Record<string, number | null>>;
   /** The saved result's new spend differs from the provisional one (prices moved). */
   pricesChangedOnSave: boolean;
   error: string | null;
@@ -56,6 +58,7 @@ const INITIAL: SessionState = {
   result: null,
   published: null,
   pricesExpireAt: null,
+  stock: {},
   pricesChangedOnSave: false,
   error: null,
   save: { status: 'session' },
@@ -119,7 +122,8 @@ export class RoutineSession {
         if (price !== undefined) offers[v.id] = { pricePaise: price, stock: quote.quote.stock ? (quote.quote.stock[v.legacyStockKey] ?? 0) : null };
       }
       const result = computeRoutine({ profile, release, products: PRODUCTS, offers, excludeProductIds: excluded });
-      this.set({ phase: 'ready', result, published: release.published, pricesExpireAt: quote.expiresAt });
+      const stock = Object.fromEntries(Object.entries(offers).map(([sku, o]) => [sku, o.stock]));
+      this.set({ phase: 'ready', result, published: release.published, pricesExpireAt: quote.expiresAt, stock });
     } catch (err) {
       if (isAbort(err) || generation !== this.generation) return;
       // The previous routine, if any, stays on screen with the error beside it.

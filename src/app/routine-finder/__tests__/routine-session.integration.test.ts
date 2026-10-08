@@ -127,6 +127,8 @@ describe('quiz-only journeys', () => {
     const { result, save, published } = s.getState();
     expect(published).toBe(true);
     expect(save).toEqual({ status: 'session' });
+    // The quote's counted stock is exposed so "add to bag" can cap by it.
+    for (const p of s.getState().result!.purchaseList) expect(s.getState().stock[p.skuId]).toBe(10);
     expect(result!.days).toHaveLength(7);
     for (const d of result!.days) {
       expect(d.am.length).toBeLessThanOrEqual(3);
