@@ -63,7 +63,11 @@ const DEFAULT_POLICIES = {
   /** Granting or withdrawing consent (a guest grant issues the owner cookie). */
   consent: { limit: 10, ipLimit: 30, windowSeconds: 600, onFailure: 'closed' },
   scanStatus: { limit: 20, ipLimit: 60, windowSeconds: 60, onFailure: 'closed' },
-  /** No newsletter endpoint exists yet (prompt 4 removed the dead form); ready for it. */
+  /** Support requests from the consultation form: per email and per IP. */
+  support: { limit: 3, ipLimit: 10, windowSeconds: 3_600, onFailure: 'closed' },
+  /** Review submissions, per account and per IP. */
+  review: { limit: 5, ipLimit: 20, windowSeconds: 3_600, onFailure: 'closed' },
+  /** Newsletter sign-up and confirmation (double opt-in). */
   newsletter: { limit: 3, ipLimit: 10, windowSeconds: 3_600, onFailure: 'closed' },
   /** Staff publish and bulk jobs, per staff user. */
   staffPublish: { limit: 5, ipLimit: 30, windowSeconds: 60, onFailure: 'closed' },

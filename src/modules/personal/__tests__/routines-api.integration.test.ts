@@ -135,10 +135,10 @@ describe('creating a routine', () => {
     expect(res.headers.get('cache-control')).toContain('no-store');
     const { routine } = await json(res);
     expect(routine).toMatchObject({ validity: 'current', kbRelease: R1.manifest.releaseId });
-    expect(routine.result).toMatchObject({ schemaVersion: 2, engineVersion: 'select-plan-2026-10-08', inferenceVersion: 'bayes-logodds-1', modelVersions: [] });
+    expect(routine.result).toMatchObject({ schemaVersion: 2, engineVersion: 'select-plan-2026-10-10', inferenceVersion: 'bayes-logodds-1', modelVersions: [] });
     expect(routine.result.days).toHaveLength(7);
     const [row] = await db.select().from(schema.routineResults);
-    expect(row).toMatchObject({ engineVersion: 'select-plan-2026-10-08', inferenceVersion: 'bayes-logodds-1', kbRelease: R1.manifest.releaseId, userId: null });
+    expect(row).toMatchObject({ engineVersion: 'select-plan-2026-10-10', inferenceVersion: 'bayes-logodds-1', kbRelease: R1.manifest.releaseId, userId: null });
     expect(row.anonymousOwnerHash).toBe(hashGuestSecret(cookieJar[GUEST_OWNER_COOKIE]));
     // Guest retention: 30 days.
     expect(row.expiresAt!.getTime() - row.createdAt.getTime()).toBe(30 * 86_400_000);
@@ -356,6 +356,29 @@ describe('retrieval after reload, deletion, consent and expiry', () => {
     expect((await revokeRelease(db, R2.manifest.releaseId, staff, 'test revocation')).ok).toBe(true);
     expect((await json(await get(routine.id))).routine).toMatchObject({ validity: 'revoked', result: null });
     expect(await count('routine_results')).toBe(1);
+  });
+});
+
+describe('routine history for the account page', () => {
+  it('reports every saved routine with its true state, and never another owner’s', async () => {
+    const { routineHistory } = await import('../routines');
+    sessionUser = 'user-a';
+    await allowSaving();
+    const a = (await json(await save(body(), 'key-hist-0001'))).routine.id;
+    const b = (await json(await save(body({ profile: { ...PROFILE, budgetPaise: 400_000 } }), 'key-hist-0002'))).routine.id;
+    const owner = { kind: 'user' as const, userId: 'user-a' };
+    expect((await routineHistory(db, owner)).map((r) => r.state)).toEqual(['current', 'current']);
+
+    // Expire one: it stays listed, as expired, and cannot be opened.
+    await client.query(`update routine_results set created_at = now() - interval '200 days', expires_at = now() - interval '1 day' where id = $1`, [a]);
+    const states = Object.fromEntries((await routineHistory(db, owner)).map((r) => [r.id, r.state]));
+    expect(states).toEqual({ [a]: 'expired', [b]: 'current' });
+    expect((await get(a)).status).toBe(404);
+
+    // Withdraw consent: everything is reported as withdrawn, not silently missing.
+    await consent.DELETE(request('DELETE'));
+    expect((await routineHistory(db, owner)).map((r) => r.state)).toEqual(['consent_withdrawn', 'consent_withdrawn']);
+    expect(await routineHistory(db, { kind: 'user', userId: 'user-b' })).toEqual([]);
   });
 });
 

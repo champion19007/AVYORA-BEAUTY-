@@ -57,6 +57,19 @@ export default async function SystemPage() {
         ))}
       </dl>
 
+      {status.scans && (
+        <section>
+          <h2 className={label}>Photo scans</h2>
+          <p className="mt-2 text-[14px]">
+            {status.scans.pending} pending · {status.scans.failed24h} failed in 24 hours ·{' '}
+            <span className={status.scans.overduePhotos > 0 ? 'font-medium text-destructive' : undefined}>
+              {status.scans.overduePhotos} photos past their deletion time
+            </span>
+            {status.scans.overduePhotos > 0 && ' (the sweep retries; check private storage).'}
+          </p>
+        </section>
+      )}
+
       <section>
         <h2 className={label}>Dead jobs</h2>
         <ul className="mt-3 rounded-xl border border-border bg-card">

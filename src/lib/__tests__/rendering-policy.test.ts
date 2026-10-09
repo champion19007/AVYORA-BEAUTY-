@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { isPrivatePath, PRIVATE_CACHE_CONTROL } from '../cache-policy';
+import { isNoIndexPath, isPrivatePath, PRIVATE_CACHE_CONTROL } from '../cache-policy';
 
 const revalidatePath = vi.fn();
 vi.mock('next/cache', () => ({ revalidatePath: (p: string) => revalidatePath(p) }));
@@ -24,6 +24,15 @@ describe('private cache isolation', () => {
       expect(isPrivatePath(path)).toBe(false);
     }
   );
+
+  // Re-audit A20: private, token and internal pages are never indexed; public pages are.
+  it.each(['/account', '/orders/AVY-ABC123', '/orders/AVY-ABC123/invoice', '/track-order', '/checkout', '/newsletter', '/scan', '/wishlist', '/design-system', '/admin'])(
+    '%s is noindex',
+    (path) => expect(isNoIndexPath(path)).toBe(true)
+  );
+  it.each(['/', '/collections', '/products/retinol', '/journal/some-article', '/routine-finder', '/privacy'])('%s may be indexed', (path) => {
+    expect(isNoIndexPath(path)).toBe(false);
+  });
 
   it('uses a header no shared cache may store', () => {
     expect(PRIVATE_CACHE_CONTROL).toMatch(/private/);

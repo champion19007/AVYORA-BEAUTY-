@@ -63,7 +63,7 @@ describe('compiling the development fixture', () => {
     const release = ok(compileFixture());
     expect(release.manifest.fixture).toBe(true);
     expect(release.manifest.releaseId).toMatch(/^kb_[0-9a-f]{32}$/);
-    expect(release.manifest.artifacts.rules.records).toBe(6);
+    expect(release.manifest.artifacts.rules.records).toBe(7);
     expect(verifyRelease(release)).toEqual([]);
   });
 
@@ -204,9 +204,9 @@ describe('the production release today', () => {
   });
 
   it('lists everything awaiting review', () => {
-    expect(awaitingReview.filter((x) => x.startsWith('decision rule'))).toHaveLength(6);
+    expect(awaitingReview.filter((x) => x.startsWith('decision rule'))).toHaveLength(7);
     expect(awaitingReview.filter((x) => x.startsWith('interaction'))).toHaveLength(5);
-    expect(awaitingReview.filter((x) => x.startsWith('explanation template'))).toHaveLength(6);
+    expect(awaitingReview.filter((x) => x.startsWith('explanation template'))).toHaveLength(7);
     expect(awaitingReview.some((x) => x.startsWith('directions and formulation for retinol'))).toBe(true);
   });
 });

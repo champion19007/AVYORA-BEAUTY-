@@ -2,10 +2,10 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 /**
- * Brand placeholder.
+ * Brand mark.
  *
  * The artwork has been withdrawn while the branding is reworked, so every
- * logo slot renders the word LOGO in a bordered box rather than an image.
+ * logo slot renders the Avyora wordmark as text rather than an image.
  *
  * A visible placeholder, not an empty space, and deliberately so: the logo is
  * the "home" affordance in the header, and a blank gap would remove the only
@@ -24,27 +24,27 @@ import { cn } from '@/lib/utils';
  * a working home link rather than decoration.
  */
 
-/** Header size. Wide enough for the word, tall enough to match the old mark. */
-const PLACEHOLDER_SIZE = 'h-14 w-28 md:h-16 md:w-32';
+/** Header size: the wordmark's box, matching the old mark's height so nothing reflows. */
+const PLACEHOLDER_SIZE = 'h-14 md:h-16 text-[28px]';
 
 /**
- * The bordered box.
+ * The "Avyora" wordmark in the redesign's serif, standing in until the
+ * reworked artwork exists (it replaced a dashed box reading LOGO, which
+ * looked unfinished on the sign-in page).
  *
- * `aria-hidden` because the accessible name comes from the link that wraps it;
- * without that, a screen reader would announce "LOGO, Avyora — home".
+ * `aria-hidden` because the accessible name comes from the link that wraps it.
  */
 function Placeholder({ className }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
       className={cn(
-        'flex items-center justify-center rounded-xl border-2 border-dashed border-primary/50',
-        'bg-muted/30 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground',
-        'transition-colors duration-300 group-hover:border-primary group-hover:text-primary',
+        'flex items-center font-wordmark leading-none tracking-[-0.02em] text-foreground',
+        'transition-colors duration-300 group-hover:text-primary',
         className
       )}
     >
-      Logo
+      Avyora
     </span>
   );
 }
@@ -71,7 +71,7 @@ export function Logo({ className }: { className?: string }) {
 export function LogoDark({ className }: { className?: string }) {
   return (
     <span className={cn('inline-flex', className)}>
-      <Placeholder className="h-24 w-48 text-sm" />
+      <Placeholder className="h-16 text-[44px]" />
     </span>
   );
 }

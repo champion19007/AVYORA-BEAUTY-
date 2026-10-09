@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { persistRoutine } from './actions';
+import { recordRoutineCompleted } from './actions';
 import { QuizView } from './quiz-view';
 import { ResultsView } from './results-view';
 import { toProfile, type Answers } from './quiz';
@@ -34,6 +34,9 @@ export default function RoutineFinderPage() {
   useEffect(() => {
     const id = savedParam();
     if (id) void session.loadSaved(id);
+    // A finished photo check hands over its id; the server reads its observations when saving.
+    const scan = new URLSearchParams(window.location.search).get('scan');
+    if (scan) session.useScan(scan);
   }, [session]);
 
   // Keep the address bar pointing at the saved routine, so a reload returns to it.
@@ -52,7 +55,7 @@ export default function RoutineFinderPage() {
     setStage('results');
     setSavedParam(null);
     void session.compute(built.profile);
-    void persistRoutine({ skinType: built.profile.skinType, concern: built.profile.priorities[0] ?? 'none' });
+    void recordRoutineCompleted();
   };
 
   if (stage === 'quiz') {

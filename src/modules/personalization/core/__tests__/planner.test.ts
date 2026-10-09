@@ -51,9 +51,9 @@ const dir = (session: ProductDirections['session'], maxWeeklyUses: number | null
 });
 const TEST: Knowledge = {
   formulations: [
-    full('niacinamide-drops', [['Aqua', null], ['Niacinamide', 'niacinamide', 5]]),
-    full('retinol', [['Aqua', null], ['Retinal', 'retinal', 0.1]]),
-    full('pha-refining-fluid', [['Aqua', null], ['Glycolic Acid', 'glycolic-acid', 5]]),
+    full('niacinamide-drops', [['Aqua', 'water'], ['Niacinamide', 'niacinamide', 5]]),
+    full('retinol', [['Aqua', 'water'], ['Retinal', 'retinal', 0.1]]),
+    full('pha-refining-fluid', [['Aqua', 'water'], ['Glycolic Acid', 'glycolic-acid', 5]]),
   ],
   evidence: [{ id: 'test', title: 'Test only', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' }],
   directions: { 'niacinamide-drops': dir('pm', 3), retinol: dir('pm', 3), 'pha-refining-fluid': dir('pm', 3) },
@@ -188,15 +188,43 @@ describe('conflicts and irritation across the week', () => {
     expect(p.excluded.find((e) => e.productId === 'retinol')?.reasons.map((r) => r.code)).toContain('cannot_schedule');
   });
 
-  it('a conflict between essentials it cannot move is reported, and the plan is partial', () => {
-    const owned = [{ id: 'my-cream', label: 'My night cream', ingredientIds: ['tretinoin'], coverage: 'known' as const, prescribed: false, role: 'moisturise' as const }];
-    // TEST-ONLY sequencing rule between the owned cream and the sunscreen's zinc oxide.
-    const interactions = [{ a: 'tretinoin', b: 'zinc-oxide', tier: 4 as const, summary: 'test', advice: 'test', citation: null }];
-    const k: Knowledge = { ...TEST, formulations: [...TEST.formulations, full('sunscreen', [['Aqua', null], ['Zinc Oxide', 'zinc-oxide']])] };
+  // Re-audit A02: a hard conflict is removed, never left in an actionable week.
+  it('a conflict between an owned essential and a purchase removes the purchase; the plan is valid and partial', () => {
+    const owned = [{ id: 'my-cream', label: 'My night cream', ingredientIds: ['ceramides'], coverage: 'known' as const, prescribed: false, role: 'moisturise' as const }];
+    // TEST-ONLY interaction between the owned cream and the sunscreen's zinc oxide.
+    const interactions = [{ a: 'ceramides', b: 'zinc-oxide', tier: 4 as const, summary: 'test', advice: 'test', citation: null }];
+    const k: Knowledge = { ...TEST, formulations: [...TEST.formulations, full('sunscreen', [['Aqua', 'water'], ['Zinc Oxide', 'zinc-oxide']])] };
     const sel = selectProducts(selInput(k, { ownedItems: owned }, { interactions }));
     const p = planWeek(sel, ctxFor(k, { interactions, ownedItems: owned }));
-    expect(p.problems.some((x) => /My night cream and Probiotics Relief Sun Cream conflict/.test(x))).toBe(true);
+    expect(p.problems).toEqual([]);
     expect(p.status).toBe('partial');
+    const all = p.days.flatMap((d) => [...d.am, ...d.pm]);
+    expect(all.some((s) => s.ownedItemId === 'my-cream')).toBe(true);
+    expect(all.some((s) => s.productId === 'sunscreen')).toBe(false);
+    expect(p.excluded.find((e) => e.productId === 'sunscreen')?.reasons.map((r) => r.code)).toContain('conflicts_in_routine');
+    expect(p.purchases.some((x) => x.productId === 'sunscreen')).toBe(false);
+  });
+
+  it('two conflicting owned essentials: one stays out with a reason, and nothing conflicting is scheduled', () => {
+    const owned = [
+      { id: 'a', label: 'Synthetic A', ingredientIds: ['ceramides'], coverage: 'known' as const, prescribed: false, role: 'cleanse' as const },
+      { id: 'b', label: 'Synthetic B', ingredientIds: ['hyaluronic-acid'], coverage: 'known' as const, prescribed: false, role: 'moisturise' as const },
+    ];
+    const interactions = [{ a: 'ceramides', b: 'hyaluronic-acid', tier: 2 as const, summary: 'test', advice: 'test', citation: null }];
+    const sel = selectProducts(selInput(TEST, { ownedItems: owned }, { interactions }));
+    const p = planWeek(sel, ctxFor(TEST, { interactions, ownedItems: owned }));
+    expect(p.problems).toEqual([]);
+    expect(p.status).not.toBe('invalid');
+    const ownedUses = p.days.flatMap((d) => [...d.am, ...d.pm]).filter((s) => s.source === 'owned').map((s) => s.ownedItemId);
+    expect(new Set(ownedUses).size).toBe(1);
+    expect(p.ownedNotScheduled.map((o) => o.reasons[0].code)).toContain('conflicts_in_routine');
+  });
+
+  it('a prescription-only ingredient in an owned product is never scheduled, whatever its role', () => {
+    const owned = [{ id: 'rx', label: 'My cream', ingredientIds: ['tretinoin'], coverage: 'known' as const, prescribed: false, role: 'moisturise' as const }];
+    const p = planWeek(selectProducts(selInput(TEST, { ownedItems: owned })), ctxFor(TEST, { ownedItems: owned }));
+    expect(p.days.flatMap((d) => [...d.am, ...d.pm]).some((s) => s.ownedItemId === 'rx')).toBe(false);
+    expect(p.ownedNotScheduled[0].reasons.map((r) => r.code)).toContain('prescription_item');
   });
 });
 

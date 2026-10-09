@@ -1,0 +1,159 @@
+npm notice run avyora-beauty@0.1.0 build:offline
+npm notice run node scripts/build-offline.mjs
+npm warn install-scripts .npmrc allow-scripts setting is being ignored because --allow-scripts was passed on the command line
+npm notice run avyora-beauty@0.1.0 npx
+npm notice run next build
+   ▲ Next.js 15.5.24
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · serverActions
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 3.1min
+   Linting and checking validity of types ...
+
+./src/app/admin-login/admin-login-form.tsx
+49:9  Warning: 'callbackUrl' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/webhooks/razorpay/route.ts
+48:14  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+115:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/checkout/actions.ts
+6:48  Warning: 'CreateOrderResult' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/checkout/checkout-client.tsx
+71:20  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+272:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+290:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+314:52  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/manager/actions.ts
+7:19  Warning: 'sql' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/products/[slug]/page.tsx
+47:3  Warning: 'parent' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/components/account-menu.tsx
+5:50  Warning: 'Heart' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/hooks/use-toast.ts
+21:7  Warning: 'actionTypes' is assigned a value but only used as a type.  @typescript-eslint/no-unused-vars
+
+./src/lib/routine-engine.ts
+66:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+135:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/__tests__/observability.test.ts
+38:11  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+64:15  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/__tests__/order-idempotency.integration.test.ts
+160:29  Warning: '_omitted' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/51) ...
+   Generating static pages (12/51) 
+   Generating static pages (25/51) 
+   Generating static pages (38/51) 
+ ✓ Generating static pages (51/51)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS  Revalidate  Expire
+┌ ○ /                                    9.36 kB         139 kB          1m      1y
+├ ○ /_not-found                            244 B         103 kB
+├ ƒ /account                               209 B         106 kB
+├ ƒ /account/addresses                     209 B         106 kB
+├ ƒ /account/addresses/[id]/edit           137 B         133 kB
+├ ƒ /account/addresses/new                 137 B         133 kB
+├ ƒ /account/data                          209 B         106 kB
+├ ƒ /account/orders                        209 B         106 kB
+├ ƒ /account/routines                    3.06 kB         117 kB
+├ ƒ /admin                                 209 B         106 kB
+├ ƒ /admin-login                         4.13 kB         128 kB
+├ ƒ /admin/analytics                       244 B         103 kB
+├ ƒ /admin/catalogue                     2.05 kB         113 kB
+├ ƒ /admin/content                         209 B         106 kB
+├ ƒ /admin/content/[type]/[slug]         2.65 kB         117 kB
+├ ƒ /admin/content/media                 2.11 kB         116 kB
+├ ƒ /admin/inventory                     2.18 kB         113 kB
+├ ƒ /admin/knowledge                     2.38 kB         113 kB
+├ ƒ /admin/orders                          209 B         106 kB
+├ ƒ /admin/orders/[orderNumber]            209 B         106 kB
+├ ƒ /admin/pricing                       2.27 kB         113 kB
+├ ƒ /admin/requests                        244 B         103 kB
+├ ƒ /admin/system                          244 B         103 kB
+├ ƒ /api/account/deliver-to                244 B         103 kB
+├ ƒ /api/activity                          244 B         103 kB
+├ ƒ /api/admin/login                       244 B         103 kB
+├ ƒ /api/admin/logout                      244 B         103 kB
+├ ƒ /api/auth/[...nextauth]                244 B         103 kB
+├ ƒ /api/cart                              244 B         103 kB
+├ ƒ /api/catalog/availability              244 B         103 kB
+├ ƒ /api/catalog/release                   244 B         103 kB
+├ ƒ /api/consent                           244 B         103 kB
+├ ƒ /api/cron/events                       244 B         103 kB
+├ ƒ /api/cron/scan-retention               244 B         103 kB
+├ ƒ /api/cron/sweep                        244 B         103 kB
+├ ƒ /api/newsletter                        244 B         103 kB
+├ ƒ /api/payments/razorpay/create          244 B         103 kB
+├ ƒ /api/payments/razorpay/verify          244 B         103 kB
+├ ƒ /api/reviews                           244 B         103 kB
+├ ƒ /api/routines                          244 B         103 kB
+├ ƒ /api/routines/[id]                     244 B         103 kB
+├ ƒ /api/routines/[id]/feedback            244 B         103 kB
+├ ƒ /api/scans                             244 B         103 kB
+├ ƒ /api/scans/[id]                        244 B         103 kB
+├ ƒ /api/scans/[id]/upload                 244 B         103 kB
+├ ƒ /api/support                           244 B         103 kB
+├ ƒ /api/sync                              244 B         103 kB
+├ ƒ /api/sync/merge                        244 B         103 kB
+├ ƒ /api/webhooks/razorpay                 244 B         103 kB
+├ ƒ /api/wishlist                          244 B         103 kB
+├ ○ /assistant                           8.93 kB         129 kB
+├ ƒ /checkout                            7.65 kB         137 kB
+├ ○ /collections                         7.38 kB         137 kB          1m      1y
+├ ƒ /compare                               179 B         111 kB
+├ ○ /contact                               244 B         103 kB
+├ ○ /design-system                       2.74 kB         135 kB
+├ ○ /icon.png                                0 B            0 B
+├ ○ /journal                               209 B         106 kB          5m      1y
+├ ● /journal/[slug]                        209 B         106 kB
+├ ƒ /login                                 152 B         184 kB
+├ ƒ /manager                               244 B         103 kB
+├ ƒ /manager/requests                      244 B         103 kB
+├ ƒ /manager/stock                         244 B         103 kB
+├ ƒ /newsletter                            244 B         103 kB
+├ ƒ /orders/[orderNumber]                  209 B         106 kB
+├ ƒ /orders/[orderNumber]/invoice          396 B         103 kB
+├ ○ /privacy                               244 B         103 kB
+├ ● /products/[slug]                     10.1 kB         143 kB          1m      1y
+├   ├ /products/rice-bran-cleansing-oil                                  1m      1y
+├   ├ /products/centella-cleansing-balm                                  1m      1y
+├   ├ /products/face-wash                                                1m      1y
+├   └ [+24 more paths]
+├ ○ /refund-policy                         244 B         103 kB
+├ ○ /robots.txt                            244 B         103 kB
+├ ○ /routine-finder                      31.5 kB         171 kB
+├ ƒ /scan                                5.97 kB         120 kB
+├ ○ /shipping-policy                       244 B         103 kB
+├ ƒ /signup                                153 B         184 kB
+├ ○ /sitemap.xml                           244 B         103 kB          1h      1y
+├ ○ /terms                                 244 B         103 kB
+├ ƒ /track-order                          4.8 kB         119 kB
+└ ○ /wishlist                            4.54 kB         134 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/1255-37c5375133772513.js      46.1 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js  54.2 kB
+  └ other shared chunks (total)          2.33 kB
+
+
+ƒ Middleware                              118 kB
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+

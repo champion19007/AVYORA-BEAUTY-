@@ -15,6 +15,7 @@
  *
  * Pure: no database, no clock, no randomness. Runs in tests and scripts.
  */
+import { likelihoodGroupProblems } from '@/modules/personalization/core/bayes';
 import { createHash } from 'node:crypto';
 import { overlaps, predicateProblems, satisfiable } from './predicate';
 import type { BayesParameter, DecisionRule, KnowledgeInput, Review, RuleEffect } from './records';
@@ -126,6 +127,7 @@ function parameterProblems(params: BayesParameter[], fixture: boolean, evidenceI
       groups.add(key);
       if (!inOpen(g.pGivenConcern) || !inOpen(g.pGivenNotConcern)) problems.push(`${where}: ${key} likelihoods must be strictly between 0 and 1`);
     }
+    problems.push(...likelihoodGroupProblems(p).filter((x) => !x.includes('duplicate state')));
     if (p.validationStatus === 'synthetic_fixture' && !fixture) {
       problems.push(`${where}: synthetic fixture parameters cannot enter a production release`);
     }

@@ -1,0 +1,98 @@
+{
+  "allergyUnknownOwned": [
+    {
+      "role": "cleanse",
+      "source": "unfilled",
+      "reasons": [
+        {
+          "code": "no_eligible_product",
+          "ruleId": "builtin:essential-core",
+          "message": "No product we sell passes the checks for this step."
+        }
+      ]
+    },
+    {
+      "role": "moisturise",
+      "source": "owned",
+      "ownedItemId": "unknown-cream",
+      "label": "Synthetic unknown cream",
+      "session": [
+        "am",
+        "pm"
+      ],
+      "notes": [
+        {
+          "code": "owned_ingredients_unverified",
+          "ruleId": "builtin:owned",
+          "message": "We do not know everything in Synthetic unknown cream; keep using it only if it suits you."
+        }
+      ]
+    },
+    {
+      "role": "protect",
+      "source": "unfilled",
+      "reasons": [
+        {
+          "code": "no_eligible_product",
+          "ruleId": "builtin:essential-core",
+          "message": "No product we sell passes the checks for this step."
+        }
+      ]
+    }
+  ],
+  "irritatedOwnedRetinol": {
+    "status": "complete",
+    "scheduledUses": 14,
+    "problems": []
+  },
+  "conflictingOwned": {
+    "status": "partial",
+    "problemCount": 14,
+    "firstProblem": "Monday AM: Synthetic A and Synthetic B conflict (tier 2)",
+    "scheduledUses": 28
+  },
+  "essentialDirectionViolation": {
+    "uses": 14,
+    "approvedMaximum": 2,
+    "problems": []
+  },
+  "beginnerRule": {
+    "appliedRules": [],
+    "purchases": [
+      "ceramide-cream",
+      "sunscreen",
+      "centella-cleansing-balm",
+      "niacinamide-drops",
+      "ha-toner"
+    ],
+    "newVsExperiencedSameSchedule": true
+  },
+  "invalidBayesianDistributionAccepted": true,
+  "errorLogLeaksSyntheticEmailAndToken": true,
+  "mismatchedInciAccepted": {
+    "validationProblems": [],
+    "selectedFaceWash": true
+  },
+  "feasibleBudgetReturnsPartial": {
+    "budgetPaise": 30000,
+    "cheapestCompleteCorePaise": 30000,
+    "resultStatus": "partial",
+    "slots": [
+      {
+        "role": "cleanse",
+        "source": "unfilled",
+        "productId": null
+      },
+      {
+        "role": "moisturise",
+        "source": "catalogue",
+        "productId": "ceramide-cream"
+      },
+      {
+        "role": "protect",
+        "source": "catalogue",
+        "productId": "sunscreen"
+      }
+    ]
+  }
+}

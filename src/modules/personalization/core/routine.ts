@@ -17,15 +17,16 @@ import { INTERACTION_RULES, type InteractionRule } from '@/modules/ingredients/i
 import type { CatalogVariantRecord } from '@/modules/catalog/catalog-records';
 import type { Manifest } from '@/modules/knowledge/compile';
 import { applyRules } from '@/modules/knowledge/inference';
-import type { ProfileValues } from '@/modules/knowledge/predicate';
 import type { DecisionRule, ExplanationTemplate } from '@/modules/knowledge/records';
 import { inferConcerns, readParameterSet, INFERENCE_VERSION, type Observation } from './bayes';
 import { selectProducts, type Offer } from './selection';
 import { planWeek, type WeeklyPlan } from './planner';
 import { priorityTags, type SkinProfileV2 } from '../contracts';
+import { ANSWER_ADAPTER_VERSION, canonicalObservations, quizEvidence, ruleFields } from './answer-adapter';
+import { fieldsOf } from '@/modules/knowledge/predicate';
 
 /** Bumped whenever selection, planning or this composition changes behaviour. */
-export const ROUTINE_ENGINE_V2 = 'select-plan-2026-10-08';
+export const ROUTINE_ENGINE_V2 = 'select-plan-2026-10-10';
 
 export type ReleaseView = { manifest: Manifest; artifacts: Record<string, unknown> };
 
@@ -61,21 +62,32 @@ export type RoutineSnapshot = {
   ruleIds: string[];
   /** Products the customer swapped out for this plan. */
   excludedProductIds: string[];
+  /** The customer's own products kept out of the week, and why. */
+  ownedNotScheduled: { ownedItemId: string; label: string; reasons: string[] }[];
+  /** Answers that actually changed this result, from the decision trace (not a list of every answer). */
+  answersThatMattered: { answer: string; effects: string[] }[];
+  answerAdapterVersion: string;
   unknownSafetyAnswers: string[];
   missingKnowledge: string[];
   problems: string[];
 };
 
-/** Rule fields with an exact equivalent in the profile; anything else stays unset, so no rule matches on a guess. */
-function ruleProfile(p: SkinProfileV2): ProfileValues {
-  return {
-    ...(p.skinType !== 'unknown' ? { skinType: p.skinType } : {}),
-    ...(p.reactivity !== 'unknown' ? { reactivity: p.reactivity } : {}),
-    pregnancy: p.pregnancy,
-    ...(p.ageBand === 'under18' ? { ageRange: 'under18' } : {}),
-    ...(p.currentlyIrritated === 'yes' ? { currentCondition: 'irritated' } : {}),
-  };
-}
+/** Reason codes that come from a particular answer, so explanations can name the answers that mattered. */
+const ANSWER_FOR_CODE: Readonly<Record<string, string>> = {
+  irritated: 'currentlyIrritated',
+  very_reactive: 'reactivity',
+  pregnancy_or_nursing: 'pregnancy / nursing',
+  age: 'ageBand',
+  allergen_present: 'allergyIngredientIds',
+  allergy_unverifiable: 'allergyIngredientIds',
+  allergens_not_specified: 'allergyHistory',
+  prescribed_treatment: 'prescribedTreatment',
+  prescription_item: 'ownedItems',
+  owned_compatibility_unverified: 'ownedItems',
+  conflicts_with_owned: 'ownedItems',
+  over_budget: 'budgetPaise',
+  removed_by_customer: 'excludeProductIds',
+};
 
 export function computeRoutine(input: {
   profile: SkinProfileV2;
@@ -85,6 +97,8 @@ export function computeRoutine(input: {
   observations?: readonly Observation[];
   /** Products the customer swapped out; they pass through the same checks as everything else. */
   excludeProductIds?: readonly string[];
+  /** Tests only: let a fixture release's synthetic parameters drive inference. Never set in production code. */
+  allowFixtureParameters?: boolean;
 }): RoutineSnapshot {
   const { profile, release } = input;
   const a = release.artifacts as {
@@ -99,10 +113,11 @@ export function computeRoutine(input: {
   const products = input.products.filter((p) => inRelease.has(p.id));
   const knowledge = { formulations: a.catalogue.formulations, evidence: a.evidence.sources, directions: a.catalogue.usageProfiles };
   const interactions = [...a.ingredients.interactions, ...INTERACTION_RULES];
-  const observations = input.observations ?? [];
+  // Quiz answers are evidence too; photo findings are mapped onto the same groups so correlated evidence counts once.
+  const observations = [...quizEvidence(profile), ...canonicalObservations(input.observations ?? [])];
 
-  const inference = inferConcerns(readParameterSet(release.manifest, a.parameters), observations, profile.priorities);
-  const rules = applyRules(a.rules.rules, ruleProfile(profile));
+  const inference = inferConcerns(readParameterSet(release.manifest, a.parameters, { allowFixture: input.allowFixtureParameters === true }), observations, profile.priorities);
+  const rules = applyRules(a.rules.rules, ruleFields(profile));
   const ownedItems = profile.ownedItems.map(({ role, ...item }) => (role && role !== 'other' ? { ...item, role } : item));
 
   const selection = selectProducts({
@@ -146,7 +161,7 @@ export function computeRoutine(input: {
     kbRelease: release.manifest.releaseId,
     engineVersion: ROUTINE_ENGINE_V2,
     inferenceVersion: INFERENCE_VERSION,
-    modelVersions: [...new Set(observations.flatMap((o) => (o.modelVersion ? [o.modelVersion] : [])))].sort(),
+    modelVersions: [...new Set(observations.flatMap((o) => (o.source === 'photo' && o.modelVersion ? [o.modelVersion] : [])))].sort(),
     mode: rules.mode,
     status: plan.status,
     beliefs: inference.concerns.map((c) => ({
@@ -177,8 +192,36 @@ export function computeRoutine(input: {
     explanations: plan.explanations,
     ruleIds: rules.applied.map((r) => r.ruleId),
     excludedProductIds: [...(input.excludeProductIds ?? [])].sort(),
+    ownedNotScheduled: plan.ownedNotScheduled.map((o) => ({ ownedItemId: o.ownedItemId, label: o.label, reasons: [...new Set(o.reasons.map((r) => r.message))] })),
+    answersThatMattered: answersThatMattered(plan, selection, rules, a.rules.rules),
+    answerAdapterVersion: ANSWER_ADAPTER_VERSION,
     unknownSafetyAnswers: selection.unknownSafetyAnswers,
     missingKnowledge: plan.missingKnowledge,
     problems: plan.problems,
   };
+}
+
+/** Which answers changed the result, read from the actual reasons and applied rules. */
+function answersThatMattered(
+  plan: WeeklyPlan,
+  selection: ReturnType<typeof selectProducts>,
+  rules: ReturnType<typeof applyRules>,
+  allRules: readonly DecisionRule[]
+): { answer: string; effects: string[] }[] {
+  const out = new Map<string, Set<string>>();
+  const add = (answer: string, effect: string) => out.set(answer, (out.get(answer) ?? new Set()).add(effect));
+  for (const e of plan.excluded) for (const r of e.reasons) if (ANSWER_FOR_CODE[r.code]) add(ANSWER_FOR_CODE[r.code], r.message);
+  for (const o of plan.ownedNotScheduled) for (const r of o.reasons) add(ANSWER_FOR_CODE[r.code] ?? 'ownedItems', `${o.label}: ${r.message}`);
+  for (const s of [...selection.essentials, ...selection.treatments]) {
+    if (s.source === 'unfilled') for (const r of s.reasons) if (ANSWER_FOR_CODE[r.code]) add(ANSWER_FOR_CODE[r.code], r.message);
+    if (s.source === 'owned') add('ownedItems', `${s.label} fills your ${s.role} step.`);
+  }
+  for (const applied of rules.applied) {
+    const rule = allRules.find((r) => r.id === applied.ruleId);
+    if (rule) for (const f of fieldsOf(rule.when)) add(f, `Rule ${rule.id} applied.`);
+  }
+  if (selection.unknownSafetyAnswers.length && plan.excluded.some((e) => e.reasons.some((r) => r.code === 'safety_answer_unknown'))) {
+    add(selection.unknownSafetyAnswers.join(', '), 'Unanswered safety questions kept elective treatments out.');
+  }
+  return [...out].map(([answer, effects]) => ({ answer, effects: [...effects].sort() })).sort((a, b) => a.answer.localeCompare(b.answer));
 }

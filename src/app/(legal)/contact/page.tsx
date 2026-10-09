@@ -4,6 +4,7 @@ import { SUPPORT_EMAIL } from '@/data/business-info';
 export const metadata: Metadata = {
   title: 'Contact Us',
   description: 'Avyora contact us.',
+  alternates: { canonical: '/contact' },
 };
 
 export default function Page() {

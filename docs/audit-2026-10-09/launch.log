@@ -1,0 +1,11 @@
+Launch check: 9 item(s) outstanding
+
+  - src/app/(legal)/contact/page.tsx: 7 unconfirmed placeholders
+  - src/app/(legal)/privacy/page.tsx: 7 unconfirmed placeholders
+  - src/app/(legal)/refund-policy/page.tsx: 5 unconfirmed placeholders
+  - src/app/(legal)/shipping-policy/page.tsx: 4 unconfirmed placeholders
+  - src/app/(legal)/terms/page.tsx: 5 unconfirmed placeholders
+  - Confirm: Support mailbox support@avyora.com exists and is monitored (the site runs on a vercel.app domain; no custom domain is verified)
+  - Confirm: WhatsApp support number (the previous dummy number has been removed)
+  - Confirm: Social profile links (Instagram, Facebook, YouTube are hidden until set)
+  - Treatments not ready to recommend: retinol (no approved directions), vitamin-c-serum (no approved directions), lha-sebum-control (no approved directions), pha-refining-fluid (no approved directions), bifida-exfoliating-pads (no approved directions), papaya-enzyme-powder (no approved directions), niacinamide-drops (no approved directions), copper-peptide (no approved directions)

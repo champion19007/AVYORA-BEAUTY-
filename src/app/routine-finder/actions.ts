@@ -1,37 +1,22 @@
 'use server';
 
-import { cookies } from 'next/headers';
-import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
-import { ANONYMOUS_COOKIE } from '@/lib/cart-server';
 import { recordEvent } from '@/lib/activity';
 
 /**
- * Called when a routine is shown. Records an aggregate event (skin type and
- * concern only, never the answers) and saves nothing personal.
+ * Counts a completed questionnaire. Nothing else: no answers (skin type and
+ * concerns are personal skin information) and no account or cookie id, so
+ * the event cannot be linked to anyone. Routine-saving permission is not
+ * analytics permission (re-audit A04); answers are stored only when the
+ * customer saves a routine, under that consent and its retention.
  *
- * Saving moved to `POST /api/routines` (prompt 16), which recomputes the
- * routine on the server from validated inputs. This action used to store
- * the browser's result JSON under consent; a client result is never stored
- * now, so it no longer accepts one.
- *
- * Never throws: a failed event must not stop someone seeing their routine.
+ * Never throws: a failed count must not stop someone seeing their routine.
  */
-export async function persistRoutine(answers: unknown): Promise<void> {
+export async function recordRoutineCompleted(): Promise<void> {
   if (!isDatabaseConfigured()) return;
   try {
-    const session = await auth().catch(() => null);
-    await recordEvent({
-      name: 'routine_completed',
-      path: '/routine-finder',
-      userId: session?.user?.id ?? null,
-      anonymousId: (await cookies()).get(ANONYMOUS_COOKIE)?.value ?? null,
-      props: {
-        skinType: String((answers as Record<string, unknown>)?.skinType ?? 'unknown'),
-        concern: String((answers as Record<string, unknown>)?.concern ?? 'unknown'),
-      },
-    });
-  } catch (err) {
-    console.error('persistRoutine failed (ignored)', err);
+    await recordEvent({ name: 'routine_completed', path: '/routine-finder', userId: null, anonymousId: null });
+  } catch {
+    // Counting is best-effort.
   }
 }

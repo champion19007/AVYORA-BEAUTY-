@@ -16,7 +16,7 @@ type SentryModule = typeof import('@sentry/nextjs');
 let sentry: SentryModule | null = null;
 
 if (dsn) {
-  void import('@sentry/nextjs').then((S) => {
+  void Promise.all([import('@sentry/nextjs'), import('@/lib/observability')]).then(([S, { scrubDeep }]) => {
     S.init({
       dsn,
       environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? 'development',
@@ -26,6 +26,9 @@ if (dsn) {
       replaysSessionSampleRate: 0,
       replaysOnErrorSampleRate: 0,
       sendDefaultPii: false,
+      // Provider-level scrubbing: anything the SDK captures by itself goes through the same filter.
+      beforeSend: (event) => scrubDeep(event),
+      beforeBreadcrumb: (crumb) => scrubDeep(crumb),
     });
     sentry = S;
   });

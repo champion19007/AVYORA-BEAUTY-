@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { getImageProps } from 'next/image';
 import Link from 'next/link';
 import { Eyebrow } from '@/components/nv/primitives';
 
@@ -30,23 +30,35 @@ import { Eyebrow } from '@/components/nv/primitives';
  * centre at 1280×800, 1440×900 and 1920×1080), with the top-right (copy and
  * CTA) and lower-left (headline) areas calm enough for white text.
  */
-const HERO_IMAGE: { src: string; alt: string } | null = null;
+// Placeholder stock (Unsplash License, Zulfugar Karimov) until approved campaign photography exists.
+// `src` is the landscape crop for desktop; `mobileSrc` a portrait crop of the same photo, centred on the face.
+const HERO_IMAGE: { src: string; mobileSrc: string; alt: string } | null = {
+  src: 'https://images.unsplash.com/photo-1786520995825-2d3dd480bf6a?auto=format&fit=crop&crop=faces%2Cedges&w=2400&h=1350&q=80',
+  mobileSrc: 'https://images.unsplash.com/photo-1786520995825-2d3dd480bf6a?auto=format&fit=crop&crop=faces%2Cedges&w=1080&h=1920&q=80',
+  alt: 'A woman with her eyes closed in warm evening sunlight',
+};
+
+/** Art direction: one <picture>, so the browser downloads only the crop for its width. */
+function HeroPicture({ image }: { image: NonNullable<typeof HERO_IMAGE> }) {
+  const common = { alt: image.alt, fill: true, sizes: '100vw', quality: 80, priority: true } as const;
+  const { props: { srcSet: desktop } } = getImageProps({ ...common, src: image.src });
+  const { props: { srcSet: mobile, ...rest } } = getImageProps({ ...common, src: image.mobileSrc });
+  return (
+    <picture>
+      <source media="(min-width: 1024px)" srcSet={desktop} />
+      <source srcSet={mobile} />
+      {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+      <img {...rest} fetchPriority="high" className="nv-hero-image object-cover object-center" />
+    </picture>
+  );
+}
 
 export function Hero() {
   return (
     <section aria-labelledby="hero-heading" className="relative h-screen min-h-[640px] w-full overflow-hidden bg-nv-ink font-nv text-white">
       {HERO_IMAGE ? (
         <>
-          <Image
-            src={HERO_IMAGE.src}
-            alt={HERO_IMAGE.alt}
-            fill
-            priority
-            fetchPriority="high"
-            sizes="100vw"
-            quality={80}
-            className="nv-hero-image object-cover object-center"
-          />
+          <HeroPicture image={HERO_IMAGE} />
           {/*
             Not in the reference, whose photograph was shot for white type: a
             light scrim behind the copy areas keeps white text at 4.5:1 on any
@@ -62,7 +74,7 @@ export function Hero() {
         <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,#4a4642,#1a1a1a_70%)]" />
       )}
 
-      <div className="nv-hero-in absolute right-nv-gutter top-[120px] flex w-[310px] flex-col items-end gap-6 text-right">
+      <div className="nv-hero-in absolute right-nv-gutter top-[100px] flex w-[min(310px,calc(100%-2*var(--nv-gutter)))] lg:top-[120px] flex-col items-end gap-6 text-right">
         <p className="text-nv-intro">Answer a few questions and get a weekly routine that fits your skin and your budget.</p>
         <Link
           href="/routine-finder"
@@ -72,9 +84,9 @@ export function Hero() {
         </Link>
       </div>
 
-      <Eyebrow className="nv-hero-in absolute left-nv-gutter top-[calc(50%-20px)] w-[210px]">Cleanse, treat, moisturise and protect</Eyebrow>
+      <Eyebrow className="nv-hero-in absolute left-nv-gutter hidden lg:block top-[calc(50%-20px)] w-[210px]">Cleanse, treat, moisturise and protect</Eyebrow>
 
-      <h1 id="hero-heading" className="nv-hero-in absolute bottom-[40px] left-nv-gutter max-w-[900px] text-balance text-nv-hero font-medium">
+      <h1 id="hero-heading" className="nv-hero-in absolute bottom-24 left-nv-gutter lg:bottom-[40px] max-w-[900px] text-balance text-nv-hero font-medium">
         Skincare built around a simple routine
       </h1>
     </section>

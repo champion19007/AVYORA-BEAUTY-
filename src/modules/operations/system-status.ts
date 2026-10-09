@@ -3,6 +3,7 @@ import { db, readRouting } from '@/db';
 import { domainEvents, eventDeliveries, jobs } from '@/db/schema';
 import { queueDepth } from '@/infrastructure/jobs/queue';
 import { cache } from '@/infrastructure/cache';
+import { scanHealth } from '@/modules/scans/sessions';
 
 /**
  * What the operations console shows about background work: how much is
@@ -13,7 +14,7 @@ import { cache } from '@/infrastructure/cache';
  * someone presses replay.
  */
 export async function systemStatus() {
-  const [depth, deadJobs, deadDeliveries] = await Promise.all([
+  const [depth, deadJobs, deadDeliveries, scans] = await Promise.all([
     queueDepth(),
     db
       .select({
@@ -42,10 +43,12 @@ export async function systemStatus() {
       .where(eq(eventDeliveries.status, 'dead'))
       .orderBy(desc(eventDeliveries.updatedAt))
       .limit(50),
+    scanHealth(db as never).catch(() => null),
   ]);
 
   return {
     depth,
+    scans,
     deadJobs,
     deadDeliveries,
     cache: { ...cache.stats },

@@ -22,7 +22,8 @@
     "check:env": "node scripts/check-env.mjs",
     "check:launch": "tsx scripts/check-launch.ts",
     "test:stress": "vitest run --config vitest.stress.config.ts",
-    "load-test": "node scripts/load-test.mjs"
+    "load-test": "node scripts/load-test.mjs",
+    "catalogue:validate": "tsx scripts/catalogue-validate.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

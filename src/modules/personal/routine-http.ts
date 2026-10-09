@@ -1,10 +1,10 @@
 import { cookies } from 'next/headers';
 import { auth } from '@/auth';
 import { db } from '@/db';
-import { PRIVATE_CACHE_CONTROL } from '@/lib/cache-policy';
 import { GUEST_OWNER_COOKIE, hashGuestSecret, type Owner } from '@/lib/guest-owner';
 import type { Subject } from '@/lib/rate-limit';
 import { claimGuestRecords } from './routines';
+import { reportError } from '@/lib/observability';
 
 /**
  * Shared pieces of the private routine and consent routes: one error shape
@@ -12,20 +12,7 @@ import { claimGuestRecords } from './routines';
  * no-store headers on every response, and owner resolution. Server-only.
  */
 
-const headers = { 'Content-Type': 'application/json', 'Cache-Control': PRIVATE_CACHE_CONTROL, Vary: 'Cookie' };
-
-export function privateJson(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers });
-}
-
-export function apiError(
-  status: number,
-  code: string,
-  message: string,
-  extra: { fieldErrors?: Record<string, string[]>; details?: Record<string, unknown> } = {}
-): Response {
-  return privateJson({ error: { code, message, requestId: crypto.randomUUID(), ...extra } }, status);
-}
+export { apiError, privateJson } from '@/lib/api-response';
 
 /**
  * The signed-in account, else the guest proven by the HttpOnly owner
@@ -45,7 +32,7 @@ export async function resolveOwner(): Promise<Owner | null> {
         await claimGuestRecords(db, userId, guestHash);
         jar.delete(GUEST_OWNER_COOKIE);
       } catch (err) {
-        console.error('guest record claim failed (will retry)', err);
+        reportError(err, { scope: 'routines.claimGuest' });
       }
     }
     return { kind: 'user', userId };

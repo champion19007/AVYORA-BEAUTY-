@@ -53,3 +53,6 @@ firestore-debug.log.env
 /public/media-local/
 # Local analytics landing zone (development)
 /.data/
+
+# Private face-scan images in development (PRIVATE_STORAGE=local). Never commit.
+/.private-storage/

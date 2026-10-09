@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
 import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
 import { CollectionsClient } from './collections-client';
+import { db, isDatabaseConfigured } from '@/db';
+import { reviewAggregates } from '@/modules/reviews/reviews';
 
 export const metadata: Metadata = {
   title: 'All products',
+  // Search and filter variants (?q=, ?concern=) canonicalise to the unfiltered page.
+  alternates: { canonical: '/collections' },
 };
 
 /**
@@ -19,7 +23,10 @@ export const metadata: Metadata = {
  */
 export const revalidate = 60;
 
+/** Published-review aggregates; empty without a database or on failure, so the page still renders. */
+const aggregates = () => (isDatabaseConfigured() ? reviewAggregates(db).catch(() => ({})) : Promise.resolve({}));
+
 export default async function CollectionsPage() {
-  const [stock, prices] = await Promise.all([catalogueStock(), displayPrices()]);
-  return <CollectionsClient stock={stock} prices={prices} />;
+  const [stock, prices, reviews] = await Promise.all([catalogueStock(), displayPrices(), aggregates()]);
+  return <CollectionsClient stock={stock} prices={prices} reviews={reviews} />;
 }

@@ -85,7 +85,7 @@ export function isBlockedAgent(userAgent: string): boolean {
  * So this trades inline-script protection for static rendering. What the
  * policy still buys, which is most of the practical value:
  *
- *  - No script may load from a host other than this origin and Razorpay, so a
+ *  - No script may load from a host other than this origin and Cashfree, so a
  *    stored-XSS payload cannot call out to an attacker's server.
  *  - `object-src 'none'` and `base-uri 'self'` close two common bypasses.
  *  - `form-action 'self'` stops an injected form posting data off-site.
@@ -104,7 +104,7 @@ export function contentSecurityPolicy(isDev: boolean): string {
     "default-src 'self'",
     // 'unsafe-inline' is required by statically prerendered Next output; see
     // the note above. 'unsafe-eval' is dev-only, for the React refresh runtime.
-    `script-src 'self' 'unsafe-inline' https://checkout.razorpay.com${
+    `script-src 'self' 'unsafe-inline' https://sdk.cashfree.com${
       isDev ? " 'unsafe-eval'" : ''
     }`,
     "style-src 'self' 'unsafe-inline'",
@@ -114,11 +114,11 @@ export function contentSecurityPolicy(isDev: boolean): string {
     // *.ingest.sentry.io is only reached when a DSN is configured; listing it
     // unconditionally avoids a CSP change being forgotten at the moment
     // monitoring is switched on.
-    "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io",
-    'frame-src https://api.razorpay.com https://checkout.razorpay.com',
+    "connect-src 'self' https://sdk.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io",
+    'frame-src https://sdk.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com',
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    "form-action 'self' https://sandbox.cashfree.com https://api.cashfree.com",
     "frame-ancestors 'none'",
     'upgrade-insecure-requests',
   ];
@@ -126,14 +126,18 @@ export function contentSecurityPolicy(isDev: boolean): string {
   return directives.join('; ');
 }
 
+/** Routes allowed to use the camera (the optional face scan); every other route denies it. */
+export const CAMERA_ROUTES = ['/scan'];
+
 /** Headers applied to every response. */
-export function securityHeaders(): Record<string, string> {
+export function securityHeaders(pathname = '/'): Record<string, string> {
+  const camera = CAMERA_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`)) ? 'camera=(self)' : 'camera=()';
   return {
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'X-Frame-Options': 'DENY',
-    // Denies APIs the storefront has no use for.
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+    // Denies APIs the storefront has no use for; the camera only on the scan route, for this origin.
+    'Permissions-Policy': `${camera}, microphone=(), geolocation=(), interest-cohort=()`,
     // Two years, preloadable. Only meaningful over HTTPS.
     'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
     'Cross-Origin-Opener-Policy': 'same-origin',

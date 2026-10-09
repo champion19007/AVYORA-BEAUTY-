@@ -38,12 +38,12 @@ const full = (productId: string, labels: [string, string | null, number?][]): Fo
 });
 const TEST_KNOWLEDGE: Knowledge = {
   formulations: [
-    full('face-wash', [['Aqua', null], ['Niacinamide', 'niacinamide']]),
-    full('centella-cleansing-balm', [['Aqua', null], ['Glycerin', null]]),
-    full('ceramide-cream', [['Aqua', null], ['Ceramide NP', 'ceramides']]),
-    full('sorbet-moisturizer', [['Aqua', null], ['Sodium Hyaluronate', 'hyaluronic-acid']]),
-    full('sunscreen', [['Aqua', null], ['Zinc Oxide', 'zinc-oxide']]),
-    full('niacinamide-drops', [['Aqua', null], ['Niacinamide', 'niacinamide', 5]]),
+    full('face-wash', [['Aqua', 'water'], ['Niacinamide', 'niacinamide']]),
+    full('centella-cleansing-balm', [['Aqua', 'water'], ['Glycerin', 'glycerin']]),
+    full('ceramide-cream', [['Aqua', 'water'], ['Ceramide NP', 'ceramides']]),
+    full('sorbet-moisturizer', [['Aqua', 'water'], ['Sodium Hyaluronate', 'hyaluronic-acid']]),
+    full('sunscreen', [['Aqua', 'water'], ['Zinc Oxide', 'zinc-oxide']]),
+    full('niacinamide-drops', [['Aqua', 'water'], ['Niacinamide', 'niacinamide', 5]]),
   ],
   evidence: [{ id: 'test', title: 'Test only', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' }],
   directions: {

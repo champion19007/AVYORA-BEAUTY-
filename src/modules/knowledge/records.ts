@@ -57,6 +57,14 @@ export type BayesParameter = {
   concern: string;
   prior: number;
   groups: { evidenceGroup: string; observation: string; pGivenConcern: number; pGivenNotConcern: number }[];
+  /**
+   * How each evidence group's rows relate. A group with one row is a binary
+   * event (P(event | C) and P(event | not C); its complement is implicit).
+   * A group with several rows must be declared `categorical`: its states are
+   * mutually exclusive and exhaustive, so each distribution sums to 1.
+   * An unanswered or "unknown" answer is not a state: it is neutral.
+   */
+  groupKinds?: Record<string, 'binary' | 'categorical'>;
   validationStatus: 'validated' | 'provisional' | 'synthetic_fixture';
   provenance: { trainingVersion: string | null; calibrationVersion: string | null; counts: number | null; note: string };
   /**

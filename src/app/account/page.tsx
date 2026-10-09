@@ -104,10 +104,10 @@ export default async function AccountPage() {
         />
 
         <Tile
-          href="/routine-finder"
+          href="/account/routines"
           icon={<Sparkles className="h-7 w-7 text-primary" aria-hidden="true" />}
-          title="Your Routine"
-          description="Build a regimen matched to your skin"
+          title="Saved routines"
+          description="Open, delete or stop saving your routines"
         />
 
         <Tile

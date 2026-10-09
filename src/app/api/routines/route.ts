@@ -87,6 +87,10 @@ export async function POST(request: Request) {
   if (snapshot.status === 'no_match') {
     return apiError(422, 'no_valid_plan', 'No routine fits these answers yet.', { details: { result: snapshot } });
   }
+  // Re-audit A02: a plan that breaks a hard rule is never saved, whatever the browser showed.
+  if (snapshot.status === 'invalid' || snapshot.problems.length > 0) {
+    return apiError(422, 'invalid_plan', 'This routine breaks a safety rule, so it cannot be saved.', { details: { problems: snapshot.problems } });
+  }
   if (JSON.stringify(snapshot).length > RESULT_MAX_BYTES) return apiError(422, 'result_too_large', 'This routine is too large to save.');
 
   const saved = await insertRoutine(db, owner, { request: body, snapshot, key });

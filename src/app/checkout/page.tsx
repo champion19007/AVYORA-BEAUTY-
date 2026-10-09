@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { CheckoutClient } from './checkout-client';
+import { SAMPLE_ORDER_MESSAGE, sampleOrdersBlocked } from '@/lib/catalogue-mode';
 import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
-import { isRazorpayConfigured } from '@/lib/razorpay';
+import { isCashfreeConfigured } from '@/lib/cashfree';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { listAddresses } from '@/lib/addresses';
@@ -17,6 +19,18 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function CheckoutPage() {
+  // Sample inventory cannot be ordered in production builds: say so before anyone types an address.
+  if (sampleOrdersBlocked()) {
+    return (
+      <main className="container mx-auto max-w-2xl py-24 text-center">
+        <h1 className="text-4xl font-medium tracking-tight">Orders are not open yet</h1>
+        <p className="mt-4 text-[15px] text-muted-foreground">{SAMPLE_ORDER_MESSAGE} Your bag is kept on this device.</p>
+        <Link href="/collections" className="mt-8 inline-block underline">
+          Back to the shop
+        </Link>
+      </main>
+    );
+  }
   const session = await auth().catch(() => null);
 
   // Guests get the blank form; signed-in customers get their address book, so
@@ -37,7 +51,7 @@ export default async function CheckoutPage() {
     <CheckoutClient
       prices={prices}
       stock={stock}
-      razorpayEnabled={isRazorpayConfigured()}
+      onlineEnabled={isCashfreeConfigured()}
       savedAddresses={savedAddresses}
       defaultEmail={session?.user?.email ?? ''}
     />

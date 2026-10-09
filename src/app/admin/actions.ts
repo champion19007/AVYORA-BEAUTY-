@@ -38,9 +38,20 @@ const FULFILMENT_FLOW = {
 
 export type OrderStatus = keyof typeof FULFILMENT_FLOW;
 
+/**
+ * Which transitions an order may take. A cash-on-delivery order stays
+ * `pending` (nothing is paid until the courier collects), so once staff have
+ * released it from the risk hold it may be packed; before that, only
+ * cancelled. Without this a COD order could never be dispatched.
+ */
+function nextStatuses(order: { status: string; paymentProvider?: string | null; fraudStatus?: string }): readonly string[] {
+  if (order.status === 'pending' && order.paymentProvider === 'cod' && order.fraudStatus === 'approved') return ['fulfilled', 'cancelled'];
+  return FULFILMENT_FLOW[order.status as OrderStatus] ?? [];
+}
+
 /** Which transitions the UI should offer for an order in this state. */
-export async function allowedNextStatuses(current: string): Promise<readonly string[]> {
-  return FULFILMENT_FLOW[current as OrderStatus] ?? [];
+export async function allowedNextStatuses(order: { status: string; paymentProvider?: string | null; fraudStatus?: string }): Promise<readonly string[]> {
+  return nextStatuses(order);
 }
 
 export type AdminActionResult = { ok: true } | { ok: false; error: string };
@@ -66,14 +77,14 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
   if (!orderNumber || !next) return;
 
   const [order] = await db
-    .select({ id: orders.id, status: orders.status })
+    .select({ id: orders.id, status: orders.status, paymentProvider: orders.paymentProvider, fraudStatus: orders.fraudStatus })
     .from(orders)
     .where(eq(orders.orderNumber, orderNumber))
     .limit(1);
 
   if (!order) return;
 
-  const allowed = FULFILMENT_FLOW[order.status as OrderStatus] ?? [];
+  const allowed = nextStatuses(order);
   if (!allowed.includes(next as never)) return;
 
   /*
@@ -432,4 +443,39 @@ export async function resolveAttention(formData: FormData): Promise<void> {
 
   revalidatePath(`/admin/orders/${orderNumber}`);
   revalidatePath('/manager');
+}
+
+/**
+ * Marks a customer support request answered (any staff role), with an
+ * optional note on how it was answered. Audited. Only succeeds while the
+ * request is open, so concurrent answers cannot both be recorded.
+ */
+export async function answerSupportRequest(formData: FormData): Promise<void> {
+  const session = await getStaffSession();
+  if (!session) return;
+  const id = String(formData.get('id') ?? '');
+  const note = String(formData.get('resolution') ?? '');
+  const { markSupportAnswered } = await import('@/modules/support/support');
+  const result = await markSupportAnswered(db, id, session.username, note);
+  if (result.ok) {
+    await recordAudit({ actor: session.username, actorRole: session.role, action: 'support.answered', entityType: 'support_request', entityId: id, after: { status: 'answered' } });
+  }
+  revalidatePath('/admin/requests');
+}
+
+
+/** Publishes or rejects (deletes) a review awaiting moderation. Audited; the product page updates within its revalidate window. */
+export async function moderateReviewAction(formData: FormData): Promise<void> {
+  const session = await getStaffSession();
+  if (!session) return;
+  const id = String(formData.get('id') ?? '');
+  const raw = formData.get('decision');
+  // Only an explicit decision acts: a missing or unknown value must never fall through to deleting a review.
+  if (raw !== 'publish' && raw !== 'reject') return;
+  const decision = raw;
+  const { moderateReview } = await import('@/modules/reviews/reviews');
+  if (await moderateReview(db, id, decision)) {
+    await recordAudit({ actor: session.username, actorRole: session.role, action: `review.${decision}`, entityType: 'review', entityId: id, after: { published: decision === 'publish' } });
+  }
+  revalidatePath('/admin/requests');
 }

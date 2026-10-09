@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders } from '@/db/schema';
 import { fetchRazorpayOrderPayments, getRazorpayConfig } from '@/lib/razorpay';
+import { fetchCashfreePayments, getCashfreeConfig } from '@/lib/cashfree';
 import { applyPaymentSignal } from './payment-service';
 
 /**
@@ -34,27 +35,43 @@ export interface PaymentProviderClient {
   listPayments(providerOrderRef: string): Promise<ProviderPayment[] | null>;
 }
 
-/** The configured provider, or null when online payment is not set up. */
-export function configuredProvider(): PaymentProviderClient | null {
-  const config = getRazorpayConfig();
-  if (!config) return null;
-  return {
-    listPayments: (ref) => fetchRazorpayOrderPayments(ref, config),
-  };
+/**
+ * The client for the provider that took this order's payment, or null when
+ * that provider is not configured here. Cashfree attempts are mapped onto the
+ * same vocabulary: SUCCESS is `captured`; PENDING is `authorized` (money may
+ * be in flight, so wait); anything else is not a capture.
+ */
+export function configuredProvider(name: string | null = 'cashfree'): PaymentProviderClient | null {
+  if (name === 'razorpay') {
+    const config = getRazorpayConfig();
+    return config ? { listPayments: (ref) => fetchRazorpayOrderPayments(ref, config) } : null;
+  }
+  if (name === 'cashfree') {
+    const config = getCashfreeConfig();
+    if (!config) return null;
+    return {
+      listPayments: async (ref) => {
+        const payments = await fetchCashfreePayments(ref, config);
+        return payments?.map((p) => ({ id: p.id, amount: p.amountPaise, status: p.status === 'success' ? 'captured' : p.status === 'pending' ? 'authorized' : p.status })) ?? null;
+      },
+    };
+  }
+  return null;
 }
 
 export async function reconcileOrder(
   orderId: string,
-  provider: PaymentProviderClient | null = configuredProvider()
+  providerOverride?: PaymentProviderClient | null
 ): Promise<ReconciliationResult> {
   const [order] = await db
-    .select({ id: orders.id, reference: orders.paymentReference, total: orders.total })
+    .select({ id: orders.id, reference: orders.paymentReference, total: orders.total, providerName: orders.paymentProvider })
     .from(orders)
     .where(eq(orders.id, orderId))
     .limit(1);
 
   if (!order) return 'unknown';
   if (!order.reference) return 'no_session';
+  const provider = providerOverride === undefined ? configuredProvider(order.providerName) : providerOverride;
 
   /*
    * A reference with no way to ask about it. Online payment was configured

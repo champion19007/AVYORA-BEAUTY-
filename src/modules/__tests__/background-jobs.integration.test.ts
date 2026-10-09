@@ -23,7 +23,6 @@ const { exportEventBatch } = await import('@/modules/analytics/landing-zone');
 const { streamRelay } = await import('@/modules/analytics/stream-relay');
 const { MemoryProducer, KafkaRestProducer } = await import('@/infrastructure/streaming/producer');
 const { drain, emitEvent } = await import('@/lib/events');
-const { skinAnalysisJobHandler } = await import('@/modules/ai/skin-analysis');
 
 const SKU = { productId: 'rice-bran-cleansing-oil', size: '150ml' };
 const REF = 'order_TEST123';
@@ -235,16 +234,4 @@ describe('event stream relay', () => {
   });
 });
 
-describe('skin analysis seam', () => {
-  it('fails permanently and says why, while no analyser exists', async () => {
-    await expect(skinAnalysisJobHandler()({ imageKey: 'x', consentedAt: 'now' })).rejects.toThrow(
-      'No skin analyser is configured.'
-    );
-  });
-
-  it('refuses an image without recorded consent', async () => {
-    const analyzer = { modelVersion: 't', analyze: vi.fn() };
-    await expect(skinAnalysisJobHandler(() => analyzer)({ imageKey: 'x' })).rejects.toBeInstanceOf(PermanentJobError);
-    expect(analyzer.analyze).not.toHaveBeenCalled();
-  });
-});
+// The skin-analysis job is covered in modules/ai/__tests__/scan-inference.integration.test.ts.

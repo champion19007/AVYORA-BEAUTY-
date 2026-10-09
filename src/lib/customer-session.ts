@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { sessions } from '@/db/schema';
 import { mergeCarts, ANONYMOUS_COOKIE } from '@/lib/cart-server';
+import { reportError } from '@/lib/observability';
 
 /**
  * Issuing customer sessions outside the OAuth flow.
@@ -66,7 +67,7 @@ export async function createCustomerSession(userId: string): Promise<void> {
     const anonymousId = jar.get(ANONYMOUS_COOKIE)?.value;
     if (anonymousId) await mergeCarts(userId, anonymousId);
   } catch (err) {
-    console.error('cart merge on sign-in failed (ignored)', err);
+    reportError(err, { scope: 'cart.mergeOnSignIn' });
   }
 }
 

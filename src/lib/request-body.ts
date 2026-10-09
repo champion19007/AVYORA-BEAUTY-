@@ -20,6 +20,11 @@ export const BODY_LIMITS = {
   routine: 17 * 1024,
   feedback: 1024,
   consent: 1024,
+  support: 4 * 1024,
+  review: 4 * 1024,
+  newsletter: 1024,
+  /** Scan image upload: the 4 MB file cap (image-validation MAX_UPLOAD_BYTES), under Vercel's 4.5 MB ceiling. */
+  scanImage: 4 * 1024 * 1024,
 } as const;
 
 export type BoundedRead = { ok: true; text: string } | { ok: false; response: Response };
@@ -31,9 +36,14 @@ const tooLarge = (maxBytes: number) =>
   });
 
 export async function readBoundedText(request: Request, maxBytes: number): Promise<BoundedRead> {
+  const read = await readBoundedBytes(request, maxBytes);
+  return read.ok ? { ok: true, text: new TextDecoder().decode(read.bytes) } : read;
+}
+
+export async function readBoundedBytes(request: Request, maxBytes: number): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; response: Response }> {
   const declared = Number(request.headers.get('content-length') ?? NaN);
   if (Number.isFinite(declared) && declared > maxBytes) return { ok: false, response: tooLarge(maxBytes) };
-  if (!request.body) return { ok: true, text: '' };
+  if (!request.body) return { ok: true, bytes: new Uint8Array(0) };
 
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -54,7 +64,7 @@ export async function readBoundedText(request: Request, maxBytes: number): Promi
     bytes.set(c, offset);
     offset += c.byteLength;
   }
-  return { ok: true, text: new TextDecoder().decode(bytes) };
+  return { ok: true, bytes };
 }
 
 /** Bounded read, then JSON. Malformed JSON yields `{ ok: true, json: undefined }` for the caller's own validation. */

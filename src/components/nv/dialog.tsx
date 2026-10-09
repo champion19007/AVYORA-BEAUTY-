@@ -41,7 +41,7 @@ export function Dialog({
         >
           <div className="flex items-start justify-between gap-6">
             <RadixDialog.Title className="text-nv-title">{title}</RadixDialog.Title>
-            <RadixDialog.Close className="nv-focus -mr-2 -mt-1 flex h-10 w-10 items-center justify-center rounded-full hover:bg-black/5" aria-label="Close">
+            <RadixDialog.Close className="nv-focus -mr-2 -mt-1 flex h-10 w-10 items-center justify-center rounded-full hover:bg-nv-accent/5" aria-label="Close">
               <X className="h-5 w-5" aria-hidden="true" />
             </RadixDialog.Close>
           </div>

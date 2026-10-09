@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { SUPPORT_EMAIL } from '@/data/business-info';
 import { FREE_DELIVERY_LINE } from '@/lib/money';
+import { IS_SAMPLE_CATALOGUE } from '@/lib/catalogue-mode';
 import { ACCOUNT_NAV, LEGAL_NAV, PRIMARY_NAV } from './nav';
+import { NewsletterForm } from './newsletter-form';
 
 /**
  * The redesign footer, a server component (rendered by the root layout and
@@ -17,8 +19,8 @@ export function SiteFooter() {
     { heading: 'Policies', links: LEGAL_NAV },
   ];
   return (
-    <footer className="bg-nv-ink font-nv text-white">
-      <div className="grid grid-cols-[1fr_auto] gap-16 px-nv-gutter pb-16 pt-[100px]">
+    <footer className="flex min-h-[530px] flex-col justify-between bg-nv-ink font-nv text-white">
+      <div className="grid gap-12 px-nv-gutter pb-16 pt-16 lg:grid-cols-[1fr_auto] lg:gap-16 lg:pt-[100px]">
         <div>
           <Link href="/" className="nv-focus-light font-wordmark text-nv-wordmark-lg">
             Avyora
@@ -27,8 +29,9 @@ export function SiteFooter() {
           <a href={`mailto:${SUPPORT_EMAIL}`} className="nv-focus-light text-nv-intro">
             {SUPPORT_EMAIL}
           </a>
+          {process.env.NEXT_PUBLIC_NEWSLETTER === '1' && <NewsletterForm />}
         </div>
-        <div className="grid grid-cols-3 gap-16">
+        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 lg:gap-16">
           {columns.map((c) => (
             <nav key={c.heading} aria-label={c.heading}>
               <h2 className="text-nv-label text-nv-faint">{c.heading}</h2>
@@ -45,9 +48,12 @@ export function SiteFooter() {
           ))}
         </div>
       </div>
-      <div className="flex justify-between border-t border-white/15 px-nv-gutter py-6 text-nv-small text-white/80">
+      <div className="flex flex-col gap-2 border-t border-white/15 sm:flex-row sm:justify-between px-nv-gutter py-6 text-nv-small text-white/80">
         <p>© {new Date().getFullYear()} Avyora</p>
-        <p>{FREE_DELIVERY_LINE}. Prices are confirmed at checkout.</p>
+        <p>
+          {IS_SAMPLE_CATALOGUE && 'Preview shop: products shown are samples, not real stock. '}
+          {FREE_DELIVERY_LINE}. Prices are confirmed at checkout.
+        </p>
       </div>
     </footer>
   );

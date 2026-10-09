@@ -697,6 +697,52 @@ export const routineFeedback = pgTable('routine_feedback', {
 }));
 
 /**
+ * A customer's support request from the site's consultation form. Stored
+ * so staff can answer it by email; nothing is sent automatically. The
+ * customer agreed to be contacted about this request only (no marketing).
+ */
+export const supportRequests = pgTable('support_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  message: text('message').notNull(),
+  status: text('status').notNull().default('open'),
+  /** Staff note on how it was answered; never shown to the customer. */
+  resolution: text('resolution'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: text('resolved_by'),
+}, (t) => ({
+  status: check('support_requests_status', sql`${t.status} IN ('open', 'answered', 'closed')`),
+  lengths: check('support_requests_lengths', sql`char_length(${t.name}) BETWEEN 1 AND 80 AND char_length(${t.message}) BETWEEN 1 AND 2000 AND char_length(${t.email}) BETWEEN 3 AND 254`),
+  openIdx: index('support_requests_status_idx').on(t.status, t.createdAt),
+}));
+
+/**
+ * Newsletter subscriptions, double opt-in. `pending` until the address
+ * owner confirms by the emailed link; only `subscribed` may be sent to.
+ * One random token per address (only its SHA-256 is stored) confirms and
+ * unsubscribes; it is replaced on every sign-up request. The consent
+ * wording version is kept as the record of what was agreed to.
+ */
+export const newsletterSubscribers = pgTable('newsletter_subscribers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull(),
+  status: text('status').notNull().default('pending'),
+  consentVersion: text('consent_version').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  unsubscribedAt: timestamp('unsubscribed_at', { withTimezone: true }),
+}, (t) => ({
+  status: check('newsletter_status', sql`${t.status} IN ('pending', 'subscribed', 'unsubscribed')`),
+  emailShape: check('newsletter_email', sql`char_length(${t.email}) BETWEEN 3 AND 254 AND ${t.email} = lower(${t.email})`),
+  tokenShape: check('newsletter_token_hash', sql`${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
+  emailIdx: uniqueIndex('newsletter_email_idx').on(t.email),
+  tokenIdx: uniqueIndex('newsletter_token_idx').on(t.tokenHash),
+}));
+
+/**
  * Product and behavioural events.
  *
  * Deliberately schema-light: a name plus a JSON payload, so new event types do

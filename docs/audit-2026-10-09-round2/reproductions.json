@@ -1,0 +1,87 @@
+{
+  "roleBasedActiveBypass": {
+    "selected": true,
+    "scheduledUses": 2,
+    "status": "partial",
+    "problems": []
+  },
+  "partialActiveIgnored": {
+    "selectedWhenIrritated": true,
+    "exclusions": []
+  },
+  "feasibleCorePruned": {
+    "cheapestCompletePaise": 30000,
+    "budgetPaise": 30000,
+    "status": "partial",
+    "slots": [
+      {
+        "role": "cleanse",
+        "source": "unfilled",
+        "reasons": [
+          {
+            "code": "over_budget",
+            "ruleId": "builtin:budget",
+            "message": "No combination of suitable essentials fits your budget with this step included."
+          }
+        ]
+      },
+      {
+        "role": "moisturise",
+        "source": "catalogue",
+        "productId": "synthetic-cream-0",
+        "skuId": "synthetic-cream-0-50ml",
+        "pricePaise": 15000,
+        "score": 0.95,
+        "session": [
+          "am",
+          "pm"
+        ],
+        "reasons": [
+          {
+            "code": "essential",
+            "ruleId": "builtin:essential-core",
+            "message": "Your moisturiser."
+          }
+        ]
+      },
+      {
+        "role": "protect",
+        "source": "catalogue",
+        "productId": "synthetic-protect",
+        "skuId": "synthetic-protect-50ml",
+        "pricePaise": 10000,
+        "score": 0.5,
+        "session": [
+          "am"
+        ],
+        "reasons": [
+          {
+            "code": "essential",
+            "ruleId": "builtin:essential-core",
+            "message": "Your sunscreen."
+          }
+        ]
+      }
+    ]
+  },
+  "malformedOnboarding": {
+    "threw": true,
+    "message": "TypeError: Cannot read properties of undefined (reading 'map')"
+  },
+  "invalidUsageOnboarding": {
+    "ok": true,
+    "records": [
+      {
+        "id": "synthetic-gentle-cleanser",
+        "publishable": true,
+        "recommendable": true,
+        "problems": [],
+        "unresolved": [
+          "images (no licensed product photograph)"
+        ]
+      }
+    ],
+    "problems": []
+  },
+  "nestedLogLeaksEmailAndToken": true
+}

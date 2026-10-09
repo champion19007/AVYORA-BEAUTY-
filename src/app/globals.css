@@ -188,13 +188,15 @@
 
 @layer base {
   :root {
-    /* Colour: measured. */
-    --nv-page: #fafafa;
-    --nv-ink: #1a1a1a;
-    --nv-muted: #696666;
-    --nv-faint: #adadad;
-    --nv-card: #ffffff;
-    --nv-line: #e8e8e8;
+    /* Colour: warm botanical (cream, forest ink, sage), replacing the measured greys. */
+    --nv-page: #f6f1e9;
+    --nv-ink: #1f2b23;
+    --nv-muted: #6b6459;
+    --nv-faint: #c9bfae;
+    --nv-card: #fffdf8;
+    --nv-line: #e6ddcf;
+    --nv-accent: #4a6b4f;
+    --nv-accent-soft: #e4e9d8;
     --nv-glass: rgba(255, 255, 255, 0.24);
     /* Not in the reference: a status colour with 4.5:1 contrast on white for errors. */
     --nv-danger: #b42318;
@@ -211,6 +213,11 @@
     --nv-duration-reveal: 600ms;
     --nv-duration-overlay: 500ms;
     --nv-duration-control: 300ms;
+  }
+  @media (max-width: 1023px) {
+    :root {
+      --nv-gutter: 16px;
+    }
   }
 }
 
@@ -247,9 +254,62 @@
   }
 }
 
-/* Under the redesign (body.font-nv) headings are Inter, not the old display serif set by the base layer. */
-.font-nv :is(h1, h2, h3, h4, h5, h6) {
+/*
+ * Redesign theme (body.nv-theme, NEXT_PUBLIC_REDESIGN=1): the existing
+ * component tokens mapped onto the measured palette, so every existing page
+ * (collections, product, wishlist, bag, checkout, account, staff) takes the
+ * new look without touching its logic. On <body> rather than a wrapper so
+ * portalled drawers, dialogs and toasts are themed too. Values: #FAFAFA page,
+ * #1A1A1A ink, #696666 muted, #E8E8E8 lines, white cards, ink as the primary
+ * (the reference's dark pill buttons). The display and body faces become Inter.
+ */
+.nv-theme {
+  --background: 38 41% 94%;
+  --foreground: 140 16% 15%;
+  --card: 43 100% 99%;
+  --card-foreground: 140 16% 15%;
+  --popover: 43 100% 99%;
+  --popover-foreground: 140 16% 15%;
+  --primary: 140 16% 15%;
+  --primary-foreground: 43 100% 99%;
+  --primary-text: 140 16% 15%;
+  --secondary: 37 33% 90%;
+  --secondary-foreground: 140 16% 15%;
+  --muted: 37 33% 91%;
+  --muted-foreground: 36 8% 38%;
+  --accent: 80 26% 88%;
+  --accent-foreground: 140 16% 15%;
+  --border: 37 30% 86%;
+  --input: 37 30% 84%;
+  --ring: 128 18% 35%;
+  --radius: 18px;
+  --font-display: var(--font-inter);
+  --font-jost: var(--font-inter);
+}
+
+/* Existing pages under the redesign: the reference's column, no gold ornaments, neutral eyebrows. */
+.nv-theme .container {
+  max-width: calc(var(--nv-container) + 2 * var(--nv-gutter));
+  padding-left: var(--nv-gutter);
+  padding-right: var(--nv-gutter);
+}
+.nv-theme .rule-gold {
+  display: none;
+}
+.nv-theme .eyebrow {
+  color: var(--nv-accent);
+  letter-spacing: 0;
+  font-size: 14px;
+}
+
+/* Under the redesign (body.font-nv) h3-h6 are Inter; h1/h2 use Instrument Serif (400 only, so no faux bold, and looser tracking than the sans scale). */
+.font-nv :is(h3, h4, h5, h6) {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+.font-nv :is(h1, h2) {
+  font-family: var(--font-wordmark), Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -0.015em;
 }
 
 @keyframes nv-reveal {

@@ -4,6 +4,7 @@ import { SUPPORT_EMAIL } from '@/data/business-info';
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description: 'Avyora privacy policy.',
+  alternates: { canonical: '/privacy' },
 };
 
 export default function Page() {
@@ -39,7 +40,7 @@ export default function Page() {
 
       <h2>Who we share it with</h2>
       <p>
-        Only the services needed to run the shop: our payment provider (Razorpay), our delivery
+        Only the services needed to run the shop: our payment provider (Cashfree), our delivery
         partners, and our hosting and database providers. We do not sell your personal data.
       </p>
 

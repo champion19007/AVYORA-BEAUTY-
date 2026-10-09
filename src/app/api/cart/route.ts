@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { accountKey, ANONYMOUS_COOKIE, loadCart, saveCart, type ServerCartLine } from '@/lib/cart-server';
+import { reportError } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, stored: true });
   } catch (err) {
     // Cart mirroring must never break the shop.
-    console.error('cart sync failed (ignored)', err);
+    reportError(err, { scope: 'cart.sync' });
     return NextResponse.json({ ok: true, stored: false });
   }
 }

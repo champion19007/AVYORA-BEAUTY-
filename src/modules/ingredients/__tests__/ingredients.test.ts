@@ -63,9 +63,9 @@ describe('label matching (audit #18)', () => {
 
   it('reports a set as incomplete when anything is ambiguous or unknown', () => {
     const r = resolveLabels('Aqua, Niacinamide 10%, Vitamin C, Zinc PCA');
-    expect(r.ids).toEqual(['niacinamide']);
+    expect(r.ids).toEqual(['water', 'niacinamide']);
     expect(r.ambiguous.map((a) => a.label)).toEqual(['Vitamin C']);
-    expect(r.unresolved.map((u) => u.label)).toEqual(['Aqua', 'Zinc PCA']);
+    expect(r.unresolved.map((u) => u.label)).toEqual(['Zinc PCA']);
     expect(r.complete).toBe(false);
   });
 });
@@ -117,9 +117,9 @@ const good = (over: Partial<Formulation> = {}): Formulation => ({
   coverage: 'complete',
   fullInci: 'Aqua, Niacinamide, Glycerin',
   ingredients: [
-    { position: 1, inciLabel: 'Aqua', ingredientId: null, concentration: { known: false } },
+    { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
     { position: 2, inciLabel: 'Niacinamide', ingredientId: 'niacinamide', concentration: { known: true, value: 5, unit: 'percent_w_w' } },
-    { position: 3, inciLabel: 'Glycerin', ingredientId: null, concentration: { known: false } },
+    { position: 3, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
   ],
   sourceId: 'e1',
   reviewedBy: 'fixture',
@@ -155,7 +155,7 @@ describe('publication checks', () => {
     ['a zero concentration', withIngredient(1, { concentration: { known: true, value: 0, unit: 'percent_w_w' } }), /positive number/],
     ['an ambiguous INCI label', withIngredient(1, { inciLabel: 'Vitamin C', ingredientId: null }), /ambiguous label/],
     ['a label that contradicts its id', withIngredient(1, { ingredientId: 'retinol' }), /resolves to niacinamide/],
-    ['an unknown ingredient id', withIngredient(0, { ingredientId: 'water' }), /unknown ingredient id/],
+    ['an unknown ingredient id', withIngredient(0, { ingredientId: 'not-a-real-id' }), /unknown ingredient id/],
     ['a gap in positions', withIngredient(2, { position: 4 }), /positions must run/],
     ['complete coverage without the INCI list', { fullInci: null }, /needs the full INCI list/],
     ['an INCI list that disagrees with the positions', { fullInci: 'Aqua, Niacinamide' }, /lists 2 ingredients/],

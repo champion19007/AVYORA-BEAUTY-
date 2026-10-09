@@ -1,0 +1,28 @@
+[
+  {
+    "id": "synthetic-gentle-cleanser",
+    "slug": "synthetic-gentle-cleanser",
+    "name": "SYNTHETIC EXAMPLE Gentle Cleanser",
+    "category": "cleanser",
+    "role": "cleanse",
+    "description": "SYNTHETIC EXAMPLE RECORD for testing onboarding validation. Not a real product, formulation or price.",
+    "variants": [{ "sku": "SYN-GC-100", "sizeLabel": "100ml", "pricePaise": 49900, "mrpPaise": 49900 }],
+    "images": [],
+    "attributes": [{ "key": "texture", "value": "gel", "sourceId": "synthetic-dossier" }],
+    "formulation": {
+      "productId": "synthetic-gentle-cleanser",
+      "version": 1,
+      "coverage": "complete",
+      "fullInci": "Aqua, Glycerin",
+      "ingredients": [
+        { "position": 1, "inciLabel": "Aqua", "ingredientId": "water", "concentration": { "known": false } },
+        { "position": 2, "inciLabel": "Glycerin", "ingredientId": "glycerin", "concentration": { "known": false } }
+      ],
+      "sourceId": "synthetic-dossier",
+      "reviewedBy": "SYNTHETIC",
+      "reviewedAt": "2026-10-10"
+    },
+    "claims": [],
+    "review": { "status": "approved", "reviewerId": "SYNTHETIC REVIEWER", "reviewedAt": "2026-10-10", "sourceIds": ["synthetic-dossier"] }
+  }
+]

@@ -8,7 +8,7 @@ import {
 } from '@/lib/security';
 import { edgeRateLimit } from '@/lib/edge-rate-limit';
 import { trustedClientIp } from '@/lib/client-ip';
-import { isPrivatePath, PRIVATE_CACHE_CONTROL } from '@/lib/cache-policy';
+import { isNoIndexPath, isPrivatePath, PRIVATE_CACHE_CONTROL } from '@/lib/cache-policy';
 import { REQUEST_ID_HEADER, normaliseRequestId } from '@/infrastructure/request-id';
 
 /**
@@ -116,7 +116,7 @@ export async function middleware(request: NextRequest) {
   response.headers.set(REQUEST_ID_HEADER, requestId);
 
   response.headers.set('Content-Security-Policy', contentSecurityPolicy(isDev));
-  for (const [key, value] of Object.entries(securityHeaders())) {
+  for (const [key, value] of Object.entries(securityHeaders(path))) {
     response.headers.set(key, value);
   }
 
@@ -125,6 +125,8 @@ export async function middleware(request: NextRequest) {
     response.headers.set('Cache-Control', PRIVATE_CACHE_CONTROL);
     response.headers.set('Vary', 'Cookie');
   }
+  // Private, token and internal pages are never indexed (order links carry access tokens).
+  if (isNoIndexPath(path)) response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 
   return response;
 }

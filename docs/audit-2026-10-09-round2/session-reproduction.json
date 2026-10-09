@@ -1,0 +1,46 @@
+{
+  "savedThenRecomputed": {
+    "previousQuotePaise": 10000,
+    "newPurchasePaise": 15000,
+    "retainedQuotePaise": 10000,
+    "savedView": null,
+    "phase": "ready"
+  },
+  "failedSavedQuote": {
+    "phase": "ready",
+    "error": "We could not check current prices and stock for this saved routine. Try again before adding to your bag.",
+    "quote": null,
+    "pricesExpireAt": null,
+    "stock": {},
+    "historicalPurchaseList": [
+      {
+        "skuId": "ceramide-cream-50ml",
+        "productId": "ceramide-cream",
+        "quantity": 1,
+        "pricePaise": 10000,
+        "optional": false
+      },
+      {
+        "skuId": "sunscreen-30ml",
+        "productId": "sunscreen",
+        "quantity": 1,
+        "pricePaise": 10000,
+        "optional": false
+      },
+      {
+        "skuId": "centella-cleansing-balm-100ml",
+        "productId": "centella-cleansing-balm",
+        "quantity": 1,
+        "pricePaise": 10000,
+        "optional": false
+      },
+      {
+        "skuId": "ha-toner-200ml",
+        "productId": "ha-toner",
+        "quantity": 1,
+        "pricePaise": 10000,
+        "optional": true
+      }
+    ]
+  }
+}

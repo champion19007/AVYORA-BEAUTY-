@@ -1,3 +1,5 @@
+import { CATALOGUE_MODE } from '@/lib/catalogue-mode';
+import { VERIFIED_PRODUCTS } from './verified-products';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -31,7 +33,12 @@ export interface Product {
 
 const getImg = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
-export const PRODUCTS: Product[] = [
+/**
+ * SAMPLE CATALOGUE: development and review data, not verified products.
+ * Names, prices, images and highlights are placeholders until real products
+ * are onboarded through validated records (docs/product-onboarding.md).
+ */
+const SAMPLE_PRODUCTS: Product[] = [
   // PHASE 1: FOUNDATIONAL CLEANSING & PREP
   {
     id: 'rice-bran-cleansing-oil',
@@ -453,6 +460,14 @@ export const PRODUCTS: Product[] = [
     sizes: [{ label: '180ml', price: 349 }]
   }
 ];
+
+/**
+ * The catalogue the site shows. `NEXT_PUBLIC_CATALOGUE_MODE=verified` shows
+ * only products whose records passed onboarding (none yet, so the shop is
+ * empty and says so); anything else shows the sample catalogue, labelled as
+ * samples, with orders refused in production builds (lib/catalogue-mode.ts).
+ */
+export const PRODUCTS: Product[] = CATALOGUE_MODE === 'verified' ? [...VERIFIED_PRODUCTS] : SAMPLE_PRODUCTS;
 
 export const CATEGORIES = [
   { id: 'cleanser', name: 'Phase 1: Cleansing & Prep', image: getImg('gel-cleanser'), hint: 'cleansing gel' },

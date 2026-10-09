@@ -168,10 +168,7 @@ export function ProductClient({
                 </span>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {/* No review submission flow exists yet, so no invitation to leave one. */}
-                No reviews yet.
-              </p>
+              <p className="text-sm text-muted-foreground">No reviews yet.</p>
             )}
 
             <div className="flex items-baseline gap-4 pt-2">
@@ -279,6 +276,7 @@ export function ProductClient({
           </div>
 
           <div className="pt-6 md:pt-10 border-t">
+            <h2 className="sr-only">Product details</h2>
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="ingredients">
                 <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">Key Ingredients</AccordionTrigger>

@@ -5,6 +5,7 @@ import { DELIVERY_TERMS } from '@/lib/money';
 export const metadata: Metadata = {
   title: 'Shipping Policy',
   description: 'Avyora shipping policy.',
+  alternates: { canonical: '/shipping-policy' },
 };
 
 export default function Page() {

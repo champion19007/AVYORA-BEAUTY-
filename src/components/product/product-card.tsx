@@ -11,6 +11,7 @@ import { Price } from '@/components/price';
 import { cn } from '@/lib/utils';
 import { stockLabel } from '@/lib/stock-label';
 import { skuPrice, type SkuPrice } from '@/modules/catalog/sku-price';
+import { IS_SAMPLE_CATALOGUE } from '@/lib/catalogue-mode';
 
 /**
  * Availability for the whole catalogue, keyed `productId::size`.
@@ -26,9 +27,15 @@ export function ProductCard({
   product,
   stock,
   prices,
+  reviews,
+  compare,
 }: {
   product: Product;
   stock?: StockByKey;
+  /** Published-review aggregate for this product; absent means no genuine reviews yet. */
+  reviews?: { count: number; average: number };
+  /** Comparison selection, when the listing offers it (up to three products). */
+  compare?: { selected: boolean; disabled: boolean; onToggle: () => void };
   /**
    * Display prices in paise, keyed `productId::size`, resolved by the same rule
    * checkout charges with. Absent (the wishlist, say) falls back to the
@@ -92,7 +99,7 @@ export function ProductCard({
         />
 
         {product.images.length > 1 && (
-          <div className="absolute inset-0 z-10 flex items-center justify-between px-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <div className="absolute inset-0 z-10 flex items-center justify-between px-3 opacity-0 transition-opacity duration-300 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none">
             <button
               onClick={prevImage}
               aria-label="Previous image"
@@ -111,6 +118,9 @@ export function ProductCard({
         )}
 
         <div className="absolute left-4 top-4 z-10 flex flex-col gap-2">
+          {IS_SAMPLE_CATALOGUE && (
+            <span className="rounded-full bg-background/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-foreground">Sample</span>
+          )}
           {product.isBestSeller && (
             <span className="rounded-full bg-foreground/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-background backdrop-blur-sm">
               Our pick
@@ -151,18 +161,26 @@ export function ProductCard({
           {product.tagline}
         </p>
 
-        {product.reviewCount && product.rating ? (
+        {/* Only genuine, published reviews are shown (re-audit A19); none means none. */}
+        {reviews && reviews.count > 0 ? (
           <div className="mt-4 flex items-center gap-2">
             <span className="flex items-center gap-1 text-[13px] font-medium">
-              <Star className="h-3.5 w-3.5 fill-primary text-primary" />
-              {product.rating}
+              <Star className="h-3.5 w-3.5 fill-primary text-primary" aria-hidden="true" />
+              <span className="sr-only">Rated</span> {reviews.average}
+              <span className="sr-only"> out of 5</span>
             </span>
             <span className="text-xs text-muted-foreground">
-              ({product.reviewCount.toLocaleString()} reviews)
+              ({reviews.count.toLocaleString('en-IN')} {reviews.count === 1 ? 'review' : 'reviews'})
             </span>
           </div>
         ) : (
           <p className="mt-4 text-xs text-muted-foreground">No reviews yet</p>
+        )}
+        {compare && (
+          <label className={cn('mt-3 flex w-fit items-center gap-2 text-xs', compare.disabled && !compare.selected && 'opacity-50')}>
+            <input type="checkbox" autoComplete="off" checked={compare.selected} disabled={compare.disabled && !compare.selected} onChange={compare.onToggle} />
+            Compare
+          </label>
         )}
 
         {product.sizes.length > 1 && (

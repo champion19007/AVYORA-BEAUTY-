@@ -1,0 +1,23 @@
+{
+  "results": [
+    {
+      "ok": false,
+      "code": "wrong_state"
+    },
+    {
+      "ok": true,
+      "status": "uploaded",
+      "width": 640,
+      "height": 480
+    }
+  ],
+  "finalSession": {
+    "id": "14b719cf-aafc-45c5-a9c8-8ddb0881de96",
+    "status": "uploaded",
+    "mode": "hosted",
+    "modelVersion": null,
+    "result": null,
+    "expiresAt": "2026-10-16T04:05:17.620Z"
+  },
+  "storedPhotoExists": false
+}

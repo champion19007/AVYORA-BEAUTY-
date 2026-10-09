@@ -82,9 +82,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  alternates: {
-    canonical: '/',
-  },
+  // No canonical here: each public page declares its own (a root '/' made every page point at the home page; re-audit A20).
   openGraph: {
     title: 'Avyora | Skincare built around a simple routine',
     description: 'Cleansers, serums, moisturisers and sunscreen, with a routine finder that starts from the essentials.',
@@ -135,7 +133,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${foglihten.variable} ${jost.variable} ${inter.variable} ${instrumentSerif.variable}`}>
-      <body className={REDESIGN ? 'antialiased bg-nv-page font-nv text-nv-ink' : 'antialiased font-body bg-background'}>
+      <body className={REDESIGN ? 'nv-theme antialiased bg-nv-page font-nv text-nv-ink' : 'antialiased font-body bg-background'}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <ClientLayoutWrapper
             authEnabled={isCustomerAuthConfigured()}

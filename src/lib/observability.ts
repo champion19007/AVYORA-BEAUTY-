@@ -67,7 +67,60 @@ const SENSITIVE = [
   'fullname',
   'apikey',
   'key_secret',
+  // Personal-care data: questionnaire answers, photos, scan results, owners.
+  'answers',
+  'profile',
+  'photo',
+  'image',
+  'objectkey',
+  'object_key',
+  'observation',
+  'ownerhash',
+  'owner_hash',
+  'ipaddress',
+  'ip_address',
+  'signedurl',
 ];
+
+/** Personal data that turns up inside free text (error messages, URLs). */
+const SCRUB: [RegExp, string][] = [
+  [/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[email]'],
+  [/(?<!\d)(\+?91[- ]?)?[6-9]\d{9}(?!\d)/g, '[phone]'],
+  [/private\/scans\/[\w.-]+/g, '[private-object]'],
+  [/([?&]token=)[\w-]+/g, '$1[redacted]'],
+];
+/** Personal data removed from free text (error messages, stacks, URLs). */
+export const scrubText = (text: string) => SCRUB.reduce((t, [re, to]) => t.replace(re, to), text);
+const scrub = scrubText;
+const isSensitiveKey = (key: string) => SENSITIVE.some((s) => key.toLowerCase().includes(s));
+
+/**
+ * Full-depth scrub for monitoring payloads (a Sentry event or breadcrumb):
+ * sensitive keys masked and every string scrubbed, with no truncation, so
+ * stack frames and request data are covered too. Used by `beforeSend`.
+ */
+export function scrubDeep<T>(value: T, depth = 0): T {
+  if (depth > 40 || value == null) return value;
+  if (typeof value === 'string') return scrubText(value) as T;
+  if (Array.isArray(value)) return value.map((v) => scrubDeep(v, depth + 1)) as T;
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = isSensitiveKey(k) ? '[redacted]' : scrubDeep(v, depth + 1);
+    return out as T;
+  }
+  return value;
+}
+
+/** A copy of an error with its message and stack scrubbed, for anything that leaves the process. */
+export function scrubbedError(error: unknown): Error {
+  if (error instanceof Error) {
+    const copy = new Error(scrubText(error.message));
+    copy.name = error.name;
+    copy.stack = error.stack ? scrubText(error.stack) : undefined;
+    return copy;
+  }
+  return new Error(scrubText(String(error)));
+}
 
 /**
  * Strips sensitive values before anything is logged or sent off-box.
@@ -91,7 +144,10 @@ export function redact(value: unknown, depth = 0): unknown {
     return out;
   }
 
-  if (typeof value === 'string' && value.length > 500) return `${value.slice(0, 500)}…`;
+  if (typeof value === 'string') {
+    const clean = scrub(value);
+    return clean.length > 500 ? `${clean.slice(0, 500)}…` : clean;
+  }
   return value;
 }
 
@@ -106,10 +162,9 @@ export function isMonitoringConfigured(): boolean {
  */
 export function reportError(error: unknown, context: ErrorContext): void {
   try {
-    const normalised =
-      error instanceof Error
-        ? { name: error.name, message: error.message, stack: error.stack }
-        : { name: 'NonError', message: String(error) };
+    // The whole envelope is scrubbed: messages and stacks can carry addresses, tokens and object keys.
+    const safe = scrubbedError(error);
+    const normalised = error instanceof Error ? { name: safe.name, message: safe.message, stack: safe.stack } : { name: 'NonError', message: safe.message };
 
     // Layer 1: always.
     console.error(
@@ -129,7 +184,7 @@ export function reportError(error: unknown, context: ErrorContext): void {
     if (isMonitoringConfigured()) {
       import('@sentry/nextjs')
         .then((Sentry) => {
-          Sentry.captureException(error, {
+          Sentry.captureException(safe, {
             tags: { scope: context.scope },
             extra: redact(context.extra) as Record<string, unknown>,
           });
@@ -148,7 +203,7 @@ export function logEvent(scope: string, message: string, extra?: Record<string, 
       JSON.stringify({
         level: 'info',
         scope,
-        message,
+        message: scrubText(message),
         requestId: ambientRequestId(),
         extra: redact(extra),
         at: new Date().toISOString(),

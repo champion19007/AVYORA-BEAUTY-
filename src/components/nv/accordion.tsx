@@ -31,7 +31,7 @@ export function Accordion({ items, headingLevel: H = 'h3', defaultOpen = null }:
                 aria-expanded={expanded}
                 aria-controls={panelId}
                 onClick={() => setOpen(expanded ? null : item.id)}
-                className="nv-focus flex w-full items-center justify-between gap-6 py-[26px] text-left text-nv-intro font-medium text-nv-ink"
+                className="nv-focus flex w-full items-center justify-between gap-6 py-[24px] text-left text-nv-intro font-medium text-nv-ink"
               >
                 <span>{item.question}</span>
                 <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-nv-ink text-white">

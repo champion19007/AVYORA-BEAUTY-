@@ -178,9 +178,9 @@ describe('interaction engine', () => {
   it('reports ingredients it does not recognise instead of matching or dropping them', () => {
     // Inventing a match would produce a confident warning about the wrong
     // molecule; dropping it would read as "nothing to check".
-    const r = resolveIngredients('Aqua, Glycerin, Parfum');
-    expect(r.ids).toEqual([]);
-    expect(r.unresolved.map((u) => u.label)).toEqual(['Aqua', 'Glycerin', 'Parfum']);
+    const r = resolveIngredients('Aqua, Mystery Extract, Parfum');
+    expect(r.ids).toEqual(['water']);
+    expect(r.unresolved.map((u) => u.label)).toEqual(['Mystery Extract', 'Parfum']);
     expect(r.complete).toBe(false);
   });
 

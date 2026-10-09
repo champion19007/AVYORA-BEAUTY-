@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { LayoutDashboard, Package, Boxes, LogOut, Tag, LineChart, PackagePlus, FileText, Activity } from 'lucide-react';
+import { LayoutDashboard, Package, Boxes, LogOut, Tag, LineChart, PackagePlus, FileText,
+  BookOpen, Activity, ClipboardCheck } from 'lucide-react';
 import { isAdmin } from '@/lib/admin-guard';
 import { adminSignOut } from './actions';
 
@@ -36,6 +37,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <NavLink href="/admin/inventory" icon={<Boxes className="h-4 w-4" />} label="Inventory" />
             <NavLink href="/admin/pricing" icon={<Tag className="h-4 w-4" />} label="Pricing" />
             <NavLink href="/admin/content" icon={<FileText className="h-4 w-4" />} label="Content" />
+            <NavLink href="/admin/knowledge" icon={<BookOpen className="h-4 w-4" />} label="Knowledge" />
+            <NavLink href="/admin/catalogue" icon={<ClipboardCheck className="h-4 w-4" />} label="Onboarding" />
             <NavLink href="/admin/analytics" icon={<LineChart className="h-4 w-4" />} label="Analytics" />
             <NavLink href="/admin/requests" icon={<PackagePlus className="h-4 w-4" />} label="Requests" />
             <NavLink href="/admin/system" icon={<Activity className="h-4 w-4" />} label="System" />

@@ -10,6 +10,7 @@ import { catalogRecords } from '@/modules/catalog/catalog-records';
 import type { RoutineSnapshot } from '@/modules/personalization/core/routine';
 import { useApp } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { formatPaise } from '@/lib/money';
 import { PRIORITY_LABELS } from './quiz';
 import dynamic from 'next/dynamic';
 
@@ -37,7 +38,7 @@ const stockCap = (stock: SessionState['stock'], skuId: string) => {
 };
 
 type Slot = RoutineSnapshot['days'][number]['am'][number];
-type Line = { key: string; slot: Slot; skuId?: string; pricePaise?: number; reasons: string[] };
+type Line = { key: string; slot: Slot; skuId?: string; pricePaise?: number; unavailable?: boolean; reasons: string[] };
 
 function useNow(intervalMs: number) {
   const [now, setNow] = useState(() => Date.now());
@@ -49,7 +50,8 @@ function useNow(intervalMs: number) {
 }
 
 /** Each scheduled product or owned item once, with its first occurrence's slot. */
-function linesOf(result: RoutineSnapshot) {
+function linesOf(result: RoutineSnapshot, quote: SessionState['quote']) {
+  const current = new Map((quote ?? []).map((q) => [q.skuId, q]));
   const seen = new Map<string, Slot>();
   for (const d of result.days) for (const s of [...d.am, ...d.pm]) seen.set(s.productId ?? s.ownedItemId!, seen.get(s.productId ?? s.ownedItemId!) ?? s);
   const price = new Map(result.purchaseList.map((p) => [p.productId, p]));
@@ -58,7 +60,9 @@ function linesOf(result: RoutineSnapshot) {
     key,
     slot,
     skuId: price.get(key)?.skuId ?? slot.skuId,
-    pricePaise: price.get(key)?.pricePaise,
+    // A saved routine shows today's price, not the one it was saved with.
+    pricePaise: quote ? (current.get(price.get(key)?.skuId ?? '')?.currentPaise ?? undefined) : price.get(key)?.pricePaise,
+    unavailable: quote ? current.get(price.get(key)?.skuId ?? '')?.available === false : false,
     reasons: why.get(key) ?? [],
   }));
   return {
@@ -73,7 +77,7 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
   const { result, profile } = state;
   const busy = state.phase === 'computing';
   const saving = state.save.status === 'saving';
-  const pricesStale = state.save.status !== 'saved' && state.pricesExpireAt !== null && now > state.pricesExpireAt;
+  const pricesStale = state.pricesExpireAt !== null && now > state.pricesExpireAt;
 
   if (!result) {
     return (
@@ -104,8 +108,11 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
     );
   }
 
-  const { essential, optional, owned } = linesOf(result);
+  const { essential, optional, owned } = linesOf(result, state.quote);
   const noMatch = result.status === 'no_match';
+  // An invalid plan breaks a hard rule: nothing in it is offered as a routine, saved or added to the bag.
+  const invalid = result.status === 'invalid';
+  const actionable = !noMatch && !invalid;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
@@ -113,7 +120,7 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Your routine</p>
           <h1 className="mt-3 font-headline text-5xl font-normal leading-tight tracking-tight">
-            {noMatch ? 'Nothing fits yet' : result.status === 'partial' ? 'A partial routine' : 'Your weekly routine'}
+            {invalid ? 'We cannot offer this routine' : noMatch ? 'Nothing fits yet' : result.status === 'partial' ? 'A partial routine' : 'Your weekly routine'}
           </h1>
           {profile && profile.priorities.length > 0 && (
             <p className="mt-3 text-muted-foreground">For {profile.priorities.map((p) => PRIORITY_LABELS[p].toLowerCase()).join(', ')}</p>
@@ -144,11 +151,19 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
           </Notice>
         )}
         {state.pricesChangedOnSave && <Notice tone="warn">Prices changed while saving; the totals below are the current ones.</Notice>}
+        {state.quote && <QuoteChanges quote={state.quote} onRecalculate={() => state.saved && session.compute(state.saved.profile, state.excluded)} />}
+        {state.scanId && state.save.status !== 'saved' && (
+          <Notice action={<Button size="sm" variant="ghost" className="rounded-full" onClick={() => session.useScan(null)}>Leave it out</Button>}>
+            Your photo check is attached. This preview uses your answers only; its findings are added when you save, and they cannot override safety answers.
+          </Notice>
+        )}
       </div>
 
       <div className={cn('mt-10 grid grid-cols-[1fr_22rem] gap-12', busy && 'opacity-60')} aria-busy={busy}>
         <div className="min-w-0 space-y-14">
-          {noMatch ? (
+          {invalid ? (
+            <InvalidPlan result={result} onEdit={onEdit} />
+          ) : noMatch ? (
             <NoMatch result={result} onEdit={onEdit} />
           ) : (
             <>
@@ -160,20 +175,22 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
               )}
             </>
           )}
+          <OwnedNotScheduled result={result} />
           <NotIncluded result={result} />
+          <AnswersThatMattered result={result} />
           <Uncertainty result={result} />
           <AssistantPanel routine={{ result, validity: state.saved?.validity ?? (state.save.status === 'saved' ? 'current' : 'session') }} />
         </div>
 
         <aside className="space-y-6">
-          <Totals result={result} essential={essential} optional={optional} stock={state.stock} />
+          {actionable && <Totals result={result} essential={essential} optional={optional} stock={state.stock} />}
           <BudgetForm key={result.budgetPaise} budgetPaise={result.budgetPaise} disabled={busy || saving} onSubmit={(p) => session.setBudget(p)} />
           {state.excluded.length > 0 && (
             <Button variant="outline" className="w-full gap-2 rounded-full" disabled={busy || saving} onClick={() => session.undoSwaps()}>
               <RotateCcw className="h-4 w-4" aria-hidden="true" /> Undo swaps ({state.excluded.length})
             </Button>
           )}
-          {!noMatch && <SavePanel state={state} session={session} stale={pricesStale} />}
+          {actionable && <SavePanel state={state} session={session} stale={pricesStale} />}
           <div className="flex flex-col gap-2">
             <Button variant="ghost" className="rounded-full" onClick={onEdit}>
               Edit answers
@@ -310,11 +327,11 @@ function ProductGroup({ title, note, lines, result, session, disabled, stock }: 
                     variant={inBag(product.id, sku.sizeLabel) ? 'secondary' : 'outline'}
                     className="gap-2 rounded-full"
                     // "In bag" is read from the bag itself, so a repeat click cannot add another unit.
-                    disabled={inBag(product.id, sku.sizeLabel)}
+                    disabled={inBag(product.id, sku.sizeLabel) || l.unavailable}
                     onClick={() => addToCart(product.id, sku.sizeLabel, 1, stockCap(stock, sku.id))}
                   >
                     {inBag(product.id, sku.sizeLabel) ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <ShoppingBag className="h-3.5 w-3.5" aria-hidden="true" />}
-                    {inBag(product.id, sku.sizeLabel) ? 'In bag' : 'Add to bag'}
+                    {l.unavailable ? 'Unavailable now' : inBag(product.id, sku.sizeLabel) ? 'In bag' : 'Add to bag'}
                     <span className="sr-only"> {product.name}</span>
                   </Button>
                   <Button size="sm" variant="ghost" className="gap-2 rounded-full" disabled={disabled} onClick={() => session.swap(product.id)}>
@@ -333,7 +350,7 @@ function ProductGroup({ title, note, lines, result, session, disabled, stock }: 
 function Totals({ result, essential, optional, stock }: { result: RoutineSnapshot; essential: Line[]; optional: Line[]; stock: SessionState['stock'] }) {
   const { addToCart, cart } = useApp();
   const sum = (ls: Line[]) => ls.reduce((n, l) => n + (l.pricePaise ?? 0), 0);
-  const toBuy = essential.filter((l) => l.pricePaise !== undefined);
+  const toBuy = essential.filter((l) => l.pricePaise !== undefined && !l.unavailable);
   const missing = toBuy
     .map((l) => SKU.get(l.skuId!))
     .filter((sku): sku is NonNullable<typeof sku> => Boolean(sku) && !cart.some((c) => c.productId === sku!.productId && c.size === sku!.sizeLabel));
@@ -355,7 +372,7 @@ function Totals({ result, essential, optional, stock }: { result: RoutineSnapsho
         )}
         <div className="flex justify-between border-t border-border pt-2 font-medium">
           <dt>Total new spend</dt>
-          <dd><Price amount={rupees(result.newSpendPaise)} size="base" /></dd>
+          <dd><Price amount={rupees(sum(essential) + sum(optional))} size="base" /></dd>
         </div>
         <div className="flex justify-between text-muted-foreground">
           <dt>Your budget</dt>
@@ -549,5 +566,119 @@ function SavedRevoked({ onRecalculate }: { onRecalculate: () => void }) {
         Recalculate
       </Button>
     </div>
+  );
+}
+
+function InvalidPlan({ result, onEdit }: { result: RoutineSnapshot; onEdit: () => void }) {
+  return (
+    <section role="alert" className="rounded-[18px] border border-destructive/40 p-8">
+      <h2 className="text-2xl font-medium">These answers lead to a plan that breaks a safety rule</h2>
+      <p className="mt-3 text-[15px] text-muted-foreground">Nothing here can be saved or bought as a routine. Change your answers or the products you listed, and we will check again.</p>
+      <ul className="mt-5 list-disc space-y-1 pl-5 text-[15px]">
+        {result.problems.map((p) => (
+          <li key={p}>{p}</li>
+        ))}
+      </ul>
+      <Button className="mt-6 rounded-full" onClick={onEdit}>
+        Edit answers
+      </Button>
+    </section>
+  );
+}
+
+function OwnedNotScheduled({ result }: { result: RoutineSnapshot }) {
+  const items = result.ownedNotScheduled ?? [];
+  if (items.length === 0) return null;
+  return (
+    <section aria-labelledby="owned-out-heading">
+      <h2 id="owned-out-heading" className="text-xl font-medium">Your products we did not schedule</h2>
+      <p className="mt-2 text-sm text-muted-foreground">The same ingredient checks apply to what you own as to what we sell. This is not a judgement of the product, only of what we can verify.</p>
+      <ul className="mt-4 space-y-3">
+        {items.map((o) => (
+          <li key={o.ownedItemId} className="rounded-2xl border border-border p-4 text-[15px]">
+            <p className="font-medium">{o.label}</p>
+            <ul className="mt-1 list-disc pl-5 text-sm text-muted-foreground">
+              {o.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+const ANSWER_LABELS: Record<string, string> = {
+  currentlyIrritated: 'Skin irritated right now',
+  reactivity: 'How easily your skin reacts',
+  'pregnancy / nursing': 'Pregnancy or breastfeeding',
+  pregnancy: 'Pregnancy',
+  nursing: 'Breastfeeding',
+  ageBand: 'Age',
+  ageRange: 'Age',
+  allergyIngredientIds: 'Allergies you named',
+  allergyHistory: 'Allergy history',
+  prescribedTreatment: 'Prescribed treatment',
+  ownedItems: 'Products you already use',
+  budgetPaise: 'Budget',
+  excludeProductIds: 'Products you swapped out',
+  experienceLevel: 'Experience',
+  adherence: 'How regularly you expect to follow it',
+  currentCondition: 'Skin irritated right now',
+  skinType: 'Skin type',
+};
+
+/** The answers that actually changed this result, from the engine's decision trace. */
+function AnswersThatMattered({ result }: { result: RoutineSnapshot }) {
+  const items = result.answersThatMattered ?? [];
+  if (items.length === 0) return null;
+  return (
+    <section aria-labelledby="mattered-heading">
+      <h2 id="mattered-heading" className="text-xl font-medium">What shaped this routine</h2>
+      <dl className="mt-4 space-y-3 text-[15px]">
+        {items.map((a) => (
+          <div key={a.answer}>
+            <dt className="font-medium">{ANSWER_LABELS[a.answer] ?? a.answer}</dt>
+            <dd className="text-sm text-muted-foreground">{a.effects.slice(0, 4).join(' ')}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/** A saved routine's purchases against today's quote: every change is shown, nothing is silently swapped. */
+function QuoteChanges({ quote, onRecalculate }: { quote: NonNullable<SessionState['quote']>; onRecalculate: () => void }) {
+  const changed = quote.filter((q) => q.currentPaise !== null && q.currentPaise !== q.savedPaise);
+  const unavailable = quote.filter((q) => !q.available);
+  if (changed.length === 0 && unavailable.length === 0) {
+    return <Notice>Prices and availability checked just now; nothing has changed since you saved this routine.</Notice>;
+  }
+  const name = (id: string) => PRODUCT.get(id)?.name ?? id;
+  return (
+    <Notice
+      tone="warn"
+      action={
+        unavailable.length > 0 ? (
+          <Button size="sm" variant="outline" className="rounded-full" onClick={onRecalculate}>
+            Find alternatives
+          </Button>
+        ) : undefined
+      }
+    >
+      <span className="block">Since you saved this routine:</span>
+      <ul className="mt-1 list-disc pl-5">
+        {changed.map((q) => (
+          <li key={q.skuId}>
+            {name(q.productId)} is now {formatPaise(q.currentPaise!)} (was {formatPaise(q.savedPaise)}).
+          </li>
+        ))}
+        {unavailable.map((q) => (
+          <li key={q.skuId}>{name(q.productId)} is not available right now, so it cannot be added to your bag.</li>
+        ))}
+      </ul>
+      <span className="mt-1 block">Your saved schedule is unchanged. Totals use current prices.</span>
+    </Notice>
   );
 }
