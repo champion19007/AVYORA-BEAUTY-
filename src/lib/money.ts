@@ -48,6 +48,8 @@ export const STANDARD_SHIPPING_PAISE = toPaise(79);
  * so the copy cannot drift from what checkout actually charges.
  */
 export const FREE_DELIVERY_LINE = `Free delivery on orders of ${formatPaise(FREE_SHIPPING_THRESHOLD_PAISE)} or more`;
+/** Short label built from the same constants; never derive policy text by splitting a sentence (re-audit A17). */
+export const DELIVERY_SHORT = `Delivery ${formatPaise(STANDARD_SHIPPING_PAISE)}, free from ${formatPaise(FREE_SHIPPING_THRESHOLD_PAISE)}`;
 export const DELIVERY_TERMS =
   `Delivery is ${formatPaise(STANDARD_SHIPPING_PAISE)} on orders below ${formatPaise(FREE_SHIPPING_THRESHOLD_PAISE)}, ` +
   `and free at or above ${formatPaise(FREE_SHIPPING_THRESHOLD_PAISE)}.`;

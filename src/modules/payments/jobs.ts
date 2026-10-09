@@ -1,6 +1,6 @@
 import { enqueue, PermanentJobError } from '@/infrastructure/jobs/queue';
 import type { Tx } from '@/infrastructure/idempotency/idempotency';
-import { configuredProvider, reconcileOrder, type PaymentProviderClient } from './reconciliation';
+import { reconcileOrder, type PaymentProviderClient } from './reconciliation';
 
 /**
  * Asking the payment provider what happened, off the request path.
@@ -32,13 +32,14 @@ export async function scheduleReconciliation(orderId: string, tx?: Tx): Promise<
   );
 }
 
-export function reconcileJobHandler(provider: () => PaymentProviderClient | null = configuredProvider) {
+/** By default each order is asked of the provider that took its payment (Cashfree or, for older orders, Razorpay). */
+export function reconcileJobHandler(provider?: () => PaymentProviderClient | null) {
   return async (payload: Record<string, unknown>) => {
     const orderId = String(payload.orderId ?? '');
     if (!orderId) throw new PermanentJobError('Missing orderId.');
 
-    const client = provider();
-    if (!client) throw new PermanentJobError('No payment provider is configured to ask.');
+    const client = provider ? provider() : undefined;
+    if (client === null) throw new PermanentJobError('No payment provider is configured to ask.');
 
     const outcome = await reconcileOrder(orderId, client);
     // Unknown means "ask again later": the provider did not answer, or the

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { redact, isMonitoringConfigured, reportError } from '../observability';
+import { describe, it, expect, vi } from 'vitest';
+import { redact, isMonitoringConfigured, logEvent, reportError, scrubDeep } from '../observability';
 
 /**
  * Logs are the classic place personal data leaks: retained longer than the
@@ -40,6 +40,21 @@ describe('redact', () => {
     expect(out.order.items[0].email).toBe('[redacted]');
   });
 
+  it('masks personal-care data and scrubs personal data from free text', () => {
+    const out = redact({
+      answers: { pregnant: 'yes' },
+      objectKey: 'private/scans/abc.jpg',
+      ownerHash: 'h',
+      message: 'insert failed for a@b.com at 9876543210, object private/scans/1111-2222.jpg',
+      sku: 'AVY-150ml',
+    }) as Record<string, unknown>;
+    expect(out.answers).toBe('[redacted]');
+    expect(out.objectKey).toBe('[redacted]');
+    expect(out.ownerHash).toBe('[redacted]');
+    expect(out.message).toBe('insert failed for [email] at [phone], object [private-object]');
+    expect(out.sku).toBe('AVY-150ml');
+  });
+
   it('truncates very long strings rather than logging them whole', () => {
     const out = redact({ note: 'x'.repeat(2000) }) as Record<string, string>;
     expect(out.note.length).toBeLessThan(600);
@@ -75,5 +90,41 @@ describe('isMonitoringConfigured', () => {
     expect(isMonitoringConfigured()).toBe(false);
     process.env.SENTRY_DSN = saved.a;
     process.env.NEXT_PUBLIC_SENTRY_DSN = saved.b;
+  });
+});
+
+// Re-audit A05: the complete envelope is scrubbed, not only `extra`.
+describe('complete error envelopes (synthetic personal data)', () => {
+  const SECRET = 'synthetic-person@example.test /newsletter?token=SYNTHETIC_SECRET private/scans/1111-2222.jpg 9876543210';
+
+  it('stdout carries no email, token, private object path or phone, in the message or the stack', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      reportError(new Error(SECRET), { scope: 'test', extra: { answers: { pregnancy: 'yes' } } });
+      const line = String(spy.mock.calls[0][0]);
+      for (const leak of ['synthetic-person@example.test', 'SYNTHETIC_SECRET', 'private/scans/1111', '9876543210', 'pregnancy']) expect(line).not.toContain(leak);
+      expect(JSON.parse(line).error.stack).toContain('[email]');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('informational messages are scrubbed too', () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      logEvent('test', `sent to ${SECRET}`);
+      expect(String(spy.mock.calls[0][0])).not.toContain('synthetic-person@example.test');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('a monitoring payload is scrubbed at full depth, stack frames included', () => {
+    const event = {
+      exception: { values: [{ value: SECRET, stacktrace: { frames: [{ vars: { email: 'x@y.z', note: SECRET } }] } }] },
+      request: { url: `https://shop.test/newsletter?token=SYNTHETIC_SECRET`, cookies: 'session=abc' },
+    };
+    const out = JSON.stringify(scrubDeep(event));
+    for (const leak of ['synthetic-person@example.test', 'SYNTHETIC_SECRET', 'x@y.z', 'session=abc']) expect(out).not.toContain(leak);
   });
 });

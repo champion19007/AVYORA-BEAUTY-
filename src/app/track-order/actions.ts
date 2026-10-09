@@ -7,6 +7,7 @@ import { orders } from '@/db/schema';
 import { limit, limitMessage } from '@/lib/rate-limit';
 import { trustedClientIp } from '@/lib/client-ip';
 import { orderProgress, type OrderProgress } from '@/lib/order-progress';
+import { reportError } from '@/lib/observability';
 
 /**
  * Looking up a real order.
@@ -52,7 +53,8 @@ export async function trackOrder(_prev: TrackState, formData: FormData): Promise
   if (!orderNumber) return { error: 'Enter your order number.' };
   if (!email) return { error: 'Enter the email you ordered with.' };
 
-  const [order] = await db
+  // An outage is a recoverable message, never an error page that loses what was typed.
+  const rows = await db
     .select({
       orderNumber: orders.orderNumber,
       email: orders.email,
@@ -62,7 +64,13 @@ export async function trackOrder(_prev: TrackState, formData: FormData): Promise
     })
     .from(orders)
     .where(eq(orders.orderNumber, orderNumber))
-    .limit(1);
+    .limit(1)
+    .catch((err) => {
+      reportError(err, { scope: 'trackOrder' });
+      return null;
+    });
+  if (!rows) return { error: 'Order tracking is briefly unavailable. Please try again in a minute.' };
+  const [order] = rows;
 
   // One message whether the order does not exist or the email does not match.
   // Distinguishing them would confirm that an order number is real.

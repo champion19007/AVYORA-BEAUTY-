@@ -4,6 +4,7 @@ import { SUPPORT_EMAIL } from '@/data/business-info';
 export const metadata: Metadata = {
   title: 'Refund and Cancellation Policy',
   description: 'Avyora refund and cancellation policy.',
+  alternates: { canonical: '/refund-policy' },
 };
 
 export default function Page() {

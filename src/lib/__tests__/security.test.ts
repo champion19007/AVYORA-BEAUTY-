@@ -96,7 +96,7 @@ describe('content security policy', () => {
   const csp = contentSecurityPolicy(false);
 
   it('confines scripts to this origin and the payment provider', () => {
-    expect(csp).toContain("script-src 'self' 'unsafe-inline' https://checkout.razorpay.com");
+    expect(csp).toContain("script-src 'self' 'unsafe-inline' https://sdk.cashfree.com");
     // A stored-XSS payload must not be able to load from an attacker's host.
     expect(csp).not.toContain('script-src *');
   });
@@ -114,7 +114,7 @@ describe('content security policy', () => {
   });
 
   it('restricts where data can be sent', () => {
-    expect(csp).toContain("connect-src 'self' https://api.razorpay.com");
+    expect(csp).toContain("connect-src 'self' https://sdk.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com");
   });
 });
 
@@ -134,3 +134,13 @@ describe('security headers', () => {
     expect(maxAge).toBeGreaterThanOrEqual(31536000);
   });
 });
+
+describe('camera permission', () => {
+  it('is allowed for this origin on the scan route only', async () => {
+    const { securityHeaders } = await import('../security');
+    expect(securityHeaders('/scan')['Permissions-Policy']).toMatch(/^camera=\(self\)/);
+    expect(securityHeaders('/scan/upload')['Permissions-Policy']).toMatch(/^camera=\(self\)/);
+    for (const p of ['/', '/checkout', '/account', '/scanner', '/api/scans']) expect(securityHeaders(p)['Permissions-Policy']).toMatch(/^camera=\(\)/);
+  });
+});
+

@@ -28,6 +28,7 @@ import { treatmentReadiness, latestFormulation, type Knowledge } from '@/modules
 import { possibleIds, resolveLabels } from '@/modules/ingredients/resolve';
 import type { InteractionRule } from '@/modules/ingredients/interaction-rules';
 import type { RoutineRole } from '@/data/routine-roles';
+import { catalogueEvidence, ingredientExclusions, ownedEvidence } from './eligibility';
 
 export type TriState = 'yes' | 'no' | 'unknown';
 type EssentialRole = 'cleanse' | 'moisturise' | 'protect';
@@ -109,6 +110,8 @@ export type SelectionResult = {
   newSpendPaise: number;
   budgetPaise: number;
   excluded: { productId: string; reasons: Reason[] }[];
+  /** The customer's own products kept out of the schedule, and why (ingredient checks, prescription, unknown lists). */
+  ownedNotScheduled: { ownedItemId: string; label: string; reasons: Reason[] }[];
   /** Safety questions answered "unknown" or not at all: they kept elective treatments out. */
   unknownSafetyAnswers: string[];
   weights: SelectionWeights;
@@ -181,17 +184,14 @@ function exclusions(product: Product, input: SelectionInput, unknown: string[]):
   if (role === 'none') return [r('not_in_face_routine', 'builtin:role', 'Not part of a face routine.')];
   if (input.excludeProductIds?.includes(product.id)) reasons.push(r('removed_by_customer', 'builtin:substitution', 'You removed this product.'));
 
-  // Allergy: absence of an allergen can be proven only from a complete formulation.
-  if (p.allergyHistory === 'yes' && p.allergyIngredientIds.length === 0) {
-    reasons.push(r('allergens_not_specified', 'builtin:allergy', 'You told us about an allergy but not which ingredients, so no product can be checked against it.'));
-  } else if (p.allergyIngredientIds.length > 0) {
-    const known = knownIngredients(product.id, knowledge);
-    if (!known.complete) {
-      reasons.push(r('allergy_unverifiable', 'builtin:allergy', 'Its full ingredient list is not verified, so it cannot be checked against your allergies.'));
-    } else if (known.ids.some((id) => p.allergyIngredientIds.includes(id))) {
-      reasons.push(r('allergen_present', 'builtin:allergy', 'It contains an ingredient you are allergic to.'));
-    }
-  }
+  // Ingredient-based checks shared with owned products (eligibility.ts): allergy, actives, prescription.
+  reasons.push(
+    ...ingredientExclusions(catalogueEvidence(product, knowledge), p, {
+      label: product.name,
+      hasApprovedUsage: Boolean(knowledge.directions[product.id]),
+      unknownSafetyAnswers: unknown,
+    })
+  );
 
   // Compatibility with what the customer already uses: an established conflict excludes.
   const mine = possibleIngredients(product, knowledge);
@@ -237,7 +237,8 @@ function exclusions(product: Product, input: SelectionInput, unknown: string[]):
       }
     }
   }
-  return reasons;
+  const seen = new Set<string>();
+  return reasons.filter((x) => (seen.has(x.code) ? false : (seen.add(x.code), true)));
 }
 
 /* -------------------------------------------------------------- ranking -- */
@@ -322,23 +323,36 @@ export function selectProducts(input: SelectionInput): SelectionResult {
     }
   };
 
-  /* Essentials: the customer's own suitable products first. */
+  /* Essentials: the customer's own eligible products first, then the best feasible purchase set. */
   const essentialSlots = new Map<EssentialRole, Slot>();
   const sessionsFor: Record<EssentialRole, ('am' | 'pm')[]> = { cleanse: ['am', 'pm'], moisturise: ['am', 'pm'], protect: ['am'] };
-  for (const role of ESSENTIAL_ROLES) {
-    const owned = [...p.ownedItems]
-      .filter((o) => o.role === role && !o.prescribed)
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .find((o) => !(p.allergyIngredientIds.length > 0 && o.ingredientIds.some((id) => p.allergyIngredientIds.includes(id))));
-    if (owned) {
-      const notes =
-        owned.coverage === 'known'
-          ? []
-          : [r('owned_ingredients_unverified', 'builtin:owned', `We do not know everything in ${owned.label}; keep using it only if it suits you.`)];
-      essentialSlots.set(role, { role, source: 'owned', ownedItemId: owned.id, label: owned.label, session: sessionsFor[role], notes });
+  const ownedNotScheduled: SelectionResult['ownedNotScheduled'] = [];
+  const ownedFor = new Map<EssentialRole, OwnedItem>();
+  for (const o of [...p.ownedItems].sort((a, b) => a.id.localeCompare(b.id))) {
+    const reasons = ingredientExclusions(ownedEvidence(o), p, {
+      label: o.label,
+      hasApprovedUsage: false,
+      markedPrescribed: o.prescribed,
+      unknownSafetyAnswers: unknown,
+    });
+    if (reasons.length) {
+      ownedNotScheduled.push({ ownedItemId: o.id, label: o.label, reasons });
       continue;
     }
-    const pick = ranked(role).find((c) => c.pricePaise <= remaining);
+    if (o.role && !ownedFor.has(o.role)) ownedFor.set(o.role, o);
+  }
+  for (const [role, owned] of ownedFor) {
+    const notes =
+      owned.coverage === 'known'
+        ? []
+        : [r('owned_ingredients_unverified', 'builtin:owned', `We do not know everything in ${owned.label}; keep using it only if it suits you.`)];
+    essentialSlots.set(role, { role, source: 'owned', ownedItemId: owned.id, label: owned.label, session: sessionsFor[role], notes });
+  }
+
+  const toBuy = ESSENTIAL_ROLES.filter((role) => !ownedFor.has(role));
+  const core = feasibleCore(toBuy.map((role) => ranked(role).slice(0, CORE_CANDIDATES_PER_ROLE)), remaining);
+  toBuy.forEach((role, i) => {
+    const pick = core[i];
     if (pick) {
       buy(pick, false);
       essentialSlots.set(role, {
@@ -359,10 +373,10 @@ export function selectProducts(input: SelectionInput): SelectionResult {
         reasons:
           eligible.length === 0
             ? [r('no_eligible_product', 'builtin:essential-core', 'No product we sell passes the checks for this step.')]
-            : [r('over_budget', 'builtin:budget', `The least expensive suitable option costs more than your remaining budget.`)],
+            : [r('over_budget', 'builtin:budget', 'No combination of suitable essentials fits your budget with this step included.')],
       });
     }
-  }
+  });
   for (const s of essentialSlots.values()) if (s.source !== 'unfilled') for (const sess of s.session) steps[sess] += 1;
   const essentials = (['cleanse', 'moisturise', 'protect'] as EssentialRole[]).map((role) => essentialSlots.get(role)!);
 
@@ -425,7 +439,51 @@ export function selectProducts(input: SelectionInput): SelectionResult {
     newSpendPaise: p.budgetPaise - remaining,
     budgetPaise: p.budgetPaise,
     excluded,
+    ownedNotScheduled,
     unknownSafetyAnswers: unknown,
     weights,
   };
+}
+
+/** Candidates considered per essential role in the core search: 10^3 combinations at most. */
+export const CORE_CANDIDATES_PER_ROLE = 10;
+
+/**
+ * The best affordable combination of one product per role (or none), by
+ * exhaustive search over the bounded candidate lists: most roles filled
+ * first, then the more important roles (in `options` order), then the
+ * highest total score, the lowest total price and SKU ids, so the result
+ * never depends on purchase order (audit A12).
+ */
+export function feasibleCore<C extends { skuId: string; pricePaise: number; score: number }>(options: C[][], budget: number): (C | null)[] {
+  let best: { picks: (C | null)[]; filled: number; coverage: string; score: number; price: number; key: string } | null = null;
+  const walk = (i: number, picks: (C | null)[], price: number) => {
+    if (price > budget) return;
+    if (i === options.length) {
+      const chosen = picks.filter((x): x is C => x !== null);
+      const cand = {
+        picks: [...picks],
+        filled: chosen.length,
+        // Earlier options are more important: '1' before '0' compares higher.
+        coverage: picks.map((x) => (x ? '1' : '0')).join(''),
+        score: Math.round(chosen.reduce((n, c) => n + c.score, 0) * 1e6),
+        price,
+        key: chosen.map((c) => c.skuId).join('|'),
+      };
+      const better = (b: typeof cand) =>
+        cand.filled !== b.filled ? cand.filled > b.filled
+        : cand.coverage !== b.coverage ? cand.coverage > b.coverage
+        : cand.score !== b.score ? cand.score > b.score
+        : cand.price !== b.price ? cand.price < b.price
+        : cand.key < b.key;
+      if (!best || better(best)) {
+        best = cand;
+      }
+      return;
+    }
+    for (const c of options[i]) walk(i + 1, [...picks, c], price + c.pricePaise);
+    walk(i + 1, [...picks, null], price);
+  };
+  walk(0, [], 0);
+  return (best as { picks: (C | null)[] } | null)?.picks ?? options.map(() => null);
 }

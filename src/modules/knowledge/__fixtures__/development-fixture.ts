@@ -37,9 +37,9 @@ export function developmentFixtureInput(): KnowledgeInput {
         coverage: 'complete',
         fullInci: 'Aqua, Niacinamide, Glycerin',
         ingredients: [
-          { position: 1, inciLabel: 'Aqua', ingredientId: null, concentration: { known: false } },
+          { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
           { position: 2, inciLabel: 'Niacinamide', ingredientId: 'niacinamide', concentration: { known: true, value: 5, unit: 'percent_w_w' } },
-          { position: 3, inciLabel: 'Glycerin', ingredientId: null, concentration: { known: false } },
+          { position: 3, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
         ],
         sourceId: FIXTURE_EVIDENCE_ID,
         reviewedBy: 'DEVELOPMENT FIXTURE',

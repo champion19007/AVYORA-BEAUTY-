@@ -46,6 +46,8 @@ export type PlannedSlot = {
   label: string;
   /** Approved directions, verbatim, when they exist; never generic text. */
   directions: { frequency: string; text: string } | null;
+  /** `approved`: placed by the product's approved usage profile. `role_default`: no approved profile; placed by its role. */
+  timing?: 'approved' | 'role_default';
 };
 
 export type PlanDay = { day: number; am: PlannedSlot[]; pm: PlannedSlot[] };
@@ -65,7 +67,11 @@ export type PlanContext = {
 export type Explanation = { templateId: string; variables: Record<string, string>; text: string | null };
 
 export type WeeklyPlan = {
-  status: 'complete' | 'partial' | 'no_match';
+  /**
+   * `invalid`: hard rules would still be broken, so the plan is not
+   * actionable: nothing is shown as a routine, saved or added to the bag.
+   */
+  status: 'complete' | 'partial' | 'no_match' | 'invalid';
   days: PlanDay[];
   purchases: SelectionResult['purchases'];
   newSpendPaise: number;
@@ -84,6 +90,8 @@ export type WeeklyPlan = {
    * reported here and makes the plan `partial`.
    */
   problems: string[];
+  /** The customer's own products kept out of the week, with the reasons. */
+  ownedNotScheduled: SelectionResult['ownedNotScheduled'];
 };
 
 /* ------------------------------------------------------------ helpers -- */
@@ -128,13 +136,18 @@ export function validatePlan(days: readonly PlanDay[], ctx: PlanContext): string
         if (i > 0 && (ROLE_ORDER[slots[i - 1].role] ?? 99) > (ROLE_ORDER[s.role] ?? 99)) problems.push(`${where}: ${s.role} applied before ${slots[i - 1].role}`);
       });
 
+      // Every catalogue product with an approved usage profile is held to it, whatever its role.
+      for (const s of slots) {
+        if (!s.productId) continue;
+        uses.set(s.productId, (uses.get(s.productId) ?? 0) + 1);
+        const d2 = ctx.knowledge.directions[s.productId];
+        if (d2 && d2.session !== 'am_or_pm' && d2.session !== session) problems.push(`${where}: ${s.productId} is approved for ${d2.session.toUpperCase()} only`);
+      }
       const actives = slots.filter((s) => s.productId && ctx.treatments[s.productId]);
       for (const s of actives) {
         const id = s.productId!;
-        uses.set(id, (uses.get(id) ?? 0) + 1);
         const d2 = ctx.knowledge.directions[id];
         if (!d2 || d2.maxWeeklyUses === null) problems.push(`${where}: ${id} has no approved weekly frequency`);
-        else if (d2.session !== 'am_or_pm' && d2.session !== session) problems.push(`${where}: ${id} is approved for ${d2.session.toUpperCase()} only`);
         if (ctx.currentlyIrritated !== 'no' && ctx.treatments[id].electiveIrritating) {
           problems.push(`${where}: ${id} is an irritating active while irritation is ${ctx.currentlyIrritated}`);
         }
@@ -162,7 +175,7 @@ export function validatePlan(days: readonly PlanDay[], ctx: PlanContext): string
 function fromSelection(s: Slot, optional: boolean, ctx: PlanContext): PlannedSlot | null {
   if (s.source === 'unfilled') return null;
   if (s.source === 'owned') {
-    return { position: 0, role: s.role, optional, source: 'owned', ownedItemId: s.ownedItemId, label: s.label, directions: null };
+    return { position: 0, role: s.role, optional, source: 'owned', ownedItemId: s.ownedItemId, label: s.label, directions: null, timing: 'role_default' };
   }
   const d = ctx.knowledge.directions[s.productId];
   return {
@@ -174,7 +187,46 @@ function fromSelection(s: Slot, optional: boolean, ctx: PlanContext): PlannedSlo
     skuId: s.skuId,
     label: ctx.products.find((p) => p.id === s.productId)?.name ?? s.productId,
     directions: d ? { frequency: d.frequency, text: d.text } : null,
+    timing: d ? 'approved' : 'role_default',
   };
+}
+
+/**
+ * Where a slot goes: by its approved usage profile when one exists (session,
+ * weekly maximum, introduction pace), otherwise its role's default sessions
+ * every day. A missing profile never becomes an invented limit.
+ */
+function placements(slot: PlannedSlot, roleSessions: readonly Session[], ctx: PlanContext, offset = 0): { day: number; session: Session }[] {
+  const d = slot.productId ? ctx.knowledge.directions[slot.productId] : undefined;
+  const sessions: Session[] = !d || d.session === 'am_or_pm' ? [...roleSessions] : [d.session];
+  if (!d || d.maxWeeklyUses === null) return DAYS.flatMap((day) => sessions.map((session) => ({ day, session })));
+  let left = Math.min(d.introductionWeeklyUses ?? d.maxWeeklyUses, d.maxWeeklyUses);
+  const out: { day: number; session: Session }[] = [];
+  for (const session of sessions) {
+    const n = Math.min(left, 7);
+    for (const day of spreadDays(n, offset)) out.push({ day, session });
+    left -= n;
+    if (left <= 0) break;
+  }
+  return out;
+}
+
+const keyOf = (s: PlannedSlot) => s.productId ?? s.ownedItemId ?? s.label;
+
+/** The first same-session conflicting pair in the week, if any. */
+function firstConflict(days: readonly PlanDay[], ctx: PlanContext): [PlannedSlot, PlannedSlot, number] | null {
+  for (const d of days) {
+    for (const session of ['am', 'pm'] as const) {
+      const slots = d[session];
+      for (let i = 0; i < slots.length; i++) {
+        for (let j = i + 1; j < slots.length; j++) {
+          const tier = conflictTier(ingredientsOf(ctx, slots[i]), ingredientsOf(ctx, slots[j]), ctx.interactions);
+          if (tier !== null) return [slots[i], slots[j], tier];
+        }
+      }
+    }
+  }
+  return null;
 }
 
 const empty = (): PlanDay[] => DAYS.map((day) => ({ day, am: [], pm: [] }));
@@ -191,12 +243,31 @@ export function planWeek(selection: SelectionResult, ctx: PlanContext): WeeklyPl
   const missing = new Set<string>();
   let days = empty();
 
-  // Essentials, every day, in their sessions.
+  const ownedNotScheduled = selection.ownedNotScheduled.map((o) => ({ ...o, reasons: [...o.reasons] }));
+  const dropped = new Set<string>();
+
+  // Essentials: by approved usage profile where one exists, else every day in their role's sessions.
   for (const s of selection.essentials) {
     const slot = fromSelection(s, false, ctx);
     if (!slot || s.source === 'unfilled') continue;
-    for (const day of DAYS) for (const session of s.session) days = withSlot(days, day, session, slot);
+    for (const at of placements(slot, s.session, ctx)) days = withSlot(days, at.day, at.session, slot);
     if (slot.source === 'catalogue' && !slot.directions) missing.add(`Approved directions for ${slot.label} (essential; scheduled by its role, with pack directions)`);
+  }
+
+  // A hard conflict among essentials is removed, never left in an actionable week.
+  // The customer's own product stays and the purchase goes; between two of a kind, the later step goes.
+  for (let guard = 0; guard < 10; guard++) {
+    const hit = firstConflict(days, ctx);
+    if (!hit) break;
+    const [a, b, tier] = hit;
+    const drop = a.source === 'owned' && b.source !== 'owned' ? b : b.source === 'owned' && a.source !== 'owned' ? a : b;
+    const other = drop === a ? b : a;
+    const key = keyOf(drop);
+    dropped.add(key);
+    days = days.map((d) => ({ ...d, am: reorder(d.am.filter((x) => keyOf(x) !== key)), pm: reorder(d.pm.filter((x) => keyOf(x) !== key)) }));
+    const reason = { code: 'conflicts_in_routine', ruleId: 'builtin:interaction', message: `It has an established conflict (tier ${tier}) with ${nameOf(ctx, other)}, so it was left out.` };
+    if (drop.source === 'owned') ownedNotScheduled.push({ ownedItemId: drop.ownedItemId!, label: drop.label, reasons: [reason] });
+    else excluded.push({ productId: drop.productId!, reasons: [reason] });
   }
 
   // Treatments: approved weekly frequency required; spread, then backtrack over offsets.
@@ -234,7 +305,7 @@ export function planWeek(selection: SelectionResult, ctx: PlanContext): WeeklyPl
     const slot = fromSelection(s, true, ctx);
     if (!slot) continue;
     let attempt = days;
-    for (const day of DAYS) attempt = withSlot(attempt, day, 'pm', slot);
+    for (const at of placements(slot, ['pm'], ctx)) attempt = withSlot(attempt, at.day, at.session, slot);
     if (validatePlan(attempt, ctx).length === 0) days = attempt;
   }
 
@@ -248,21 +319,26 @@ export function planWeek(selection: SelectionResult, ctx: PlanContext): WeeklyPl
   for (const e of explanations) if (e.text === null) missing.add(`Approved explanation template ${e.templateId}`);
 
   const problems = validatePlan(days, ctx);
-  const essentialsFilled = selection.essentials.filter((s) => s.source !== 'unfilled').length;
-  const status =
-    essentialsFilled === 0 ? 'no_match' : essentialsFilled === 3 && selection.status === 'complete' && problems.length === 0 ? 'complete' : 'partial';
+  const essentialsFilled = selection.essentials.filter(
+    (s) => s.source !== 'unfilled' && !dropped.has(s.source === 'owned' ? s.ownedItemId : s.productId)
+  ).length;
+  // Missing an essential is an incomplete but valid plan; a broken hard rule is not a plan at all.
+  const status: WeeklyPlan['status'] =
+    problems.length > 0 ? 'invalid' : essentialsFilled === 0 ? 'no_match' : essentialsFilled === 3 && selection.status === 'complete' ? 'complete' : 'partial';
+  const actionable = status !== 'invalid';
 
   return {
     status,
-    days,
-    purchases,
-    newSpendPaise,
+    days: actionable ? days : empty(),
+    purchases: actionable ? purchases : [],
+    newSpendPaise: actionable ? newSpendPaise : 0,
     budgetPaise: selection.budgetPaise,
     excluded,
     schedule,
     explanations,
     missingKnowledge: [...missing].sort(),
     problems,
+    ownedNotScheduled,
   };
 }
 

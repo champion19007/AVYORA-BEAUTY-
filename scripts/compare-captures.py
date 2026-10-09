@@ -18,7 +18,7 @@ import sys
 from PIL import Image, ImageDraw
 
 ref_dir, cand_dir, out_dir = sys.argv[1:4]
-shots = sys.argv[4:] or ['01-hero-closed', '03-menu-open']
+shots = [a for a in sys.argv[4:] if not a.startswith('--')] or ['01-hero-closed', '03-menu-open']
 os.makedirs(out_dir, exist_ok=True)
 
 
@@ -53,6 +53,35 @@ def anchors(m, height):
     return out
 
 
+def stitch(folder, out_path, width_px=480):
+    """All scroll frames of one capture, top to bottom, scaled to width_px."""
+    frames = sorted(f for f in os.listdir(folder) if f.startswith('scroll-'))
+    imgs = [Image.open(os.path.join(folder, f)).convert('RGB') for f in frames]
+    if not imgs:
+        return None
+    scale = width_px / imgs[0].width
+    imgs = [i.resize((width_px, max(1, round(i.height * scale)))) for i in imgs]
+    canvas = Image.new('RGB', (width_px, sum(i.height for i in imgs)), (255, 255, 255))
+    y = 0
+    for i in imgs:
+        canvas.paste(i, (0, y))
+        y += i.height
+    return canvas
+
+
+def full_page(ref_folder, cand_folder, out_path, w):
+    a, b = stitch(ref_folder, None), stitch(cand_folder, None)
+    if not a or not b:
+        return
+    canvas = Image.new('RGB', (a.width + b.width + 16, max(a.height, b.height) + 36), (255, 255, 255))
+    canvas.paste(a, (0, 36))
+    canvas.paste(b, (a.width + 16, 36))
+    d = ImageDraw.Draw(canvas)
+    d.text((8, 10), f'Reference (Nuve live) {w}px, full page', fill=(0, 0, 0))
+    d.text((a.width + 24, 10), f'Avyora {w}px, full page', fill=(0, 0, 0))
+    canvas.save(out_path, quality=80)
+
+
 rows = []
 for w in (1280, 1440, 1920):
     r, c = os.path.join(ref_dir, f'w{w}'), os.path.join(cand_dir, f'w{w}')
@@ -62,6 +91,8 @@ for w in (1280, 1440, 1920):
         rp, cp = os.path.join(r, f'{shot}.png'), os.path.join(c, f'{shot}.png')
         if os.path.exists(rp) and os.path.exists(cp):
             side_by_side(rp, cp, os.path.join(out_dir, f'w{w}-{shot}.jpg'), (f'Reference (Nuve live) {w}px', f'Avyora {w}px'))
+    if '--full' in sys.argv:
+        full_page(r, c, os.path.join(out_dir, f'w{w}-full-page.jpg'), w)
     rm = json.load(open(os.path.join(r, 'measurements.json'), encoding='utf-8'))
     cm = json.load(open(os.path.join(c, 'measurements.json'), encoding='utf-8'))
     height = rm['viewport']['height']

@@ -49,9 +49,25 @@ export type SessionState = {
   saved: SavedView | null;
   /** A saved routine that could not be loaded (expired, deleted, withdrawn or someone else's). */
   savedUnavailable: boolean;
+  /**
+   * An owned, completed hosted photo check to include when saving. Its
+   * observations are read on the server only; the browser preview stays
+   * quiz-only and says so.
+   */
+  scanId: string | null;
+  /**
+   * For a reopened saved routine: its purchases against a fresh quote. The
+   * saved schedule is never rewritten; prices and availability shown and
+   * used for bag actions are the current ones (re-audit A22).
+   */
+  quote: QuoteLine[] | null;
 };
 
+export type QuoteLine = { productId: string; skuId: string; savedPaise: number; currentPaise: number | null; available: boolean };
+
 const INITIAL: SessionState = {
+  scanId: null,
+  quote: null,
   phase: 'idle',
   profile: null,
   excluded: [],
@@ -141,7 +157,36 @@ export class RoutineSession {
     if (this.state.profile) return this.compute(this.state.profile, []);
   }
   refresh() {
+    // A saved routine keeps its schedule: only the purchase quote is renewed.
+    if (this.state.saved) return this.refreshSavedQuote();
     if (this.state.profile) return this.compute(this.state.profile, this.state.excluded);
+  }
+
+  /** Fetches current prices and stock for a saved routine's purchases, and records every change. */
+  async refreshSavedQuote(): Promise<void> {
+    const result = this.state.result;
+    if (!result) return;
+    const generation = this.generation;
+    try {
+      const quote = await requestQuote(ALL_SKUS, { fetchImpl: this.fetchImpl });
+      if (generation !== this.generation) return;
+      const keyOf = new Map(variants.map((v) => [v.id, v.legacyStockKey]));
+      const lines: QuoteLine[] = result.purchaseList.map((p) => {
+        const key = keyOf.get(p.skuId);
+        const currentPaise = key ? (quote.quote.prices[key]?.price ?? null) : null;
+        const stock = key && quote.quote.stock ? (quote.quote.stock[key] ?? 0) : null;
+        return { productId: p.productId, skuId: p.skuId, savedPaise: p.pricePaise, currentPaise, available: currentPaise !== null && stock !== null && stock > 0 };
+      });
+      const stock = Object.fromEntries(variants.map((v) => [v.id, quote.quote.stock ? (quote.quote.stock[v.legacyStockKey] ?? 0) : null]));
+      this.set({ quote: lines, stock, pricesExpireAt: quote.expiresAt, error: null });
+    } catch {
+      if (generation === this.generation) this.set({ error: 'We could not check current prices and stock for this saved routine. Try again before adding to your bag.' });
+    }
+  }
+
+  /** Attaches (or detaches) an owned photo check; only the server reads its observations. */
+  useScan(scanId: string | null): void {
+    this.set({ scanId: scanId && /^[0-9a-f-]{36}$/.test(scanId) ? scanId : null });
   }
 
   /** Grants routine saving, then saves the inputs; the server's routine replaces the provisional one. */
@@ -159,7 +204,12 @@ export class RoutineSession {
       if (!consent.ok) return failed(...(await this.failure(consent)));
       const res = await this.post(
         '/api/routines',
-        { profile, kbRelease: result.kbRelease, ...(excluded.length ? { excludeProductIds: excluded } : {}) },
+        {
+          profile,
+          kbRelease: result.kbRelease,
+          ...(excluded.length ? { excludeProductIds: excluded } : {}),
+          ...(this.state.scanId ? { scanId: this.state.scanId } : {}),
+        },
         { 'Idempotency-Key': this.saveKey }
       );
       if (generation !== this.generation) return;
@@ -206,6 +256,8 @@ export class RoutineSession {
         save: { status: 'saved', id: routine.id },
         saved: { id: routine.id, validity: routine.validity, expiresAt: routine.expiresAt, profile: routine.profile },
       });
+      // Historical prices are never presented as current: fetch a fresh quote now.
+      await this.refreshSavedQuote();
     } catch {
       if (generation === this.generation) this.set({ phase: 'error', error: 'We could not load your saved routine. Check your connection and try again.' });
     }

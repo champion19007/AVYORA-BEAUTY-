@@ -55,8 +55,8 @@ const syntheticFormulation = (productId: string, active: string, over: Partial<F
   coverage: 'complete',
   fullInci: `Aqua, Glycerin, ${active}`,
   ingredients: [
-    { position: 1, inciLabel: 'Aqua', ingredientId: null, concentration: { known: false } },
-    { position: 2, inciLabel: 'Glycerin', ingredientId: null, concentration: { known: false } },
+    { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
+    { position: 2, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
     { position: 3, inciLabel: active, ingredientId: ACTIVE_ID[active], concentration: { known: true, value: 1, unit: 'percent_w_w' } },
   ],
   sourceId: 'test-evidence',
@@ -306,15 +306,15 @@ describe('formulation coverage', () => {
     ['unknown coverage', syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', { coverage: 'unknown', ingredients: [], fullInci: null })],
     ['the active concentration unknown', syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', {
       ingredients: [
-        { position: 1, inciLabel: 'Aqua', ingredientId: null, concentration: { known: false } },
-        { position: 2, inciLabel: 'Glycerin', ingredientId: null, concentration: { known: false } },
+        { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
+        { position: 2, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
         { position: 3, inciLabel: 'Ascorbic Acid', ingredientId: 'ascorbic-acid', concentration: { known: false } },
       ],
     })],
     ['the active not identified', syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', {
       ingredients: [
-        { position: 1, inciLabel: 'Aqua', ingredientId: null, concentration: { known: false } },
-        { position: 2, inciLabel: 'Glycerin', ingredientId: null, concentration: { known: false } },
+        { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
+        { position: 2, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
         { position: 3, inciLabel: 'Ascorbic Acid', ingredientId: null, concentration: { known: false } },
       ],
     })],

@@ -1,0 +1,28 @@
+{"level":"error","scope":"scans.deletePhoto","requestId":null,"error":{"name":"Error","message":"SYNTHETIC storage failure","stack":"Error: SYNTHETIC storage failure\n    at Object.delete (C:\\Users\\champ\\Desktop\\avyora-beauty\\docs\\audit-2026-10-09-round2\\reproduce-scan.mts:22:49)\n    at removePhoto (C:\\Users\\champ\\Desktop\\avyora-beauty\\src\\modules\\scans\\sessions.ts:129:19)\n    at discardUnprocessedPhoto (C:\\Users\\champ\\Desktop\\avyora-beauty\\src\\modules\\scans\\sessions.ts:150:10)\n    at async <anonymous> (C:\\Users\\champ\\Desktop\\avyora-beauty\\docs\\audit-2026-10-09-round2\\reproduce-scan.mts:23:16)"},"at":"2026-10-09T09:43:44.327Z"}
+{
+  "uploads": [
+    {
+      "ok": false,
+      "code": "wrong_state"
+    },
+    {
+      "ok": true,
+      "status": "uploaded",
+      "width": 640,
+      "height": 480
+    }
+  ],
+  "winnerPreserved": true,
+  "objectCount": 1,
+  "discardConfirmed": false,
+  "statusAfterFailedDelete": {
+    "id": "c47f7f5b-fbb7-4ab1-8873-13615b5c3e22",
+    "status": "failed",
+    "mode": "hosted",
+    "modelVersion": null,
+    "result": null,
+    "expiresAt": "2026-10-16T09:43:43.965Z"
+  },
+  "storedPhotoStillExists": true,
+  "statusExposesPhotoDeletion": false
+}

@@ -7,6 +7,7 @@ import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
 import { accountKey, ANONYMOUS_COOKIE, mergeIntoAccount } from '@/lib/cart-server';
 import { normaliseLines } from '@/lib/cart';
 import type { MergeAdjustment } from '@/lib/cart-merge';
+import { reportError } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
       adjustments: outcome.adjustments,
     } satisfies MergeResponse);
   } catch (err) {
-    console.error('bag merge failed', err);
+    reportError(err, { scope: 'cart.merge' });
     // The browser keeps the guest bag and retries later; nothing is lost.
     return NextResponse.json({ error: 'Could not merge your bag right now.' }, { status: 503 });
   }

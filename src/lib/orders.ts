@@ -14,6 +14,7 @@ import { emitEvent } from '@/lib/events';
 import { applyPaymentSignal } from '@/modules/payments/payment-service';
 import { currentRequestId } from '@/infrastructure/request-context';
 import { runBackgroundQuietly } from '@/lib/background';
+import { SAMPLE_ORDER_MESSAGE, sampleOrdersBlocked } from '@/lib/catalogue-mode';
 
 /**
  * Order creation.
@@ -48,7 +49,7 @@ export const addressSchema = z.object({
 export const checkoutSchema = z.object({
   email: z.string().trim().email('Enter a valid email address'),
   address: addressSchema,
-  paymentMethod: z.enum(['cod', 'razorpay']),
+  paymentMethod: z.enum(['cod', 'razorpay', 'cashfree']),
   /**
    * Optional so a client that does not send one still works; when present it
    * makes the whole request safe to retry. See `orders.idempotencyKey`.
@@ -151,6 +152,8 @@ export async function createOrder(
   input: CheckoutInput,
   userId?: string | null
 ): Promise<CreateOrderResult> {
+  // Sample inventory is never sold as real stock (lib/catalogue-mode.ts).
+  if (sampleOrdersBlocked()) return { ok: false, error: SAMPLE_ORDER_MESSAGE };
   const parsed = checkoutSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid order details' };

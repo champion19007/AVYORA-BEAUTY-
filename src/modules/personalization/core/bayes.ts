@@ -103,6 +103,43 @@ export function sigmoid(x: number): number {
 
 const inOpenUnit = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x) && x > 0 && x < 1;
 
+const SUM_TOLERANCE = 1e-6;
+
+/**
+ * Structural checks on one parameter's likelihood groups, shared by the
+ * release compiler and the runtime reader: no duplicate states, a declared
+ * kind for any multi-state group, and complete distributions for
+ * categorical groups under both conditions.
+ */
+export function likelihoodGroupProblems(p: Pick<BayesParameter, 'id' | 'groups' | 'groupKinds'>): string[] {
+  const problems: string[] = [];
+  const where = `parameter ${p.id}`;
+  const byGroup = new Map<string, BayesParameter['groups']>();
+  for (const g of p.groups) byGroup.set(g.evidenceGroup, [...(byGroup.get(g.evidenceGroup) ?? []), g]);
+  for (const name of Object.keys(p.groupKinds ?? {})) {
+    if (!byGroup.has(name)) problems.push(`${where}: kind declared for ${name}, which has no rows`);
+  }
+  for (const [name, rows] of byGroup) {
+    const states = rows.map((r) => r.observation);
+    if (new Set(states).size !== states.length) problems.push(`${where}: duplicate state in group ${name}`);
+    if (states.some((s) => s.trim().toLowerCase() === 'unknown')) problems.push(`${where}: "unknown" in ${name} must be neutral, not a state`);
+    const kind = p.groupKinds?.[name] ?? (rows.length === 1 ? 'binary' : undefined);
+    if (!kind) {
+      problems.push(`${where}: group ${name} has ${rows.length} states; declare it categorical`);
+      continue;
+    }
+    if (kind === 'binary' && rows.length !== 1) problems.push(`${where}: binary group ${name} must have exactly one event row`);
+    if (kind === 'categorical') {
+      if (rows.length < 2) problems.push(`${where}: categorical group ${name} needs at least two states`);
+      for (const side of ['pGivenConcern', 'pGivenNotConcern'] as const) {
+        const sum = rows.reduce((n, r) => n + r[side], 0);
+        if (!(Math.abs(sum - 1) <= SUM_TOLERANCE)) problems.push(`${where}: ${side} over ${name} sums to ${sum.toFixed(6)}, not 1`);
+      }
+    }
+  }
+  return problems;
+}
+
 /** Problems that make a parameter set unusable. Empty means usable. */
 export function parameterSetProblems(set: ParameterSet | null | undefined): string[] {
   if (!set) return ['No parameter set'];
@@ -125,6 +162,7 @@ export function parameterSetProblems(set: ParameterSet | null | undefined): stri
         problems.push(`${where}: likelihoods for ${key} must be finite and strictly between 0 and 1`);
       }
     }
+    problems.push(...likelihoodGroupProblems(p));
     if (!p.calibrationScope || p.calibrationScope.sources.length === 0) problems.push(`${where}: no calibration scope`);
   }
   return problems;

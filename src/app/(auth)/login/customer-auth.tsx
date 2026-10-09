@@ -91,7 +91,7 @@ export function CustomerAuth({
         <CardHeader className="items-center text-center">
           <LogoDark className="mb-4" />
           <CardTitle className="font-headline text-3xl font-normal tracking-tight">
-            {step === 'signup' ? 'Create your account' : 'Welcome back'}
+            <h1>{step === 'signup' ? 'Create your account' : 'Welcome back'}</h1>
           </CardTitle>
           <CardDescription className="text-[15px] leading-relaxed">
             {step === 'signup'

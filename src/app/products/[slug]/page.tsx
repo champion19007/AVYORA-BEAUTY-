@@ -8,6 +8,14 @@ import { recommendationsFor } from '@/modules/recommendations/recommendations';
 import { getProductById, getProductBySlug } from '@/lib/catalogue';
 import { notFound } from 'next/navigation';
 import { ProductClient } from './product-client';
+import { ProductReviews } from './product-reviews';
+import { db, isDatabaseConfigured } from '@/db';
+import { productReviews } from '@/modules/reviews/reviews';
+
+const NO_REVIEWS = { count: 0, average: null, items: [] };
+/** Published reviews; none when there is no database or it fails (the page still renders). */
+const publishedReviews = (productId: string) =>
+  isDatabaseConfigured() ? productReviews(db, productId).catch(() => NO_REVIEWS) : Promise.resolve(NO_REVIEWS);
 import type { Metadata, ResolvingMetadata } from 'next';
 
 type Props = {
@@ -47,6 +55,7 @@ export async function generateMetadata(
   return {
     title: product.name,
     description: tagline,
+    alternates: { canonical: `/products/${product.slug}` },
     openGraph: {
       title: `${product.name} | Avyora`,
       description: tagline,
@@ -68,10 +77,14 @@ export default async function ProductPage({ params }: Props) {
    * exists. Only the words: names, sizes, prices and ingredients stay with
    * the catalogue and commerce tables, which are what checkout reads.
    */
-  const copy = await productCopy(slug);
-  const product = copy
-    ? { ...catalogueProduct, tagline: copy.tagline, description: copy.description }
-    : catalogueProduct;
+  const [copy, reviews] = await Promise.all([productCopy(slug), publishedReviews(catalogueProduct.id)]);
+  // The rating shown and advertised comes only from published, verified-purchase reviews.
+  const product = {
+    ...catalogueProduct,
+    ...(copy ? { tagline: copy.tagline, description: copy.description } : {}),
+    rating: reviews.average ?? undefined,
+    reviewCount: reviews.count || undefined,
+  };
 
 
   /*
@@ -167,6 +180,7 @@ export default async function ProductPage({ params }: Props) {
         }
         highlights={copy?.highlights ?? []}
       />
+      <ProductReviews productId={product.id} productName={product.name} reviews={reviews} />
     </>
   );
 }

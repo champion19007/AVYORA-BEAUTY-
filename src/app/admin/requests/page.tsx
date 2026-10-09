@@ -2,7 +2,11 @@ import type { Metadata } from 'next';
 import { isDatabaseConfigured } from '@/db';
 import { listRestockRequests } from '@/lib/manager-data';
 import { Button } from '@/components/ui/button';
-import { resolveRestockRequest } from '../actions';
+import { answerSupportRequest, moderateReviewAction, resolveRestockRequest } from '../actions';
+import { pendingReviews } from '@/modules/reviews/reviews';
+import { getProductById } from '@/lib/catalogue';
+import { db } from '@/db';
+import { listSupportRequests } from '@/modules/support/support';
 
 export const metadata: Metadata = { title: 'Restock requests' };
 export const dynamic = 'force-dynamic';
@@ -28,10 +32,96 @@ export default async function AdminRequestsPage() {
 
   const requests = await listRestockRequests();
   const open = requests.filter((r) => r.status === 'open');
+  const support = await listSupportRequests(db).catch(() => []);
+  const openSupport = support.filter((r) => r.status === 'open');
+  const reviews = await pendingReviews(db).catch(() => []);
 
   return (
     <div>
-      <h1 className="font-headline text-3xl font-normal tracking-tight">Restock requests</h1>
+      <section aria-labelledby="reviews-heading" className="mb-12">
+        <h2 id="reviews-heading" className="text-2xl font-medium tracking-tight">
+          Reviews to moderate
+        </h2>
+        <p className="mt-1 text-[15px] text-muted-foreground">
+          {reviews.length === 0 ? 'Nothing waiting.' : `${reviews.length} waiting.`} All are from delivered orders. Publish genuine experiences; reject personal
+          details, medical claims or abuse.
+        </p>
+        {reviews.length > 0 && (
+          <ul className="mt-6 divide-y divide-border rounded-xl border border-border bg-card">
+            {reviews.map((r) => (
+              <li key={r.id} className="space-y-2 p-4">
+                <p className="text-[13px] text-muted-foreground">
+                  {getProductById(r.productId)?.name ?? r.productId} · {r.rating}/5 · {r.createdAt.toLocaleDateString('en-IN', { dateStyle: 'medium' })}
+                </p>
+                {r.title && <p className="font-medium">{r.title}</p>}
+                <p className="whitespace-pre-wrap text-[15px]">{r.body}</p>
+                {/* One form per decision: the decision travels in a hidden field, never inferred from which button submitted. */}
+                <div className="flex gap-2">
+                  <form action={moderateReviewAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <input type="hidden" name="decision" value="publish" />
+                    <Button type="submit" className="h-9 rounded-md px-4 text-sm">
+                      Publish
+                    </Button>
+                  </form>
+                  <form action={moderateReviewAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <input type="hidden" name="decision" value="reject" />
+                    <Button type="submit" variant="outline" className="h-9 rounded-md px-4 text-sm">
+                      Reject
+                    </Button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="support-heading" className="mb-12">
+        <h1 id="support-heading" className="text-3xl font-medium tracking-tight">
+          Customer messages
+        </h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">
+          {openSupport.length === 0 ? 'Nothing waiting.' : `${openSupport.length} waiting for a reply.`} Reply by email from the support mailbox, then mark it answered.
+        </p>
+        {support.length > 0 && (
+          <ul className="mt-6 divide-y divide-border rounded-xl border border-border bg-card">
+            {support.map((r) => (
+              <li key={r.id} className="space-y-3 p-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
+                  <p className="text-[15px]">
+                    {r.name} <span className="text-muted-foreground">· {r.email}</span>
+                  </p>
+                  <p className="text-[13px] text-muted-foreground">
+                    {r.createdAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} · ref {r.id.slice(0, 8).toUpperCase()} · {r.status}
+                  </p>
+                </div>
+                <p className="whitespace-pre-wrap text-[15px]">{r.message}</p>
+                {r.status === 'open' ? (
+                  <form action={answerSupportRequest} className="flex flex-wrap gap-2">
+                    <input type="hidden" name="id" value={r.id} />
+                    <label className="sr-only" htmlFor={`resolution-${r.id}`}>
+                      How it was answered
+                    </label>
+                    <input id={`resolution-${r.id}`} name="resolution" maxLength={500} placeholder="How it was answered (optional)" className="h-10 min-w-[280px] flex-1 rounded-md border border-border bg-background px-3 text-sm" />
+                    <Button type="submit" className="h-10 rounded-md px-4 text-sm">
+                      Mark answered
+                    </Button>
+                  </form>
+                ) : (
+                  <p className="text-[13px] text-muted-foreground">
+                    Answered by {r.resolvedBy}
+                    {r.resolution ? `: ${r.resolution}` : ''}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <h2 className="text-3xl font-medium tracking-tight">Restock requests</h2>
       <p className="mt-1 text-[15px] text-muted-foreground">
         {open.length === 0
           ? 'Nothing outstanding.'

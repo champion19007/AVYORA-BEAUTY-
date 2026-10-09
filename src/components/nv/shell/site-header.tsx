@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import * as RadixDialog from '@radix-ui/react-dialog';
-import { Heart, ShoppingBag, User, X } from 'lucide-react';
+import { Heart, Search, ShoppingBag, User, X } from 'lucide-react';
+import { CATEGORIES, CONCERNS } from '@/data/mock-data';
+import { activeCategories, activeConcerns } from '@/lib/catalogue';
 import { useApp } from '@/lib/store';
 import { SUPPORT_EMAIL } from '@/data/business-info';
 import { cn } from '@/lib/utils';
@@ -30,7 +32,7 @@ export function SiteHeader() {
   const light = usePathname() === '/';
   const control = cn(
     'relative flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-nv-control nv-motion',
-    light ? 'nv-focus-light text-white hover:bg-white/15' : 'nv-focus text-nv-ink hover:bg-black/5'
+    light ? 'nv-focus-light text-white hover:bg-white/15' : 'nv-focus text-nv-ink hover:bg-nv-accent/5'
   );
   const badge = (n: number) =>
     n > 0 && (
@@ -49,10 +51,11 @@ export function SiteHeader() {
         <Link href="/" className={cn('font-wordmark text-nv-wordmark', light ? 'nv-focus-light' : 'nv-focus')}>
           Avyora
         </Link>
-        <nav aria-label="Shortcuts" className="flex items-center gap-2">
-          <Link href="/collections" className={cn('mr-4 text-nv-label', light ? 'nv-focus-light hover:text-white/80' : 'nv-focus hover:text-nv-muted')}>
+        <nav aria-label="Shortcuts" className="flex items-center gap-0 sm:gap-2">
+          <Link href="/collections" className={cn('mr-4 hidden text-nv-label sm:inline', light ? 'nv-focus-light hover:text-white/80' : 'nv-focus hover:text-nv-muted')}>
             Shop
           </Link>
+          <SearchDialog control={control} />
           <Link href="/account" className={control} aria-label="Account">
             <User className="h-5 w-5" aria-hidden="true" />
           </Link>
@@ -134,7 +137,7 @@ function MenuOverlay({ light, bagCount, openBag, wishlistCount }: { light: boole
               ))}
             </ul>
           </nav>
-          <div className="flex items-end justify-between px-nv-gutter pb-10">
+          <div className="flex flex-wrap items-end justify-between gap-6 px-nv-gutter pb-10">
             <div>
               <p className="text-nv-label text-nv-muted">Support</p>
               <Link href="/contact" onClick={() => setOpen(false)} className="nv-focus text-nv-contact">
@@ -167,6 +170,93 @@ function MenuOverlay({ light, bagCount, openBag, wishlistCount }: { light: boole
               </li>
             </ul>
           </div>
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
+  );
+}
+
+/**
+ * Search and browse entry points (re-audit A18): the redesign had dropped
+ * the old header's search and category/concern links. A compact dialog
+ * keeps the measured header unchanged; results open in the shop with the
+ * query in the URL, so they can be refined, shared and reloaded.
+ */
+function SearchDialog({ control }: { control: string }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const router = useRouter();
+  const go = (href: string) => {
+    setOpen(false);
+    router.push(href);
+  };
+  const categories = CATEGORIES.filter((c) => activeCategories().has(c.id));
+  const concerns = CONCERNS.filter((c) => activeConcerns().has(c.id));
+  return (
+    <RadixDialog.Root open={open} onOpenChange={setOpen}>
+      <RadixDialog.Trigger className={control} aria-label="Search">
+        <Search className="h-5 w-5" aria-hidden="true" />
+      </RadixDialog.Trigger>
+      <RadixDialog.Portal>
+        <RadixDialog.Overlay className="fixed inset-0 z-40 bg-black/30" />
+        <RadixDialog.Content
+          className="fixed left-1/2 top-24 z-50 w-[min(640px,calc(100vw-32px))] -translate-x-1/2 rounded-[18px] bg-white p-5 sm:p-8 font-nv text-nv-ink shadow-xl"
+          aria-describedby={undefined}
+        >
+          <RadixDialog.Title className="text-nv-label text-nv-muted">Search the shop</RadixDialog.Title>
+          <form
+            role="search"
+            className="mt-4 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (q.trim()) go(`/collections?q=${encodeURIComponent(q.trim())}`);
+            }}
+          >
+            <label htmlFor="site-search" className="sr-only">
+              Products, ingredients or concerns
+            </label>
+            <input
+              id="site-search"
+              type="search"
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Products, ingredients or concerns"
+              className="nv-focus h-12 flex-1 rounded-full border border-black/15 px-5 text-[15px]"
+            />
+            <button type="submit" className="nv-focus h-12 rounded-full bg-nv-ink px-6 text-[15px] text-white">
+              Search
+            </button>
+          </form>
+          <div className="mt-6 grid grid-cols-2 gap-6 text-[15px]">
+            <nav aria-label="Browse by category">
+              <p className="text-nv-label text-nv-muted">Category</p>
+              <ul className="mt-2 space-y-1">
+                {categories.map((c) => (
+                  <li key={c.id}>
+                    <button type="button" className="nv-focus hover:underline" onClick={() => go(`/collections?category=${c.id}`)}>
+                      {c.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            <nav aria-label="Browse by concern">
+              <p className="text-nv-label text-nv-muted">Concern</p>
+              <ul className="mt-2 space-y-1">
+                {concerns.map((c) => (
+                  <li key={c.id}>
+                    <button type="button" className="nv-focus hover:underline" onClick={() => go(`/collections?concern=${c.id}`)}>
+                      {c.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+          <RadixDialog.Close className="nv-focus absolute right-5 top-5 flex h-10 w-10 items-center justify-center" aria-label="Close search">
+            <X className="h-5 w-5" aria-hidden="true" />
+          </RadixDialog.Close>
         </RadixDialog.Content>
       </RadixDialog.Portal>
     </RadixDialog.Root>

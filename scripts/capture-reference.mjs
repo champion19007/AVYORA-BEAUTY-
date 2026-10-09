@@ -38,6 +38,19 @@ const port = 9300 + Math.floor(Math.random() * 500);
 const profile = mkdtempSync(join(tmpdir(), 'ref-capture-'));
 const browser = spawn(exe, [`--remote-debugging-port=${port}`, '--headless=new', `--user-data-dir=${profile}`, '--no-first-run', '--hide-scrollbars', '--force-device-scale-factor=1', 'about:blank'], { stdio: 'ignore' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Always take the browser down with us, including on errors (Windows needs the whole process tree).
+const killBrowser = () => {
+  try {
+    if (process.platform === 'win32') spawn('taskkill', ['/PID', String(browser.pid), '/T', '/F'], { stdio: 'ignore' });
+    else browser.kill();
+  } catch {}
+};
+process.on('exit', killBrowser);
+process.on('uncaughtException', (err) => {
+  console.error(err);
+  killBrowser();
+  process.exit(1);
+});
 
 async function json(path) {
   for (let i = 0; i < 50; i++) {
@@ -143,13 +156,20 @@ const MEASURE = () => {
       return direct.length > 1 ? direct : [e];
     });
   }
+  // Pages without Framer layer names (Avyora): the top-level sections inside <main>.
+  if (tops.length === 0) {
+    const main = document.querySelector('main') ?? document.body;
+    tops = [...main.querySelectorAll('section, header, footer')].filter((e) => visible(e) && e.getBoundingClientRect().height > 60 && !e.parentElement.closest('section'));
+    const footer = document.querySelector('footer');
+    if (footer && !tops.includes(footer)) tops.push(footer);
+  }
   const sections = tops
     .sort((x, y) => x.getBoundingClientRect().top - y.getBoundingClientRect().top)
     .map((el) => {
       const cs = getComputedStyle(el);
       const heading = el.querySelector('h1,h2,h3');
       return {
-        name: el.getAttribute('data-framer-name') || el.id || el.tagName.toLowerCase(),
+        name: el.getAttribute('data-framer-name') || el.id || el.getAttribute('aria-labelledby') || el.tagName.toLowerCase(),
         heading: heading ? text(heading) : null,
         box: box(el),
         background: cs.backgroundColor,
@@ -435,7 +455,9 @@ for (const width of widths) {
 
 writeFileSync(join(outDir, 'capture.json'), JSON.stringify({ url: report.url, capturedAt: report.capturedAt, browser: report.browser, userAgent: report.userAgent, widths: Object.fromEntries(Object.entries(report.widths).map(([w, r]) => [w, r.viewport])) }, null, 2));
 ws.close();
-browser.kill();
+// On Windows, killing the parent leaves Edge's child processes running; kill the whole tree.
+if (process.platform === 'win32') spawn('taskkill', ['/PID', String(browser.pid), '/T', '/F'], { stdio: 'ignore' });
+else browser.kill();
 await sleep(500);
 try {
   rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });

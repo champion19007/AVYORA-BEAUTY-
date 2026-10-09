@@ -4,6 +4,7 @@ import { AssistantPanel } from '@/components/assistant/assistant-panel';
 export const metadata: Metadata = {
   title: 'Ask Avyora',
   description: 'Answers about ingredients, product directions, prices and orders, from reviewed information only.',
+  alternates: { canonical: '/assistant' },
 };
 
 export default function AssistantPage() {

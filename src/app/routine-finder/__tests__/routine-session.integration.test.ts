@@ -51,6 +51,8 @@ const RELEASE = compiled.release;
 let quoteGate: Promise<void> | null = null;
 /** Added to every quoted price: the browser's quote can lag the server's current price. */
 let quoteDelta = 0;
+/** Per-SKU stock overrides for the next quotes (legacy stock key to units). */
+let stockOverride: Record<string, number> = {};
 let failNext: { path: string; response?: Response } | null = null;
 const requests: { path: string; headers: Headers }[] = [];
 
@@ -70,7 +72,7 @@ const fetchImpl: typeof fetch = async (input, init = {}) => {
     if (quoteGate) await quoteGate;
     if (init.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     const prices = Object.fromEntries(variants.map((v) => [v.legacyStockKey, { price: PRICES[v.id].pricePaise + quoteDelta, wasPrice: null, offerLabel: null }]));
-    const stock = Object.fromEntries(variants.map((v) => [v.legacyStockKey, 10]));
+    const stock = Object.fromEntries(variants.map((v) => [v.legacyStockKey, stockOverride[v.legacyStockKey] ?? 10]));
     return Response.json({ prices, stock, quoteVersion: 'test', validUntil: new Date(Date.now() + 60_000).toISOString() });
   }
   const request = new Request(url, { ...init, headers });
@@ -114,6 +116,7 @@ beforeEach(async () => {
   resetQuoteClient();
   quoteGate = null;
   quoteDelta = 0;
+  stockOverride = {};
   failNext = null;
   requests.length = 0;
   sessionUser = null;
@@ -274,6 +277,29 @@ describe('saving and reloading', () => {
     expect(st.saved).toMatchObject({ id, validity: 'current' });
     expect(st.result).toEqual(s.getState().result);
     expect(st.profile).toEqual(BEGINNER);
+  });
+
+  // Re-audit A22: a reopened routine shows current prices and blocks unavailable products.
+  it('a saved routine reopened after a price and stock change shows the current quote', async () => {
+    const s = new RoutineSession(fetchImpl);
+    await s.compute(BEGINNER);
+    await s.save();
+    const id = (s.getState().save as { id: string }).id;
+    const saved = s.getState().result!;
+    const first = saved.purchaseList[0];
+    const firstKey = variants.find((v) => v.id === first.skuId)!.legacyStockKey;
+
+    quoteDelta = 500;
+    stockOverride = { [firstKey]: 0 };
+    resetQuoteClient();
+    const reopened = new RoutineSession(fetchImpl);
+    await reopened.loadSaved(id);
+    const st = reopened.getState();
+    expect(st.result!.days).toEqual(saved.days); // the saved schedule is not rewritten
+    const line = st.quote!.find((q) => q.skuId === first.skuId)!;
+    expect(line).toMatchObject({ savedPaise: first.pricePaise, currentPaise: first.pricePaise + 500, available: false });
+    expect(st.stock[first.skuId]).toBe(0);
+    expect(st.quote!.filter((q) => q.skuId !== first.skuId).every((q) => q.available && q.currentPaise === q.savedPaise + 500)).toBe(true);
   });
 
   it('an expired, deleted or foreign saved routine is reported unavailable, not replaced', async () => {

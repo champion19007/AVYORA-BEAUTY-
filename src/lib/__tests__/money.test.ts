@@ -114,3 +114,24 @@ describe('generateOrderNumber', () => {
     expect(new Set(Array.from({ length: n }, generateOrderNumber)).size).toBe(n);
   });
 });
+
+// Re-audit A17: every delivery message derives from the same constants; no punctuation parsing.
+describe('delivery wording', () => {
+  it('states the full threshold in every form', async () => {
+    const m = await import('../money');
+    const threshold = m.formatPaise(m.FREE_SHIPPING_THRESHOLD_PAISE);
+    for (const text of [m.DELIVERY_SHORT, m.DELIVERY_TERMS, m.FREE_DELIVERY_LINE]) expect(text).toContain(threshold);
+    expect(m.DELIVERY_SHORT).toContain(m.formatPaise(m.STANDARD_SHIPPING_PAISE));
+    expect(threshold).toBe('₹1,199');
+  });
+});
+
+describe('sample catalogue orders', () => {
+  it('are refused only in production builds, unless explicitly allowed for staging', async () => {
+    const { sampleOrdersBlocked } = await import('../catalogue-mode');
+    expect(sampleOrdersBlocked({ NODE_ENV: 'production' })).toBe(true);
+    expect(sampleOrdersBlocked({ NODE_ENV: 'production', ALLOW_SAMPLE_ORDERS: '1' })).toBe(false);
+    expect(sampleOrdersBlocked({ NODE_ENV: 'test' })).toBe(false);
+    expect(sampleOrdersBlocked({ NODE_ENV: 'development' })).toBe(false);
+  });
+});

@@ -5,6 +5,7 @@ import { publishedArticles } from '@/modules/cms/content-read';
 export const metadata: Metadata = {
   title: 'Journal',
   description: 'Notes on ingredients, routines and caring for skin through the Indian seasons.',
+  alternates: { canonical: '/journal' },
 };
 
 /**

@@ -5,6 +5,8 @@
  * here only when a DSN is present, so a deployment without one never loads the
  * SDK at all.
  */
+import { scrubDeep } from '@/lib/observability';
+
 export async function register() {
   if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
 
@@ -18,6 +20,9 @@ export async function register() {
     tracesSampleRate: 0.1,
     // Personal data must not leave the box; see redact() in observability.ts.
     sendDefaultPii: false,
+    // Provider-level scrubbing: anything the SDK captures by itself goes through the same filter.
+    beforeSend: (event) => scrubDeep(event),
+    beforeBreadcrumb: (crumb) => scrubDeep(crumb),
   });
 }
 

@@ -31,7 +31,7 @@ const fixtureFormulation: Formulation = {
   coverage: 'complete',
   fullInci: 'Aqua, Niacinamide',
   ingredients: [
-    { position: 1, inciLabel: 'Aqua', ingredientId: null, concentration: { known: false } },
+    { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
     { position: 2, inciLabel: 'Niacinamide', ingredientId: 'niacinamide', concentration: { known: true, value: 5, unit: 'percent_w_w' } },
   ],
   sourceId: 'fixture',
@@ -72,7 +72,7 @@ describe('importing knowledge', () => {
       .from(schema.formulationIngredients)
       .where(eq(schema.formulationIngredients.formulationId, 'niacinamide-drops@v1'));
     expect(rows.map((r) => [r.position, r.ingredientId, r.concentrationKnown, r.concentration, r.unit])).toEqual([
-      [1, null, false, null, null],
+      [1, 'water', false, null, null],
       [2, 'niacinamide', true, '5.0000', 'percent_w_w'],
     ]);
   });

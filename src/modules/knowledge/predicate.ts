@@ -24,6 +24,8 @@ export const PROFILE_FIELDS = {
   experienceLevel: ['N0', 'N1', 'N2', 'N3', 'N4'],
   currentCondition: ['clear', 'occasional', 'frequent', 'pigmentation', 'dry', 'texture', 'irritated', 'multiple'],
   pregnancy: ['yes', 'no', 'unknown'],
+  nursing: ['yes', 'no', 'unknown'],
+  adherence: ['low', 'medium', 'high'],
   darkCircles: ['no', 'mild', 'noticeable', 'significant'],
 } as const satisfies Record<string, readonly string[]>;
 

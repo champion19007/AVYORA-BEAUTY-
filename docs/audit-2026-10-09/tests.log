@@ -1,0 +1,14 @@
+npm notice run avyora-beauty@0.1.0 test
+npm notice run vitest run --maxWorkers=2
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/champ/Desktop/avyora-beauty
+
+
+ Test Files  76 passed | 1 skipped (77)
+      Tests  925 passed | 3 skipped (928)
+   Start at  09:28:09
+   Duration  242.27s (transform 13.44s, setup 0ms, import 235.44s, tests 207.87s, environment 16ms)
+

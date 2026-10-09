@@ -64,13 +64,13 @@ function orderUrl(orderNumber: string, accessToken?: string | null) {
     : `/orders/${orderNumber}`;
 }
 
-/** Loads Razorpay's checkout script once, on demand. */
-function loadRazorpayScript(): Promise<boolean> {
+/** Loads Cashfree's checkout SDK once, on demand. */
+function loadCashfreeScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') return resolve(false);
-    if ((window as any).Razorpay) return resolve(true);
+    if ((window as any).Cashfree) return resolve(true);
     const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
@@ -78,13 +78,13 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 
 export function CheckoutClient({
-  razorpayEnabled,
+  onlineEnabled,
   savedAddresses = [],
   prices,
   stock = null,
   defaultEmail = '',
 }: {
-  razorpayEnabled: boolean;
+  onlineEnabled: boolean;
   /** The signed-in customer's address book. Empty for guests. */
   savedAddresses?: Address[];
   /**
@@ -124,7 +124,7 @@ export function CheckoutClient({
    * rather than after submitting. The order transaction still decides.
    */
   const problems = stock ? stockProblems(cart, stock) : [];
-  const [method, setMethod] = useState<'razorpay' | 'cod'>(razorpayEnabled ? 'razorpay' : 'cod');
+  const [method, setMethod] = useState<'cashfree' | 'cod'>(onlineEnabled ? 'cashfree' : 'cod');
 
   const totals = useMemo(
     () =>
@@ -260,13 +260,13 @@ export function CheckoutClient({
       return;
     }
 
-    // Online payment. The server creates our order and a matching Razorpay
+    // Online payment. The server creates our order and a matching Cashfree
     // order; the amount charged is whatever the server calculated, never a
     // figure supplied by this browser.
-    const created = await fetch('/api/payments/razorpay/create', {
+    const created = await fetch('/api/payments/cashfree/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...buildPayload(), paymentMethod: 'razorpay' }),
+      body: JSON.stringify({ ...buildPayload(), paymentMethod: 'cashfree' }),
     })
       .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
       .catch(() => ({ ok: false, body: null as any }));
@@ -278,66 +278,26 @@ export function CheckoutClient({
       return;
     }
 
-    const loaded = await loadRazorpayScript();
+    const loaded = await loadCashfreeScript();
     if (!loaded) {
       setFormError('Could not reach the payment provider. Check your connection and try again.');
       setSubmitting(false);
       return;
     }
 
-    const { keyId, razorpayOrderId, amount, currency, orderNumber, accessToken } = created.body;
-
-    const rzp = new (window as any).Razorpay({
-      key: keyId,
-      order_id: razorpayOrderId,
-      amount,
-      currency,
-      name: 'Avyora',
-      description: `Order ${orderNumber}`,
-      // No brand mark while the artwork is being reworked. Razorpay simply
-      // omits the image rather than showing a broken one.
-      prefill: {
-        name: values.fullName.trim(),
-        email: values.email.trim(),
-        contact: values.phone.trim(),
-      },
-      theme: { color: '#C9A227' },
-      handler: async (response: Record<string, string>) => {
-        // Confirmation goes through our server, which checks the signature.
-        // Nothing is trusted because the browser reported success.
-        const verified = await fetch('/api/payments/razorpay/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(response),
-        })
-          .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
-          .catch(() => ({ ok: false, body: null as any }));
-
-        if (verified.ok) {
-          clearCart();
-          router.push(orderUrl(orderNumber, accessToken));
-          return;
-        }
-
-        // The webhook may still settle this independently, so say so rather
-        // than implying the money is lost.
-        setFormError(
-          verified.body?.error ??
-            'We could not confirm your payment. If you were charged, it will be reconciled shortly.'
-        );
-        setSubmitting(false);
-      },
-      modal: {
-        ondismiss: () => setSubmitting(false),
-      },
-    });
-
-    rzp.on('payment.failed', () => {
+    const { paymentSessionId, mode, orderNumber, accessToken } = created.body;
+    // Cashfree redirects back to /checkout/return, which asks our server what
+    // was paid. The token that opens the order page survives the round trip here.
+    try {
+      sessionStorage.setItem(`order-token:${orderNumber}`, accessToken);
+    } catch {}
+    const cashfree = (window as any).Cashfree({ mode: mode === 'production' ? 'production' : 'sandbox' });
+    const result = await cashfree.checkout({ paymentSessionId, redirectTarget: '_self' });
+    // Only reached when the redirect did not happen.
+    if (result?.error) {
       setFormError('That payment did not go through. Try again, or choose cash on delivery.');
       setSubmitting(false);
-    });
-
-    rzp.open();
+    }
   };
 
   if (cart.length === 0) {
@@ -493,22 +453,22 @@ export function CheckoutClient({
 
           <h2 className="mt-12 font-headline text-xl font-normal tracking-tight">Payment</h2>
           <div className="mt-4 space-y-3" role="radiogroup" aria-label="Payment method">
-            {razorpayEnabled && (
+            {onlineEnabled && (
               <button
                 type="button"
                 role="radio"
-                aria-checked={method === 'razorpay'}
-                onClick={() => setMethod('razorpay')}
+                aria-checked={method === 'cashfree'}
+                onClick={() => setMethod('cashfree')}
                 className={cn(
                   'w-full rounded-lg border p-5 text-left transition-colors',
-                  method === 'razorpay'
+                  method === 'cashfree'
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:border-primary/50'
                 )}
               >
                 <p className="text-sm font-medium">Pay online</p>
                 <p className="mt-1.5 text-sm text-muted-foreground">
-                  UPI, cards, net banking and wallets, secured by Razorpay.
+                  UPI, cards, net banking and wallets, secured by Cashfree.
                 </p>
               </button>
             )}
@@ -530,7 +490,7 @@ export function CheckoutClient({
               </p>
             </button>
           </div>
-          {!razorpayEnabled && (
+          {!onlineEnabled && (
             <p className="mt-3 text-xs text-muted-foreground">
               Online payment is not enabled on this deployment yet.
             </p>
@@ -649,12 +609,12 @@ export function CheckoutClient({
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {method === 'razorpay' ? 'Opening payment' : 'Placing order'}
+                  {method === 'cashfree' ? 'Opening payment' : 'Placing order'}
                 </>
               ) : (
                 <>
                   <Lock className="h-3.5 w-3.5" />
-                  {method === 'razorpay' ? `Pay ${formatPaise(totals.total)}` : 'Place order'}
+                  {method === 'cashfree' ? `Pay ${formatPaise(totals.total)}` : 'Place order'}
                 </>
               )}
             </Button>

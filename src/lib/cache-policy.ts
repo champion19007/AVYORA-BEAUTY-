@@ -31,7 +31,19 @@ const PRIVATE_PREFIXES = [
   '/api/activity',
   '/api/routines',
   '/api/consent',
+  '/api/support',
+  '/api/scans',
+  '/api/reviews',
+  '/api/newsletter',
+  '/newsletter',
+  '/scan',
 ];
+
+/** Pages that must never be indexed: everything private, plus personal or internal pages that are not cached privately. */
+const NOINDEX_EXTRA = ['/wishlist', '/design-system'];
+export function isNoIndexPath(path: string): boolean {
+  return isPrivatePath(path) || NOINDEX_EXTRA.some((p) => path === p || path.startsWith(`${p}/`));
+}
 
 export const PRIVATE_CACHE_CONTROL = 'private, no-store, max-age=0';
 

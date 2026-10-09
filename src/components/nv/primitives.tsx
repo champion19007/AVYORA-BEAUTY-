@@ -106,10 +106,10 @@ const BUTTON = {
   base:
     'nv-motion inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors duration-nv-control ease-nv disabled:pointer-events-none disabled:opacity-50',
   variant: {
-    dark: 'nv-focus bg-nv-ink text-white hover:bg-black',
+    dark: 'nv-focus bg-nv-ink text-white hover:bg-nv-accent',
     light: 'nv-focus-light bg-white text-nv-ink hover:bg-white/90',
     outline: 'nv-focus border border-nv-line bg-transparent text-nv-ink hover:border-nv-ink',
-    ghost: 'nv-focus bg-transparent text-nv-ink hover:bg-black/5',
+    ghost: 'nv-focus bg-transparent text-nv-ink hover:bg-nv-accent/5',
   },
   size: {
     /** 49 px pill: padding 14/24, label 16/20.8 (measured hero CTA, 155×49). */

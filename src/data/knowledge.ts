@@ -91,6 +91,18 @@ export const DECISION_RULES: readonly DecisionRule[] = [
     reasonTemplateId: 'reason_treatment_limit',
     review: DRAFT,
   },
+  {
+    // Complexity policy, not a skin rule: someone expecting to follow a routine
+    // "now and then" gets the essentials first. Proposed with the answer adapter
+    // (re-audit A09) and inactive until reviewed, like every rule here.
+    id: 'low_adherence_essentials_first',
+    version: 1,
+    severity: 'advisory',
+    when: { op: 'eq', field: 'adherence', value: 'low' },
+    effects: [{ kind: 'maxTreatments', value: 0 }],
+    reasonTemplateId: 'reason_low_adherence',
+    review: { status: 'draft', note: 'Proposed complexity policy for the adherence answer; awaiting review.' },
+  },
 ];
 
 /** The customer-facing reasons the routine finder shows today, as draft templates. */
@@ -101,6 +113,7 @@ export const EXPLANATION_TEMPLATES: readonly ExplanationTemplate[] = [
   { id: 'reason_pregnancy', text: '{productName}: not included while pregnant, breastfeeding, or if you preferred not to say.', variables: ['productName'], review: DRAFT },
   { id: 'reason_under18', text: '{productName}: not included for customers under 18.', variables: ['productName'], review: DRAFT },
   { id: 'reason_treatment_limit', text: '{productName}: left out so your routine introduces one active at a time.', variables: ['productName'], review: DRAFT },
+  { id: 'reason_low_adherence', text: '{productName}: left out so your routine starts with the essentials you can keep up.', variables: ['productName'], review: DRAFT },
 ];
 
 export const EDUCATION_ANSWERS: readonly EducationAnswer[] = [];

@@ -15,7 +15,6 @@ const ALLOWED: ReadonlySet<string> = new Set<EventName>([
   'cart_viewed',
   'checkout_started',
   'order_placed',
-  'routine_completed',
   'search_performed',
 ]);
 

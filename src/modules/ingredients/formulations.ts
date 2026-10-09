@@ -13,7 +13,7 @@
  * to the database after these checks pass.
  */
 import { INGREDIENTS, type IngredientClass } from './dictionary';
-import { resolveLabel } from './resolve';
+import { normaliseLabel, resolveLabel } from './resolve';
 import type { ProductDirections, TreatmentClass } from '@/data/product-directions';
 
 export const CONCENTRATION_UNITS = ['percent_w_w', 'percent_w_v', 'mg_per_g', 'mg_per_ml'] as const;
@@ -77,6 +77,20 @@ const ACTIVE_CLASSES: Record<TreatmentClass, readonly IngredientClass[]> = {
   peptide: ['peptide'],
 };
 
+/** Splits a declared INCI list on commas, keeping commas inside names such as "1,2-Hexanediol". */
+export function splitInci(fullInci: string): string[] {
+  return fullInci.split(/,(?!\d)/).map((x) => x.trim()).filter(Boolean);
+}
+
+/**
+ * Allergen resolution of a formulation: complete label coverage is not
+ * complete identity coverage. An allergy can be cleared only when every
+ * declared ingredient resolved to a canonical id.
+ */
+export function unresolvedIngredients(f: Formulation): string[] {
+  return f.ingredients.filter((i) => i.ingredientId === null).map((i) => i.inciLabel);
+}
+
 /** Problems that must block import and publication of one formulation. */
 export function formulationProblems(f: Formulation, evidence: readonly EvidenceSource[]): string[] {
   const where = `${f.productId} v${f.version}`;
@@ -96,6 +110,9 @@ export function formulationProblems(f: Formulation, evidence: readonly EvidenceS
     if (ing.ingredientId !== null) {
       if (!DICTIONARY.has(ing.ingredientId)) problems.push(`${at}: unknown ingredient id ${ing.ingredientId}`);
       else if (r.status === 'resolved' && r.id !== ing.ingredientId) problems.push(`${at}: label resolves to ${r.id}, record says ${ing.ingredientId}`);
+    } else if (r.status === 'resolved') {
+      // A label the dictionary knows must carry its identity, or allergy and active checks would miss it.
+      problems.push(`${at}: label resolves to ${r.id}; record its canonical id`);
     }
     const c = ing.concentration;
     if (c.known) {
@@ -112,10 +129,18 @@ export function formulationProblems(f: Formulation, evidence: readonly EvidenceS
   if (f.coverage === 'complete') {
     if (!f.fullInci?.trim()) problems.push(`${where}: complete coverage needs the full INCI list`);
     else {
-      const declared = f.fullInci.split(',').map((s) => s.trim()).filter(Boolean);
-      if (declared.length !== f.ingredients.length) {
-        problems.push(`${where}: full INCI lists ${declared.length} ingredients, record has ${f.ingredients.length}`);
+      const declared = splitInci(f.fullInci);
+      const rows = [...f.ingredients].sort((a, b) => a.position - b.position);
+      if (declared.length !== rows.length) {
+        problems.push(`${where}: full INCI lists ${declared.length} ingredients, record has ${rows.length}`);
       }
+      // Identity and order, not just count: entry n of the declared list is structured row n.
+      declared.forEach((label, i) => {
+        const row = rows[i];
+        if (row && normaliseLabel(row.inciLabel) !== normaliseLabel(label)) {
+          problems.push(`${where} #${i + 1}: full INCI says "${label}", structured row says "${row.inciLabel}"`);
+        }
+      });
     }
   }
   if (f.coverage === 'unknown' && f.ingredients.length > 0) problems.push(`${where}: unknown coverage cannot list ingredients; use partial`);

@@ -62,6 +62,10 @@ export const INGREDIENTS: readonly Ingredient[] = [
   { id: 'hyaluronic-acid', inci: 'Sodium Hyaluronate', common: 'Hyaluronic acid', aliases: ['hyaluronic acid'], class: 'humectant', prescriptionOnly: false, pregnancyCaution: false, photosensitising: false },
   { id: 'ceramides', inci: 'Ceramide NP', common: 'Ceramides', aliases: ['ceramide', 'ceramide np', 'ceramide ap'], class: 'lipid', prescriptionOnly: false, pregnancyCaution: false, photosensitising: false },
   { id: 'zinc-oxide', inci: 'Zinc Oxide', common: 'Zinc oxide', aliases: [], class: 'uv_filter', prescriptionOnly: false, pregnancyCaution: false, photosensitising: false },
+  // Base ingredients, so complete formulations can resolve every position (an
+  // unresolved label cannot clear an allergy). Identity only.
+  { id: 'water', inci: 'Aqua', common: 'Water', aliases: ['water', 'aqua/water', 'eau'], class: 'other', prescriptionOnly: false, pregnancyCaution: false, photosensitising: false },
+  { id: 'glycerin', inci: 'Glycerin', common: 'Glycerin', aliases: ['glycerine', 'glycerol'], class: 'humectant', prescriptionOnly: false, pregnancyCaution: false, photosensitising: false },
 ];
 
 /**

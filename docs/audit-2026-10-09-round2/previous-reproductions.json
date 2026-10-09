@@ -1,0 +1,96 @@
+{
+  "allergyUnknownOwned": [
+    {
+      "role": "cleanse",
+      "source": "unfilled",
+      "reasons": [
+        {
+          "code": "no_eligible_product",
+          "ruleId": "builtin:essential-core",
+          "message": "No product we sell passes the checks for this step."
+        }
+      ]
+    },
+    {
+      "role": "moisturise",
+      "source": "unfilled",
+      "reasons": [
+        {
+          "code": "no_eligible_product",
+          "ruleId": "builtin:essential-core",
+          "message": "No product we sell passes the checks for this step."
+        }
+      ]
+    },
+    {
+      "role": "protect",
+      "source": "unfilled",
+      "reasons": [
+        {
+          "code": "no_eligible_product",
+          "ruleId": "builtin:essential-core",
+          "message": "No product we sell passes the checks for this step."
+        }
+      ]
+    }
+  ],
+  "irritatedOwnedRetinol": {
+    "status": "complete",
+    "scheduledUses": 0,
+    "problems": []
+  },
+  "conflictingOwned": {
+    "status": "complete",
+    "problemCount": 0,
+    "scheduledUses": 0
+  },
+  "essentialDirectionViolation": {
+    "uses": 2,
+    "approvedMaximum": 2,
+    "problems": []
+  },
+  "beginnerRule": {
+    "appliedRules": [
+      "beginner_no_treatments",
+      "low_adherence_essentials_first"
+    ],
+    "purchases": [
+      "ceramide-cream",
+      "sunscreen",
+      "centella-cleansing-balm",
+      "ha-toner"
+    ],
+    "newVsExperiencedSameSchedule": false
+  },
+  "invalidBayesianDistributionAccepted": false,
+  "errorLogLeaksSyntheticEmailAndToken": false,
+  "mismatchedInciAccepted": {
+    "validationProblems": [
+      "face-wash v1 #1 \"Aqua\": label resolves to water; record its canonical id",
+      "face-wash v1 #1: full INCI says \"Niacinamide\", structured row says \"Aqua\""
+    ],
+    "selectedFaceWash": false
+  },
+  "feasibleBudgetReturnsPartial": {
+    "budgetPaise": 30000,
+    "cheapestCompleteCorePaise": 30000,
+    "resultStatus": "complete",
+    "slots": [
+      {
+        "role": "cleanse",
+        "source": "catalogue",
+        "productId": "face-wash"
+      },
+      {
+        "role": "moisturise",
+        "source": "catalogue",
+        "productId": "sorbet-moisturizer"
+      },
+      {
+        "role": "protect",
+        "source": "catalogue",
+        "productId": "sunscreen"
+      }
+    ]
+  }
+}

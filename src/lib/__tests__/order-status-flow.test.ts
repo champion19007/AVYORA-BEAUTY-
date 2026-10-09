@@ -15,16 +15,16 @@ import { allowedNextStatuses } from '@/app/admin/actions';
  */
 describe('order fulfilment transitions', () => {
   it('lets a paid order be packed or cancelled', async () => {
-    expect(await allowedNextStatuses('paid')).toEqual(['fulfilled', 'cancelled']);
+    expect(await allowedNextStatuses({ status: 'paid' })).toEqual(['fulfilled', 'cancelled']);
   });
 
   it('will not let an order skip straight to delivered', async () => {
-    expect(await allowedNextStatuses('paid')).not.toContain('delivered');
-    expect(await allowedNextStatuses('paid')).not.toContain('shipped');
+    expect(await allowedNextStatuses({ status: 'paid' })).not.toContain('delivered');
+    expect(await allowedNextStatuses({ status: 'paid' })).not.toContain('shipped');
   });
 
   it('will not ship an order that was never paid for', async () => {
-    const next = await allowedNextStatuses('pending');
+    const next = await allowedNextStatuses({ status: 'pending' });
     expect(next).not.toContain('shipped');
     expect(next).not.toContain('fulfilled');
     // Cancelling an unpaid order is the one thing that makes sense.
@@ -32,18 +32,25 @@ describe('order fulfilment transitions', () => {
   });
 
   it('treats cancelled, delivered and refunded as final', async () => {
-    expect(await allowedNextStatuses('cancelled')).toEqual([]);
-    expect(await allowedNextStatuses('delivered')).toEqual([]);
-    expect(await allowedNextStatuses('refunded')).toEqual([]);
+    expect(await allowedNextStatuses({ status: 'cancelled' })).toEqual([]);
+    expect(await allowedNextStatuses({ status: 'delivered' })).toEqual([]);
+    expect(await allowedNextStatuses({ status: 'refunded' })).toEqual([]);
   });
 
   it('runs packed → shipped → delivered in order', async () => {
-    expect(await allowedNextStatuses('fulfilled')).toContain('shipped');
-    expect(await allowedNextStatuses('shipped')).toEqual(['delivered']);
+    expect(await allowedNextStatuses({ status: 'fulfilled' })).toContain('shipped');
+    expect(await allowedNextStatuses({ status: 'shipped' })).toEqual(['delivered']);
   });
 
   it('offers nothing for a status it does not know', async () => {
     // An unknown value must not fall through to "anything goes".
-    expect(await allowedNextStatuses('not-a-status')).toEqual([]);
+    expect(await allowedNextStatuses({ status: 'not-a-status' })).toEqual([]);
+  });
+
+  // Cash on delivery stays `pending` until the courier collects: once released from the risk hold it may be packed.
+  it('lets a released cash-on-delivery order be packed, and holds an unreleased one', async () => {
+    expect(await allowedNextStatuses({ status: 'pending', paymentProvider: 'cod', fraudStatus: 'approved' })).toEqual(['fulfilled', 'cancelled']);
+    expect(await allowedNextStatuses({ status: 'pending', paymentProvider: 'cod', fraudStatus: 'review' })).toEqual(['cancelled']);
+    expect(await allowedNextStatuses({ status: 'pending', paymentProvider: 'razorpay', fraudStatus: 'approved' })).toEqual(['cancelled']);
   });
 });

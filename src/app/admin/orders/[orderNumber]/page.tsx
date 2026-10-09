@@ -38,7 +38,7 @@ export default async function AdminOrderPage({
   if (!order) notFound();
 
   const address = order.shippingAddress as Record<string, string> | null;
-  const nextStatuses = await allowedNextStatuses(order.status);
+  const nextStatuses = await allowedNextStatuses(order);
 
   return (
     <div className="space-y-8">

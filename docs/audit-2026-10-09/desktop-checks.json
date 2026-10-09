@@ -1,0 +1,44 @@
+[
+  {
+    "path": "/",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": "Skincare built around a simple routine",
+    "overflow": false,
+    "width": 1280
+  },
+  {
+    "path": "/collections",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": "Shop all",
+    "overflow": false,
+    "width": 1280
+  },
+  {
+    "path": "/",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": "Skincare built around a simple routine",
+    "overflow": false,
+    "width": 1440
+  },
+  {
+    "path": "/collections",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": "Shop all",
+    "overflow": false,
+    "width": 1440
+  },
+  {
+    "path": "/",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": "Skincare built around a simple routine",
+    "overflow": false,
+    "width": 1920
+  },
+  {
+    "path": "/collections",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": "Shop all",
+    "overflow": false,
+    "width": 1920
+  }
+]

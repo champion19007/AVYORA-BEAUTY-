@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { usePathname } from 'next/navigation';
 import { REDESIGN } from '@/lib/redesign';
 import { SiteHeader } from '@/components/nv/shell/site-header';
+import { SampleNotice } from '@/components/layout/sample-notice';
 
 import { createContext, useContext } from 'react';
 
@@ -120,6 +121,7 @@ export function ClientLayoutWrapper({
             </main>
             {footer}
             <CartDrawer />
+            <SampleNotice />
             <Toaster />
           </div>
         </AppProvider>
@@ -138,6 +140,7 @@ export function ClientLayoutWrapper({
         </main>
         <Footer />
         <CartDrawer />
+        <SampleNotice />
         <Toaster />
       </div>
     </AppProvider>

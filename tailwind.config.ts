@@ -23,12 +23,12 @@ export default {
       },
       /* Measured type scale: [size, { lineHeight, letterSpacing, fontWeight }]. Identical at 1280, 1440 and 1920. */
       fontSize: {
-        'nv-hero': ['100px', { lineHeight: '100px', letterSpacing: '-6px', fontWeight: '500' }],
-        'nv-display': ['80px', { lineHeight: '88px', letterSpacing: '-3.2px', fontWeight: '500' }],
+        'nv-hero': ['clamp(48px, 12vw, 100px)', { lineHeight: '1', letterSpacing: '-6px', fontWeight: '500' }],
+        'nv-display': ['clamp(42px, 10vw, 80px)', { lineHeight: '1.1', letterSpacing: '-3.2px', fontWeight: '500' }],
         'nv-figure': ['48px', { lineHeight: '48px', letterSpacing: '-1.92px', fontWeight: '500' }],
-        'nv-statement': ['40px', { lineHeight: '52px', letterSpacing: '-1.6px', fontWeight: '500' }],
-        'nv-title': ['32px', { lineHeight: '35.2px', letterSpacing: '-1.28px', fontWeight: '500' }],
-        'nv-lead': ['28px', { lineHeight: '30.8px', letterSpacing: '-1.12px', fontWeight: '500' }],
+        'nv-statement': ['clamp(28px, 6vw, 40px)', { lineHeight: '1.3', letterSpacing: '-1.6px', fontWeight: '500' }],
+        'nv-title': ['clamp(26px, 5vw, 32px)', { lineHeight: '1.1', letterSpacing: '-1.28px', fontWeight: '500' }],
+        'nv-lead': ['clamp(22px, 5vw, 28px)', { lineHeight: '1.1', letterSpacing: '-1.12px', fontWeight: '500' }],
         'nv-contact': ['24px', { lineHeight: '28.8px', letterSpacing: '-0.96px', fontWeight: '500' }],
         'nv-quote': ['22px', { lineHeight: '28.6px', letterSpacing: '-0.66px', fontWeight: '500' }],
         'nv-intro': ['20px', { lineHeight: '26px', letterSpacing: '-0.6px', fontWeight: '500' }],
@@ -93,6 +93,8 @@ export default {
           line: 'var(--nv-line)',
           glass: 'var(--nv-glass)',
           danger: 'var(--nv-danger)',
+          accent: 'var(--nv-accent)',
+          'accent-soft': 'var(--nv-accent-soft)',
         },
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',

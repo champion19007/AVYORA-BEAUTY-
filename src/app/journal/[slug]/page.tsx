@@ -26,6 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: article.title,
     description: article.excerpt || undefined,
     openGraph: { title: `${article.title} | Avyora`, description: article.excerpt || undefined },
+    alternates: { canonical: `/journal/${slug}` },
   };
 }
 

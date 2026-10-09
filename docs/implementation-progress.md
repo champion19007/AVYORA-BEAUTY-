@@ -1524,6 +1524,394 @@ Fixed during comparison:
 - **Motion.** Not compared frame by frame; a 60 fps recording of the reference is needed.
 - **Sticky header.** The light sticky header variant is not built.
 
+## Prompt 22 — Desktop landing page (9 October 2026)
+
+Behind `NEXT_PUBLIC_REDESIGN=1`; with the flag off the home page is unchanged.
+
+**What was built:**
+- **Sections** (`src/components/nv/home/landing.tsx`, server components): About, Results, Vision, Features, Services, Testimonials, Pricing, Image break (sticky), FAQ and Consultation, after the prompt 21 hero, in the reference order, with the shell's footer.
+- **Client code** is limited to three islands:
+  - `quick-add.tsx`: size choice and add to bag. "In bag" is read from the bag; sold-out sizes cannot be added.
+  - The FAQ accordion.
+  - `support-form.tsx`.
+
+**Content mapping (true today):**
+
+| Section | Avyora content |
+| --- | --- |
+| About | Avyora's routine approach, with a "7 days" card (the routine finder plans seven days) instead of the reference's unverified "98 %". |
+| Results | "Best sellers": four real products with current display prices, size choice, counted stock and add to bag. Products whose stock photo shows another brand's label are excluded. |
+| Features | Six numbered cards describing what exists: questionnaire, weekly routine, ingredient checks, budget and owned products, Ask Avyora, saved routines (with the real retention periods). No scan card, because there is no scan. |
+| Services | Rows linking to the shop, routine finder, assistant and journal. |
+| Testimonials | Shows one **published** review (verified purchases first) if any exists. Otherwise it shows labelled product education. No review is invented. |
+| Pricing | Replaces the reference's $29/month subscription with "The three essentials": the lowest current in-stock price per essential step from real SKUs, the total, and a "Build my routine" CTA. No offer is invented. |
+| FAQ | Routine building, scan (not available), saving and retention, delivery (`DELIVERY_TERMS`), returns (links to the policy) and medical advice. |
+| Consultation | A real support form. |
+
+**Support form backend.**
+- **Endpoint:** `POST /api/support`. Same-origin only, a 4 KB body cap, strict validation and explicit contact consent. It is rate limited to 3 an hour per email and 10 per IP.
+- **Storage:** requests are saved to the new `support_requests` table (**migration 0020**) and the customer gets a reference number. No response time is promised, because none is confirmed.
+- **Staff:** requests appear in admin → Requests.
+
+**Old home content.**
+- The product grid, categories and concerns are on `/collections`, with the same filters.
+- The "Build your routine" panel became the Pricing section.
+
+**Photography.** No approved photographs exist, so the About, Vision, Services, Testimonials, Image break and Consultation slots are neutral surfaces (`PHOTO_SLOTS` in `landing.tsx`, sized as measured).
+
+**Comparison** (`docs/redesign-reference/comparisons/2026-10-09-landing/`, full page and hero at 1280, 1440 and 1920). After fixes, section heights at 1440 match the reference:
+
+| Section | Avyora vs reference (px) |
+| --- | --- |
+| Hero, Results, Vision, Services, Testimonials, Image break | 0 |
+| About (762), FAQ (944), Footer (530) | 0 |
+| Features, Pricing | −1 |
+| Consultation | +4 |
+| **Page** | 11,403 vs 11,400 |
+
+Fixes made during the comparison:
+- About was 6 px taller (column layout).
+- FAQ rows were 4 px taller.
+- The footer was 71 px shorter.
+- Services used pill buttons where the reference has rows.
+
+**Checks:** typecheck and lint clean. Support route: 5 tests (valid request, consent required, unknown fields, foreign origin, oversized body, rate limit, concurrent staff answer).
+
+## Prompt 23 — Shopping and checkout redesign (9 October 2026)
+
+**Theme.** Under the flag, `body.nv-theme` maps the existing component tokens onto the measured palette, Inter type and 18 px radius. It is placed on `<body>` so portalled drawers and dialogs are included. Shared containers use the 1240 px column with 40 px gutters; the gold ornaments are hidden and eyebrows are neutral. The result: collections, product, wishlist, bag drawer, checkout, order confirmation and account pages take the design system **without any change to their logic**. Search, filters, sorting, galleries, variant selection, quantity, ingredients, directions, related products and sync are untouched.
+
+**Captured at 1440:** collections, product page, checkout (empty bag) and wishlist; `/account/routines` redirects to sign-in, as intended.
+
+**Content fix (both flag states).** The collections intro claimed "research-backed formulations, each synthesised in-house … full ingredient transparency"; nothing substantiates it, so it now reads "Every product in the range, with current prices and stock."
+
+**Commerce correctness (preserved, not re-implemented).** Covered by the existing suite:
+- integer-paise pricing, and displayed price matching the charge
+- server-side checkout quote
+- Razorpay signature verification and the webhook
+- order idempotency
+- stock reservation and restoration
+- COD risk rules
+- order and invoice access tokens
+
+**Not verified:**
+- **Live sandbox payment:** no Razorpay test keys are configured in this environment.
+- **Browser checkout with stock:** the review server runs without a database, so every SKU shows as out of stock.
+
+**Wrong-brand photo.** The catalogue's stock photo `photo-1601049541289-9b1b7bbbfe19` (used for Centella Cleansing Balm, 5x Essential Ceramide Cream and Water-Gel Sorbet Moisturizer) shows another brand's label ("NEAUTHY"). It is excluded from the landing page, but the product pages still show it until approved photography replaces it.
+
+## Prompt 24 — Accounts, orders, routines and support (9 October 2026)
+
+**Existing functionality, preserved:**
+- sign-in by Google, email and phone, with the return path (`callbackUrl`)
+- account hub, address book (create, edit, delete, default), orders, order detail and invoice, track order, data page
+- policies, journal and contact
+- sign-out clearing of private client state (prompt 12)
+
+**New: `/account/routines`.**
+- **Listing:** every saved routine with its true state:
+  - up to date, guidance updated, or no longer valid (release revoked)
+  - **expired** or **permission withdrawn**: shown with an explanation, never silently missing, and never openable
+- **Actions:** open through the verified routine API, delete with a confirmation step, and withdraw routine-saving permission with a confirmation step.
+- **Access:** server-rendered for the signed-in account only, never cached; it redirects to sign-in with a return path. The account hub tile now links here.
+- **New query:** `routineHistory` in `modules/personal/routines.ts`.
+
+**Tests:**
+- Routine history states: current → expired → consent withdrawn, and another account's history is empty.
+- Address CRUD ownership (`addresses-ownership.integration.test.ts`): another account cannot read, change, set a default on, or delete an address.
+
+Existing tests still cover order and invoice access tokens, saved-routine reload and foreign routine ids.
+
+**Not built:** a self-service order cancellation or refund request. No approved customer-side rule exists, so cancellation stays staff-side (`cancelOrder` in the admin).
+
+## Prompt 25 — Staff, CMS and knowledge operations (9 October 2026)
+
+**Knowledge, `/admin/knowledge`** (new; `modules/knowledge/admin.ts`). Authoring stays in the repository as reviewed data, so every change is a reviewable diff. The page:
+- validates the repository knowledge, listing each blocking problem by record id, plus the records awaiting review
+- lists every stored release with its status, active and previous pointers, and who stored it
+- offers **owner-only** actions: publish (type PUBLISH to confirm), roll back (reason required) and revoke (reason required; the active release cannot be revoked)
+
+Managers can read but not act. Actions are rate limited (`staffPublish`) and audited through the release module, which locks the active-pointer row so concurrent activations cannot interleave.
+
+**Support messages** in admin → Requests (`modules/support/support.ts`). "Mark answered" is conditional on the request still being open, so two staff answering at once cannot both record it. It is audited (`support.answered`).
+
+**Existing workflows unchanged:** inventory, pricing (owner-only), analytics, restock, packing and dispatch, CMS revisions and media, system.
+
+**Tests:**
+- Knowledge (5): validation; a manager is refused; owner publish is idempotent and audited; an invalid record blocks publication and is named; rollback needs a reason; the active release cannot be revoked; revoke after rollback.
+- Support (5).
+
+**Not built:** scan-job views. Only database tables exist for scans (prompt 26 builds sessions; there is no worker).
+
+## Prompt 26 — Optional desktop capture and private scan sessions (9 October 2026)
+
+**Off by default.** Two reversible flags:
+- `NEXT_PUBLIC_FACE_SCAN=1` shows `/scan` and the routine finder's entry to it. On its own, photos are checked in the browser and never sent.
+- `FACE_SCAN_HOSTED=1` additionally allows uploads. It also needs `PRIVATE_STORAGE` and a database. Without the flags, `/scan` is a 404 and `/api/scans*` returns 503 `scan_disabled`.
+
+**No analysis.** No evaluated model exists, so every path ends in "Analysis unavailable" and the questionnaire. No score, label or skin observation is produced or invented. The inference stage is prompt 27.
+
+**Customer flow (`src/app/scan/`, desktop):**
+1. Cosmetic-only scope, with the questionnaire offered as the full alternative.
+2. A separate photo consent (not bundled with routine saving), stating what happens to the photo in the current mode.
+3. Webcam or file upload.
+4. Local checks: type, 5 MB, decoded size (480 px short side, 12 MP), brightness and contrast, and the face count where the browser has `FaceDetector`. With no detector, the count is "unknown", not assumed.
+5. Review, retake, then send privately (hosted) or discard (local).
+
+Camera tracks are stopped on capture and on leaving the page; object URLs are revoked whenever a photo is replaced or dropped.
+
+**Error states:**
+
+| State | Message |
+| --- | --- |
+| Camera blocked, missing or busy | Each has its own message and points to upload instead |
+| Unsupported file | Unsupported type or over 5 MB |
+| Invalid image | Undecodable, too small, or more than 12 MP |
+| Expired, withdrawn or foreign session | A single "no longer available" message (404) |
+| Upload refused | Sign in required, consent required, quota reached |
+
+**Camera permission.** `Permissions-Policy: camera=(self)` is sent only for `/scan` and its sub-paths; every other route keeps `camera=()`. Verified on the review server.
+
+**Server (`src/modules/scans/`):**
+- `image-validation.ts`: checks shared by the browser and the server; the type is sniffed from the bytes.
+- `reencode.ts`: sharp with `limitInputPixels` (stops decompression bombs), applies orientation, then re-encodes to JPEG, which drops all EXIF, GPS, ICC and XMP metadata.
+- `private-storage.ts`: storage adapter.
+  - `PRIVATE_STORAGE=local`: a git-ignored `.private-storage/` folder, for development only.
+  - Keys are server-shaped (`private/scans/<uuid>.jpg`); any other key is refused.
+  - HMAC read tokens are capped at 10 minutes.
+  - No hosted storage is configured, so hosted upload stays off in production.
+- `sessions.ts`: create, upload, get, delete and `purgeOwnerScans`. Every call re-checks owner, expiry and live consent.
+  - Create goes through the durable admission quotas (3 a day and 10 per 30 days per owner, 20 a day per IP, 100 a day overall).
+  - Upload is allowed once, only from `created`.
+  - Photos expire after 24 hours (DB CHECK).
+  - If consent is withdrawn mid-upload, the stored object is deleted.
+- Routes (all same-origin, `scanStatus`-limited, signed-in accounts only, private no-store):
+  - `POST /api/scans`
+  - `POST /api/scans/[id]/upload` (raw bytes, bounded to 5 MB while streaming)
+  - `GET` and `DELETE /api/scans/[id]` (status only, never the image or key; delete is always 204)
+- `/api/consent` now accepts `photo_processing`, for signed-in accounts and only while hosted scans are on. `DELETE ?purpose=photo_processing` withdraws it: the database trigger revokes the scans, then `purgeOwnerScans` deletes the stored photos. A storage failure leaves the key for the sweep (prompt 28) to retry.
+
+**Checks:**
+- Typecheck and lint are clean.
+- Tests: image pipeline 8, sessions 7, admission (existing), security 19 (camera policy); 41 pass.
+- Session tests cover:
+  - consent required
+  - single upload with status that never exposes the key
+  - foreign and expired sessions unavailable
+  - an invalid image keeps nothing
+  - no storage configured
+  - withdrawal plus purge deletes the photo
+  - owner deletion
+- Browser (review server, local mode):
+  - unsupported SVG
+  - a too-small JPEG
+  - a valid photo reaching review
+  - the honest finish state, with no blob URL left
+  - the camera blocked by the pane, which shows the denied message
+
+**Fixed while verifying.** After a reload, the browser restored the ticked consent box while React state was unticked, so Continue stayed disabled. The checkbox now opts out of form restoration.
+
+**Not done or dependent:**
+- Hosted private storage (bucket, credentials, lifecycle rule) is an owner decision.
+- A real webcam capture was not exercised: the review pane blocks cameras.
+- Hosted upload was exercised only in the integration tests, not in a browser, because the review server has no database.
+
+## Prompt 27 — Image inference lifecycle, disabled pending a model (9 October 2026)
+
+**State: disabled. No model is configured.** `configuredSkinAnalyzer()` returns null, so nothing is ever queued. Every upload reports `analysis: 'unavailable'`, the UI says so, and no score of any kind is produced: no random, placeholder or demo values.
+
+**What a model needs before it may be switched on** (documented in `src/modules/ai/skin-analysis.ts`):
+1. A licence that permits commercial hosted use.
+2. Evaluation on a held-out, person-level split for each appearance task it reports, with calibrated likelihoods added to the knowledge base (spec §§12–13), not raw confidence.
+3. A pinned model version.
+
+Plugging one in means implementing `SkinImageAnalyzer`: `modelVersion` plus `analyze(bytes, signal)` returning raw output.
+
+**Lifecycle (spec §19), built on the existing Postgres job queue** (`FOR UPDATE SKIP LOCKED`, leases, fenced completion, backoff, dead letters):
+
+| Control | Implementation |
+| --- | --- |
+| Admission | `requestScanInference`: only `uploaded` → `queued`, owner and expiry checked, one job per scan (dedupe `scan:<id>`), enqueued in the same transaction as the status change |
+| Backlog | At most 50 pending scans; then refused with `busy`, and the quiz stays available |
+| Spend | Durable admission quotas (prompt 26), plus `recordBillableAttempt` before every provider call: at most 2 per scan (DB CHECK) |
+| Timeouts | 15 s per attempt, enforced with `AbortController`; the provider sees the abort. 60 s total per scan. The queue lease is 60 s |
+| Retry | A transient failure returns the scan to `queued` and the queue retries once; the last attempt fails the scan |
+| Consent | Re-checked before inference (join on live consent), on every status change (DB trigger), and at completion (atomic `processing` → `completed`). Withdrawn mid-inference: result discarded, photo deleted |
+| Output | Untrusted. Must parse as bounded `ObservationV1` (`scanResultSchema`) from the same model version; anything else is discarded and the scan fails. The quiz-only routine is unaffected |
+| Photo | Deleted when the scan completes or fails. The object key is cleared only after the delete succeeds, so a failed delete stays visible to the retention sweep |
+| Safety | Vision observations enter the routine engine only as accepted evidence and cannot relax hard exclusions (prompt 13 engine, unchanged) |
+
+Failed and dead jobs appear with every other job in admin → System.
+
+**Tests (`modules/ai/__tests__/scan-inference.integration.test.ts`, 8):**
+- no model, nothing queued
+- a stray job without a model fails the scan and deletes the photo
+- with a test model:
+  - queue once, store validated observations, delete the photo
+  - random or wrong-version output discarded
+  - transient failure retried once, then capped at 2 calls
+  - a hung model timed out and aborted
+  - consent withdrawn before and during inference
+  - backlog full
+
+The old seam tests in `background-jobs.integration.test.ts` were replaced by these. Typecheck and lint are clean.
+
+**Dependencies:**
+- **Owner:** model selection, licence and an evaluation dataset with appropriate consent.
+- **Engineering, once a model exists:**
+  - a worker cadence for interactive scans (the daily cron is not one)
+  - result polling in `/scan`
+  - passing the scan id to `POST /api/routines` (already accepted and verified server-side by `scanObservations`)
+
+## Prompt 28 — Feedback, privacy lifecycle and observability (9 October 2026)
+
+**Weekly feedback (`/account/routines`).** Each openable saved routine has a "How is week N going?" form with three bounded choices: adherence, tolerability and change. It posts to the existing `POST /api/routines/[id]/feedback` (accounts only, rate limited, once per week, tied to the routine's knowledge release). The server computes the week. The form includes a plain "stop and seek advice if irritated" line. Feedback informs follow-up only; it never changes a routine on its own and is not a training label.
+
+**Consent withdrawal.**
+
+| Permission | On withdrawal |
+| --- | --- |
+| Routine saving | Unchanged from prompt 24: saved routines stop being shown |
+| Photo processing | DB trigger revokes scans and suppresses results; `purgeOwnerScans` deletes stored photos at once; a failed delete is left for the sweep |
+
+The account page now shows the photo permission with its own withdraw button; `WithdrawSaving` takes a `purpose`.
+
+**Expiry and deletion (`/api/cron/sweep`, CRON_SECRET-protected, retryable, batched):**
+- Existing: abandoned reservations, idempotency keys, rate-limit rows, expired routines and profiles.
+- New, `sweepScans`:
+  1. Deletes photos past their 24 hours, or whose scan has ended. The key is cleared only after storage confirms, so a failed delete is retried on the next run.
+  2. Deletes scan rows past their 7-day expiry once no photo remains. Admission rows stay, so quotas still count.
+
+**Retention: implemented vs proposed.**
+
+| Data | Retention | Status |
+| --- | --- | --- |
+| Guest routine | 30 days | Implemented |
+| Account routine | 180 days | Implemented |
+| Scan photo | ≤ 24 h, deleted on completion or failure | Implemented (DB CHECK and sweep) |
+| Scan observations | ≤ 7 days | Implemented |
+| Support requests | 12 months after closing | **Proposed, not implemented**; owner to confirm |
+| Routine feedback | Deleted with its routine | Implemented (cascade) |
+| Consent records | Kept as the audit of permissions | Append-only; period for owner and legal review |
+
+**Telemetry redaction (`lib/observability.ts`).**
+- Every log and error report already went through `redact`.
+- **Newly masked keys:** questionnaire answers, profiles, photos, images, object keys, observations, owner hashes, IP addresses and signed URLs.
+- **Free text** (error messages, URLs) is now scrubbed of email addresses, Indian mobile numbers and private object keys.
+- **Tested:** 10 observability tests.
+
+**Monitoring.** Admin → System now shows pending scans, failed scans in 24 h, and **photos past their deletion time** (highlighted when non-zero, the deletion-backlog alert spec §7 asks for). Existing queue depth, dead jobs and dead deliveries are unchanged.
+
+**Checks:**
+- Typecheck and lint clean.
+- Scans, personal and observability suites: 179 tests, plus the sweep test (overdue photo, failed delete retried, expired row dropped, admission kept).
+
+**Not done:**
+- An external alert channel. Sentry is optional and not configured here; the backlog is visible in admin only.
+- Support-request retention, until the owner sets a period.
+
+## Prompt 29 — Promotions, loyalty, reviews and newsletter (9 October 2026)
+
+**Promotions: only what is supported.**
+- **Existing offers:** the only offer in the system is a per-SKU sale price with an optional label and start and end times (`product_pricing`, owner-only in admin → Pricing, versioned). Display price equals the charge and is enforced server-side (prompt 2). Nothing changed.
+- **No coupons, codes, bundles, free gifts or loyalty points:** none have defined rules, so none were built. `lib/content-claims.ts` already blocks loyalty and reward-points wording in content.
+- **To add one, the owner must define:**
+  - eligibility
+  - stacking with sale prices
+  - caps per customer
+  - expiry
+  - behaviour on refund or return
+- **Loyalty also needs a ledger:** an append-only transaction table, with reversal on refund.
+
+**Reviews: verified purchases, moderated (`modules/reviews/reviews.ts`).**
+- **Who can review:** only an account with a **delivered** order containing the product. The review is linked to that order. One per customer per product (existing unique index).
+- **Moderation:** submissions are stored unpublished. Staff publish, or reject (which deletes the review so the customer may write again), in admin → Requests → "Reviews to moderate". Both are audited (`review.publish` / `review.reject`). The moderation view shows the text only, no reviewer contact details.
+- **Product page:**
+  - The rating and count come only from published reviews. The catalogue file carries no ratings.
+  - JSON-LD `aggregateRating` appears only when published reviews exist.
+  - Reviews are labelled "Verified purchase".
+  - The "Write a review" form explains who may review. The server refuses anyone else with a plain message.
+- **API:** `POST /api/reviews`: same-origin, signed-in, rate limited (`review`: 5 an hour per account, 20 per IP), 4 KB body, strict schema (rating 1–5, body 20–2000 characters). A client cannot set an order id.
+
+**Newsletter: double opt-in (`modules/newsletter/newsletter.ts`, migration 0021, flagged off).**
+- **Flags:**
+  - `NEXT_PUBLIC_NEWSLETTER=1` shows the footer form, with an explicit, unticked consent box.
+  - `NEWSLETTER_ENABLED=1` plus configured email delivery (Resend) opens `POST /api/newsletter`.
+- **Sign-up:**
+  - It stores `pending` with a SHA-256 token hash and the consent wording version, then emails a link.
+  - The answer is identical whatever the address's state, so subscriptions cannot be enumerated.
+  - A repeat sign-up rotates the token and never downgrades a confirmed subscriber.
+- **Confirm and unsubscribe:**
+  - `/newsletter?token=` shows buttons. The change happens on a button press, so mail scanners following links cannot confirm or unsubscribe.
+  - Unsubscribe works from any state. The unsubscribed address is kept only as a do-not-send record.
+- **Retention:** unconfirmed sign-ups expire after 7 days and are deleted by the cron sweep.
+- **Logging:** tokens in URLs are redacted (`token=[redacted]`).
+- **Sending:** there is no newsletter sending tool. Subscribers are a list for the owner's chosen service, which must honour unsubscribes.
+
+**Checks:**
+- Typecheck and lint clean (one existing unused-argument warning in the product page).
+- Reviews: 4 tests (verification: none, shipped, wrong product, delivered; one per product; publication gating and aggregate; reject and rewrite; input bounds).
+- Newsletter: 4 tests (pending to confirmed with hash-only storage; token rotation and no downgrade; unsubscribe and re-opt-in; 7-day expiry).
+- Redaction: 10 tests.
+
+**Migration 0021** (`newsletter_subscribers`, additive) has been run only in the PGlite test databases, not against any shared database. **It needs owner approval before production**, as does 0020.
+
+## Prompt 30 — Desktop acceptance, performance and handoff (9 October 2026)
+
+**Handoff:** [`docs/handoff-2026-10-09.md`](handoff-2026-10-09.md). It covers:
+- how to review the build
+- every flag
+- what is implemented, verified, disabled and pending
+- owner decisions before release
+- rollback
+- completion matrices for the 30 prompts and the audit
+
+**Reviewable build:**
+- `NEXT_PUBLIC_REDESIGN=1 NEXT_PUBLIC_FACE_SCAN=1 npm run build:offline` passes.
+- Serve it with `node scripts/dev-redesign.mjs --start 9004` (launch entry `start-redesign`).
+- Not deployed.
+
+**Acceptance pass.** New `scripts/acceptance-pass.mjs` (CDP, headless Edge) loads 10 pages at 1280, 1440 and 1920. For each it saves a screenshot and records:
+- TTFB, FCP, LCP, CLS and bytes
+- horizontal overflow
+- accessibility checks: `lang`, one `h1`, heading order, image alt text, named buttons and links, labelled fields
+
+Results are in `docs/redesign-reference/acceptance/2026-10-09/` (30 screenshots and `measurements.json`). Final run: no accessibility findings, no overflow, CLS 0. Visual fidelity against the Nuvē reference is the prompt 22 comparison (`comparisons/2026-10-09-landing/`, three widths).
+
+**Caching** (`scripts/measure-pages.mjs`, from prompt 11): public pages are served from the cache (HIT); every private path returns `private, no-store, max-age=0`. That includes the new `/scan`, `/api/scans`, `/newsletter`, `/api/newsletter`, `/api/reviews`, `/api/support` and `/account/routines`.
+
+**Fixed during the pass:**
+- `/login` had no `h1` (the card title was a `div`).
+- `/collections` and product pages skipped from `h1` to `h3`; a visually hidden `h2` now introduces the product grid and the details accordion.
+- The new `/scan`, `/newsletter` and product review section were left-aligned at 1920 (added `mx-auto`).
+- The measuring script itself: blank page between loads, focus emulation, and a screenshot retry, because headless Edge stops painting unfocused tabs.
+
+**Performance and bundles.** Medians and two-run ranges are in the handoff §4. Local and unthrottled: TTFB is roughly 5–40 ms by `curl`. Bundle sizes:
+
+| Bundle | Size |
+| --- | --- |
+| Shared first-load JS | 103 kB |
+| Home | 139 kB |
+| Product | 142 kB |
+| Routine finder | 167 kB |
+| `/scan` | 119 kB |
+
+**Checks:**
+- Typecheck clean.
+- Lint 0 errors.
+- Build passes.
+- Full suite: 911 passed, 3 skipped. Two files failed at module import under full parallel load and pass alone (14/14); the earlier run had a different file fail the same way. Details in the handoff §4.1.
+
+**Not verified in a browser** (no database, no payment test keys):
+- checkout with stock
+- Razorpay sandbox
+- sign-in merge
+- saved-routine reload
+- assistant with a published release
+- reviews, newsletter and hosted upload
+
+Each is covered by integration tests.
+
 ## Remaining sequence
 
 | # | Prompt | Status |
@@ -1549,15 +1937,15 @@ Fixed during comparison:
 | 19 | Freeze and measure the live desktop reference | **Done** |
 | 20 | Desktop design primitives and route shell | **Done** (behind `NEXT_PUBLIC_REDESIGN`) |
 | 21 | Full-screen hero and desktop menu replica | **Done** (behind `NEXT_PUBLIC_REDESIGN`; hero photograph pending) |
-| 22 | Complete Nuvē-style landing page | Next |
-| 23 | Desktop catalogue, product, bag and checkout | Pending |
-| 24 | Desktop account, orders, journal and support | Pending |
-| 25 | Staff CMS and knowledge operations | Pending |
-| 26 | Optional desktop capture and private scan sessions | Pending |
-| 27 | Evaluated image inference and evidence integration | Pending |
-| 28 | Feedback, privacy lifecycle and observability | Pending |
-| 29 | Promotions, loyalty, reviews and newsletter | Pending |
-| 30 | Desktop acceptance, performance and handoff | Pending |
+| 22 | Complete Nuvē-style landing page | **Done** |
+| 23 | Desktop catalogue, product, bag and checkout | **Done** |
+| 24 | Desktop account, orders, journal and support | **Done** |
+| 25 | Staff CMS and knowledge operations | **Done** |
+| 26 | Optional desktop capture and private scan sessions | **Done** (flagged off) |
+| 27 | Evaluated image inference and evidence integration | **Done** (disabled: no evaluated model) |
+| 28 | Feedback, privacy lifecycle and observability | **Done** |
+| 29 | Promotions, loyalty, reviews and newsletter | **Done** (coupons and loyalty not built: no rules) |
+| 30 | Desktop acceptance, performance and handoff | **Done** (handoff: `docs/handoff-2026-10-09.md`) |
 
 ## Audit register
 
@@ -1579,4 +1967,20 @@ Fixed during comparison:
 | 25 Unguarded storage, unvalidated cart shape | **Partly resolved** in prompt 2: cart storage is versioned, validated and guarded with an in-memory fallback; wishlist and user reads are guarded and shape-checked. Server-cart restore remains for prompt 12. |
 | 24 Portable build | **Resolved** in prompt 1 |
 | 29 Build-time content policy | **Resolved** in prompt 1: unreachable database fails the build, offline builds are explicit, production refuses to build without a database |
-| All others | Open; mapped to prompts in the specification's section 24 |
+| All IDs | Final status per audit ID: `docs/handoff-2026-10-09.md` §8 (open: 22 brand assets; partly: 03 directions, 10 support details, 27 media CSP) |
+
+## Re-audit remediation (10 October 2026)
+
+All findings of the 9 October desktop re-audit (A01–A22) addressed in code; finding-by-finding record in [`docs/remediation-checklist-2026-10-10.md`](remediation-checklist-2026-10-10.md), handoff in [`docs/handoff-2026-10-10.md`](handoff-2026-10-10.md), product onboarding in [`docs/product-onboarding.md`](product-onboarding.md).
+
+**Checks:**
+- Typecheck clean; lint 0 errors.
+- Full suite with 2 workers: 987 passed, 3 skipped, 1 timed out under load (`bayes.test.ts` browser-parity bundle; 30/30 alone).
+- Audit reproduction script re-run: every case now fixed.
+- Production builds pass in `sample` and `verified` catalogue modes.
+- Three-width acceptance pass (30 screenshots in `docs/redesign-reference/acceptance/2026-10-10/`): no accessibility findings, no overflow, CLS 0.
+- Database-backed browser matrix on a disposable local Postgres (`scripts/acceptance-env.mjs`): passed. Four defects found and fixed (review publish deleted reviews; COD orders could not be dispatched; guest routines missing on the account page; sample notice over the footer).
+
+**Not done:**
+- Razorpay sandbox (no test keys); real webcam; field performance.
+- Production remains **not launch-ready**: verified products, assets, reviewed knowledge, support details and owner decisions are outstanding (handoff §Owner decisions).

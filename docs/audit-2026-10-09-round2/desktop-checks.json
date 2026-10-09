@@ -1,0 +1,92 @@
+[
+  {
+    "width": 1280,
+    "path": "/",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": [
+      "Skincare built around a simple routine"
+    ],
+    "overflow": false,
+    "shipping": [
+      "Free delivery on orders of ₹1,199 or more. Prices are confirmed at checkout."
+    ],
+    "title": "Avyora | Skincare built around a simple routine",
+    "url": "http://localhost:9007/",
+    "viewport": 1280
+  },
+  {
+    "width": 1280,
+    "path": "/collections",
+    "canonical": "https://avyora-beauty.vercel.app/collections",
+    "h1": [
+      "Shop all"
+    ],
+    "overflow": false,
+    "shipping": [
+      "Free delivery on orders of ₹1,199 or more. Prices are confirmed at checkout."
+    ],
+    "title": "All products | Avyora Skincare",
+    "url": "http://localhost:9007/collections",
+    "viewport": 1280
+  },
+  {
+    "width": 1440,
+    "path": "/",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": [
+      "Skincare built around a simple routine"
+    ],
+    "overflow": false,
+    "shipping": [
+      "Free delivery on orders of ₹1,199 or more. Prices are confirmed at checkout."
+    ],
+    "title": "Avyora | Skincare built around a simple routine",
+    "url": "http://localhost:9007/",
+    "viewport": 1440
+  },
+  {
+    "width": 1440,
+    "path": "/collections",
+    "canonical": "https://avyora-beauty.vercel.app/collections",
+    "h1": [
+      "Shop all"
+    ],
+    "overflow": false,
+    "shipping": [
+      "Free delivery on orders of ₹1,199 or more. Prices are confirmed at checkout."
+    ],
+    "title": "All products | Avyora Skincare",
+    "url": "http://localhost:9007/collections",
+    "viewport": 1440
+  },
+  {
+    "width": 1920,
+    "path": "/",
+    "canonical": "https://avyora-beauty.vercel.app",
+    "h1": [
+      "Skincare built around a simple routine"
+    ],
+    "overflow": false,
+    "shipping": [
+      "Free delivery on orders of ₹1,199 or more. Prices are confirmed at checkout."
+    ],
+    "title": "Avyora | Skincare built around a simple routine",
+    "url": "http://localhost:9007/",
+    "viewport": 1920
+  },
+  {
+    "width": 1920,
+    "path": "/collections",
+    "canonical": "https://avyora-beauty.vercel.app/collections",
+    "h1": [
+      "Shop all"
+    ],
+    "overflow": false,
+    "shipping": [
+      "Free delivery on orders of ₹1,199 or more. Prices are confirmed at checkout."
+    ],
+    "title": "All products | Avyora Skincare",
+    "url": "http://localhost:9007/collections",
+    "viewport": 1920
+  }
+]

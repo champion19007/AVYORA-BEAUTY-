@@ -2,7 +2,7 @@ import { and, eq, inArray, isNull, lt } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
 import { orders } from '@/db/schema';
 import { restoreOrderStock } from '@/lib/orders';
-import { reconcileOrder, type PaymentProviderClient, configuredProvider } from '@/modules/payments/reconciliation';
+import { reconcileOrder, type PaymentProviderClient } from '@/modules/payments/reconciliation';
 import { reportError } from '@/lib/observability';
 
 /**
@@ -51,7 +51,8 @@ export type SweepResult = {
  */
 export async function sweepAbandonedReservations(
   ttlMinutes = RESERVATION_TTL_MINUTES,
-  provider: PaymentProviderClient | null = configuredProvider()
+  /** Tests only; by default each order is asked of the provider that took its payment. */
+  provider?: PaymentProviderClient | null
 ): Promise<SweepResult> {
   if (!isDatabaseConfigured()) return { examined: 0, released: 0, recovered: 0, undetermined: 0 };
 
@@ -66,7 +67,7 @@ export async function sweepAbandonedReservations(
         // `failed` already released its stock when the failure was recorded.
         inArray(orders.paymentStatus, ['unpaid', 'pending']),
         // Online only. A COD order is unpaid on purpose.
-        eq(orders.paymentProvider, 'razorpay'),
+        inArray(orders.paymentProvider, ['razorpay', 'cashfree']),
         // Not already swept.
         isNull(orders.stockRestoredAt),
         lt(orders.createdAt, cutoff)

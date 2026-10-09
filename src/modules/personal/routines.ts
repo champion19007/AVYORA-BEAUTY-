@@ -85,6 +85,10 @@ export async function insertRoutine(
   const ownerKey = owner.kind === 'user' ? `u:${owner.userId}` : `g:${owner.ownerHash}`;
   const expiresAt = new Date(now.getTime() + (owner.kind === 'guest' ? GUEST_RETENTION_DAYS : ACCOUNT_RETENTION_DAYS) * 86_400_000);
   const owned = ownerColumns(owner);
+  // The persistence boundary re-checks the hard invariant itself, so no caller can store a broken plan.
+  if (input.snapshot.status === 'invalid' || input.snapshot.status === 'no_match' || input.snapshot.problems.length > 0) {
+    return fail(422, 'invalid_plan', 'Only a routine with no broken safety rules can be saved.');
+  }
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`routine:${ownerKey}:${input.key}`}, 0))`);
@@ -188,6 +192,44 @@ export async function listRoutines(db: Db, owner: Owner, now = new Date()) {
     .orderBy(sql`${rr.createdAt} DESC`)
     .limit(50);
   return rows.map((r) => r.id);
+}
+
+export type RoutineState = Validity | 'expired' | 'consent_withdrawn';
+
+/**
+ * Every versioned routine this owner still has a record of, newest first,
+ * with its state: current, outdated or revoked (as getRoutine), expired, or
+ * consent_withdrawn. Content is never returned here; only a showable
+ * routine can be opened (getRoutine). Lets the account page explain why a
+ * routine is unavailable instead of silently hiding it.
+ */
+export async function routineHistory(db: Db, owner: Owner, now = new Date()) {
+  const rows = await db
+    .select({
+      id: rr.id,
+      createdAt: rr.createdAt,
+      expiresAt: rr.expiresAt,
+      kbRelease: rr.kbRelease,
+      withdrawnAt: schema.consentRecords.withdrawnAt,
+      releaseStatus: schema.kbReleases.status,
+      activeId: schema.kbActiveRelease.releaseId,
+    })
+    .from(rr)
+    .innerJoin(schema.consentRecords, eq(schema.consentRecords.id, rr.consentId))
+    .leftJoin(schema.kbReleases, eq(schema.kbReleases.id, rr.kbRelease))
+    .leftJoin(schema.kbActiveRelease, eq(schema.kbActiveRelease.singleton, true))
+    .where(and(ownedBy(owner), gte(rr.schemaVersion, 2)))
+    .orderBy(sql`${rr.createdAt} DESC`)
+    .limit(100);
+  return rows.map((r) => {
+    const state: RoutineState =
+      r.withdrawnAt !== null ? 'consent_withdrawn'
+      : r.expiresAt !== null && r.expiresAt <= now ? 'expired'
+      : r.releaseStatus === 'revoked' || r.releaseStatus === null ? 'revoked'
+      : r.activeId === r.kbRelease ? 'current'
+      : 'outdated';
+    return { id: r.id, createdAt: r.createdAt.toISOString(), expiresAt: r.expiresAt!.toISOString(), kbRelease: r.kbRelease, state, week: Math.min(52, Math.floor((now.getTime() - r.createdAt.getTime()) / 604_800_000) + 1) };
+  });
 }
 
 /** Deletes an owned routine with its saved answers, schedule and feedback. Idempotent. */

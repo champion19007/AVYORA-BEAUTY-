@@ -5,6 +5,10 @@ import { PermanentJobError } from '@/infrastructure/jobs/queue';
 import { exportEventBatch } from '@/modules/analytics/landing-zone';
 import { RECONCILE_JOB, reconcileJobHandler } from '@/modules/payments/jobs';
 import { SKIN_ANALYSIS_JOB, skinAnalysisJobHandler } from '@/modules/ai/skin-analysis';
+import { NEWSLETTER_CONFIRM_JOB, newsletterConfirmHandler } from '@/modules/newsletter/newsletter';
+import { db } from '@/db';
+import { sendEmail } from '@/lib/notify';
+import { SITE_URL } from '@/data/business-info';
 import { drainAll } from '@/lib/event-consumers';
 import type { DrainResult } from '@/lib/events';
 import { reportError } from '@/lib/observability';
@@ -27,6 +31,7 @@ export const ANALYTICS_EXPORT_JOB = 'analytics.export';
 
 registerJob(RECONCILE_JOB, reconcileJobHandler());
 registerJob(SKIN_ANALYSIS_JOB, skinAnalysisJobHandler());
+registerJob(NEWSLETTER_CONFIRM_JOB, newsletterConfirmHandler({ db: db as never, send: sendEmail, siteUrl: SITE_URL }));
 registerJob(ANALYTICS_EXPORT_JOB, async () => {
   const storage = analyticsStorage();
   if (!storage) throw new PermanentJobError('No analytics storage is configured.');
