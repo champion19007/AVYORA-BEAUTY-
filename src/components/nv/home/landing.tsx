@@ -35,12 +35,12 @@ const COLUMN = 'mx-auto w-full max-w-[calc(var(--nv-container)+2*var(--nv-gutter
 const unsplash = (id: string, wide = false) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=2400&q=80${wide ? '&h=1350&crop=faces%2Cedges' : ''}`;
 const PHOTO_SLOTS: Record<'about' | 'aboutCard' | 'vision' | 'services' | 'testimonial' | 'imageBreak' | 'consultation', { src: string | null; alt: string; scrim?: string }> = {
-  about: { src: unsplash('photo-1551184451-76b762941ad6'), alt: 'Portrait of a woman with clear, natural skin' },
-  aboutCard: { src: unsplash('photo-1695990190064-e8ca2ca16af6'), alt: '', scrim: 'bg-[linear-gradient(to_top,rgba(0,0,0,0.6),transparent_60%)]' },
-  vision: { src: unsplash('photo-1781439213513-ef4ee75a4cd6', true), alt: '', scrim: 'bg-[linear-gradient(to_right,rgba(0,0,0,0.7),rgba(0,0,0,0.25)_55%,transparent)]' },
+  about: { src: unsplash('photo-1747264464985-2bc2e20c739e'), alt: 'Portrait of a young woman with clear, natural skin' },
+  aboutCard: { src: unsplash('photo-1747264464438-ff4188b1678a'), alt: '', scrim: 'bg-[linear-gradient(to_top,rgba(0,0,0,0.6),transparent_60%)]' },
+  vision: { src: unsplash('photo-1747264464533-ce59ecd395e2', true), alt: '', scrim: 'bg-[linear-gradient(to_right,rgba(0,0,0,0.7),rgba(0,0,0,0.25)_55%,transparent)]' },
   services: { src: unsplash('photo-1773924684918-176cb489e65f', true), alt: '', scrim: 'bg-black/55' },
-  testimonial: { src: unsplash('photo-1781439212605-eb3cc09fa99e'), alt: 'A woman resting among green leaves in sunlight' },
-  imageBreak: { src: unsplash('photo-1675773051474-55c4b7d2cf53', true), alt: 'Close-up of skin texture in soft light' },
+  testimonial: { src: unsplash('photo-1747264464928-9795abf30a29'), alt: 'A young woman smiling with her eyes closed' },
+  imageBreak: { src: unsplash('photo-1693004925174-d9e06209d0ee', true), alt: 'Close-up of moisturiser being smoothed onto the cheek' },
   consultation: { src: unsplash('photo-1781819114972-478f14095968', true), alt: '', scrim: 'bg-black/60' },
 };
 
