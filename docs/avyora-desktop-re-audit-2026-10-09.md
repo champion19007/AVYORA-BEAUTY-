@@ -24,7 +24,7 @@ This audit covers workspace HEAD `7f5225d` plus the current uncommitted implemen
 
 The browser build intentionally had no database: its sold-out products and unavailable saving states are expected fixtures, not evidence that production stock is broken. No real purchase, provider email, production migration, real face upload or deployment was performed. Authenticated customer journeys, stock-backed checkout and Razorpay sandbox payment still need end-to-end browser verification in an isolated environment. This audit did not repeat the handoff's entire ten-page performance run. Empty image slots make current hero paint measurements unrepresentative of the finished visual design.
 
-Evidence: [test log](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09/tests.log>), [build log](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09/build.log>), [launch gaps](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09/launch.log>), [synthetic reproductions](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09/reproductions.json>), [upload race reproduction](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09/scan-reproduction.json>), [desktop checks](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09/desktop-checks.json>).
+Evidence: [test log](<../docs/audit-2026-10-09/tests.log>), [build log](<../docs/audit-2026-10-09/build.log>), [launch gaps](<../docs/audit-2026-10-09/launch.log>), [synthetic reproductions](<../docs/audit-2026-10-09/reproductions.json>), [upload race reproduction](<../docs/audit-2026-10-09/scan-reproduction.json>), [desktop checks](<../docs/audit-2026-10-09/desktop-checks.json>).
 
 P1 means fix before releasing the affected behavior. P2 means a material correctness, product or completion gap. Hosted-scan findings apply before that disabled feature is enabled.
 
@@ -32,7 +32,7 @@ P1 means fix before releasing the affected behavior. P2 means a material correct
 
 ### A01 — P1 — Owned products bypass active and allergy eligibility
 
-**Evidence:** [selection.ts](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/selection.ts:329>).
+**Evidence:** [selection.ts](<../src/modules/personalization/core/selection.ts#L329>).
 
 Owned essentials are selected by their user-assigned role, non-prescribed flag and absence of a known matching allergen. They bypass the catalogue's active classification, irritation and incomplete-formulation checks.
 
@@ -44,7 +44,7 @@ Owned essentials are selected by their user-assigned role, non-prescribed flag a
 
 ### A02 — P1 — A conflicting partial plan remains actionable and saveable
 
-**Evidence:** [planner.ts](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/planner.ts:250>), [routine POST](</C:/Users/champ/Desktop/avyora-beauty/src/app/api/routines/route.ts:87>).
+**Evidence:** [planner.ts](<../src/modules/personalization/core/planner.ts#L250>), [routine POST](<../src/app/api/routines/route.ts#L87>).
 
 Validation reports conflicts after placing essential slots but leaves them in the schedule. The saving endpoint rejects only no-match results, not nonempty hard-constraint problems.
 
@@ -56,7 +56,7 @@ Validation reports conflicts after placing essential slots but leaves them in th
 
 ### A03 — P1 — Full INCI validation checks counts, not ingredient identity
 
-**Evidence:** [formulations.ts](</C:/Users/champ/Desktop/avyora-beauty/src/modules/ingredients/formulations.ts:113>).
+**Evidence:** [formulations.ts](<../src/modules/ingredients/formulations.ts#L113>).
 
 A complete formulation can declare one ingredient in full INCI and a different ingredient in its structured rows, provided the counts match. Resolvable labels can also retain a null canonical ID.
 
@@ -68,7 +68,7 @@ A complete formulation can declare one ingredient in full INCI and a different i
 
 ### A04 — P1 — Questionnaire information is saved as personally linked analytics without saving consent
 
-**Evidence:** [routine page](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/page.tsx:55>), [routine action](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/actions.ts:20>), [activity writer](</C:/Users/champ/Desktop/avyora-beauty/src/lib/activity.ts:77>).
+**Evidence:** [routine page](<../src/app/routine-finder/page.tsx#L55>), [routine action](<../src/app/routine-finder/actions.ts#L20>), [activity writer](<../src/lib/activity.ts#L77>).
 
 Completing the quiz sends skin type and the first concern to a server action. It stores them with the account ID or anonymous cookie. This is an individual event record, despite the comment calling it aggregate and non-personal. It has no routine-saving consent check or matching expiry field.
 
@@ -78,7 +78,7 @@ Completing the quiz sends skin type and the first concern to a server action. It
 
 ### A05 — P1 — Error messages and stacks bypass the new redaction
 
-**Evidence:** [observability.ts](</C:/Users/champ/Desktop/avyora-beauty/src/lib/observability.ts:134>).
+**Evidence:** [observability.ts](<../src/lib/observability.ts#L134>).
 
 Only extra fields are redacted. The normalized error message/stack goes directly to stdout, and the original Error is sent to Sentry.
 
@@ -90,7 +90,7 @@ Only extra fields are redacted. The normalized error message/stack goes directly
 
 ### A06 — P1 — A daily sweep cannot guarantee photo deletion within 24 hours
 
-**Evidence:** [daily scheduler](</C:/Users/champ/Desktop/avyora-beauty/vercel.json:8>), [scan sweep](</C:/Users/champ/Desktop/avyora-beauty/src/modules/scans/sessions.ts:143>), [scan UI](</C:/Users/champ/Desktop/avyora-beauty/src/app/scan/scan-flow.tsx:275>).
+**Evidence:** [daily scheduler](<../vercel.json#L8>), [scan sweep](<../src/modules/scans/sessions.ts#L143>), [scan UI](<../src/app/scan/scan-flow.tsx#L275>).
 
 The database expiry is not a storage deletion. Photos are removed only when an applicable sweep or terminal processing path runs. With no analyzer, uploads remain uploaded. A photo expiring just after a daily sweep can remain for nearly another day.
 
@@ -100,7 +100,7 @@ The database expiry is not a storage deletion. Photos are removed only when an a
 
 ### A07 — P1 — Delete-photo UI loses the session even when deletion fails
 
-**Evidence:** [scan-flow.tsx](</C:/Users/champ/Desktop/avyora-beauty/src/app/scan/scan-flow.tsx:142>).
+**Evidence:** [scan-flow.tsx](<../src/app/scan/scan-flow.tsx#L142>).
 
 The delete handler ignores HTTP failures and catches network failures, then clears the scan ID and returns to the intro. The customer loses their retry control while the photo may remain.
 
@@ -110,7 +110,7 @@ The delete handler ignores HTTP failures and catches network failures, then clea
 
 ### A08 — P1 — Approved usage constraints apply only to catalogue treatments
 
-**Evidence:** [planner.ts](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/planner.ts:131>), [essential placement](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/planner.ts:193>).
+**Evidence:** [planner.ts](<../src/modules/personalization/core/planner.ts#L131>), [essential placement](<../src/modules/personalization/core/planner.ts#L193>).
 
 Essentials are placed according to hardcoded role sessions; optional items go into every evening. Timing/frequency checks count only products in the treatment map.
 
@@ -122,7 +122,7 @@ Essentials are placed according to hardcoded role sessions; optional items go in
 
 ### A09 — P2 — Experience/adherence answers are disconnected from the new engine
 
-**Evidence:** [profile-to-rule mapping](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/routine.ts:70>), [beginner rule](</C:/Users/champ/Desktop/avyora-beauty/src/data/knowledge.ts:53>).
+**Evidence:** [profile-to-rule mapping](<../src/modules/personalization/core/routine.ts#L70>), [beginner rule](<../src/data/knowledge.ts#L53>).
 
 The quiz collects experience and adherence, but neither reaches selection/planning. Rules expect experienceLevel values such as N0/N1; ruleProfile never supplies them.
 
@@ -134,7 +134,7 @@ The quiz collects experience and adherence, but neither reaches selection/planni
 
 ### A10 — P2 — The Bayesian package has no quiz evidence adapter
 
-**Evidence:** [routine.ts](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/routine.ts:102>).
+**Evidence:** [routine.ts](<../src/modules/personalization/core/routine.ts#L102>).
 
 Inference receives only externally supplied observations. The quiz supplies priorities, not categorical evidence. With future validated parameters, quiz-only beliefs therefore stay at priors rather than update from answers. The current parameter registry is empty, so no calibrated production inference exists today.
 
@@ -144,7 +144,7 @@ Inference receives only externally supplied observations. The quiz supplies prio
 
 ### A11 — P2 — Invalid categorical Bayesian distributions can be published
 
-**Evidence:** [parameter validation](</C:/Users/champ/Desktop/avyora-beauty/src/modules/knowledge/compile.ts:123>).
+**Evidence:** [parameter validation](<../src/modules/knowledge/compile.ts#L123>).
 
 Each likelihood is checked individually, but categorical sums are not validated.
 
@@ -156,7 +156,7 @@ Each likelihood is checked individually, but categorical sums are not validated.
 
 ### A12 — P2 — Greedy purchasing can miss an affordable complete essentials set
 
-**Evidence:** [selection.ts](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/selection.ts:341>).
+**Evidence:** [selection.ts](<../src/modules/personalization/core/selection.ts#L341>).
 
 The selector buys the highest-ranked affordable moisturiser before reserving money for the remaining essentials.
 
@@ -168,7 +168,7 @@ The selector buys the highest-ranked affordable moisturiser before reserving mon
 
 ### A13 — P2 — Concurrent uploads delete the successful request's photo
 
-**Evidence:** [sessions.ts](</C:/Users/champ/Desktop/avyora-beauty/src/modules/scans/sessions.ts:63>).
+**Evidence:** [sessions.ts](<../src/modules/scans/sessions.ts#L63>).
 
 Two requests can read created, write the same object key, then race the status update. The losing request deletes the shared key.
 
@@ -180,7 +180,7 @@ Two requests can read created, write the same object key, then race the status u
 
 ### A14 — P2 — Scan network and camera lifecycle failures are incomplete
 
-**Evidence:** [scan-flow.tsx](</C:/Users/champ/Desktop/avyora-beauty/src/app/scan/scan-flow.tsx:96>).
+**Evidence:** [scan-flow.tsx](<../src/app/scan/scan-flow.tsx#L96>).
 
 send has no enclosing failure handler for rejected fetches, so it can remain sending indefinitely. Start camera remains callable repeatedly without stopping the previous stream. Uploading a file while the camera is active does not stop it when the preview leaves the screen. Asynchronous operations are not canceled or generation-guarded on exit/retake.
 
@@ -190,7 +190,7 @@ send has no enclosing failure handler for rejected fetches, so it can remain sen
 
 ### A15 — P2 — Hosted upload accepts files larger than the platform can receive
 
-**Evidence:** [image cap](</C:/Users/champ/Desktop/avyora-beauty/src/modules/scans/image-validation.ts:10>), [body cap](</C:/Users/champ/Desktop/avyora-beauty/src/lib/request-body.ts:27>).
+**Evidence:** [image cap](<../src/modules/scans/image-validation.ts#L10>), [body cap](<../src/lib/request-body.ts#L27>).
 
 The browser accepts 5 MiB and uploads raw bytes through a Next route. Vercel Functions cap request payloads at 4.5 MB; accepted files can be rejected before the route produces its intended error. [Official Vercel limits](https://vercel.com/docs/functions/limitations).
 
@@ -200,7 +200,7 @@ The browser accepts 5 MiB and uploads raw bytes through a Next route. Vercel Fun
 
 ### A16 — P2 — The Nuvé visual replica is incomplete
 
-**Evidence:** [hero image slot](</C:/Users/champ/Desktop/avyora-beauty/src/components/nv/home/hero.tsx:33>), [landing image slots](</C:/Users/champ/Desktop/avyora-beauty/src/components/nv/home/landing.tsx:32>).
+**Evidence:** [hero image slot](<../src/components/nv/home/hero.tsx#L33>), [landing image slots](<../src/components/nv/home/landing.tsx#L32>).
 
 The hero and seven campaign/editorial slots have null sources. The hero is a gradient. Matching section heights does not establish visual fidelity when the defining photography is absent. Catalogue photography showing other brands remains elsewhere.
 
@@ -208,11 +208,11 @@ The hero and seven campaign/editorial slots have null sources. The hero is a gra
 
 **Acceptance:** every intended photo slot has an approved asset; comparisons include images, text, interactions and motion. Mark this work partial until then.
 
-![Current 1440-pixel hero](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09/1440-home.png>)
+![Current 1440-pixel hero](<../docs/audit-2026-10-09/1440-home.png>)
 
 ### A17 — P2 — Homepage shipping threshold is truncated to ₹1
 
-**Evidence:** [landing.tsx](</C:/Users/champ/Desktop/avyora-beauty/src/components/nv/home/landing.tsx:353>).
+**Evidence:** [landing.tsx](<../src/components/nv/home/landing.tsx#L353>).
 
 DELIVERY_TERMS.split(',')[0] cuts the thousands separator in ₹1,199. The pricing section says “Delivery is ₹79 on orders below ₹1,” while the FAQ/footer show the actual threshold.
 
@@ -222,7 +222,7 @@ DELIVERY_TERMS.split(',')[0] cuts the thousands separator in ₹1,199. The prici
 
 ### A18 — P2 — The redesign removed search and category/concern discovery
 
-**Evidence:** [new header](</C:/Users/champ/Desktop/avyora-beauty/src/components/nv/shell/site-header.tsx:32>), [new navigation](</C:/Users/champ/Desktop/avyora-beauty/src/components/nv/shell/nav.ts:6>), [collection controls](</C:/Users/champ/Desktop/avyora-beauty/src/app/collections/collections-client.tsx:141>).
+**Evidence:** [new header](<../src/components/nv/shell/site-header.tsx#L32>), [new navigation](<../src/components/nv/shell/nav.ts#L6>), [collection controls](<../src/app/collections/collections-client.tsx#L141>).
 
 The old header exposed search and category/concern entry points. The replacement exposes neither; collections offers sorting only. URL filters still work but customers have no corresponding controls.
 
@@ -232,7 +232,7 @@ The old header exposed search and category/concern entry points. The replacement
 
 ### A19 — P2 — Catalogue reviews and “Top rated” sorting ignore the new review system
 
-**Evidence:** [rating sort](</C:/Users/champ/Desktop/avyora-beauty/src/app/collections/collections-client.tsx:98>), [card review fields](</C:/Users/champ/Desktop/avyora-beauty/src/components/product/product-card.tsx:154>), [published reviews](</C:/Users/champ/Desktop/avyora-beauty/src/modules/reviews/reviews.ts:74>).
+**Evidence:** [rating sort](<../src/app/collections/collections-client.tsx#L98>), [card review fields](<../src/components/product/product-card.tsx#L154>), [published reviews](<../src/modules/reviews/reviews.ts#L74>).
 
 Product details load real review aggregates; collection cards and sorting still read optional rating fields on the static catalogue, where those fields have been removed.
 
@@ -242,7 +242,7 @@ Product details load real review aggregates; collection cards and sorting still 
 
 ### A20 — P2 — Collection pages inherit the homepage canonical
 
-**Evidence:** [root metadata](</C:/Users/champ/Desktop/avyora-beauty/src/app/layout.tsx:85>), [collection metadata](</C:/Users/champ/Desktop/avyora-beauty/src/app/collections/page.tsx:5>).
+**Evidence:** [root metadata](<../src/app/layout.tsx#L85>), [collection metadata](<../src/app/collections/page.tsx#L5>).
 
 Fresh browser inspection of /collections returns the homepage origin as canonical. Collection metadata does not override the root '/'. Other routes without overrides need review too.
 
@@ -252,7 +252,7 @@ Fresh browser inspection of /collections returns the homepage origin as canonica
 
 ### A21 — P2 — Newsletter claims email delivery after a provider failure
 
-**Evidence:** [newsletter route](</C:/Users/champ/Desktop/avyora-beauty/src/app/api/newsletter/route.ts:40>), [email result](</C:/Users/champ/Desktop/avyora-beauty/src/lib/notify.ts:50>).
+**Evidence:** [newsletter route](<../src/app/api/newsletter/route.ts#L40>), [email result](<../src/lib/notify.ts#L50>).
 
 sendEmail returns an explicit failure result, but signup ignores it and always reports that a confirmation email is on its way.
 
@@ -262,7 +262,7 @@ sendEmail returns an explicit failure result, but signup ignores it and always r
 
 ### A22 — P2 — Saved routines keep historical purchase quotes without refreshing stock
 
-**Evidence:** [saved loading](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/routine-session.ts:188>), [staleness check](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/results-view.tsx:76>), [add-to-bag](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/results-view.tsx:314>).
+**Evidence:** [saved loading](<../src/app/routine-finder/routine-session.ts#L188>), [staleness check](<../src/app/routine-finder/results-view.tsx#L76>), [add-to-bag](<../src/app/routine-finder/results-view.tsx#L314>).
 
 Saved loading restores old prices but fetches no current quote. Saved status suppresses the stale-price warning; stock caps are undefined. Customers can add from an old purchase list without seeing current availability. Checkout remains authoritative, so this is a display/selection gap rather than proof of an incorrect charge.
 

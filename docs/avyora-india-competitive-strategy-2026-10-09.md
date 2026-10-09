@@ -268,8 +268,8 @@ This scope is a developer implementation plan, not a claim that these changes ha
 
 ## Supporting local evidence
 
-[Desktop re-audit and 22 findings](</C:/Users/champ/Desktop/avyora-beauty/docs/avyora-desktop-re-audit-2026-10-09.md>).
-[Empty verified formulation registry](</C:/Users/champ/Desktop/avyora-beauty/src/data/formulations.ts:20>).
-[Current knowledge registries](</C:/Users/champ/Desktop/avyora-beauty/src/data/knowledge.ts:112>).
+[Desktop re-audit and 22 findings](<../docs/avyora-desktop-re-audit-2026-10-09.md>).
+[Empty verified formulation registry](<../src/data/formulations.ts#L20>).
+[Current knowledge registries](<../src/data/knowledge.ts#L112>).
 
 The comparison reviewed official public pages on 9 October 2026. Prices, promotions and features can change; this document deliberately avoids declaring a price winner or validating a brand's clinical/AI claims.

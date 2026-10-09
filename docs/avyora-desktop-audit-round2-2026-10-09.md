@@ -25,13 +25,13 @@ No application fixes, commits, production migrations, purchases, real email send
 
 The first test attempt explicitly disabled database configuration, which made inventory tests short-circuit rather than exercise their injected database. That run was stopped. The reported full run used an unreachable localhost dummy URL to satisfy that configuration guard; integration suites used their own disposable databases. It never used the user's database.
 
-Logs and repro outputs are in [audit evidence](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2>). Passing tests do not cover all the additional cases below.
+Logs and repro outputs are in [audit evidence](<../docs/audit-2026-10-09-round2>). Passing tests do not cover all the additional cases below.
 
 ## Findings
 
 ### R01 — P1 — Ingredient-based eligibility still does not enforce every active policy
 
-Evidence: [role-specific policy block](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/selection.ts:204>), [shared ingredient checks](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/eligibility.ts:97>).
+Evidence: [role-specific policy block](<../src/modules/personalization/core/selection.ts#L204>), [shared ingredient checks](<../src/modules/personalization/core/eligibility.ts#L97>).
 
 The new shared validator handles irritation, age, pregnancy and missing usage information. However, the customer's prescription-use restriction and approved `excludedClasses` still run only when the role is `treatment`. The treatment-count limit likewise governs only treatment slots.
 
@@ -43,7 +43,7 @@ The new shared validator handles irritation, age, pregnancy and missing usage in
 
 ### R02 — P1 — Known ingredients in partial formulations disappear from checks
 
-Evidence: [catalogueEvidence](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/eligibility.ts:59>), [possibleIngredients](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/selection.ts:140>).
+Evidence: [catalogueEvidence](<../src/modules/personalization/core/eligibility.ts#L59>), [possibleIngredients](<../src/modules/personalization/core/selection.ts#L140>).
 
 For partial formulations, both paths fall back to product highlights instead of preserving the ingredients already recorded. Incomplete coverage should prevent claims about absence; it should not erase known presence.
 
@@ -55,7 +55,7 @@ For partial formulations, both paths fall back to product highlights instead of 
 
 ### R03 — P1 — Onboarding can declare invalid usage directions ready
 
-Evidence: [directions schema](</C:/Users/champ/Desktop/avyora-beauty/src/modules/catalog/onboarding.ts:68>), [limited validation](</C:/Users/champ/Desktop/avyora-beauty/src/modules/catalog/onboarding.ts:137>), [recommendable flag](</C:/Users/champ/Desktop/avyora-beauty/src/modules/catalog/onboarding.ts:152>).
+Evidence: [directions schema](<../src/modules/catalog/onboarding.ts#L68>), [limited validation](<../src/modules/catalog/onboarding.ts#L137>), [recommendable flag](<../src/modules/catalog/onboarding.ts#L152>).
 
 The schema accepts any non-null object as directions. The preview checks version and referenced evidence but not the actual usage schema or approval fields.
 
@@ -69,7 +69,7 @@ The preview is read-only; this is a false readiness signal, not proof that inval
 
 ### R04 — P2 — Malformed formulation JSON crashes the onboarding preview
 
-Evidence: [formulation schema](</C:/Users/champ/Desktop/avyora-beauty/src/modules/catalog/onboarding.ts:67>), [unsafe validator invocation](</C:/Users/champ/Desktop/avyora-beauty/src/modules/catalog/onboarding.ts:132>).
+Evidence: [formulation schema](<../src/modules/catalog/onboarding.ts#L67>), [unsafe validator invocation](<../src/modules/catalog/onboarding.ts#L132>).
 
 **Reproduced:** an otherwise valid record containing `formulation: {}` passes the object check and throws `Cannot read properties of undefined (reading 'map')`. The staff action has no enclosing recovery for this failure.
 
@@ -79,7 +79,7 @@ Evidence: [formulation schema](</C:/Users/champ/Desktop/avyora-beauty/src/module
 
 ### R05 — P2 — Top-ten pruning loses feasible budget combinations
 
-Evidence: [candidate truncation](</C:/Users/champ/Desktop/avyora-beauty/src/modules/personalization/core/selection.ts:353>).
+Evidence: [candidate truncation](<../src/modules/personalization/core/selection.ts#L353>).
 
 The original greedy issue is repaired, but the search includes only the ten highest-ranked candidates per role. A cheap candidate can rank below that cutoff and be the only way to complete the core.
 
@@ -91,7 +91,7 @@ The original greedy issue is repaired, but the search includes only the ten high
 
 ### R06 — P2 — Recalculating a saved routine retains its old display quote
 
-Evidence: [compute state updates](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/routine-session.ts:128>), [display quote precedence](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/results-view.tsx:64>).
+Evidence: [compute state updates](<../src/app/routine-finder/routine-session.ts#L128>), [display quote precedence](<../src/app/routine-finder/results-view.tsx#L64>).
 
 `compute()` clears the saved view but leaves `state.quote` intact. Results rendering continues to prefer those old quote lines over the newly computed purchase list. Old availability flags can also survive.
 
@@ -103,7 +103,7 @@ Evidence: [compute state updates](</C:/Users/champ/Desktop/avyora-beauty/src/app
 
 ### R07 — P2 — Bag actions remain enabled without a successful current quote
 
-Evidence: [staleness calculation](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/results-view.tsx:80>), [individual add](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/results-view.tsx:330>), [batch add](</C:/Users/champ/Desktop/avyora-beauty/src/app/routine-finder/results-view.tsx:389>).
+Evidence: [staleness calculation](<../src/app/routine-finder/results-view.tsx#L80>), [individual add](<../src/app/routine-finder/results-view.tsx#L330>), [batch add](<../src/app/routine-finder/results-view.tsx#L389>).
 
 Reopening fetches a quote, but loading/failure does not block purchase actions. Expiry merely shows a notice. The individual add ignores the supplied busy/saving `disabled` flag; neither add handler refreshes before acting.
 
@@ -115,7 +115,7 @@ Reopening fetches a quote, but loading/failure does not block purchase actions. 
 
 ### R08 — P1 — Scan polling still equates terminal status with deleted photo
 
-Evidence: [poll terminal handling](</C:/Users/champ/Desktop/avyora-beauty/src/app/scan/scan-flow.tsx:176>), [status response](</C:/Users/champ/Desktop/avyora-beauty/src/modules/scans/sessions.ts:103>), [completion after failed deletion](</C:/Users/champ/Desktop/avyora-beauty/src/modules/ai/skin-analysis.ts:172>).
+Evidence: [poll terminal handling](<../src/app/scan/scan-flow.tsx#L176>), [status response](<../src/modules/scans/sessions.ts#L103>), [completion after failed deletion](<../src/modules/ai/skin-analysis.ts#L172>).
 
 Direct deletion now reports pending correctly. Polling does not: completed, failed, revoked and even 404 all produce `photo='deleted'`, which removes the delete button. Backend terminal states can still retain an object after storage failure. A 404 is not confirmation of deletion either.
 
@@ -127,7 +127,7 @@ Direct deletion now reports pending correctly. Polling does not: completed, fail
 
 ### R09 — P2 — Stop waiting leaves the scan on the processing screen
 
-Evidence: [poll abort exit](</C:/Users/champ/Desktop/avyora-beauty/src/app/scan/scan-flow.tsx:169>), [Stop waiting handler](</C:/Users/champ/Desktop/avyora-beauty/src/app/scan/scan-flow.tsx:382>).
+Evidence: [poll abort exit](<../src/app/scan/scan-flow.tsx#L169>), [Stop waiting handler](<../src/app/scan/scan-flow.tsx#L382>).
 
 The button aborts the controller but does not change the step. The poll returns on abort without installing an outcome. The processing panel remains indefinitely, with no questionnaire link or photo-deletion control in that panel.
 
@@ -137,7 +137,7 @@ The button aborts the controller but does not change the step. The poll returns 
 
 ### R10 — P2 — Deep log context still bypasses redaction
 
-Evidence: [depth cutoff](</C:/Users/champ/Desktop/avyora-beauty/src/lib/observability.ts:133>), [stdout context](</C:/Users/champ/Desktop/avyora-beauty/src/lib/observability.ts:177>).
+Evidence: [depth cutoff](<../src/lib/observability.ts#L133>), [stdout context](<../src/lib/observability.ts#L177>).
 
 The original message/stack leak is repaired. However, `redact()` returns deep objects unchanged instead of safely truncating them. It is still the function used for stdout extra context.
 
@@ -149,7 +149,7 @@ The original message/stack leak is repaired. However, `redact()` returns deep ob
 
 ### R11 — P2 — Header search does not synchronize the shop search field
 
-Evidence: [one-time draft initialization](</C:/Users/champ/Desktop/avyora-beauty/src/app/collections/collections-client.tsx:59>).
+Evidence: [one-time draft initialization](<../src/app/collections/collections-client.tsx#L59>).
 
 **Browser reproduced:** from `/collections`, open header search and search retinol. URL and heading become `?q=retinol` / Results for retinol, but the shop search field is blank. It initializes only on mount. Submitting that blank form unexpectedly clears the active query.
 
@@ -157,7 +157,7 @@ Evidence: [one-time draft initialization](</C:/Users/champ/Desktop/avyora-beauty
 
 **Acceptance:** header navigation, direct links, query removal and browser history show matching committed query/results and an editable search field.
 
-![Search results show retinol while the search field is empty](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/search-state.png>)
+![Search results show retinol while the search field is empty](<../docs/audit-2026-10-09-round2/search-state.png>)
 
 ## Status of the previous 22 findings
 
@@ -211,11 +211,11 @@ Still unverified: production deployment, database-backed browser sign-in/merge, 
 
 ## Reproduction artifacts
 
-- [Core and onboarding cases](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/reproductions.json>)
-- [Saved routine quote cases](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/session-reproduction.json>)
-- [Scan race and failed deletion](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/scan-reproduction.log>)
-- [Previous cases rerun](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/previous-reproductions.json>)
-- [Desktop width checks](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/desktop-checks.json>)
-- [Test log](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/tests.log>), [lint log](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/lint.log>), [typecheck log](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/typecheck.log>), [build log](</C:/Users/champ/Desktop/avyora-beauty/docs/audit-2026-10-09-round2/build.log>)
+- [Core and onboarding cases](<../docs/audit-2026-10-09-round2/reproductions.json>)
+- [Saved routine quote cases](<../docs/audit-2026-10-09-round2/session-reproduction.json>)
+- [Scan race and failed deletion](<../docs/audit-2026-10-09-round2/scan-reproduction.log>)
+- [Previous cases rerun](<../docs/audit-2026-10-09-round2/previous-reproductions.json>)
+- [Desktop width checks](<../docs/audit-2026-10-09-round2/desktop-checks.json>)
+- [Test log](<../docs/audit-2026-10-09-round2/tests.log>), [lint log](<../docs/audit-2026-10-09-round2/lint.log>), [typecheck log](<../docs/audit-2026-10-09-round2/typecheck.log>), [build log](<../docs/audit-2026-10-09-round2/build.log>)
 
 The three `.mts` scripts in the evidence directory use synthetic inputs. Set DATABASE_URL, DATABASE_REPLICA_URL and monitoring DSNs empty when running them. The scan script creates only disposable PGlite and in-memory image storage.
