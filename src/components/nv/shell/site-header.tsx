@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as RadixDialog from '@radix-ui/react-dialog';
-import { Heart, Search, ShoppingBag, User, X } from 'lucide-react';
+import { Heart, Search, ShoppingBag, X } from 'lucide-react';
+import { AccountMenu } from '@/components/account-menu';
 import { CATEGORIES, CONCERNS } from '@/data/mock-data';
 import { activeCategories, activeConcerns } from '@/lib/catalogue';
 import { useApp } from '@/lib/store';
@@ -19,8 +20,9 @@ import { PRIMARY_NAV } from './nav';
  *
  * Avyora adds compact bag, wishlist and account controls beside the menu
  * button (the reference has none; a shop needs them). The account control
- * is a plain link: /account sends signed-out visitors to sign in, so the
- * header never has to fetch the session, and public pages stay static.
+ * is the shared AccountMenu: sign in / create an account when signed out,
+ * the customer's initial with account and sign-out when signed in. It reads
+ * the session on the client, so public pages stay static.
  *
  * The home page opens on the full-bleed hero, so there the header is laid
  * over the photograph in white (`light`); elsewhere it sits on the page.
@@ -56,9 +58,7 @@ export function SiteHeader() {
             Shop
           </Link>
           <SearchDialog control={control} />
-          <Link href="/account" className={control} aria-label="Account">
-            <User className="h-5 w-5" aria-hidden="true" />
-          </Link>
+          <AccountMenu className={control} />
           <Link href="/wishlist" className={control} aria-label={`Wishlist${wishlist.length ? `, ${wishlist.length} saved` : ''}`}>
             <Heart className="h-5 w-5" aria-hidden="true" />
             {badge(wishlist.length)}

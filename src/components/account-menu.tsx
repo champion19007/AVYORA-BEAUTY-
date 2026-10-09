@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useApp } from '@/lib/store';
 import { useAuthAvailable } from '@/components/layout/client-layout-wrapper';
+import { cn } from '@/lib/utils';
 
 /**
  * Account control in the header.
@@ -28,11 +29,12 @@ import { useAuthAvailable } from '@/components/layout/client-layout-wrapper';
  * user, but that is the older localStorage mock kept for the admin flow; it is
  * cleared alongside the real session so the two cannot disagree.
  */
-export function AccountMenu() {
+/** `className` styles the trigger, so each header can match its own controls. */
+export function AccountMenu({ className }: { className?: string } = {}) {
   // Hooks cannot be conditional, so the session-aware part lives in a child
   // that is only mounted when a SessionProvider exists above it.
   const authAvailable = useAuthAvailable();
-  return authAvailable ? <SignedInMenu /> : <SignInLink />;
+  return authAvailable ? <SignedInMenu className={className} /> : <SignInLink className={className} />;
 }
 
 /**
@@ -43,12 +45,12 @@ export function AccountMenu() {
  * visitor clicking a person icon could not tell whether it would ask for
  * credentials they do not have.
  */
-function SignInLink() {
+function SignInLink({ className }: { className?: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Account" className="hover:text-primary">
-          <User className="h-4 w-4" />
+        <Button variant="ghost" size="icon" aria-label="Account" className={cn('hover:text-primary', className)}>
+          <User className={className ? 'h-5 w-5' : 'h-4 w-4'} />
         </Button>
       </DropdownMenuTrigger>
 
@@ -77,13 +79,13 @@ function SignInLink() {
   );
 }
 
-function SignedInMenu() {
+function SignedInMenu({ className }: { className?: string }) {
   const { data: session, status } = useSession();
   const { logout } = useApp();
 
   // Render the same neutral control during loading as when signed out, so the
   // header does not shift once the session resolves.
-  if (status !== 'authenticated' || !session.user) return <SignInLink />;
+  if (status !== 'authenticated' || !session.user) return <SignInLink className={className} />;
 
   const { name, email, image } = session.user;
   const initial = (name ?? email ?? '?').trim().charAt(0).toUpperCase();
@@ -101,7 +103,7 @@ function SignedInMenu() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative rounded-full"
+          className={cn('relative rounded-full', className)}
           aria-label={`Account menu for ${name ?? email}`}
         >
           <Avatar className="h-7 w-7">
