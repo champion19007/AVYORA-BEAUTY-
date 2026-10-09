@@ -29,26 +29,28 @@ const COLUMN = 'mx-auto w-full max-w-[calc(var(--nv-container)+2*var(--nv-gutter
  * Photography slots with no approved image yet. Each keeps its measured
  * size; supply an approved photograph and set `src`.
  */
-// Placeholder stock photography (Unsplash License; no product labels) until approved campaign images exist.
-// `scrim` darkens the photo where white text sits on it, keeping it at 4.5:1.
-// `wide` crops a portrait original to a 16:9 frame around the face for the full-bleed sections.
+// Placeholder imagery until approved campaign photography exists: AI-generated still lifes
+// (Gamma) in /public/images/home, plus two Unsplash-License photos. No labels, logos or people.
+// `scrim` darkens the photo where white text sits on it, keeping it at 4.5:1; `imgClass`
+// adjusts framing (focal point, mirroring) when one image serves two slots.
+// `wide` crops an Unsplash original to a 16:9 frame for the full-bleed sections.
 const unsplash = (id: string, wide = false) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=2400&q=80${wide ? '&h=1350&crop=faces%2Cedges' : ''}`;
-const PHOTO_SLOTS: Record<'about' | 'aboutCard' | 'vision' | 'services' | 'testimonial' | 'imageBreak' | 'consultation', { src: string | null; alt: string; scrim?: string }> = {
-  about: { src: unsplash('photo-1747264464985-2bc2e20c739e'), alt: 'Portrait of a young woman with clear, natural skin' },
-  aboutCard: { src: unsplash('photo-1747264464438-ff4188b1678a'), alt: '', scrim: 'bg-[linear-gradient(to_top,rgba(0,0,0,0.6),transparent_60%)]' },
-  vision: { src: unsplash('photo-1747264464533-ce59ecd395e2', true), alt: '', scrim: 'bg-[linear-gradient(to_right,rgba(0,0,0,0.7),rgba(0,0,0,0.25)_55%,transparent)]' },
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=2400&q=80${wide ? '&h=1350&crop=edges' : ''}`;
+const PHOTO_SLOTS: Record<'about' | 'aboutCard' | 'vision' | 'services' | 'testimonial' | 'imageBreak' | 'consultation', { src: string | null; alt: string; scrim?: string; imgClass?: string }> = {
+  about: { src: '/images/home/about.jpg', alt: 'An amber dropper bottle on a travertine block beside a sprig of sage' },
+  aboutCard: { src: '/images/home/about-card.jpg', alt: '', scrim: 'bg-[linear-gradient(to_top,rgba(0,0,0,0.6),transparent_60%)]' },
+  vision: { src: '/images/home/vision.jpg', alt: '', scrim: 'bg-[linear-gradient(to_right,rgba(0,0,0,0.55),transparent_60%)]' },
   services: { src: unsplash('photo-1773924684918-176cb489e65f', true), alt: '', scrim: 'bg-black/55' },
-  testimonial: { src: unsplash('photo-1747264464928-9795abf30a29'), alt: 'A young woman smiling with her eyes closed' },
-  imageBreak: { src: unsplash('photo-1693004925174-d9e06209d0ee', true), alt: 'Close-up of moisturiser being smoothed onto the cheek' },
-  consultation: { src: unsplash('photo-1781819114972-478f14095968', true), alt: '', scrim: 'bg-black/60' },
+  testimonial: { src: unsplash('photo-1789182226631-87e1e5bba655'), alt: 'Glass bottles of golden oil with dried rose petals' },
+  imageBreak: { src: '/images/home/hero-mobile.jpg', alt: 'An amber dropper bottle and a cream jar on stacked stones in warm light', imgClass: 'object-[center_62%]' },
+  consultation: { src: '/images/home/hero.jpg', alt: '', scrim: 'bg-[linear-gradient(to_right,rgba(0,0,0,0.8),rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.25))]' },
 };
 
 function Photo({ slot, className, sizes, children }: { slot: keyof typeof PHOTO_SLOTS; className?: string; sizes: string; children?: React.ReactNode }) {
   const p = PHOTO_SLOTS[slot];
   return (
     <div className={`relative overflow-hidden bg-[radial-gradient(ellipse_at_60%_35%,#4a4642,#1a1a1a_75%)] ${className ?? ''}`}>
-      {p.src && <Image src={p.src} alt={p.alt} fill sizes={sizes} className="object-cover object-center" />}
+      {p.src && <Image src={p.src} alt={p.alt} fill sizes={sizes} className={`object-cover ${p.imgClass ?? 'object-center'}`} />}
       {p.src && p.scrim && <div aria-hidden="true" className={`absolute inset-0 ${p.scrim}`} />}
       {children}
     </div>
