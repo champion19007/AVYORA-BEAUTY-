@@ -53,6 +53,12 @@ type Step =
   | 'forgot'
   | 'reset';
 
+const AUTH_ERRORS: Record<string, string> = {
+  AccessDenied: 'Google has not verified the email on that Google account, so it cannot be used here. Sign in with your email instead.',
+  OAuthAccountNotLinked: 'An account with that email already exists. Sign in with your email, then Google will work next time.',
+  Default: 'Sign-in did not complete. Please try again.',
+};
+
 export function CustomerAuth({
   googleEnabled,
   emailCodesEnabled,
@@ -74,6 +80,9 @@ export function CustomerAuth({
   const requested = searchParams.get('callbackUrl') ?? '/account';
   const callbackUrl =
     requested.startsWith('/') && !requested.startsWith('//') ? requested : '/account';
+
+  // Auth.js returns here with ?error=… when a Google sign-in is refused.
+  const authError = AUTH_ERRORS[searchParams.get('error') ?? ''] ?? (searchParams.get('error') ? AUTH_ERRORS.Default : null);
 
   const [step, setStep] = useState<Step>(mode === 'signup' ? 'signup' : 'email');
   const [email, setEmail] = useState('');
@@ -101,6 +110,11 @@ export function CustomerAuth({
         </CardHeader>
 
         <CardContent>
+          {authError && (
+            <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+              {authError}
+            </p>
+          )}
           {step === 'email' && (
             <EmailStep
               passwordsEnabled={passwordsEnabled}
