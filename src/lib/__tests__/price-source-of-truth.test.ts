@@ -44,10 +44,7 @@ describe('price resolution is the single answer', () => {
   });
 
   it('a live offer beats the override, which beats the catalogue', () => {
-    const resolved = resolvePrice(
-      toPaise(649),
-      row({ price: toPaise(799), salePrice: toPaise(599) })
-    );
+    const resolved = resolvePrice(toPaise(649), row({ price: toPaise(799), salePrice: toPaise(599) }));
 
     // Three candidate prices; exactly one may be charged.
     expect(resolved.price).toBe(toPaise(599));

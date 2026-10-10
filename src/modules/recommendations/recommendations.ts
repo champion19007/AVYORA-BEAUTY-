@@ -81,7 +81,7 @@ export async function conflictingProducts(productId: string): Promise<ConflictCh
     const resolved = new Map(products.map((p) => [p.id, resolveLabels(p.ingredients)] as const));
     const possible = new Map([...resolved].map(([id, r]) => [id, possibleIds(r)] as const));
     const mine = possible.get(productId) ?? [];
-    const others = [...new Set(products.flatMap((p) => (p.id === productId ? [] : possible.get(p.id) ?? [])))];
+    const others = [...new Set(products.flatMap((p) => (p.id === productId ? [] : (possible.get(p.id) ?? []))))];
 
     const pairs =
       mine.length && others.length
@@ -93,8 +93,14 @@ export async function conflictingProducts(productId: string): Promise<ConflictCh
                 and(
                   eq(ingredientInteractions.tier, 2),
                   or(
-                    and(inArray(ingredientInteractions.ingredientA, mine), inArray(ingredientInteractions.ingredientB, others)),
-                    and(inArray(ingredientInteractions.ingredientB, mine), inArray(ingredientInteractions.ingredientA, others))
+                    and(
+                      inArray(ingredientInteractions.ingredientA, mine),
+                      inArray(ingredientInteractions.ingredientB, others)
+                    ),
+                    and(
+                      inArray(ingredientInteractions.ingredientB, mine),
+                      inArray(ingredientInteractions.ingredientA, others)
+                    )
                   )
                 )
               )
@@ -150,8 +156,7 @@ export async function recommendationsFor(
        * section on any shop without a complete stock count.
        */
       available: stock
-        ? (id) =>
-            !(getProductById(id)?.sizes ?? []).every((s) => stock[`${id}::${s.label}`] === 0)
+        ? (id) => !(getProductById(id)?.sizes ?? []).every((s) => stock[`${id}::${s.label}`] === 0)
         : undefined,
     },
     options.limit ?? 4

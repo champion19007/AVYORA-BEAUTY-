@@ -24,7 +24,18 @@ export type SkinProfile = {
 
 export type RoutineStep = {
   order: number;
-  category: 'cleanse' | 'treatment' | 'brighten' | 'hydrate' | 'protect' | 'body' | 'renew' | 'tone' | 'essence' | 'eye' | 'exfoliate';
+  category:
+    | 'cleanse'
+    | 'treatment'
+    | 'brighten'
+    | 'hydrate'
+    | 'protect'
+    | 'body'
+    | 'renew'
+    | 'tone'
+    | 'essence'
+    | 'eye'
+    | 'exfoliate';
   label: string;
   slotName: string;
   productId?: string;

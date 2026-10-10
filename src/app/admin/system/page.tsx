@@ -7,8 +7,7 @@ export const metadata: Metadata = { title: 'System' };
 export const dynamic = 'force-dynamic';
 
 const label = 'text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground';
-const replayButton =
-  'text-[11px] font-semibold uppercase tracking-[0.14em] text-primary hover:opacity-70';
+const replayButton = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-primary hover:opacity-70';
 
 function when(date: Date) {
   return date.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
@@ -38,8 +37,8 @@ export default async function SystemPage() {
       <div>
         <h1 className="font-headline text-3xl font-normal tracking-tight">System</h1>
         <p className="mt-1 text-[15px] text-muted-foreground">
-          Background jobs and event deliveries. Dead items were retried until they ran out of attempts
-          and now need someone to fix the cause and replay them.
+          Background jobs and event deliveries. Dead items were retried until they ran out of attempts and now need
+          someone to fix the cause and replay them.
         </p>
       </div>
 
@@ -75,17 +74,24 @@ export default async function SystemPage() {
         <ul className="mt-3 rounded-xl border border-border bg-card">
           {status.deadJobs.length === 0 && <li className="p-4 text-[14px] text-muted-foreground">None.</li>}
           {status.deadJobs.map((job) => (
-            <li key={job.id} className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4 last:border-0">
+            <li
+              key={job.id}
+              className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4 last:border-0"
+            >
               <div className="min-w-0 text-[14px]">
                 <p>
                   <span className="font-medium">{job.type}</span>{' '}
-                  <span className="text-muted-foreground">#{job.id} · {job.attempts} attempts · {when(job.updatedAt)}</span>
+                  <span className="text-muted-foreground">
+                    #{job.id} · {job.attempts} attempts · {when(job.updatedAt)}
+                  </span>
                 </p>
                 <p className="mt-1 break-words text-destructive">{job.lastError}</p>
               </div>
               <form action={replayDeadJob}>
                 <input type="hidden" name="jobId" value={job.id} />
-                <button type="submit" className={replayButton}>Replay</button>
+                <button type="submit" className={replayButton}>
+                  Replay
+                </button>
               </form>
             </li>
           ))}
@@ -95,9 +101,7 @@ export default async function SystemPage() {
       <section>
         <h2 className={label}>Dead event deliveries</h2>
         <ul className="mt-3 rounded-xl border border-border bg-card">
-          {status.deadDeliveries.length === 0 && (
-            <li className="p-4 text-[14px] text-muted-foreground">None.</li>
-          )}
+          {status.deadDeliveries.length === 0 && <li className="p-4 text-[14px] text-muted-foreground">None.</li>}
           {status.deadDeliveries.map((d) => (
             <li
               key={`${d.eventId}:${d.consumer}`}
@@ -106,14 +110,18 @@ export default async function SystemPage() {
               <div className="min-w-0 text-[14px]">
                 <p>
                   <span className="font-medium">{d.name}</span> → {d.consumer}{' '}
-                  <span className="text-muted-foreground">event #{d.eventId} · {when(d.updatedAt)}</span>
+                  <span className="text-muted-foreground">
+                    event #{d.eventId} · {when(d.updatedAt)}
+                  </span>
                 </p>
                 <p className="mt-1 break-words text-destructive">{d.lastError}</p>
               </div>
               <form action={replayDeadDelivery}>
                 <input type="hidden" name="eventId" value={d.eventId} />
                 <input type="hidden" name="consumer" value={d.consumer} />
-                <button type="submit" className={replayButton}>Replay</button>
+                <button type="submit" className={replayButton}>
+                  Replay
+                </button>
               </form>
             </li>
           ))}
@@ -123,9 +131,9 @@ export default async function SystemPage() {
       <section>
         <h2 className={label}>Cache on this instance</h2>
         <p className="mt-2 text-[14px] tabular-nums text-muted-foreground">
-          {status.cache.l1Hits} memory hits · {status.cache.l2Hits} shared hits · {status.cache.misses} misses
-          · {status.cache.coalesced} coalesced · {status.cache.l2Errors} shared-cache errors. Counts since
-          this server instance started; other instances keep their own.
+          {status.cache.l1Hits} memory hits · {status.cache.l2Hits} shared hits · {status.cache.misses} misses ·{' '}
+          {status.cache.coalesced} coalesced · {status.cache.l2Errors} shared-cache errors. Counts since this server
+          instance started; other instances keep their own.
         </p>
       </section>
 

@@ -11,7 +11,9 @@ const guest: Owner = { kind: 'guest', ownerHash: hashGuestSecret(newGuestSecret(
 
 beforeAll(async () => {
   ctx = await createMigratedDb();
-  await ctx.client.exec(`INSERT INTO users (id, email) VALUES ('u-alice', 'a@example.test'), ('u-bob', 'b@example.test')`);
+  await ctx.client.exec(
+    `INSERT INTO users (id, email) VALUES ('u-alice', 'a@example.test'), ('u-bob', 'b@example.test')`
+  );
 }, 60_000);
 afterAll(async () => {
   await ctx?.client.close();
@@ -38,7 +40,10 @@ describe('hosted scan admission', () => {
     }
     // The expiry sweeper deletes scans after 7 days; admissions must still count.
     await ctx.client.exec('DELETE FROM scan_sessions');
-    expect(await admit(alice, null, new Date(Date.UTC(2026, 9, 12, 12)))).toEqual({ admitted: false, reason: 'owner_30_days' });
+    expect(await admit(alice, null, new Date(Date.UTC(2026, 9, 12, 12)))).toEqual({
+      admitted: false,
+      reason: 'owner_30_days',
+    });
     expect(await admit(alice, null, new Date(Date.UTC(2026, 9, 31, 13)))).toMatchObject({ admitted: true });
   });
 
@@ -56,7 +61,9 @@ describe('hosted scan admission', () => {
     const id = await consent(alice);
     const day = new Date('2026-10-08T10:00:00Z');
     const results = await Promise.all(
-      Array.from({ length: 8 }, () => admitHostedScan(ctx.db as never, { owner: alice, ipAddress: null, consentId: id, now: day }))
+      Array.from({ length: 8 }, () =>
+        admitHostedScan(ctx.db as never, { owner: alice, ipAddress: null, consentId: id, now: day })
+      )
     );
     expect(results.filter((r) => r.admitted)).toHaveLength(3);
   });
@@ -64,12 +71,22 @@ describe('hosted scan admission', () => {
   it('refuses without an active photo consent', async () => {
     const id = await consent(alice);
     await withdrawConsent(ctx.db as never, alice, 'photo_processing');
-    expect(await admitHostedScan(ctx.db as never, { owner: alice, ipAddress: null, consentId: id })).toEqual({ admitted: false, reason: 'no_consent' });
+    expect(await admitHostedScan(ctx.db as never, { owner: alice, ipAddress: null, consentId: id })).toEqual({
+      admitted: false,
+      reason: 'no_consent',
+    });
   });
 
   it('fails closed when the database is unavailable', async () => {
-    const broken = { transaction: async () => { throw new Error('connection refused'); } };
-    expect(await admitHostedScan(broken as never, { owner: alice, ipAddress: null, consentId: 'x' })).toEqual({ admitted: false, reason: 'unavailable' });
+    const broken = {
+      transaction: async () => {
+        throw new Error('connection refused');
+      },
+    };
+    expect(await admitHostedScan(broken as never, { owner: alice, ipAddress: null, consentId: 'x' })).toEqual({
+      admitted: false,
+      reason: 'unavailable',
+    });
   });
 });
 
@@ -77,7 +94,9 @@ describe('billable attempts', () => {
   it('allows two attempts per scan and never a third, even concurrently', async () => {
     const r = await admit(bob, null);
     if (!r.admitted) throw new Error('not admitted');
-    const results = await Promise.all(Array.from({ length: 5 }, () => recordBillableAttempt(ctx.db as never, r.scanSessionId)));
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => recordBillableAttempt(ctx.db as never, r.scanSessionId))
+    );
     expect(results.filter((x) => x.ok)).toHaveLength(2);
     expect(await recordBillableAttempt(ctx.db as never, r.scanSessionId)).toEqual({ ok: false });
     await expect(

@@ -15,7 +15,12 @@ import { cn } from '@/lib/utils';
 
 /** Content column: 40 px gutters at 1280, a centred 1240 px column from 1320 up (measured). */
 export function Container({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('mx-auto w-full max-w-[calc(var(--nv-container)+2*var(--nv-gutter))] px-nv-gutter', className)} {...props} />;
+  return (
+    <div
+      className={cn('mx-auto w-full max-w-[calc(var(--nv-container)+2*var(--nv-gutter))] px-nv-gutter', className)}
+      {...props}
+    />
+  );
 }
 
 /** Full-bleed content: 40 px gutter at every width (hero, header, menu). */
@@ -44,7 +49,16 @@ export function Section({
 
 /** Measured two-column grid with 8 px gaps (Results cards). */
 export function Grid({ cols = 2, className, ...props }: React.HTMLAttributes<HTMLDivElement> & { cols?: 2 | 3 | 4 }) {
-  return <div className={cn('grid gap-nv-gap', cols === 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : 'grid-cols-4', className)} {...props} />;
+  return (
+    <div
+      className={cn(
+        'grid gap-nv-gap',
+        cols === 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : 'grid-cols-4',
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
 /* --------------------------------------------------------------- type -- */
@@ -78,13 +92,25 @@ export function Eyebrow({ className, ...props }: React.HTMLAttributes<HTMLParagr
   return <p className={cn('text-nv-body uppercase', className)} {...props} />;
 }
 
-export function Text({ size = 'body', className, ...props }: React.HTMLAttributes<HTMLParagraphElement> & { size?: 'intro' | 'body' | 'label' | 'small' }) {
+export function Text({
+  size = 'body',
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLParagraphElement> & { size?: 'intro' | 'body' | 'label' | 'small' }) {
   const s = { intro: 'text-nv-intro', body: 'text-nv-body', label: 'text-nv-label', small: 'text-nv-small' }[size];
   return <p className={cn(s, 'text-nv-muted', className)} {...props} />;
 }
 
 /** The Avyora wordmark in the measured wordmark treatment. A link home. */
-export function Wordmark({ size = 'md', onDark, className }: { size?: 'md' | 'lg'; onDark?: boolean; className?: string }) {
+export function Wordmark({
+  size = 'md',
+  onDark,
+  className,
+}: {
+  size?: 'md' | 'lg';
+  onDark?: boolean;
+  className?: string;
+}) {
   return (
     <Link
       href="/"
@@ -103,8 +129,7 @@ export function Wordmark({ size = 'md', onDark, className }: { size?: 'md' | 'lg
 /* ------------------------------------------------------------ actions -- */
 
 const BUTTON = {
-  base:
-    'nv-motion inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors duration-nv-control ease-nv disabled:pointer-events-none disabled:opacity-50',
+  base: 'nv-motion inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors duration-nv-control ease-nv disabled:pointer-events-none disabled:opacity-50',
   variant: {
     dark: 'nv-focus bg-nv-ink text-white hover:bg-nv-accent',
     light: 'nv-focus-light bg-white text-nv-ink hover:bg-white/90',
@@ -160,7 +185,10 @@ export function ArrowLink({ className, children, ...props }: React.AnchorHTMLAtt
   return (
     <a className={cn('nv-focus group inline-flex items-center gap-2 text-nv-intro text-nv-ink', className)} {...props}>
       {children}
-      <ArrowRight className="nv-motion h-5 w-5 transition-transform duration-nv-control ease-nv group-hover:translate-x-1" aria-hidden="true" />
+      <ArrowRight
+        className="nv-motion h-5 w-5 transition-transform duration-nv-control ease-nv group-hover:translate-x-1"
+        aria-hidden="true"
+      />
     </a>
   );
 }
@@ -168,8 +196,18 @@ export function ArrowLink({ className, children, ...props }: React.AnchorHTMLAtt
 /* -------------------------------------------------------------- cards -- */
 
 /** White card, radius 18 (measured). `inset` adds the 32 px content padding of the reference cards. */
-export function Card({ inset = true, tone = 'card', className, ...props }: React.HTMLAttributes<HTMLDivElement> & { inset?: boolean; tone?: 'card' | 'page' }) {
-  return <div className={cn('rounded-nv-card', tone === 'card' ? 'bg-nv-card' : 'bg-nv-page', inset && 'p-8', className)} {...props} />;
+export function Card({
+  inset = true,
+  tone = 'card',
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { inset?: boolean; tone?: 'card' | 'page' }) {
+  return (
+    <div
+      className={cn('rounded-nv-card', tone === 'card' ? 'bg-nv-card' : 'bg-nv-page', inset && 'p-8', className)}
+      {...props}
+    />
+  );
 }
 
 /* ----------------------------------------------------- status, loading -- */
@@ -200,11 +238,16 @@ export function StatusMessage({
 }) {
   const { icon: Icon, className: toneClass, role } = STATUS[tone];
   return (
-    <div role={role} className={cn('flex items-start gap-3 rounded-nv-inner px-5 py-4 text-nv-label', toneClass, className)}>
+    <div
+      role={role}
+      className={cn('flex items-start gap-3 rounded-nv-inner px-5 py-4 text-nv-label', toneClass, className)}
+    >
       <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <div className="flex-1 space-y-1">
         {title && <p className="font-medium">{title}</p>}
-        {children && <div className={cn(title && 'text-nv-muted', tone === 'error' && 'text-nv-danger')}>{children}</div>}
+        {children && (
+          <div className={cn(title && 'text-nv-muted', tone === 'error' && 'text-nv-danger')}>{children}</div>
+        )}
       </div>
       {action}
     </div>
@@ -229,6 +272,10 @@ export function Skeleton({ className }: { className?: string }) {
 /* ------------------------------------------------------------- motion -- */
 
 /** Fades and slides children in as they scroll into view; CSS only, final state under reduced motion. */
-export function Reveal({ as: Tag = 'div', className, ...props }: React.HTMLAttributes<HTMLElement> & { as?: 'div' | 'section' | 'li' }) {
+export function Reveal({
+  as: Tag = 'div',
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLElement> & { as?: 'div' | 'section' | 'li' }) {
   return <Tag className={cn('nv-reveal', className)} {...props} />;
 }

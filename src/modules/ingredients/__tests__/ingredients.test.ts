@@ -55,7 +55,10 @@ describe('label matching (audit #18)', () => {
   });
 
   it('keeps a printed percentage as an unverified label claim, never as formulation data', () => {
-    expect(resolveLabel('Niacinamide 10%')).toMatchObject({ status: 'resolved', labelClaim: { value: 10, unit: 'percent' } });
+    expect(resolveLabel('Niacinamide 10%')).toMatchObject({
+      status: 'resolved',
+      labelClaim: { value: 10, unit: 'percent' },
+    });
     expect(labelClaim('Snail Secretion Filtrate 96%')).toEqual({ value: 96, unit: 'percent' });
     expect(status('Snail Secretion Filtrate 96%')).toBe('unresolved');
     expect(labelClaim('Ceramides')).toBeNull();
@@ -108,7 +111,14 @@ describe('catalogue highlights', () => {
 /* ------------------------------------------------------------------------ */
 
 const EVIDENCE: EvidenceSource[] = [
-  { id: 'e1', title: 'Fixture dossier', url: null, sourceType: 'formulation_dossier', retrievedAt: '2026-01-01', limitations: 'Test only' },
+  {
+    id: 'e1',
+    title: 'Fixture dossier',
+    url: null,
+    sourceType: 'formulation_dossier',
+    retrievedAt: '2026-01-01',
+    limitations: 'Test only',
+  },
 ];
 
 const good = (over: Partial<Formulation> = {}): Formulation => ({
@@ -118,7 +128,12 @@ const good = (over: Partial<Formulation> = {}): Formulation => ({
   fullInci: 'Aqua, Niacinamide, Glycerin',
   ingredients: [
     { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
-    { position: 2, inciLabel: 'Niacinamide', ingredientId: 'niacinamide', concentration: { known: true, value: 5, unit: 'percent_w_w' } },
+    {
+      position: 2,
+      inciLabel: 'Niacinamide',
+      ingredientId: 'niacinamide',
+      concentration: { known: true, value: 5, unit: 'percent_w_w' },
+    },
     { position: 3, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
   ],
   sourceId: 'e1',
@@ -150,9 +165,21 @@ describe('publication checks', () => {
   });
 
   it.each<[string, Partial<Formulation>, RegExp]>([
-    ['an invalid unit', withIngredient(1, { concentration: { known: true, value: 5, unit: 'percent' } }), /invalid unit/],
-    ['a concentration above 100%', withIngredient(1, { concentration: { known: true, value: 120, unit: 'percent_w_w' } }), /above 100%/],
-    ['a zero concentration', withIngredient(1, { concentration: { known: true, value: 0, unit: 'percent_w_w' } }), /positive number/],
+    [
+      'an invalid unit',
+      withIngredient(1, { concentration: { known: true, value: 5, unit: 'percent' } }),
+      /invalid unit/,
+    ],
+    [
+      'a concentration above 100%',
+      withIngredient(1, { concentration: { known: true, value: 120, unit: 'percent_w_w' } }),
+      /above 100%/,
+    ],
+    [
+      'a zero concentration',
+      withIngredient(1, { concentration: { known: true, value: 0, unit: 'percent_w_w' } }),
+      /positive number/,
+    ],
     ['an ambiguous INCI label', withIngredient(1, { inciLabel: 'Vitamin C', ingredientId: null }), /ambiguous label/],
     ['a label that contradicts its id', withIngredient(1, { ingredientId: 'retinol' }), /resolves to niacinamide/],
     ['an unknown ingredient id', withIngredient(0, { ingredientId: 'not-a-real-id' }), /unknown ingredient id/],
@@ -181,16 +208,21 @@ describe('publication checks', () => {
   });
 
   it('the real registries are valid and honest: empty, so nothing is ready', () => {
-    expect(knowledgeProblems({ formulations: FORMULATIONS, evidence: EVIDENCE_SOURCES, directions: APPROVED_DIRECTIONS })).toEqual([]);
+    expect(
+      knowledgeProblems({ formulations: FORMULATIONS, evidence: EVIDENCE_SOURCES, directions: APPROVED_DIRECTIONS })
+    ).toEqual([]);
     for (const [id, t] of Object.entries(TREATMENTS)) {
-      const r = treatmentReadiness(id, t.class, { formulations: FORMULATIONS, evidence: EVIDENCE_SOURCES, directions: APPROVED_DIRECTIONS });
+      const r = treatmentReadiness(id, t.class, {
+        formulations: FORMULATIONS,
+        evidence: EVIDENCE_SOURCES,
+        directions: APPROVED_DIRECTIONS,
+      });
       expect(r.ready, id).toBe(false);
     }
   });
 });
 
 describe('treatment readiness', () => {
-
   it('is ready only with directions, a complete formulation and a known active concentration', () => {
     const k = { formulations: [good()], evidence: EVIDENCE, directions: { 'niacinamide-drops': directions() } };
     expect(treatmentReadiness('niacinamide-drops', 'niacinamide', k)).toEqual({ ready: true });
@@ -200,11 +232,25 @@ describe('treatment readiness', () => {
     ['no directions', [good()], undefined, 'directions_pending'],
     ['no formulation', [], directions(), 'formulation_incomplete'],
     ['partial coverage', [good({ coverage: 'partial' })], directions(), 'formulation_incomplete'],
-    ['active concentration unknown', [good(withIngredient(1, { concentration: { known: false } }))], directions(), 'formulation_incomplete'],
-    ['active not identified', [good(withIngredient(1, { ingredientId: null }))], directions(), 'formulation_incomplete'],
+    [
+      'active concentration unknown',
+      [good(withIngredient(1, { concentration: { known: false } }))],
+      directions(),
+      'formulation_incomplete',
+    ],
+    [
+      'active not identified',
+      [good(withIngredient(1, { ingredientId: null }))],
+      directions(),
+      'formulation_incomplete',
+    ],
     ['directions for another version', [good({ version: 2 })], directions(), 'formulation_incomplete'],
   ])('is not ready with %s', (_, f, d, reason) => {
-    const knowledge = { formulations: f, evidence: EVIDENCE, directions: (d ? { 'niacinamide-drops': d } : {}) as Record<string, ProductDirections> };
+    const knowledge = {
+      formulations: f,
+      evidence: EVIDENCE,
+      directions: (d ? { 'niacinamide-drops': d } : {}) as Record<string, ProductDirections>,
+    };
     expect(treatmentReadiness('niacinamide-drops', 'niacinamide', knowledge)).toMatchObject({ ready: false, reason });
   });
 });

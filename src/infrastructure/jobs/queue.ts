@@ -84,10 +84,7 @@ export async function claim(workerId: string, limit: number, leaseMs: number): P
      )
     returning *`);
 
-  const rows = ((result as { rows?: unknown[] }).rows ?? (result as unknown as unknown[])) as Record<
-    string,
-    unknown
-  >[];
+  const rows = ((result as { rows?: unknown[] }).rows ?? (result as unknown as unknown[])) as Record<string, unknown>[];
   return rows.map(toJobRow);
 }
 

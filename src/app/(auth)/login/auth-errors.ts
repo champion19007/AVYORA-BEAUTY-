@@ -1,7 +1,9 @@
 /** Messages for the `?error=` codes Auth.js adds when a Google sign-in is refused. */
 const AUTH_ERRORS: Record<string, string> = {
-  AccessDenied: 'Google has not verified the email on that Google account, so it cannot be used here. Sign in with your email instead.',
-  OAuthAccountNotLinked: 'An account with that email already exists. Sign in with your email, then Google will work next time.',
+  AccessDenied:
+    'Google has not verified the email on that Google account, so it cannot be used here. Sign in with your email instead.',
+  OAuthAccountNotLinked:
+    'An account with that email already exists. Sign in with your email, then Google will work next time.',
   Default: 'Sign-in did not complete. Please try again.',
 };
 

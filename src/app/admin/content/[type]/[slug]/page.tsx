@@ -108,9 +108,7 @@ export default async function EditContentPage({ params, searchParams }: Props) {
 
       {revisions.length > 0 && (
         <section>
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            History
-          </h2>
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">History</h2>
           <ul className="mt-3 rounded-xl border border-border bg-card">
             {revisions.map((rev) => (
               <li
@@ -127,7 +125,10 @@ export default async function EditContentPage({ params, searchParams }: Props) {
                   <form action={restoreContent}>
                     {hidden}
                     <input type="hidden" name="revisionId" value={rev.id} />
-                    <button type="submit" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary hover:opacity-70">
+                    <button
+                      type="submit"
+                      className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary hover:opacity-70"
+                    >
                       Restore as draft
                     </button>
                   </form>

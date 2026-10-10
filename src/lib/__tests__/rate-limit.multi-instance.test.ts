@@ -44,7 +44,9 @@ describe.skipIf(!url)('limiter across instances (real Postgres)', () => {
     const checksBA = [...checksAB].reverse();
     const instances = pools.map((p) => drizzle(p));
     const results = await Promise.all(
-      Array.from({ length: 40 }, (_, i) => limit(i % 2 ? checksAB : checksBA, { db: instances[i % INSTANCES] as never, timeoutMs: 20_000 }))
+      Array.from({ length: 40 }, (_, i) =>
+        limit(i % 2 ? checksAB : checksBA, { db: instances[i % INSTANCES] as never, timeoutMs: 20_000 })
+      )
     );
     expect(results.every((r) => r.allowed || r.reason === 'limited')).toBe(true);
     expect(results.filter((r) => r.allowed)).toHaveLength(POLICIES.feedback.limit);
@@ -58,7 +60,11 @@ describe.skipIf(!url)('limiter across instances (real Postgres)', () => {
       const consent = await grantConsent(instances[0] as never, { kind: 'user', userId }, 'photo_processing', 'test');
       const results = await Promise.all(
         Array.from({ length: 12 }, (_, i) =>
-          admitHostedScan(instances[i % INSTANCES] as never, { owner: { kind: 'user', userId }, ipAddress: null, consentId: consent.id })
+          admitHostedScan(instances[i % INSTANCES] as never, {
+            owner: { kind: 'user', userId },
+            ipAddress: null,
+            consentId: consent.id,
+          })
         )
       );
       expect(results.filter((r) => r.admitted)).toHaveLength(3);

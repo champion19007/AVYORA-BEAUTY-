@@ -27,7 +27,10 @@ export function productionInput(): { input: KnowledgeInput; awaitingReview: stri
     ...r,
     review: INTERACTION_REVIEWS[[r.a, r.b].sort().join('/')] ?? UNREVIEWED,
   }));
-  const ingredients = INGREDIENTS.map((i) => ({ ...i, cautionsReview: INGREDIENT_CAUTION_REVIEWS[i.id] ?? UNREVIEWED }));
+  const ingredients = INGREDIENTS.map((i) => ({
+    ...i,
+    cautionsReview: INGREDIENT_CAUTION_REVIEWS[i.id] ?? UNREVIEWED,
+  }));
 
   const awaitingReview = [
     ...DECISION_RULES.filter((r) => r.review.status === 'draft').map((r) => `decision rule ${r.id} (${r.severity})`),
@@ -35,8 +38,12 @@ export function productionInput(): { input: KnowledgeInput; awaitingReview: stri
     ...EDUCATION_ANSWERS.filter((a) => a.review.status === 'draft').map((a) => `education answer ${a.id}`),
     ...BAYES_PARAMETERS.filter((p) => p.review.status === 'draft').map((p) => `parameter ${p.id}`),
     ...interactions.filter((r) => r.review.status === 'draft').map((r) => `interaction ${r.a}/${r.b} (tier ${r.tier})`),
-    ...ingredients.filter((i) => i.cautionsReview.status === 'draft').map((i) => `ingredient cautions ${i.id} (published as unreviewed)`),
-    ...Object.keys(TREATMENTS).filter((id) => !APPROVED_DIRECTIONS[id]).map((id) => `directions and formulation for ${id}`),
+    ...ingredients
+      .filter((i) => i.cautionsReview.status === 'draft')
+      .map((i) => `ingredient cautions ${i.id} (published as unreviewed)`),
+    ...Object.keys(TREATMENTS)
+      .filter((id) => !APPROVED_DIRECTIONS[id])
+      .map((id) => `directions and formulation for ${id}`),
   ];
 
   // Rules whose reason template is still a draft cannot be published either.

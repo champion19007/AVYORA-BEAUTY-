@@ -26,7 +26,11 @@ async function act(formData: FormData) {
   redirect(`/newsletter?done=${ok ? (action === 'confirm' ? 'confirmed' : 'unsubscribed') : 'invalid'}`);
 }
 
-export default async function NewsletterPage({ searchParams }: { searchParams: Promise<{ token?: string; done?: string }> }) {
+export default async function NewsletterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string; done?: string }>;
+}) {
   const { token, done } = await searchParams;
   return (
     <main className="container mx-auto max-w-2xl py-20">

@@ -123,10 +123,7 @@ export async function adjustStock(formData: FormData): Promise<void> {
   if (!productId || !size) return;
   if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100_000) return;
 
-  const result = await adjustStockCommand(
-    { productId, size, delta },
-    { id: session.username, role: session.role }
-  );
+  const result = await adjustStockCommand({ productId, size, delta }, { id: session.username, role: session.role });
   if (!result.ok) return;
 
   revalidatePath('/manager/stock');
@@ -149,7 +146,10 @@ export async function requestRestock(formData: FormData): Promise<void> {
   const productId = String(formData.get('productId') ?? '');
   const size = String(formData.get('size') ?? '');
   const requested = Number(String(formData.get('requestedQuantity') ?? ''));
-  const note = String(formData.get('note') ?? '').trim().slice(0, 500) || null;
+  const note =
+    String(formData.get('note') ?? '')
+      .trim()
+      .slice(0, 500) || null;
 
   if (!productId || !size) return;
   if (!Number.isInteger(requested) || requested <= 0 || requested > 100_000) return;
@@ -158,11 +158,7 @@ export async function requestRestock(formData: FormData): Promise<void> {
     .select({ id: restockRequests.id })
     .from(restockRequests)
     .where(
-      and(
-        eq(restockRequests.productId, productId),
-        eq(restockRequests.size, size),
-        eq(restockRequests.status, 'open')
-      )
+      and(eq(restockRequests.productId, productId), eq(restockRequests.size, size), eq(restockRequests.status, 'open'))
     )
     .limit(1);
 

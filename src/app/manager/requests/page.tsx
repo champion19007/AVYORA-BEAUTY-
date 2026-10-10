@@ -26,9 +26,7 @@ export default async function ManagerRequestsPage() {
   return (
     <div>
       <h1 className="font-headline text-3xl font-normal tracking-tight">Restock requests</h1>
-      <p className="mt-1 text-[15px] text-muted-foreground">
-        The owner sees these and orders the stock.
-      </p>
+      <p className="mt-1 text-[15px] text-muted-foreground">The owner sees these and orders the stock.</p>
 
       {requests.length === 0 ? (
         <p className="mt-8 rounded-xl border border-border bg-card p-10 text-center text-[15px] text-muted-foreground">

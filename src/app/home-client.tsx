@@ -63,69 +63,69 @@ export function HomeClient({
     <Root className="flex w-full flex-col bg-background transition-colors duration-300">
       {/* ---------------------------------------------------------------- Hero */}
       {!redesign && (
-      <section className="relative h-[82vh] w-full overflow-hidden bg-muted" aria-label="Featured">
-        {HERO_SLIDES.map((slide, i) => (
-          <div
-            key={i}
-            className={cn(
-              'absolute inset-0 transition-opacity duration-1000',
-              currentHero === i ? 'z-10 opacity-100' : 'z-0 opacity-0'
-            )}
-          >
-            <Image
-              src={slide.image}
-              alt=""
-              aria-hidden="true"
-              fill
-              className={cn('object-cover', currentHero === i && 'animate-ken-burns')}
-              priority={i === 0}
-              sizes="100vw"
-              data-ai-hint={slide.hint}
-            />
-            {/* Navy wash keeps the white type legible and ties the hero to the mark. */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(224_60%_10%_/_0.82)] via-[hsl(224_60%_10%_/_0.55)] to-transparent" />
-            <div className="container absolute inset-0 mx-auto flex flex-col items-start justify-center px-4 text-white">
-              {currentHero === i && (
-                <div className="max-w-2xl animate-fade-up">
-                  <span className="mb-6 inline-block text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
-                    Avyora Skincare
-                  </span>
-                  <h1 className="mb-6 whitespace-pre-line font-headline text-5xl font-normal leading-[1.08] tracking-tight md:text-7xl">
-                    {slide.title}
-                  </h1>
-                  <p className="mb-10 max-w-md text-base leading-relaxed text-white/80 md:text-lg">
-                    {slide.subtitle}
-                  </p>
-                  <div className="mb-10 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.18em] text-white/90">
-                    <span className="h-px w-8 bg-primary" aria-hidden="true" />
-                    {slide.promo}
-                  </div>
-                  <Link href="/collections">
-                    <Button className="rounded-md bg-primary px-12 py-7 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground transition-colors duration-300 hover:bg-white hover:text-foreground">
-                      Shop the collection
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        <div className="absolute bottom-10 left-1/2 z-20 flex -translate-x-1/2 gap-3">
-          {HERO_SLIDES.length > 1 && HERO_SLIDES.map((_, i) => (
-            <button
+        <section className="relative h-[82vh] w-full overflow-hidden bg-muted" aria-label="Featured">
+          {HERO_SLIDES.map((slide, i) => (
+            <div
               key={i}
-              aria-label={`Go to slide ${i + 1}`}
-              aria-current={currentHero === i}
-              onClick={() => setCurrentHero(i)}
               className={cn(
-                'h-1 rounded-full transition-all duration-500',
-                currentHero === i ? 'w-12 bg-primary' : 'w-6 bg-white/45 hover:bg-white/70'
+                'absolute inset-0 transition-opacity duration-1000',
+                currentHero === i ? 'z-10 opacity-100' : 'z-0 opacity-0'
               )}
-            />
+            >
+              <Image
+                src={slide.image}
+                alt=""
+                aria-hidden="true"
+                fill
+                className={cn('object-cover', currentHero === i && 'animate-ken-burns')}
+                priority={i === 0}
+                sizes="100vw"
+                data-ai-hint={slide.hint}
+              />
+              {/* Navy wash keeps the white type legible and ties the hero to the mark. */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[hsl(224_60%_10%_/_0.82)] via-[hsl(224_60%_10%_/_0.55)] to-transparent" />
+              <div className="container absolute inset-0 mx-auto flex flex-col items-start justify-center px-4 text-white">
+                {currentHero === i && (
+                  <div className="max-w-2xl animate-fade-up">
+                    <span className="mb-6 inline-block text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">
+                      Avyora Skincare
+                    </span>
+                    <h1 className="mb-6 whitespace-pre-line font-headline text-5xl font-normal leading-[1.08] tracking-tight md:text-7xl">
+                      {slide.title}
+                    </h1>
+                    <p className="mb-10 max-w-md text-base leading-relaxed text-white/80 md:text-lg">
+                      {slide.subtitle}
+                    </p>
+                    <div className="mb-10 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.18em] text-white/90">
+                      <span className="h-px w-8 bg-primary" aria-hidden="true" />
+                      {slide.promo}
+                    </div>
+                    <Link href="/collections">
+                      <Button className="rounded-md bg-primary px-12 py-7 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground transition-colors duration-300 hover:bg-white hover:text-foreground">
+                        Shop the collection
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
           ))}
-        </div>
-      </section>
-
+          <div className="absolute bottom-10 left-1/2 z-20 flex -translate-x-1/2 gap-3">
+            {HERO_SLIDES.length > 1 &&
+              HERO_SLIDES.map((_, i) => (
+                <button
+                  key={i}
+                  aria-label={`Go to slide ${i + 1}`}
+                  aria-current={currentHero === i}
+                  onClick={() => setCurrentHero(i)}
+                  className={cn(
+                    'h-1 rounded-full transition-all duration-500',
+                    currentHero === i ? 'w-12 bg-primary' : 'w-6 bg-white/45 hover:bg-white/70'
+                  )}
+                />
+              ))}
+          </div>
+        </section>
       )}
 
       {/* ------------------------------------------------------------ Products */}
@@ -133,10 +133,7 @@ export function HomeClient({
         <div className="mb-14 flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
             <span className="eyebrow">The range</span>
-            <h2
-              id="products-heading"
-              className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl"
-            >
+            <h2 id="products-heading" className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
               Our products
             </h2>
           </div>
@@ -233,10 +230,7 @@ export function HomeClient({
       <section className="overflow-hidden py-24" aria-labelledby="category-heading">
         <div className="container mx-auto mb-12 px-4 text-center">
           <span className="eyebrow">Explore</span>
-          <h2
-            id="category-heading"
-            className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl"
-          >
+          <h2 id="category-heading" className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
             Shop by category
           </h2>
           <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
@@ -266,9 +260,7 @@ export function HomeClient({
                   aria-hidden="true"
                 />
                 <div className="absolute inset-x-0 bottom-0 p-7">
-                  <h3 className="font-headline text-2xl font-medium tracking-wide text-white">
-                    {cat.name}
-                  </h3>
+                  <h3 className="font-headline text-2xl font-medium tracking-wide text-white">{cat.name}</h3>
                   {isComingSoon ? (
                     <Badge className="mt-3 rounded-full border-none bg-white/15 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white backdrop-blur-sm">
                       Coming soon
@@ -301,10 +293,7 @@ export function HomeClient({
         <div className="container mx-auto px-4">
           <div className="mb-14 text-center">
             <span className="eyebrow">Targeted results</span>
-            <h2
-              id="concerns-heading"
-              className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl"
-            >
+            <h2 id="concerns-heading" className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
               Shop by concern
             </h2>
           </div>
@@ -340,9 +329,7 @@ export function HomeClient({
                     {concern.name}
                   </span>
                   {isComingSoon && (
-                    <span className="mt-1 text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70">
-                      Soon
-                    </span>
+                    <span className="mt-1 text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70">Soon</span>
                   )}
                 </>
               );
@@ -364,7 +351,6 @@ export function HomeClient({
           </div>
         </div>
       </section>
-
     </Root>
   );
 }

@@ -12,7 +12,13 @@ export function PreviewForm() {
         <label htmlFor="records" className="block text-sm font-medium">
           Product records (JSON array)
         </label>
-        <textarea id="records" name="records" rows={14} className="w-full rounded-md border border-border bg-background p-3 font-mono text-xs" required />
+        <textarea
+          id="records"
+          name="records"
+          rows={14}
+          className="w-full rounded-md border border-border bg-background p-3 font-mono text-xs"
+          required
+        />
         <Button type="submit" disabled={pending} className="rounded-md">
           {pending ? 'Checking…' : 'Preview'}
         </Button>

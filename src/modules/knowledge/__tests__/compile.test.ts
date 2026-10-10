@@ -53,7 +53,15 @@ describe('predicate trees', () => {
   });
 
   it('knows when a condition can never be true', () => {
-    expect(satisfiable({ op: 'all', of: [{ op: 'eq', field: 'pregnancy', value: 'yes' }, { op: 'eq', field: 'pregnancy', value: 'no' }] })).toBe(false);
+    expect(
+      satisfiable({
+        op: 'all',
+        of: [
+          { op: 'eq', field: 'pregnancy', value: 'yes' },
+          { op: 'eq', field: 'pregnancy', value: 'no' },
+        ],
+      })
+    ).toBe(false);
     expect(satisfiable({ op: 'in', field: 'pregnancy', values: ['yes'] })).toBe(true);
   });
 });
@@ -88,7 +96,10 @@ describe('compiling the development fixture', () => {
 
   it('detects a tampered artifact or manifest', () => {
     const release = ok(compileFixture());
-    const tampered = { ...release, artifacts: { ...release.artifacts, rules: release.artifacts.rules.replace('irritated', 'clear') } };
+    const tampered = {
+      ...release,
+      artifacts: { ...release.artifacts, rules: release.artifacts.rules.replace('irritated', 'clear') },
+    };
     expect(verifyRelease(tampered).join()).toMatch(/rules does not match its checksum/);
     const relabelled = { ...release, manifest: { ...release.manifest, fixture: false } };
     expect(verifyRelease(relabelled).join()).toMatch(/release id does not match/);
@@ -103,12 +114,16 @@ const ruleOverride = (id: string, patch: Partial<DecisionRule>) => {
 
 describe('compilation refuses', () => {
   it('a draft safety rule', () => {
-    expect(errorsOf(ruleOverride('retinoid_pregnancy', { review: { status: 'draft' } })).join()).toMatch(/Draft safety rule: rule retinoid_pregnancy/);
+    expect(errorsOf(ruleOverride('retinoid_pregnancy', { review: { status: 'draft' } })).join()).toMatch(
+      /Draft safety rule: rule retinoid_pregnancy/
+    );
   });
 
   it('an approval without reviewer, date or existing source', () => {
     const errors = errorsOf(
-      ruleOverride('retinoid_under18', { review: { status: 'approved', reviewerId: ' ', reviewedAt: 'yesterday', sourceIds: ['missing-source'] } })
+      ruleOverride('retinoid_under18', {
+        review: { status: 'approved', reviewerId: ' ', reviewedAt: 'yesterday', sourceIds: ['missing-source'] },
+      })
     ).join('\n');
     expect(errors).toMatch(/approved without a reviewer/);
     expect(errors).toMatch(/review date must be an ISO date/);
@@ -118,7 +133,13 @@ describe('compilation refuses', () => {
   it('a rule that can never apply', () => {
     const errors = errorsOf(
       ruleOverride('retinoid_under18', {
-        when: { op: 'all', of: [{ op: 'eq', field: 'ageRange', value: 'under18' }, { op: 'not', of: { op: 'eq', field: 'ageRange', value: 'under18' } }] },
+        when: {
+          op: 'all',
+          of: [
+            { op: 'eq', field: 'ageRange', value: 'under18' },
+            { op: 'not', of: { op: 'eq', field: 'ageRange', value: 'under18' } },
+          ],
+        },
       })
     );
     expect(errors.join()).toMatch(/unreachable rule/);
@@ -126,14 +147,19 @@ describe('compilation refuses', () => {
 
   it('contradictory rules: two modes for the same profile', () => {
     // Without its "not irritated" guard, the very-reactive rule overlaps the irritated one.
-    const errors = errorsOf(ruleOverride('very_reactive_gentle', { when: { op: 'eq', field: 'reactivity', value: 'very_high' } }));
+    const errors = errorsOf(
+      ruleOverride('very_reactive_gentle', { when: { op: 'eq', field: 'reactivity', value: 'very_high' } })
+    );
     expect(errors.join()).toMatch(/rules irritated_recovery and very_reactive_gentle contradict/);
   });
 
   it('a rule with contradictory effects, or a missing reason template', () => {
     const errors = errorsOf(
       ruleOverride('retinoid_pregnancy', {
-        effects: [{ kind: 'mode', value: 'recovery' }, { kind: 'mode', value: 'gentle' }],
+        effects: [
+          { kind: 'mode', value: 'recovery' },
+          { kind: 'mode', value: 'gentle' },
+        ],
         reasonTemplateId: 'no_such_template',
       })
     ).join('\n');
@@ -143,13 +169,19 @@ describe('compilation refuses', () => {
 
   it('a template using an undeclared or forbidden variable', () => {
     const input = fixture();
-    input.templates[0] = { ...input.templates[0], text: '{productName} for {email}', variables: ['productName', 'email'] };
+    input.templates[0] = {
+      ...input.templates[0],
+      text: '{productName} for {email}',
+      variables: ['productName', 'email'],
+    };
     const errors = errorsOf(input).join('\n');
     expect(errors).toMatch(/variable email is not permitted/);
   });
 
   it('synthetic Bayesian parameters in a production release', () => {
-    expect(errorsOf(fixture(), { fixture: false }).join()).toMatch(/synthetic fixture parameters cannot enter a production release/);
+    expect(errorsOf(fixture(), { fixture: false }).join()).toMatch(
+      /synthetic fixture parameters cannot enter a production release/
+    );
   });
 
   it('"validated" parameters without provenance, or impossible probabilities', () => {
@@ -174,7 +206,15 @@ describe('compilation refuses', () => {
 
   it('broken references: interactions, formulations and evidence', () => {
     const input = fixture();
-    input.interactions.push({ a: 'retinol', b: 'unicorn-extract', tier: 3, summary: 's', advice: 'a', citation: null, review: FIXTURE_REVIEW });
+    input.interactions.push({
+      a: 'retinol',
+      b: 'unicorn-extract',
+      tier: 3,
+      summary: 's',
+      advice: 'a',
+      citation: null,
+      review: FIXTURE_REVIEW,
+    });
     input.formulations.push({ ...input.formulations[0], productId: 'discontinued-serum' });
     const errors = errorsOf(input).join('\n');
     expect(errors).toMatch(/unknown ingredient unicorn-extract/);
@@ -215,18 +255,36 @@ describe('inference from a release', () => {
   const rules = fixture().rules;
 
   it('applies rules by interpretation, strictest limit wins', () => {
-    const out = applyRules(rules, { currentCondition: 'irritated', reactivity: 'high', experienceLevel: 'N3', pregnancy: 'unknown', ageRange: '25_34' });
+    const out = applyRules(rules, {
+      currentCondition: 'irritated',
+      reactivity: 'high',
+      experienceLevel: 'N3',
+      pregnancy: 'unknown',
+      ageRange: '25_34',
+    });
     expect(out.mode).toBe('recovery');
     expect(out.excludedClasses).toEqual(['elective_irritating', 'retinoid']);
     expect(out.maxTreatments).toBe(1);
-    expect(out.applied.map((a) => a.ruleId)).toEqual(['irritated_recovery', 'one_active_at_a_time', 'retinoid_pregnancy']);
+    expect(out.applied.map((a) => a.ruleId)).toEqual([
+      'irritated_recovery',
+      'one_active_at_a_time',
+      'retinoid_pregnancy',
+    ]);
     expect(applyRules(rules, { experienceLevel: 'N0', reactivity: 'high' }).maxTreatments).toBe(0);
   });
 
   it('combines evidence groups through the shared inference core', () => {
     const [param] = fixture().parameters;
-    const set = { releaseId: 'fixture', schemaVersion: 1, parameters: [{ ...param, validationStatus: 'validated' as const }] };
-    const r = inferConcerns(set, [{ evidenceGroup: 'self_report_breakouts', observation: 'frequent', source: 'quiz' }], []);
+    const set = {
+      releaseId: 'fixture',
+      schemaVersion: 1,
+      parameters: [{ ...param, validationStatus: 'validated' as const }],
+    };
+    const r = inferConcerns(
+      set,
+      [{ evidenceGroup: 'self_report_breakouts', observation: 'frequent', source: 'quiz' }],
+      []
+    );
     expect(r.concerns[0]).toMatchObject({ basis: 'calibrated', probability: expect.closeTo(0.75 / 1.75, 10) });
   });
 });

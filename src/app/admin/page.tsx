@@ -145,9 +145,7 @@ function Stat({
   const body = (
     <>
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
         {icon}
       </div>
       <p className="mt-3 font-headline text-3xl font-normal tabular-nums">{value}</p>
@@ -156,8 +154,7 @@ function Stat({
   );
 
   const className =
-    'rounded-xl border border-border bg-card p-5 transition-colors' +
-    (href ? ' hover:border-primary/60' : '');
+    'rounded-xl border border-border bg-card p-5 transition-colors' + (href ? ' hover:border-primary/60' : '');
 
   return href ? (
     <Link href={href} className={className}>

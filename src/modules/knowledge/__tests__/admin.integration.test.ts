@@ -19,7 +19,8 @@ vi.mock('../production-input', async (importOriginal) => {
     },
   };
 });
-const { listReleases, publishRepositoryRelease, revokeKnowledge, rollbackKnowledge, validateRepositoryKnowledge } = await import('../admin');
+const { listReleases, publishRepositoryRelease, revokeKnowledge, rollbackKnowledge, validateRepositoryKnowledge } =
+  await import('../admin');
 
 const owner = { id: 'owner-1', role: 'owner' as const };
 const manager = { id: 'manager-1', role: 'manager' as const };
@@ -36,7 +37,14 @@ beforeEach(async () => {
 });
 
 /** A second, distinct release: the same knowledge plus one test-only evidence record. */
-const withTestEvidence = (id: string) => (input: any) => ({ ...input, evidence: [...input.evidence, { id, title: 'Test only', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' }] }); // eslint-disable-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const withTestEvidence = (id: string) => (input: any) => ({
+  ...input,
+  evidence: [
+    ...input.evidence,
+    { id, title: 'Test only', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' },
+  ],
+});
 
 describe('knowledge operations', () => {
   it('validates the repository knowledge and lists what still awaits review', () => {
@@ -46,7 +54,10 @@ describe('knowledge operations', () => {
   });
 
   it('a manager can read but cannot publish, roll back or revoke', async () => {
-    expect(await publishRepositoryRelease(db, manager)).toEqual({ ok: false, error: 'Only the owner can publish knowledge.' });
+    expect(await publishRepositoryRelease(db, manager)).toEqual({
+      ok: false,
+      error: 'Only the owner can publish knowledge.',
+    });
     expect((await rollbackKnowledge(db, manager, 'x')).ok).toBe(false);
     expect((await revokeKnowledge(db, manager, 'kb_x', 'x')).ok).toBe(false);
     expect((await listReleases(db)).releases).toEqual([]);
@@ -65,7 +76,21 @@ describe('knowledge operations', () => {
 
   it('refuses to publish knowledge that does not validate, naming the record', async () => {
     // A draft safety rule slipped in as if approved, without a reviewer: compile must reject it.
-    productionInputMock.override = (input) => ({ ...input, interactions: [...input.interactions, { a: 'retinol', b: 'no-such-ingredient', tier: 2, summary: 'x', advice: 'x', citation: null, review: { status: 'approved', reviewerId: 'x', reviewedAt: '2026-01-01', sourceIds: ['missing-source'] } }] });
+    productionInputMock.override = (input) => ({
+      ...input,
+      interactions: [
+        ...input.interactions,
+        {
+          a: 'retinol',
+          b: 'no-such-ingredient',
+          tier: 2,
+          summary: 'x',
+          advice: 'x',
+          citation: null,
+          review: { status: 'approved', reviewerId: 'x', reviewedAt: '2026-01-01', sourceIds: ['missing-source'] },
+        },
+      ],
+    });
     const result = await publishRepositoryRelease(db, owner);
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toMatch(/interaction retinol\/no-such-ingredient/);
@@ -79,8 +104,13 @@ describe('knowledge operations', () => {
     expect(a.ok && b.ok && a.releaseId !== b.releaseId).toBe(true);
     expect((await rollbackKnowledge(db, owner, '  ')).ok).toBe(false);
     expect((await revokeKnowledge(db, owner, (b as { releaseId: string }).releaseId, 'bad')).ok).toBe(false);
-    expect(await rollbackKnowledge(db, owner, 'testing rollback')).toMatchObject({ ok: true, releaseId: (a as { releaseId: string }).releaseId });
-    expect(await revokeKnowledge(db, owner, (b as { releaseId: string }).releaseId, 'superseded in test')).toMatchObject({ ok: true });
+    expect(await rollbackKnowledge(db, owner, 'testing rollback')).toMatchObject({
+      ok: true,
+      releaseId: (a as { releaseId: string }).releaseId,
+    });
+    expect(
+      await revokeKnowledge(db, owner, (b as { releaseId: string }).releaseId, 'superseded in test')
+    ).toMatchObject({ ok: true });
     const { releases, activeId } = await listReleases(db);
     expect(activeId).toBe((a as { releaseId: string }).releaseId);
     expect(releases.find((r) => r.id === (b as { releaseId: string }).releaseId)?.status).toBe('revoked');

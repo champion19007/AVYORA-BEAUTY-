@@ -47,8 +47,7 @@ export type TaxSplit = {
  * 50 + 51, not 50 + 50.
  */
 export function splitTax(taxPaise: number, buyerState: string | null | undefined): TaxSplit {
-  const intraState =
-    Boolean(buyerState) && buyerState!.trim().toLowerCase() === sellerState().trim().toLowerCase();
+  const intraState = Boolean(buyerState) && buyerState!.trim().toLowerCase() === sellerState().trim().toLowerCase();
 
   if (!intraState) {
     return { intraState: false, cgst: 0, sgst: 0, igst: taxPaise, ratePercent: GST_RATE * 100 };

@@ -52,13 +52,7 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
   const rows = await db
     .select()
     .from(orders)
-    .where(
-      and(
-        ne(orders.status, 'delivered'),
-        ne(orders.status, 'cancelled'),
-        ne(orders.status, 'refunded')
-      )
-    )
+    .where(and(ne(orders.status, 'delivered'), ne(orders.status, 'cancelled'), ne(orders.status, 'refunded')))
     .orderBy(orders.createdAt)
     .limit(100);
 
@@ -67,7 +61,12 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
   const lines = await db
     .select()
     .from(orderItems)
-    .where(inArray(orderItems.orderId, rows.map((r) => r.id)));
+    .where(
+      inArray(
+        orderItems.orderId,
+        rows.map((r) => r.id)
+      )
+    );
 
   const linesByOrder = new Map<string, typeof lines>();
   for (const line of lines) {

@@ -1,11 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, getAdminConfig, verifySessionToken } from '@/lib/auth';
-import {
-  contentSecurityPolicy,
-  isAllowedCrawler,
-  isBlockedAgent,
-  securityHeaders,
-} from '@/lib/security';
+import { contentSecurityPolicy, isAllowedCrawler, isBlockedAgent, securityHeaders } from '@/lib/security';
 import { edgeRateLimit } from '@/lib/edge-rate-limit';
 import { trustedClientIp } from '@/lib/client-ip';
 import { isNoIndexPath, isPrivatePath, PRIVATE_CACHE_CONTROL } from '@/lib/cache-policy';
@@ -21,7 +16,6 @@ import { REQUEST_ID_HEADER, normaliseRequestId } from '@/infrastructure/request-
 
 /** Requests per minute for an ordinary visitor. Generous; this targets bulk pulls. */
 const BROWSE_LIMIT = { limit: 120, windowSeconds: 60 };
-
 
 export async function middleware(request: NextRequest) {
   const userAgent = request.headers.get('user-agent') ?? '';
@@ -50,11 +44,7 @@ export async function middleware(request: NextRequest) {
   // spoofable header could be rotated to dodge this, or aimed at someone else.
   const address = trustedClientIp(request.headers);
   if (address && !isAllowedCrawler(userAgent) && !path.startsWith('/api/')) {
-    const browse = edgeRateLimit(
-      `browse:${address}`,
-      BROWSE_LIMIT.limit,
-      BROWSE_LIMIT.windowSeconds
-    );
+    const browse = edgeRateLimit(`browse:${address}`, BROWSE_LIMIT.limit, BROWSE_LIMIT.windowSeconds);
     if (!browse.allowed) {
       return new NextResponse('Too many requests', {
         status: 429,
@@ -76,10 +66,7 @@ export async function middleware(request: NextRequest) {
   // decided by the layouts, which can tell an owner from a manager. Putting
   // that distinction here as well would mean maintaining it in two places.
   const isStaffArea =
-    path === '/admin' ||
-    path.startsWith('/admin/') ||
-    path === '/manager' ||
-    path.startsWith('/manager/');
+    path === '/admin' || path.startsWith('/admin/') || path === '/manager' || path.startsWith('/manager/');
 
   if (isStaffArea) {
     const config = getAdminConfig();

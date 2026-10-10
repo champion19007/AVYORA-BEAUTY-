@@ -40,34 +40,62 @@ export function SiteHeader() {
     n > 0 && (
       <span
         aria-hidden="true"
-        className={cn('absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full px-1 text-center text-[11px] font-medium leading-[18px]', light ? 'bg-white text-nv-ink' : 'bg-nv-ink text-white')}
+        className={cn(
+          'absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full px-1 text-center text-[11px] font-medium leading-[18px]',
+          light ? 'bg-white text-nv-ink' : 'bg-nv-ink text-white'
+        )}
       >
         {n > 99 ? '99+' : n}
       </span>
     );
 
   return (
-    <header className={cn('z-30 h-nv-header w-full font-nv', light ? 'absolute inset-x-0 top-0 text-white' : 'relative bg-nv-page text-nv-ink')}>
+    <header
+      className={cn(
+        'z-30 h-nv-header w-full font-nv',
+        light ? 'absolute inset-x-0 top-0 text-white' : 'relative bg-nv-page text-nv-ink'
+      )}
+    >
       {/* 20 px top, 22 px bottom: the wordmark box (34 px) starts at y = 20 and the menu button centres on y = 37, as measured. */}
       <div className="flex h-full items-center justify-between px-nv-gutter pb-[22px] pt-5">
         <Link href="/" className={cn('font-wordmark text-nv-wordmark', light ? 'nv-focus-light' : 'nv-focus')}>
           Avyora
         </Link>
         <nav aria-label="Shortcuts" className="flex items-center gap-0 sm:gap-2">
-          <Link href="/collections" className={cn('mr-4 hidden text-nv-label sm:inline', light ? 'nv-focus-light hover:text-white/80' : 'nv-focus hover:text-nv-muted')}>
+          <Link
+            href="/collections"
+            className={cn(
+              'mr-4 hidden text-nv-label sm:inline',
+              light ? 'nv-focus-light hover:text-white/80' : 'nv-focus hover:text-nv-muted'
+            )}
+          >
             Shop
           </Link>
           <SearchDialog control={control} />
           <AccountMenu className={control} />
-          <Link href="/wishlist" className={control} aria-label={`Wishlist${wishlist.length ? `, ${wishlist.length} saved` : ''}`}>
+          <Link
+            href="/wishlist"
+            className={control}
+            aria-label={`Wishlist${wishlist.length ? `, ${wishlist.length} saved` : ''}`}
+          >
             <Heart className="h-5 w-5" aria-hidden="true" />
             {badge(wishlist.length)}
           </Link>
-          <button type="button" className={control} onClick={() => setCartOpen(true)} aria-label={`Bag${count ? `, ${count} item${count === 1 ? '' : 's'}` : ', empty'}`}>
+          <button
+            type="button"
+            className={control}
+            onClick={() => setCartOpen(true)}
+            aria-label={`Bag${count ? `, ${count} item${count === 1 ? '' : 's'}` : ', empty'}`}
+          >
             <ShoppingBag className="h-5 w-5" aria-hidden="true" />
             {badge(count)}
           </button>
-          <MenuOverlay light={light} bagCount={count} openBag={() => setCartOpen(true)} wishlistCount={wishlist.length} />
+          <MenuOverlay
+            light={light}
+            bagCount={count}
+            openBag={() => setCartOpen(true)}
+            wishlistCount={wishlist.length}
+          />
         </nav>
       </div>
     </header>
@@ -80,7 +108,17 @@ export function SiteHeader() {
  * and the close control in place of the menu button. Radix supplies the
  * focus trap, Escape, scroll lock and focus return.
  */
-function MenuOverlay({ light, bagCount, openBag, wishlistCount }: { light: boolean; bagCount: number; openBag: () => void; wishlistCount: number }) {
+function MenuOverlay({
+  light,
+  bagCount,
+  openBag,
+  wishlistCount,
+}: {
+  light: boolean;
+  bagCount: number;
+  openBag: () => void;
+  wishlistCount: number;
+}) {
   const [open, setOpen] = useState(false);
 
   /*
@@ -104,7 +142,10 @@ function MenuOverlay({ light, bagCount, openBag, wishlistCount }: { light: boole
   return (
     <RadixDialog.Root open={open} onOpenChange={setOpen}>
       <RadixDialog.Trigger
-        className={cn('ml-2 flex h-10 w-10 flex-col items-end justify-center gap-[6px]', light ? 'nv-focus-light' : 'nv-focus')}
+        className={cn(
+          'ml-2 flex h-10 w-10 flex-col items-end justify-center gap-[6px]',
+          light ? 'nv-focus-light' : 'nv-focus'
+        )}
         aria-label="Menu"
       >
         <span aria-hidden="true" className={cn('block h-[2px] w-[34px]', light ? 'bg-white' : 'bg-nv-ink')} />
@@ -130,7 +171,11 @@ function MenuOverlay({ light, bagCount, openBag, wishlistCount }: { light: boole
             <ul className="flex flex-col items-center gap-4">
               {PRIMARY_NAV.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} onClick={() => setOpen(false)} className="nv-focus text-nv-statement transition-colors hover:text-nv-muted">
+                  <Link
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    className="nv-focus text-nv-statement transition-colors hover:text-nv-muted"
+                  >
                     {l.label}
                   </Link>
                 </li>
@@ -234,7 +279,11 @@ function SearchDialog({ control }: { control: string }) {
               <ul className="mt-2 space-y-1">
                 {categories.map((c) => (
                   <li key={c.id}>
-                    <button type="button" className="nv-focus hover:underline" onClick={() => go(`/collections?category=${c.id}`)}>
+                    <button
+                      type="button"
+                      className="nv-focus hover:underline"
+                      onClick={() => go(`/collections?category=${c.id}`)}
+                    >
                       {c.name}
                     </button>
                   </li>
@@ -246,7 +295,11 @@ function SearchDialog({ control }: { control: string }) {
               <ul className="mt-2 space-y-1">
                 {concerns.map((c) => (
                   <li key={c.id}>
-                    <button type="button" className="nv-focus hover:underline" onClick={() => go(`/collections?concern=${c.id}`)}>
+                    <button
+                      type="button"
+                      className="nv-focus hover:underline"
+                      onClick={() => go(`/collections?concern=${c.id}`)}
+                    >
                       {c.name}
                     </button>
                   </li>
@@ -254,7 +307,10 @@ function SearchDialog({ control }: { control: string }) {
               </ul>
             </nav>
           </div>
-          <RadixDialog.Close className="nv-focus absolute right-5 top-5 flex h-10 w-10 items-center justify-center" aria-label="Close search">
+          <RadixDialog.Close
+            className="nv-focus absolute right-5 top-5 flex h-10 w-10 items-center justify-center"
+            aria-label="Close search"
+          >
             <X className="h-5 w-5" aria-hidden="true" />
           </RadixDialog.Close>
         </RadixDialog.Content>

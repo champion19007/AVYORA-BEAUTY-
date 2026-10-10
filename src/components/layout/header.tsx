@@ -36,24 +36,14 @@ const NAV_ITEMS = [
  *
  * The catalogue is static, so these are computed once, not per render.
  */
-const CATEGORIES_WITH_PRODUCTS = CATEGORIES.filter((c) =>
-  PRODUCTS.some((p) => p.category === c.id)
-);
+const CATEGORIES_WITH_PRODUCTS = CATEGORIES.filter((c) => PRODUCTS.some((p) => p.category === c.id));
 
-const CONCERNS_WITH_PRODUCTS = CONCERNS.filter((c) =>
-  PRODUCTS.some((p) => p.concerns.includes(c.id))
-);
+const CONCERNS_WITH_PRODUCTS = CONCERNS.filter((c) => PRODUCTS.some((p) => p.concerns.includes(c.id)));
 
 const BESTSELLERS = PRODUCTS.filter((p) => p.isBestSeller).slice(0, 7);
 
 /** One column of the mega menu. */
-function MegaColumn({
-  heading,
-  links,
-}: {
-  heading: string;
-  links: { label: string; href: string | null }[];
-}) {
+function MegaColumn({ heading, links }: { heading: string; links: { label: string; href: string | null }[] }) {
   return (
     <div>
       <h3 className="mb-4 border-b border-primary/25 pb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
@@ -63,10 +53,7 @@ function MegaColumn({
         {links.map(({ label, href }) => (
           <li key={label}>
             {href ? (
-              <Link
-                href={href}
-                className="text-sm text-muted-foreground transition-colors hover:text-primary"
-              >
+              <Link href={href} className="text-sm text-muted-foreground transition-colors hover:text-primary">
                 {label}
               </Link>
             ) : (
@@ -88,7 +75,6 @@ export function Header({ deliverTo }: { deliverTo?: React.ReactNode }) {
   const router = useRouter();
   const [isSearchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
-
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();

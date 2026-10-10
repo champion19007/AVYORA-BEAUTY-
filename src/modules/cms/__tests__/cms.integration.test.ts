@@ -17,9 +17,7 @@ vi.mock('@/db', () => ({ db, getDatabase: () => db, isDatabaseConfigured: () => 
 
 const { saveDraft, publishDocument, unpublishDocument, restoreRevision, STALE_CONTENT_MESSAGE } =
   await import('../cms-commands');
-const { productCopy, publishedArticle, publishedArticles, invalidateContent } = await import(
-  '../content-read'
-);
+const { productCopy, publishedArticle, publishedArticles, invalidateContent } = await import('../content-read');
 const { uploadMedia, sniffImageType } = await import('../media');
 const { cache, POLICIES } = await import('@/infrastructure/cache');
 
@@ -83,10 +81,7 @@ describe('drafts', () => {
   });
 
   it('is owner-only', async () => {
-    const result = await saveDraft(
-      { type: 'product_copy', slug: SLUG, body: copy(), expectedVersion: 0 },
-      manager
-    );
+    const result = await saveDraft({ type: 'product_copy', slug: SLUG, body: copy(), expectedVersion: 0 }, manager);
     expect(result).toMatchObject({ ok: false, code: 'forbidden' });
   });
 });
@@ -151,9 +146,7 @@ describe('publishing', () => {
     expect(first).toMatchObject({ ok: true, value: { changed: true } });
     expect(second).toMatchObject({ ok: true, value: { changed: false } });
     expect(await db.select().from(domainEvents).where(eq(domainEvents.name, 'content.published'))).toHaveLength(1);
-    expect(
-      await db.select().from(cmsRevisions).where(eq(cmsRevisions.action, 'publish'))
-    ).toHaveLength(1);
+    expect(await db.select().from(cmsRevisions).where(eq(cmsRevisions.action, 'publish'))).toHaveLength(1);
   });
 
   it('writes the change, its revision, its audit row and its event together', async () => {
@@ -189,11 +182,7 @@ describe('revisions', () => {
     await publishAndInvalidate(saved.value.id, 1);
     await save({ tagline: 'A worse tagline' }, 1);
 
-    const [original] = await db
-      .select()
-      .from(cmsRevisions)
-      .where(eq(cmsRevisions.version, 1))
-      .limit(1);
+    const [original] = await db.select().from(cmsRevisions).where(eq(cmsRevisions.version, 1)).limit(1);
 
     const restored = await restoreRevision(
       { documentId: saved.value.id, revisionId: original.id, expectedVersion: 2 },
@@ -214,10 +203,7 @@ describe('revisions', () => {
       owner
     );
     if (!a.ok || !b.ok) throw new Error('save failed');
-    const [bRevision] = await db
-      .select()
-      .from(cmsRevisions)
-      .where(eq(cmsRevisions.documentId, b.value.id));
+    const [bRevision] = await db.select().from(cmsRevisions).where(eq(cmsRevisions.documentId, b.value.id));
 
     const result = await restoreRevision(
       { documentId: a.value.id, revisionId: bRevision.id, expectedVersion: 1 },
@@ -230,10 +216,7 @@ describe('revisions', () => {
 describe('articles', () => {
   it('lists only published articles, newest first', async () => {
     for (const slug of ['first-post', 'second-post', 'still-a-draft']) {
-      await saveDraft(
-        { type: 'article', slug, body: { title: slug, body: 'Hello.' }, expectedVersion: 0 },
-        owner
-      );
+      await saveDraft({ type: 'article', slug, body: { title: slug, body: 'Hello.' }, expectedVersion: 0 }, owner);
     }
     const docs = await db.select().from(cmsDocuments);
     for (const slug of ['first-post', 'second-post']) {

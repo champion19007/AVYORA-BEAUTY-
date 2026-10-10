@@ -29,7 +29,9 @@ export async function DELETE(request: Request, { params }: Ctx) {
   const { id } = await params;
   const g = await scanGate(request, { admission: false });
   if ('response' in g) return g.response;
-  const out = ID_SHAPE.test(id) ? await deleteScan(db, privateStorage(), g.owner, id) : { found: false, photo: 'none' as const };
+  const out = ID_SHAPE.test(id)
+    ? await deleteScan(db, privateStorage(), g.owner, id)
+    : { found: false, photo: 'none' as const };
   if (out.photo === 'pending') return privateJson({ photo: 'deletion_pending' }, 202);
   return new Response(null, { status: 204, headers: { 'Cache-Control': PRIVATE_CACHE_CONTROL } });
 }

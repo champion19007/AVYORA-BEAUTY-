@@ -38,12 +38,7 @@ export async function applyPaymentSignalInTx(
   orderId: string,
   signal: PaymentSignal
 ): Promise<AppliedSignal | null> {
-  const [order] = await tx
-    .select()
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .for('update')
-    .limit(1);
+  const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update').limit(1);
 
   if (!order) return null;
 
@@ -54,9 +49,11 @@ export async function applyPaymentSignalInTx(
 
   if (decision.outcome !== 'applied') return { ...decision, orderId, attention: null };
 
-  const lines = (await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId))).map(
-    (i) => ({ productId: i.productId, size: i.size, quantity: i.quantity })
-  );
+  const lines = (await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId))).map((i) => ({
+    productId: i.productId,
+    size: i.size,
+    quantity: i.quantity,
+  }));
 
   let stockRestoredAt = order.stockRestoredAt;
   let attention: string | null = null;
@@ -133,10 +130,7 @@ export async function applyPaymentSignalInTx(
   return { ...decision, orderId, attention };
 }
 
-export async function applyPaymentSignal(
-  orderId: string,
-  signal: PaymentSignal
-): Promise<AppliedSignal | null> {
+export async function applyPaymentSignal(orderId: string, signal: PaymentSignal): Promise<AppliedSignal | null> {
   return db.transaction((tx) => applyPaymentSignalInTx(tx, orderId, signal));
 }
 
@@ -159,9 +153,7 @@ export type ProviderEventInput = {
 };
 
 export type ProviderEventResult =
-  | { status: 'unknown_order' }
-  | { status: 'duplicate' }
-  | { status: 'processed'; applied: AppliedSignal | null };
+  { status: 'unknown_order' } | { status: 'duplicate' } | { status: 'processed'; applied: AppliedSignal | null };
 
 /**
  * Records a provider event and applies it, exactly once.

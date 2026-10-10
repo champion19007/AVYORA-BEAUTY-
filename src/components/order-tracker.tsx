@@ -23,9 +23,7 @@ export function OrderTracker({ status }: { status: string }) {
           <XCircle className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
           {progress.label}
         </p>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-          {progress.description}
-        </p>
+        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{progress.description}</p>
       </div>
     );
   }

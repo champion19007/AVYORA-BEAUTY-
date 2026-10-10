@@ -30,10 +30,15 @@ describe('verified-purchase reviews', () => {
   it('accepts only an account with a delivered order of the product', async () => {
     expect(await submitReview(db(), 'u-none', review)).toEqual({ ok: false, code: 'not_verified' });
     expect(await submitReview(db(), 'u-pending', review)).toEqual({ ok: false, code: 'not_verified' });
-    expect(await submitReview(db(), 'u-buyer', { ...review, productId: 'retinal-ampoule' })).toEqual({ ok: false, code: 'not_verified' });
+    expect(await submitReview(db(), 'u-buyer', { ...review, productId: 'retinal-ampoule' })).toEqual({
+      ok: false,
+      code: 'not_verified',
+    });
     const ok = await submitReview(db(), 'u-buyer', review);
     expect(ok.ok).toBe(true);
-    const [row] = (await ctx.client.query<{ order_id: string; published: boolean }>('SELECT order_id, published FROM reviews')).rows;
+    const [row] = (
+      await ctx.client.query<{ order_id: string; published: boolean }>('SELECT order_id, published FROM reviews')
+    ).rows;
     expect(row).toEqual({ order_id: 'o-delivered', published: false });
   });
 

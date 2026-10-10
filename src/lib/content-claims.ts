@@ -29,18 +29,51 @@ const RULES: { kind: ContentProblemKind; pattern: RegExp; why: string }[] = [
   { kind: 'unsupported_offer', pattern: /avyora (?:credit|circle)/gi, why: 'no credit ledger or membership exists' },
   { kind: 'unsupported_offer', pattern: /loyalty|reward points/gi, why: 'no loyalty programme exists' },
   { kind: 'unsupported_offer', pattern: /buy \d+,? get/gi, why: 'no multi-buy promotion is applied at checkout' },
-  { kind: 'unsupported_offer', pattern: /\bfree (?:surprise )?gifts?\b|freebies?/gi, why: 'no gift is added to orders' },
-  { kind: 'unsupported_offer', pattern: /bundle (?:discount|saving)|% off (?:every )?bundle|save [^.]{0,20}bundle/gi, why: 'no bundle pricing exists' },
+  {
+    kind: 'unsupported_offer',
+    pattern: /\bfree (?:surprise )?gifts?\b|freebies?/gi,
+    why: 'no gift is added to orders',
+  },
+  {
+    kind: 'unsupported_offer',
+    pattern: /bundle (?:discount|saving)|% off (?:every )?bundle|save [^.]{0,20}bundle/gi,
+    why: 'no bundle pricing exists',
+  },
   { kind: 'unsupported_offer', pattern: /up to \d+% off/gi, why: 'no basket discount is applied' },
-  { kind: 'unsupported_offer', pattern: /complimentary delivery|free delivery,? always|free shipping,? always/gi, why: 'delivery is charged below the free-delivery threshold' },
+  {
+    kind: 'unsupported_offer',
+    pattern: /complimentary delivery|free delivery,? always|free shipping,? always/gi,
+    why: 'delivery is charged below the free-delivery threshold',
+  },
 
-  { kind: 'absolute_claim', pattern: /\bzero[- ](?:irritation|residue|white cast|grease|side[- ]effects)/gi, why: 'absolute claim' },
-  { kind: 'absolute_claim', pattern: /\b(?:no|without) (?:irritation|stinging|redness)\b/gi, why: 'absolute tolerability claim' },
+  {
+    kind: 'absolute_claim',
+    pattern: /\bzero[- ](?:irritation|residue|white cast|grease|side[- ]effects)/gi,
+    why: 'absolute claim',
+  },
+  {
+    kind: 'absolute_claim',
+    pattern: /\b(?:no|without) (?:irritation|stinging|redness)\b/gi,
+    why: 'absolute tolerability claim',
+  },
   { kind: 'absolute_claim', pattern: /\b100% (?:safe|natural|effective)\b/gi, why: 'absolute claim' },
   { kind: 'absolute_claim', pattern: /\bguaranteed (?:results?|to)\b/gi, why: 'guaranteed outcome' },
-  { kind: 'absolute_claim', pattern: /\bclinically (?:proven|tested)\b|\bdermatologist[- ](?:approved|tested|recommended)\b/gi, why: 'clinical claim without evidence on file' },
-  { kind: 'absolute_claim', pattern: /\bcures?\b|\bboosts? collagen\b|\btissue remodel/gi, why: 'medical or structural claim' },
-  { kind: 'absolute_claim', pattern: /\bclinical (?:skincare|formulations?|batches|catalogue)\b|science-backed|maximum (?:efficacy|active stability)|formulated in-house/gi, why: 'unsubstantiated quality or origin claim' },
+  {
+    kind: 'absolute_claim',
+    pattern: /\bclinically (?:proven|tested)\b|\bdermatologist[- ](?:approved|tested|recommended)\b/gi,
+    why: 'clinical claim without evidence on file',
+  },
+  {
+    kind: 'absolute_claim',
+    pattern: /\bcures?\b|\bboosts? collagen\b|\btissue remodel/gi,
+    why: 'medical or structural claim',
+  },
+  {
+    kind: 'absolute_claim',
+    pattern:
+      /\bclinical (?:skincare|formulations?|batches|catalogue)\b|science-backed|maximum (?:efficacy|active stability)|formulated in-house/gi,
+    why: 'unsubstantiated quality or origin claim',
+  },
 ];
 
 /** Every problem in `text`, in rule order. Empty means the text passes. */

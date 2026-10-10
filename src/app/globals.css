@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -63,7 +62,7 @@
     /* Avyora Beauty sub-brand, sampled from its supplied artwork. Kept as a
        token rather than a hex literal in the component so it flips with the
        theme like every other colour. */
-    --beauty-pink: #C01050;
+    --beauty-pink: #c01050;
   }
 
   .dark {
@@ -102,7 +101,7 @@
     --ring: 43 76% 60%;
 
     /* Lightened: the crimson is too dark to read on the dark ground. */
-    --beauty-pink: #F06AA0;
+    --beauty-pink: #f06aa0;
   }
 }
 
@@ -112,9 +111,14 @@
   }
   body {
     @apply bg-background text-foreground antialiased transition-colors duration-300;
-    font-feature-settings: 'kern' 1, 'liga' 1;
+    font-feature-settings:
+      'kern' 1,
+      'liga' 1;
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     @apply font-headline;
   }
 }
@@ -124,12 +128,7 @@
      sweeps over the logo's monogram. */
   .rule-gold {
     @apply block h-px w-full;
-    background-image: linear-gradient(
-      to right,
-      transparent,
-      hsl(var(--primary) / 0.55),
-      transparent
-    );
+    background-image: linear-gradient(to right, transparent, hsl(var(--primary) / 0.55), transparent);
   }
 
   /*
@@ -148,7 +147,7 @@
   .shadow-luxe {
     box-shadow:
       0 1px 2px hsl(224 60% 16% / 0.04),
-      0 8px 24px -8px hsl(224 60% 16% / 0.10);
+      0 8px 24px -8px hsl(224 60% 16% / 0.1);
   }
   .shadow-luxe-lg {
     box-shadow:

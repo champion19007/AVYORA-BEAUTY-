@@ -13,7 +13,8 @@
  */
 export type CatalogueMode = 'sample' | 'verified';
 
-export const CATALOGUE_MODE: CatalogueMode = process.env.NEXT_PUBLIC_CATALOGUE_MODE === 'verified' ? 'verified' : 'sample';
+export const CATALOGUE_MODE: CatalogueMode =
+  process.env.NEXT_PUBLIC_CATALOGUE_MODE === 'verified' ? 'verified' : 'sample';
 export const IS_SAMPLE_CATALOGUE = CATALOGUE_MODE === 'sample';
 
 /** Server only: whether an order for sample products must be refused here. */

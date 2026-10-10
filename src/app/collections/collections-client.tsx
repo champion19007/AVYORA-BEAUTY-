@@ -16,10 +16,7 @@ import { activeCategories, activeConcerns } from '@/lib/catalogue';
  * Built once per page load. The catalogue ships with the page, so search runs
  * here in the browser with the same ranking the server would use.
  */
-const catalogSearch = new InMemoryCatalogSearch(
-  PRODUCTS,
-  Object.fromEntries(CONCERNS.map((c) => [c.id, c.name]))
-);
+const catalogSearch = new InMemoryCatalogSearch(PRODUCTS, Object.fromEntries(CONCERNS.map((c) => [c.id, c.name])));
 
 type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'rating' | 'newest';
 const SORT_LABELS: Record<SortKey, string> = {
@@ -35,7 +32,14 @@ const CATEGORY_OPTIONS = CATEGORIES.filter((c) => activeCategories().has(c.id));
 const CONCERN_OPTIONS = CONCERNS.filter((c) => activeConcerns().has(c.id));
 const MAX_COMPARE = 3;
 
-type Filters = { category: string | null; concern: string | null; filter: string | null; q: string | null; sort: SortKey; compare: string[] };
+type Filters = {
+  category: string | null;
+  concern: string | null;
+  filter: string | null;
+  q: string | null;
+  sort: SortKey;
+  compare: string[];
+};
 const NO_FILTERS: Filters = { category: null, concern: null, filter: null, q: null, sort: 'featured', compare: [] };
 type Props = { stock: StockByKey; prices: DisplayPrices; reviews: Record<string, ReviewAggregate> };
 
@@ -49,7 +53,10 @@ function CollectionsFromUrl(props: Props) {
     filter: p.get('filter'),
     q: p.get('q'),
     sort: sort && sort in SORT_LABELS ? sort : 'featured',
-    compare: (p.get('compare') ?? '').split(',').filter((id) => PRODUCTS.some((x) => x.id === id)).slice(0, MAX_COMPARE),
+    compare: (p.get('compare') ?? '')
+      .split(',')
+      .filter((id) => PRODUCTS.some((x) => x.id === id))
+      .slice(0, MAX_COMPARE),
   };
   return <CollectionsContent {...props} filters={filters} />;
 }
@@ -76,7 +83,8 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
 
   const filteredProducts = useMemo(() => {
     let result = [...PRODUCTS];
-    if (filters.category) result = result.filter((p) => p.category === filters.category || p.id.includes(filters.category!));
+    if (filters.category)
+      result = result.filter((p) => p.category === filters.category || p.id.includes(filters.category!));
     if (filters.concern) result = result.filter((p) => p.concerns.includes(filters.concern!));
     // The header links to ?filter=bestsellers; honour it rather than silently returning the full catalogue.
     if (filters.filter === 'bestsellers') result = result.filter((p) => p.isBestSeller);
@@ -97,7 +105,11 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
         break;
       case 'rating':
         // Published reviews only; unrated products follow, in their existing order.
-        result.sort((a, b) => (reviews[b.id]?.average ?? -1) - (reviews[a.id]?.average ?? -1) || (reviews[b.id]?.count ?? 0) - (reviews[a.id]?.count ?? 0));
+        result.sort(
+          (a, b) =>
+            (reviews[b.id]?.average ?? -1) - (reviews[a.id]?.average ?? -1) ||
+            (reviews[b.id]?.count ?? 0) - (reviews[a.id]?.count ?? 0)
+        );
         break;
       case 'newest':
         result.sort((a, b) => Number(b.isNewLaunch) - Number(a.isNewLaunch));
@@ -119,7 +131,11 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
             : 'Shop all';
 
   const toggleCompare = (id: string) =>
-    update({ compare: filters.compare.includes(id) ? filters.compare.filter((x) => x !== id) : [...filters.compare, id].slice(0, MAX_COMPARE) });
+    update({
+      compare: filters.compare.includes(id)
+        ? filters.compare.filter((x) => x !== id)
+        : [...filters.compare, id].slice(0, MAX_COMPARE),
+    });
 
   return (
     <div className="container mx-auto px-4 py-16">
@@ -127,7 +143,9 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
         <span className="eyebrow">The range</span>
         <h1 className="mt-3 font-headline text-5xl font-normal capitalize tracking-tight md:text-6xl">{heading}</h1>
         <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
-        <p className="mt-8 text-base leading-relaxed text-muted-foreground">Every product in the range, with current prices and stock.</p>
+        <p className="mt-8 text-base leading-relaxed text-muted-foreground">
+          Every product in the range, with current prices and stock.
+        </p>
       </header>
 
       <section aria-label="Search and filters" className="mb-8 space-y-4 border-b border-border pb-6">
@@ -157,7 +175,10 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
 
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1">
-            <label htmlFor="filter-category" className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label
+              htmlFor="filter-category"
+              className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            >
               Category
             </label>
             <select
@@ -175,7 +196,10 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="filter-concern" className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label
+              htmlFor="filter-concern"
+              className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            >
               Concern
             </label>
             <select
@@ -196,7 +220,12 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
             <label htmlFor="sort" className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Sort
             </label>
-            <select id="sort" value={filters.sort} onChange={(e) => update({ sort: e.target.value as SortKey })} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+            <select
+              id="sort"
+              value={filters.sort}
+              onChange={(e) => update({ sort: e.target.value as SortKey })}
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+            >
               {(Object.keys(SORT_LABELS) as SortKey[])
                 // "Top rated" only once genuine published reviews exist.
                 .filter((k) => k !== 'rating' || hasRatings)
@@ -235,14 +264,20 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
               stock={stock}
               prices={prices}
               reviews={reviews[product.id]}
-              compare={{ selected: filters.compare.includes(product.id), disabled: filters.compare.length >= MAX_COMPARE, onToggle: () => toggleCompare(product.id) }}
+              compare={{
+                selected: filters.compare.includes(product.id),
+                disabled: filters.compare.length >= MAX_COMPARE,
+                onToggle: () => toggleCompare(product.id),
+              }}
             />
           ))}
         </div>
       ) : PRODUCTS.length === 0 ? (
         <div className="space-y-4 py-32 text-center">
           <h2 className="font-headline text-3xl font-normal">Our range is being prepared</h2>
-          <p className="text-muted-foreground">Products appear here once their formulations, prices and stock are verified.</p>
+          <p className="text-muted-foreground">
+            Products appear here once their formulations, prices and stock are verified.
+          </p>
           <Link href="/routine-finder" className="underline">
             Explore the routine finder meanwhile
           </Link>
@@ -251,7 +286,9 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
         <div className="space-y-6 py-24 text-center">
           <h2 className="font-headline text-3xl font-normal">No products match</h2>
           <p className="text-muted-foreground">
-            {filters.q ? `Nothing matched “${filters.q}”. Try an ingredient (such as niacinamide), a concern or a product type.` : 'No product has every filter you chose.'}
+            {filters.q
+              ? `Nothing matched “${filters.q}”. Try an ingredient (such as niacinamide), a concern or a product type.`
+              : 'No product has every filter you chose.'}
           </p>
           <Button
             className="rounded-full px-8"
@@ -266,7 +303,10 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
       )}
 
       {filters.compare.length > 0 && (
-        <aside aria-label="Compare products" className="sticky bottom-4 z-20 mx-auto mt-10 flex max-w-3xl items-center justify-between gap-4 rounded-full border border-border bg-background px-6 py-3 shadow-lg">
+        <aside
+          aria-label="Compare products"
+          className="sticky bottom-4 z-20 mx-auto mt-10 flex max-w-3xl items-center justify-between gap-4 rounded-full border border-border bg-background px-6 py-3 shadow-lg"
+        >
           <p className="text-sm">
             {filters.compare.length} of {MAX_COMPARE} selected to compare
           </p>

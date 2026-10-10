@@ -113,9 +113,7 @@ describe('order idempotency', () => {
     await createOrder({ ...CHECKOUT, idempotencyKey: key });
     await createOrder({ ...CHECKOUT, idempotencyKey: key });
 
-    const placed = (await db.select().from(domainEvents)).filter(
-      (e) => e.name === 'order.placed'
-    );
+    const placed = (await db.select().from(domainEvents)).filter((e) => e.name === 'order.placed');
     expect(placed).toHaveLength(1);
   });
 

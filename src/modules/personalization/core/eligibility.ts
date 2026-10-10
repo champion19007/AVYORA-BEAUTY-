@@ -49,7 +49,16 @@ export type IngredientEvidence = {
 };
 
 /** Classes treated as elective, potentially irritating actives wherever they appear. */
-export const ELECTIVE_ACTIVE_CLASSES: readonly IngredientClass[] = ['retinoid', 'vitamin_c', 'aha', 'bha', 'pha', 'enzyme', 'peroxide', 'depigmenting'];
+export const ELECTIVE_ACTIVE_CLASSES: readonly IngredientClass[] = [
+  'retinoid',
+  'vitamin_c',
+  'aha',
+  'bha',
+  'pha',
+  'enzyme',
+  'peroxide',
+  'depigmenting',
+];
 
 const DICT = new Map(INGREDIENTS.map((i) => [i.id, i]));
 const r = (code: string, ruleId: string, message: string): Reason => ({ code, ruleId, message });
@@ -63,10 +72,16 @@ export function catalogueEvidence(product: Product, knowledge: Knowledge): Ingre
     };
   }
   // Highlights are hints of what may be present, never proof of what is absent.
-  return { ids: possibleIds(resolveLabels(product.ingredients)), identity: f?.coverage === 'partial' ? 'partial' : 'unknown' };
+  return {
+    ids: possibleIds(resolveLabels(product.ingredients)),
+    identity: f?.coverage === 'partial' ? 'partial' : 'unknown',
+  };
 }
 
-export function ownedEvidence(item: { ingredientIds: readonly string[]; coverage: 'known' | 'partial' | 'unknown' }): IngredientEvidence {
+export function ownedEvidence(item: {
+  ingredientIds: readonly string[];
+  coverage: 'known' | 'partial' | 'unknown';
+}): IngredientEvidence {
   return { ids: [...item.ingredientIds], identity: item.coverage === 'known' ? 'complete' : item.coverage };
 }
 
@@ -92,39 +107,81 @@ export function activesIn(ids: readonly string[]): ActiveSummary {
 export function ingredientExclusions(
   evidence: IngredientEvidence,
   profile: EligibilityProfile,
-  opts: { label: string; hasApprovedUsage: boolean; markedPrescribed?: boolean; unknownSafetyAnswers: readonly string[] }
+  opts: {
+    label: string;
+    hasApprovedUsage: boolean;
+    markedPrescribed?: boolean;
+    unknownSafetyAnswers: readonly string[];
+  }
 ): Reason[] {
   const reasons: Reason[] = [];
   const actives = activesIn(evidence.ids);
 
   // Allergy: absence can be proven only from a complete, fully resolved list.
   if (profile.allergyHistory === 'yes' && profile.allergyIngredientIds.length === 0) {
-    reasons.push(r('allergens_not_specified', 'builtin:allergy', 'You told us about an allergy but not which ingredients, so nothing can be checked against it.'));
+    reasons.push(
+      r(
+        'allergens_not_specified',
+        'builtin:allergy',
+        'You told us about an allergy but not which ingredients, so nothing can be checked against it.'
+      )
+    );
   } else if (profile.allergyIngredientIds.length > 0) {
     if (evidence.ids.some((id) => profile.allergyIngredientIds.includes(id))) {
-      reasons.push(r('allergen_present', 'builtin:allergy', `${opts.label} contains an ingredient you are allergic to.`));
+      reasons.push(
+        r('allergen_present', 'builtin:allergy', `${opts.label} contains an ingredient you are allergic to.`)
+      );
     } else if (evidence.identity !== 'complete') {
-      reasons.push(r('allergy_unverifiable', 'builtin:allergy', `${opts.label}: its full ingredient list is not verified, so it cannot be checked against your allergies.`));
+      reasons.push(
+        r(
+          'allergy_unverifiable',
+          'builtin:allergy',
+          `${opts.label}: its full ingredient list is not verified, so it cannot be checked against your allergies.`
+        )
+      );
     }
   }
 
   if (opts.markedPrescribed || actives.prescriptionOnly.length > 0) {
-    reasons.push(r('prescription_item', 'builtin:prescription', `${opts.label} is a prescription product; use it as your prescriber directs. We do not schedule it.`));
+    reasons.push(
+      r(
+        'prescription_item',
+        'builtin:prescription',
+        `${opts.label} is a prescription product; use it as your prescriber directs. We do not schedule it.`
+      )
+    );
   }
 
   if (actives.classes.length > 0) {
     const what = `${opts.label} contains an active (${actives.classes.join(', ')})`;
-    if (profile.currentlyIrritated === 'yes') reasons.push(r('irritated', 'builtin:irritation', `${what}; left out while your skin is irritated.`));
-    if (profile.reactivity === 'very_high') reasons.push(r('very_reactive', 'builtin:reactivity', `${what}; left out because your skin is very reactive.`));
+    if (profile.currentlyIrritated === 'yes')
+      reasons.push(r('irritated', 'builtin:irritation', `${what}; left out while your skin is irritated.`));
+    if (profile.reactivity === 'very_high')
+      reasons.push(r('very_reactive', 'builtin:reactivity', `${what}; left out because your skin is very reactive.`));
     if (actives.retinoid && (profile.pregnancy !== 'no' || profile.nursing !== 'no')) {
-      reasons.push(r('pregnancy_or_nursing', 'builtin:retinoid-pregnancy', `${what}; not included unless you have told us you are not pregnant or breastfeeding.`));
+      reasons.push(
+        r(
+          'pregnancy_or_nursing',
+          'builtin:retinoid-pregnancy',
+          `${what}; not included unless you have told us you are not pregnant or breastfeeding.`
+        )
+      );
     }
-    if (actives.retinoid && profile.ageBand !== 'adult') reasons.push(r('age', 'builtin:retinoid-age', `${what}; not included under 18, or when age is not given.`));
+    if (actives.retinoid && profile.ageBand !== 'adult')
+      reasons.push(r('age', 'builtin:retinoid-age', `${what}; not included under 18, or when age is not given.`));
     if (opts.unknownSafetyAnswers.length > 0) {
-      reasons.push(r('safety_answer_unknown', 'builtin:unknown-blocks-elective', `${what}; some safety questions are unanswered.`));
+      reasons.push(
+        r('safety_answer_unknown', 'builtin:unknown-blocks-elective', `${what}; some safety questions are unanswered.`)
+      );
     }
     if (!opts.hasApprovedUsage) {
-      reasons.push(r('usage_unapproved', 'builtin:usage-profile', `${what}; without approved directions we cannot say how often to use it, so it is not scheduled.`));
+      reasons.push(
+        r(
+          'usage_unapproved',
+          'builtin:usage-profile',
+          `${what}; without approved directions we cannot say how often to use it, so it is not scheduled.`
+        )
+      );
     }
   }
   return reasons;

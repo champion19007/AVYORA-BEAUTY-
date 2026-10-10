@@ -59,9 +59,7 @@ export function Price({
       </span>
       {was != null && was > amount && (
         <>
-          <span className="font-body text-sm tabular-nums text-muted-foreground line-through">
-            {formatPrice(was)}
-          </span>
+          <span className="font-body text-sm tabular-nums text-muted-foreground line-through">{formatPrice(was)}</span>
           <span className="sr-only">reduced from {formatPrice(was)}</span>
         </>
       )}

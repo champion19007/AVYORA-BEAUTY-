@@ -56,9 +56,7 @@ async function handleNotification(event: DomainEvent): Promise<void> {
       quantity: i.quantity,
     })),
     address,
-    orderUrl: token
-      ? `${SITE}/orders/${orderNumber}?t=${encodeURIComponent(token)}`
-      : `${SITE}/orders/${orderNumber}`,
+    orderUrl: token ? `${SITE}/orders/${orderNumber}?t=${encodeURIComponent(token)}` : `${SITE}/orders/${orderNumber}`,
   });
 
   /*
@@ -136,10 +134,7 @@ async function handleCodRisk(event: DomainEvent): Promise<void> {
    */
   if (assessment.status === 'rejected') {
     await restoreOrderStock(orderId);
-    await db
-      .update(orders)
-      .set({ status: 'cancelled', updatedAt: new Date() })
-      .where(eq(orders.id, orderId));
+    await db.update(orders).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(orders.id, orderId));
   }
 }
 
@@ -156,11 +151,7 @@ async function handleRevalidation(event: DomainEvent): Promise<void> {
   }
 
   // Every event that can change what a customer sees for a product.
-  const relevant: ReadonlyArray<DomainEvent['name']> = [
-    'inventory.stock_out',
-    'inventory.changed',
-    'pricing.changed',
-  ];
+  const relevant: ReadonlyArray<DomainEvent['name']> = ['inventory.stock_out', 'inventory.changed', 'pricing.changed'];
   if (!relevant.includes(event.name)) return;
 
   const productId = String(event.payload.productId ?? '');

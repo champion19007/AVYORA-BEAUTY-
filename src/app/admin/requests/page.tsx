@@ -43,15 +43,16 @@ export default async function AdminRequestsPage() {
           Reviews to moderate
         </h2>
         <p className="mt-1 text-[15px] text-muted-foreground">
-          {reviews.length === 0 ? 'Nothing waiting.' : `${reviews.length} waiting.`} All are from delivered orders. Publish genuine experiences; reject personal
-          details, medical claims or abuse.
+          {reviews.length === 0 ? 'Nothing waiting.' : `${reviews.length} waiting.`} All are from delivered orders.
+          Publish genuine experiences; reject personal details, medical claims or abuse.
         </p>
         {reviews.length > 0 && (
           <ul className="mt-6 divide-y divide-border rounded-xl border border-border bg-card">
             {reviews.map((r) => (
               <li key={r.id} className="space-y-2 p-4">
                 <p className="text-[13px] text-muted-foreground">
-                  {getProductById(r.productId)?.name ?? r.productId} · {r.rating}/5 · {r.createdAt.toLocaleDateString('en-IN', { dateStyle: 'medium' })}
+                  {getProductById(r.productId)?.name ?? r.productId} · {r.rating}/5 ·{' '}
+                  {r.createdAt.toLocaleDateString('en-IN', { dateStyle: 'medium' })}
                 </p>
                 {r.title && <p className="font-medium">{r.title}</p>}
                 <p className="whitespace-pre-wrap text-[15px]">{r.body}</p>
@@ -83,7 +84,8 @@ export default async function AdminRequestsPage() {
           Customer messages
         </h1>
         <p className="mt-1 text-[15px] text-muted-foreground">
-          {openSupport.length === 0 ? 'Nothing waiting.' : `${openSupport.length} waiting for a reply.`} Reply by email from the support mailbox, then mark it answered.
+          {openSupport.length === 0 ? 'Nothing waiting.' : `${openSupport.length} waiting for a reply.`} Reply by email
+          from the support mailbox, then mark it answered.
         </p>
         {support.length > 0 && (
           <ul className="mt-6 divide-y divide-border rounded-xl border border-border bg-card">
@@ -94,7 +96,8 @@ export default async function AdminRequestsPage() {
                     {r.name} <span className="text-muted-foreground">· {r.email}</span>
                   </p>
                   <p className="text-[13px] text-muted-foreground">
-                    {r.createdAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} · ref {r.id.slice(0, 8).toUpperCase()} · {r.status}
+                    {r.createdAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} · ref{' '}
+                    {r.id.slice(0, 8).toUpperCase()} · {r.status}
                   </p>
                 </div>
                 <p className="whitespace-pre-wrap text-[15px]">{r.message}</p>
@@ -104,7 +107,13 @@ export default async function AdminRequestsPage() {
                     <label className="sr-only" htmlFor={`resolution-${r.id}`}>
                       How it was answered
                     </label>
-                    <input id={`resolution-${r.id}`} name="resolution" maxLength={500} placeholder="How it was answered (optional)" className="h-10 min-w-[280px] flex-1 rounded-md border border-border bg-background px-3 text-sm" />
+                    <input
+                      id={`resolution-${r.id}`}
+                      name="resolution"
+                      maxLength={500}
+                      placeholder="How it was answered (optional)"
+                      className="h-10 min-w-[280px] flex-1 rounded-md border border-border bg-background px-3 text-sm"
+                    />
                     <Button type="submit" className="h-10 rounded-md px-4 text-sm">
                       Mark answered
                     </Button>
@@ -123,9 +132,7 @@ export default async function AdminRequestsPage() {
 
       <h2 className="text-3xl font-medium tracking-tight">Restock requests</h2>
       <p className="mt-1 text-[15px] text-muted-foreground">
-        {open.length === 0
-          ? 'Nothing outstanding.'
-          : `${open.length} waiting on you.`}
+        {open.length === 0 ? 'Nothing outstanding.' : `${open.length} waiting on you.`}
       </p>
 
       {requests.length === 0 ? (
@@ -142,18 +149,14 @@ export default async function AdminRequestsPage() {
                   <span className="ml-2 text-muted-foreground">{request.size}</span>
                 </p>
                 <p className="mt-0.5 text-[13px] text-muted-foreground">
-                  {request.requestedBy} asked for {request.requestedQuantity} when{' '}
-                  {request.quantityAtRequest} were left ·{' '}
+                  {request.requestedBy} asked for {request.requestedQuantity} when {request.quantityAtRequest} were left
+                  ·{' '}
                   {request.createdAt.toLocaleDateString('en-IN', {
                     day: 'numeric',
                     month: 'short',
                   })}
                 </p>
-                {request.note && (
-                  <p className="mt-1 text-[13px] italic text-muted-foreground">
-                    “{request.note}”
-                  </p>
-                )}
+                {request.note && <p className="mt-1 text-[13px] italic text-muted-foreground">“{request.note}”</p>}
               </div>
 
               {request.status === 'open' ? (

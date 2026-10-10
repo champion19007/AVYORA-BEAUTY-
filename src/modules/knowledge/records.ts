@@ -66,7 +66,12 @@ export type BayesParameter = {
    */
   groupKinds?: Record<string, 'binary' | 'categorical'>;
   validationStatus: 'validated' | 'provisional' | 'synthetic_fixture';
-  provenance: { trainingVersion: string | null; calibrationVersion: string | null; counts: number | null; note: string };
+  provenance: {
+    trainingVersion: string | null;
+    calibrationVersion: string | null;
+    counts: number | null;
+    note: string;
+  };
   /**
    * What these likelihoods were calibrated on. Evidence outside it is
    * rejected as out of scope, never extrapolated: quiz-calibrated ratios say

@@ -54,7 +54,9 @@ afterAll(async () => {
   await client.close();
 });
 beforeEach(async () => {
-  await db.execute(sql`truncate product_pricing, orders, order_items, addresses, inventory, domain_events, audit_logs restart identity cascade`);
+  await db.execute(
+    sql`truncate product_pricing, orders, order_items, addresses, inventory, domain_events, audit_logs restart identity cascade`
+  );
   await db.insert(inventory).values({ ...SKU, quantity: 50 });
   cache.clearLocal();
 });
@@ -62,7 +64,10 @@ beforeEach(async () => {
 async function charged(): Promise<number> {
   const order = await createOrder(CHECKOUT);
   if (!order.ok) throw new Error(order.error);
-  const [line] = await db.select().from(orderItems).where(sql`${orderItems.orderId} = ${order.orderId}`);
+  const [line] = await db
+    .select()
+    .from(orderItems)
+    .where(sql`${orderItems.orderId} = ${order.orderId}`);
   return line.unitPrice;
 }
 

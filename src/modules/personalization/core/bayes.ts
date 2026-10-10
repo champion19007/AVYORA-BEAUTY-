@@ -51,13 +51,16 @@ export type ParameterSet = {
 };
 
 export type RejectionReason =
-  | 'quality_rejected'
-  | 'duplicate_in_group'
-  | 'out_of_calibration_scope'
-  | 'unsupported_observation';
+  'quality_rejected' | 'duplicate_in_group' | 'out_of_calibration_scope' | 'unsupported_observation';
 
 export type TraceEntry =
-  | { status: 'accepted'; evidenceGroup: string; observation: string; source: EvidenceSource; logLikelihoodRatio: number }
+  | {
+      status: 'accepted';
+      evidenceGroup: string;
+      observation: string;
+      source: EvidenceSource;
+      logLikelihoodRatio: number;
+    }
   | { status: 'rejected'; evidenceGroup: string; observation: string; source: EvidenceSource; reason: RejectionReason };
 
 export type ConcernResult =
@@ -122,18 +125,21 @@ export function likelihoodGroupProblems(p: Pick<BayesParameter, 'id' | 'groups' 
   for (const [name, rows] of byGroup) {
     const states = rows.map((r) => r.observation);
     if (new Set(states).size !== states.length) problems.push(`${where}: duplicate state in group ${name}`);
-    if (states.some((s) => s.trim().toLowerCase() === 'unknown')) problems.push(`${where}: "unknown" in ${name} must be neutral, not a state`);
+    if (states.some((s) => s.trim().toLowerCase() === 'unknown'))
+      problems.push(`${where}: "unknown" in ${name} must be neutral, not a state`);
     const kind = p.groupKinds?.[name] ?? (rows.length === 1 ? 'binary' : undefined);
     if (!kind) {
       problems.push(`${where}: group ${name} has ${rows.length} states; declare it categorical`);
       continue;
     }
-    if (kind === 'binary' && rows.length !== 1) problems.push(`${where}: binary group ${name} must have exactly one event row`);
+    if (kind === 'binary' && rows.length !== 1)
+      problems.push(`${where}: binary group ${name} must have exactly one event row`);
     if (kind === 'categorical') {
       if (rows.length < 2) problems.push(`${where}: categorical group ${name} needs at least two states`);
       for (const side of ['pGivenConcern', 'pGivenNotConcern'] as const) {
         const sum = rows.reduce((n, r) => n + r[side], 0);
-        if (!(Math.abs(sum - 1) <= SUM_TOLERANCE)) problems.push(`${where}: ${side} over ${name} sums to ${sum.toFixed(6)}, not 1`);
+        if (!(Math.abs(sum - 1) <= SUM_TOLERANCE))
+          problems.push(`${where}: ${side} over ${name} sums to ${sum.toFixed(6)}, not 1`);
       }
     }
   }
@@ -183,7 +189,10 @@ function ordered(observations: readonly Observation[]): Observation[] {
   );
 }
 
-function inferOne(param: BayesParameter, observations: readonly Observation[]): Extract<ConcernResult, { basis: 'calibrated' }> {
+function inferOne(
+  param: BayesParameter,
+  observations: readonly Observation[]
+): Extract<ConcernResult, { basis: 'calibrated' }> {
   const trace: TraceEntry[] = [];
   const counted = new Set<string>();
   const priorLogOdds = logit(param.prior);
@@ -200,7 +209,10 @@ function inferOne(param: BayesParameter, observations: readonly Observation[]): 
       continue;
     }
     const scope = param.calibrationScope;
-    if (!scope.sources.includes(o.source) || (o.source === 'photo' && !scope.photoModelVersions.includes(o.modelVersion ?? ''))) {
+    if (
+      !scope.sources.includes(o.source) ||
+      (o.source === 'photo' && !scope.photoModelVersions.includes(o.modelVersion ?? ''))
+    ) {
       reject('out_of_calibration_scope');
       continue;
     }
@@ -254,7 +266,9 @@ export function inferConcerns(
     .filter((c) => !calibratedConcerns.has(c))
     .map((concern, i) => ({ concern, basis: 'reported', reportedRank: i + 1, trace: [] }));
 
-  const byProbability = [...calibrated].sort((a, b) => b.probability - a.probability || a.concern.localeCompare(b.concern));
+  const byProbability = [...calibrated].sort(
+    (a, b) => b.probability - a.probability || a.concern.localeCompare(b.concern)
+  );
   return {
     version: INFERENCE_VERSION,
     releaseId: set?.releaseId ?? null,
@@ -291,5 +305,9 @@ export function readParameterSet(
   if (manifest.fixture && !options.allowFixture) return null;
   const parameters = (parametersArtifact as { parameters?: unknown } | null)?.parameters;
   if (!Array.isArray(parameters)) return null;
-  return { releaseId: manifest.releaseId, schemaVersion: manifest.schemaVersion, parameters: parameters as BayesParameter[] };
+  return {
+    releaseId: manifest.releaseId,
+    schemaVersion: manifest.schemaVersion,
+    parameters: parameters as BayesParameter[],
+  };
 }

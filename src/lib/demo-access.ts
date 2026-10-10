@@ -39,13 +39,15 @@ function demoIdentifiers(): string[] {
   const raw = process.env.DEMO_IDENTIFIERS;
   if (!raw) return [];
 
-  return raw
-    .split(',')
-    .map((value) => value.trim().toLowerCase())
-    // Phone numbers may be written with +91, spaces or dashes in the variable;
-    // compare against the bare digits the app stores.
-    .map((value) => (/^[+\d\s-]+$/.test(value) ? value.replace(/[\s-]/g, '').replace(/^(\+91|0)/, '') : value))
-    .filter(Boolean);
+  return (
+    raw
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      // Phone numbers may be written with +91, spaces or dashes in the variable;
+      // compare against the bare digits the app stores.
+      .map((value) => (/^[+\d\s-]+$/.test(value) ? value.replace(/[\s-]/g, '').replace(/^(\+91|0)/, '') : value))
+      .filter(Boolean)
+  );
 }
 
 /** True when this address or number is on the demo list. */

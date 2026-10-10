@@ -54,16 +54,10 @@ export default async function AccountPage() {
       <header className="flex items-center gap-5">
         {user.image && (
           // eslint-disable-next-line @next/next/no-img-element -- Google avatar host, not in the image config
-          <img
-            src={user.image}
-            alt=""
-            className="h-16 w-16 rounded-full border border-border object-cover"
-          />
+          <img src={user.image} alt="" className="h-16 w-16 rounded-full border border-border object-cover" />
         )}
         <div>
-          <h1 className="font-headline text-4xl font-normal tracking-tight md:text-5xl">
-            Your Account
-          </h1>
+          <h1 className="font-headline text-4xl font-normal tracking-tight md:text-5xl">Your Account</h1>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
             {user.name ? `${user.name} · ` : ''}
             {user.email}

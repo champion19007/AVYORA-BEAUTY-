@@ -28,7 +28,8 @@ export function getCashfreeConfig(): CashfreeConfig | null {
 
 export const isCashfreeConfigured = () => getCashfreeConfig() !== null;
 
-const baseUrl = (c: CashfreeConfig) => (c.env === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg');
+const baseUrl = (c: CashfreeConfig) =>
+  c.env === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
 const headers = (c: CashfreeConfig) => ({
   'x-api-version': CASHFREE_API_VERSION,
   'x-client-id': c.appId,
@@ -39,7 +40,13 @@ const headers = (c: CashfreeConfig) => ({
 export const toRupees = (paise: number) => Math.round(paise) / 100;
 export const toPaise = (rupees: number) => Math.round(rupees * 100);
 
-export type CashfreeOrder = { order_id: string; cf_order_id: string; payment_session_id: string; order_amount: number; order_status: string };
+export type CashfreeOrder = {
+  order_id: string;
+  cf_order_id: string;
+  payment_session_id: string;
+  order_amount: number;
+  order_status: string;
+};
 
 /**
  * Creates (or, on a retry, re-reads) the Cashfree order for one of our
@@ -47,10 +54,17 @@ export type CashfreeOrder = { order_id: string; cf_order_id: string; payment_ses
  * the same order is answered from the first one rather than opening another.
  */
 export async function createCashfreeOrder(
-  input: { orderNumber: string; amountPaise: number; customer: { id: string; email: string; phone: string; name: string }; returnUrl: string; notifyUrl?: string },
+  input: {
+    orderNumber: string;
+    amountPaise: number;
+    customer: { id: string; email: string; phone: string; name: string };
+    returnUrl: string;
+    notifyUrl?: string;
+  },
   c: CashfreeConfig
 ): Promise<CashfreeOrder> {
-  if (!Number.isInteger(input.amountPaise) || input.amountPaise < 100) throw new Error(`Invalid Cashfree amount: ${input.amountPaise}`);
+  if (!Number.isInteger(input.amountPaise) || input.amountPaise < 100)
+    throw new Error(`Invalid Cashfree amount: ${input.amountPaise}`);
   const res = await fetch(`${baseUrl(c)}/orders`, {
     method: 'POST',
     headers: headers(c),
@@ -82,7 +96,11 @@ export async function createCashfreeOrder(
 
 export async function fetchCashfreeOrder(orderNumber: string, c: CashfreeConfig): Promise<CashfreeOrder | null> {
   try {
-    const res = await fetch(`${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}`, { headers: headers(c), cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(`${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}`, {
+      headers: headers(c),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    });
     return res.ok ? ((await res.json()) as CashfreeOrder) : null;
   } catch {
     return null;
@@ -90,7 +108,11 @@ export async function fetchCashfreeOrder(orderNumber: string, c: CashfreeConfig)
 }
 
 /** One payment attempt, in this app's terms (integer paise, normalised status). */
-export type CashfreePayment = { id: string; amountPaise: number; status: 'success' | 'failed' | 'pending' | 'dropped' | 'other' };
+export type CashfreePayment = {
+  id: string;
+  amountPaise: number;
+  status: 'success' | 'failed' | 'pending' | 'dropped' | 'other';
+};
 
 const STATUS: Record<string, CashfreePayment['status']> = {
   SUCCESS: 'success',
@@ -101,7 +123,8 @@ const STATUS: Record<string, CashfreePayment['status']> = {
   PENDING: 'pending',
   NOT_ATTEMPTED: 'pending',
 };
-export const normaliseStatus = (s: unknown): CashfreePayment['status'] => STATUS[String(s ?? '').toUpperCase()] ?? 'other';
+export const normaliseStatus = (s: unknown): CashfreePayment['status'] =>
+  STATUS[String(s ?? '').toUpperCase()] ?? 'other';
 
 /**
  * Every payment attempt Cashfree holds for one of our orders. Null when
@@ -109,12 +132,24 @@ export const normaliseStatus = (s: unknown): CashfreePayment['status'] => STATUS
  */
 export async function fetchCashfreePayments(orderNumber: string, c: CashfreeConfig): Promise<CashfreePayment[] | null> {
   try {
-    const res = await fetch(`${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}/payments`, { headers: headers(c), cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(`${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}/payments`, {
+      headers: headers(c),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    });
     if (res.status === 404) return [];
     if (!res.ok) return null;
-    const body = (await res.json()) as { cf_payment_id: string | number; payment_amount: number; payment_status: string }[];
+    const body = (await res.json()) as {
+      cf_payment_id: string | number;
+      payment_amount: number;
+      payment_status: string;
+    }[];
     return Array.isArray(body)
-      ? body.map((p) => ({ id: String(p.cf_payment_id), amountPaise: toPaise(Number(p.payment_amount)), status: normaliseStatus(p.payment_status) }))
+      ? body.map((p) => ({
+          id: String(p.cf_payment_id),
+          amountPaise: toPaise(Number(p.payment_amount)),
+          status: normaliseStatus(p.payment_status),
+        }))
       : null;
   } catch {
     return null;
@@ -125,9 +160,20 @@ export async function fetchCashfreePayments(orderNumber: string, c: CashfreeConf
  * Webhook signature: base64(HMAC-SHA256(timestamp + rawBody, secretKey)),
  * over the exact bytes received. Compared in constant time.
  */
-export async function verifyCashfreeWebhook(rawBody: string, timestamp: string, signature: string, secretKey: string): Promise<boolean> {
+export async function verifyCashfreeWebhook(
+  rawBody: string,
+  timestamp: string,
+  signature: string,
+  secretKey: string
+): Promise<boolean> {
   if (!timestamp || !signature) return false;
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secretKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secretKey),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
   const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(timestamp + rawBody)));
   const expected = btoa(String.fromCharCode(...mac));
   if (expected.length !== signature.length) return false;

@@ -19,9 +19,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const [base, outDir] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const arg = (name, fallback) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? fallback;
+const arg = (name, fallback) =>
+  process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? fallback;
 const widths = arg('widths', '1280,1440,1920').split(',').map(Number);
-const paths = arg('paths', '/,/collections,/products/rice-bran-cleansing-oil,/routine-finder,/assistant,/checkout,/wishlist,/scan,/contact,/login').split(',');
+const paths = arg(
+  'paths',
+  '/,/collections,/products/rice-bran-cleansing-oil,/routine-finder,/assistant,/checkout,/wishlist,/scan,/contact,/login'
+).split(',');
 const HEIGHTS = { 1280: 800, 1440: 900, 1920: 1080 };
 if (!base || !outDir) {
   console.error('usage: node scripts/acceptance-pass.mjs <baseUrl> <outDir> [--widths=..] [--paths=..]');
@@ -37,7 +41,19 @@ const exe = [
 ].find((b) => existsSync(b));
 if (!exe) throw new Error('No Edge or Chrome found');
 const port = 9300 + Math.floor(Math.random() * 500);
-const browser = spawn(exe, [`--remote-debugging-port=${port}`, '--headless=new', `--user-data-dir=${mkdtempSync(join(tmpdir(), 'measure-'))}`, '--no-first-run', '--hide-scrollbars', '--force-device-scale-factor=1', 'about:blank'], { stdio: 'ignore' });
+const browser = spawn(
+  exe,
+  [
+    `--remote-debugging-port=${port}`,
+    '--headless=new',
+    `--user-data-dir=${mkdtempSync(join(tmpdir(), 'measure-'))}`,
+    '--no-first-run',
+    '--hide-scrollbars',
+    '--force-device-scale-factor=1',
+    'about:blank',
+  ],
+  { stdio: 'ignore' }
+);
 const kill = () => {
   try {
     if (process.platform === 'win32') spawn('taskkill', ['/PID', String(browser.pid), '/T', '/F'], { stdio: 'ignore' });
@@ -54,7 +70,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let targets;
 for (let i = 0; i < 50 && !targets; i++) {
-  targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json(), () => null);
+  targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+    (r) => r.json(),
+    () => null
+  );
   if (!targets) await sleep(200);
 }
 if (!targets) throw new Error('DevTools did not start');
@@ -92,11 +111,20 @@ const probe = () => {
   const nav = performance.getEntriesByType('navigation')[0];
   const res = performance.getEntriesByType('resource');
   const size = (r) => r.transferSize || r.encodedBodySize || 0;
-  const name = (el) => (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.textContent || el.title || el.querySelector('img[alt]')?.alt || '').trim();
+  const name = (el) =>
+    (
+      el.getAttribute('aria-label') ||
+      el.getAttribute('aria-labelledby') ||
+      el.textContent ||
+      el.title ||
+      el.querySelector('img[alt]')?.alt ||
+      ''
+    ).trim();
   const headings = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].map((h) => Number(h.tagName[1]));
   const skips = headings.filter((lvl, i) => i > 0 && lvl > headings[i - 1] + 1).length;
   const fields = [...document.querySelectorAll('input:not([type=hidden]),select,textarea')].filter(
-    (f) => !(f.labels?.length || f.getAttribute('aria-label') || f.getAttribute('aria-labelledby') || f.closest('label'))
+    (f) =>
+      !(f.labels?.length || f.getAttribute('aria-label') || f.getAttribute('aria-labelledby') || f.closest('label'))
   );
   return {
     status: nav.responseStatus,
@@ -122,7 +150,12 @@ const probe = () => {
 
 const rows = [];
 for (const width of widths) {
-  await send('Emulation.setDeviceMetricsOverride', { width, height: HEIGHTS[width] ?? 900, deviceScaleFactor: 1, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', {
+    width,
+    height: HEIGHTS[width] ?? 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
   for (const path of paths) {
     let m;
     for (let pass = 0; pass < 2; pass++) {

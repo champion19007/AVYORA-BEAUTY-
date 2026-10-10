@@ -20,7 +20,12 @@
  */
 import { z } from 'zod';
 import { findContentProblems } from '@/lib/content-claims';
-import { formulationProblems, unresolvedIngredients, type EvidenceSource, type Formulation } from '@/modules/ingredients/formulations';
+import {
+  formulationProblems,
+  unresolvedIngredients,
+  type EvidenceSource,
+  type Formulation,
+} from '@/modules/ingredients/formulations';
 import type { ProductDirections } from '@/data/product-directions';
 
 const slug = z.string().regex(/^[a-z0-9][a-z0-9-]{1,79}$/);
@@ -31,7 +36,20 @@ export const productRecordSchema = z
     id: slug,
     slug,
     name: z.string().trim().min(2).max(120),
-    category: z.enum(['cleanser', 'toner', 'essence', 'serum', 'moisturizer', 'sun', 'mask', 'exfoliator', 'skin', 'hair', 'body', 'lip']),
+    category: z.enum([
+      'cleanser',
+      'toner',
+      'essence',
+      'serum',
+      'moisturizer',
+      'sun',
+      'mask',
+      'exfoliator',
+      'skin',
+      'hair',
+      'body',
+      'lip',
+    ]),
     role: z.enum(['cleanse', 'moisturise', 'protect', 'treatment', 'optional', 'none']),
     description: z.string().trim().min(20).max(2000),
     variants: z
@@ -62,16 +80,39 @@ export const productRecordSchema = z
       )
       .max(12),
     attributes: z
-      .array(z.object({ key: z.string().regex(/^[a-z_]{2,40}$/), value: z.string().trim().min(1).max(120), sourceId: z.string().min(1) }).strict())
+      .array(
+        z
+          .object({
+            key: z.string().regex(/^[a-z_]{2,40}$/),
+            value: z.string().trim().min(1).max(120),
+            sourceId: z.string().min(1),
+          })
+          .strict()
+      )
       .max(30),
     formulation: z.custom<Formulation>((v) => typeof v === 'object' && v !== null),
     directions: z.custom<ProductDirections>((v) => typeof v === 'object' && v !== null).optional(),
     claims: z
-      .array(z.object({ text: z.string().trim().min(3).max(300), evidenceIds: z.array(z.string()).min(1), limitations: z.string().trim().min(3).max(500) }).strict())
+      .array(
+        z
+          .object({
+            text: z.string().trim().min(3).max(300),
+            evidenceIds: z.array(z.string()).min(1),
+            limitations: z.string().trim().min(3).max(500),
+          })
+          .strict()
+      )
       .max(20),
     review: z.union([
       z.object({ status: z.literal('draft'), note: z.string().optional() }).strict(),
-      z.object({ status: z.literal('approved'), reviewerId: z.string().min(2), reviewedAt: isoDate, sourceIds: z.array(z.string()).min(1) }).strict(),
+      z
+        .object({
+          status: z.literal('approved'),
+          reviewerId: z.string().min(2),
+          reviewedAt: isoDate,
+          sourceIds: z.array(z.string()).min(1),
+        })
+        .strict(),
     ]),
   })
   .strict();
@@ -90,9 +131,14 @@ export type RecordReport = {
 export type OnboardingPreview = { ok: boolean; records: RecordReport[]; problems: string[] };
 
 /** Validates a batch of product records against each other and the evidence on file. Writes nothing. */
-export function previewOnboarding(input: unknown, evidence: readonly EvidenceSource[], existingIds: readonly string[] = []): OnboardingPreview {
+export function previewOnboarding(
+  input: unknown,
+  evidence: readonly EvidenceSource[],
+  existingIds: readonly string[] = []
+): OnboardingPreview {
   const list = z.array(z.unknown()).max(200).safeParse(input);
-  if (!list.success) return { ok: false, records: [], problems: ['Expected a JSON array of at most 200 product records.'] };
+  if (!list.success)
+    return { ok: false, records: [], problems: ['Expected a JSON array of at most 200 product records.'] };
   const evidenceIds = new Set(evidence.map((e) => e.id));
   const seenIds = new Set<string>();
   const seenSkus = new Set<string>();
@@ -117,14 +163,19 @@ export function previewOnboarding(input: unknown, evidence: readonly EvidenceSou
 
     if (seenIds.has(r.id)) batch.push(`Duplicate product id ${r.id} in this batch`);
     seenIds.add(r.id);
-    if (existingIds.includes(r.id)) problems.push(`Product id ${r.id} already exists; use a new formulation version instead`);
+    if (existingIds.includes(r.id))
+      problems.push(`Product id ${r.id} already exists; use a new formulation version instead`);
     for (const v of r.variants) {
       if (seenSkus.has(v.sku)) batch.push(`Duplicate SKU ${v.sku}`);
       seenSkus.add(v.sku);
-      if (v.mrpPaise !== undefined && v.mrpPaise < v.pricePaise) problems.push(`${v.sku}: MRP is below the selling price`);
+      if (v.mrpPaise !== undefined && v.mrpPaise < v.pricePaise)
+        problems.push(`${v.sku}: MRP is below the selling price`);
     }
-    if (r.review.status !== 'approved') problems.push('Record is a draft: it needs an approved review before publishing');
-    else for (const id of r.review.sourceIds) if (!evidenceIds.has(id)) problems.push(`Review source ${id} does not exist`);
+    if (r.review.status !== 'approved')
+      problems.push('Record is a draft: it needs an approved review before publishing');
+    else
+      for (const id of r.review.sourceIds)
+        if (!evidenceIds.has(id)) problems.push(`Review source ${id} does not exist`);
     if (r.images.length === 0) unresolved.push('images (no licensed product photograph)');
 
     // Formulation: the shared publication checks, then identity coverage.
@@ -135,13 +186,17 @@ export function previewOnboarding(input: unknown, evidence: readonly EvidenceSou
     if (unknownIds.length) unresolved.push(`ingredient identity unresolved for: ${unknownIds.join(', ')}`);
 
     if (r.directions) {
-      if (r.directions.formulationVersion !== f.version) problems.push(`Directions are for formulation v${r.directions.formulationVersion}, record is v${f.version}`);
-      for (const id of r.directions.evidenceIds) if (!evidenceIds.has(id)) problems.push(`Directions evidence ${id} does not exist`);
+      if (r.directions.formulationVersion !== f.version)
+        problems.push(`Directions are for formulation v${r.directions.formulationVersion}, record is v${f.version}`);
+      for (const id of r.directions.evidenceIds)
+        if (!evidenceIds.has(id)) problems.push(`Directions evidence ${id} does not exist`);
     } else unresolved.push('approved usage directions');
 
-    for (const a of r.attributes) if (!evidenceIds.has(a.sourceId)) problems.push(`Attribute ${a.key}: source ${a.sourceId} does not exist`);
+    for (const a of r.attributes)
+      if (!evidenceIds.has(a.sourceId)) problems.push(`Attribute ${a.key}: source ${a.sourceId} does not exist`);
     for (const c of r.claims) {
-      for (const id of c.evidenceIds) if (!evidenceIds.has(id)) problems.push(`Claim "${c.text}": evidence ${id} does not exist`);
+      for (const id of c.evidenceIds)
+        if (!evidenceIds.has(id)) problems.push(`Claim "${c.text}": evidence ${id} does not exist`);
       for (const p of findContentProblems(c.text)) problems.push(`Claim "${c.text}": ${p.why} ("${p.match}")`);
     }
     for (const p of findContentProblems(`${r.name}\n${r.description}`)) problems.push(`Copy: ${p.why} ("${p.match}")`);
@@ -149,8 +204,13 @@ export function previewOnboarding(input: unknown, evidence: readonly EvidenceSou
     const publishable = problems.length === 0;
     const identityComplete = f.coverage === 'complete' && unknownIds.length === 0;
     const needsDirections = r.role === 'treatment';
-    const recommendable = publishable && r.role !== 'none' && identityComplete && (!needsDirections || Boolean(r.directions));
-    if (publishable && !recommendable && r.role !== 'none') unresolved.push('not recommendable until the formulation identity is complete' + (needsDirections ? ' and directions are approved' : ''));
+    const recommendable =
+      publishable && r.role !== 'none' && identityComplete && (!needsDirections || Boolean(r.directions));
+    if (publishable && !recommendable && r.role !== 'none')
+      unresolved.push(
+        'not recommendable until the formulation identity is complete' +
+          (needsDirections ? ' and directions are approved' : '')
+      );
     records.push({ id: r.id, publishable, recommendable, problems, unresolved });
   });
 

@@ -20,7 +20,14 @@ const THIRD_PARTY_BRANDED_IMAGES = ['photo-1601049541289-9b1b7bbbfe19'];
 const imageExcluded = (p: Product) => THIRD_PARTY_BRANDED_IMAGES.some((id) => p.images[0]?.includes(id));
 
 export type SkuOffer = { size: string; pricePaise: number; wasPaise: number | null; inStock: boolean };
-export type LandingProduct = { id: string; slug: string; name: string; image: string; concerns: string[]; skus: SkuOffer[] };
+export type LandingProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  image: string;
+  concerns: string[];
+  skus: SkuOffer[];
+};
 
 function offersFor(p: Product, prices: DisplayPrices, stock: StockByKey): SkuOffer[] {
   return p.sizes.flatMap((s) => {
@@ -43,7 +50,10 @@ const toLanding = (p: Product, prices: DisplayPrices, stock: StockByKey): Landin
 
 /** Four best sellers with a priced SKU, best sellers first, then new launches. */
 export function featuredProducts(prices: DisplayPrices, stock: StockByKey): LandingProduct[] {
-  const ranked = [...PRODUCTS.filter((p) => p.isBestSeller), ...PRODUCTS.filter((p) => !p.isBestSeller && p.isNewLaunch)];
+  const ranked = [
+    ...PRODUCTS.filter((p) => p.isBestSeller),
+    ...PRODUCTS.filter((p) => !p.isBestSeller && p.isNewLaunch),
+  ];
   return ranked
     .filter((p) => !imageExcluded(p) && ROUTINE_ROLES[p.id] !== 'none')
     .map((p) => toLanding(p, prices, stock))
@@ -51,7 +61,11 @@ export function featuredProducts(prices: DisplayPrices, stock: StockByKey): Land
     .slice(0, 4);
 }
 
-export type EssentialStep = { role: 'cleanse' | 'moisturise' | 'protect'; label: string; from: { product: LandingProduct; sku: SkuOffer } | null };
+export type EssentialStep = {
+  role: 'cleanse' | 'moisturise' | 'protect';
+  label: string;
+  from: { product: LandingProduct; sku: SkuOffer } | null;
+};
 
 /**
  * The three essential steps, each with the lowest current price among
@@ -76,14 +90,27 @@ export function essentialSteps(prices: DisplayPrices, stock: StockByKey): Essent
   });
 }
 
-export type LandingReview = { rating: number; title: string | null; body: string; productName: string; productSlug: string | null; verified: boolean };
+export type LandingReview = {
+  rating: number;
+  title: string | null;
+  body: string;
+  productName: string;
+  productSlug: string | null;
+  verified: boolean;
+};
 
 /** One published review, verified purchases first. None is invented: no published review means none is shown. */
 export async function publishedReview(): Promise<LandingReview | null> {
   if (!isDatabaseConfigured()) return null;
   try {
     const [row] = await db
-      .select({ rating: reviews.rating, title: reviews.title, body: reviews.body, productId: reviews.productId, orderId: reviews.orderId })
+      .select({
+        rating: reviews.rating,
+        title: reviews.title,
+        body: reviews.body,
+        productId: reviews.productId,
+        orderId: reviews.orderId,
+      })
       .from(reviews)
       .where(and(eq(reviews.published, true), isNotNull(reviews.body)))
       .orderBy(desc(isNotNull(reviews.orderId)), desc(reviews.createdAt))

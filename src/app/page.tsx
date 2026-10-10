@@ -4,7 +4,18 @@ import { activeCategories, activeConcerns } from '@/lib/catalogue';
 import { HomeClient } from './home-client';
 import { REDESIGN } from '@/lib/redesign';
 import { Hero } from '@/components/nv/home/hero';
-import { About, Consultation, Faq, Features, ImageBreak, Pricing, Results, Services, Testimonials, Vision } from '@/components/nv/home/landing';
+import {
+  About,
+  Consultation,
+  Faq,
+  Features,
+  ImageBreak,
+  Pricing,
+  Results,
+  Services,
+  Testimonials,
+  Vision,
+} from '@/components/nv/home/landing';
 import { essentialSteps, featuredProducts, publishedReview } from '@/components/nv/home/data';
 import { catalogueStock, displayPrices } from '@/modules/catalog/storefront-data';
 

@@ -41,9 +41,7 @@ const globalForDb = globalThis as unknown as {
 
 function createClient(url = process.env.DATABASE_URL): Sql {
   if (!url) {
-    throw new Error(
-      'DATABASE_URL is not set. Copy .env.example to .env.local and point it at your Postgres instance.'
-    );
+    throw new Error('DATABASE_URL is not set. Copy .env.example to .env.local and point it at your Postgres instance.');
   }
 
   return postgres(url, {

@@ -35,12 +35,7 @@ const ownerOnly = (actor: CommandActor) => actor.role === 'owner';
 const contentTypeSchema = z.string().refine(isContentType, 'Unknown content type.');
 
 async function lockDocument(tx: Tx, documentId: string) {
-  const [doc] = await tx
-    .select()
-    .from(cmsDocuments)
-    .where(eq(cmsDocuments.id, documentId))
-    .for('update')
-    .limit(1);
+  const [doc] = await tx.select().from(cmsDocuments).where(eq(cmsDocuments.id, documentId)).for('update').limit(1);
   if (!doc) throw new CommandError('not_found', 'That document no longer exists.');
   return doc;
 }

@@ -38,12 +38,21 @@ export async function GET(request: Request) {
   const session = /(?:^|;\s*)avyora_cart_id=([^;]+)/.exec(request.headers.get('cookie') ?? '')?.[1];
   const limited = await limit([
     { policy: 'catalogBatch', subject: { kind: 'ip', address: trustedClientIp(request.headers) } },
-    ...(session ? [{ policy: 'catalogBatch' as const, subject: { kind: 'identifier' as const, value: `cart:${session}` } }] : []),
+    ...(session
+      ? [{ policy: 'catalogBatch' as const, subject: { kind: 'identifier' as const, value: `cart:${session}` } }]
+      : []),
   ]);
   if (!limited.allowed) return limitResponse(limited);
 
   const param = new URL(request.url).searchParams.get('skus') ?? '';
-  const requested = [...new Set(param.split(',').map((s) => s.trim()).filter(Boolean))];
+  const requested = [
+    ...new Set(
+      param
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    ),
+  ];
 
   if (requested.length > MAX_SKUS) {
     return NextResponse.json({ error: `At most ${MAX_SKUS} SKUs per request.` }, { status: 413 });

@@ -19,12 +19,19 @@ export async function listSupportRequests(db: Db, status: 'open' | 'all' = 'all'
     .limit(200);
 }
 
-export async function markSupportAnswered(db: Db, id: string, staff: string, resolution: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function markSupportAnswered(
+  db: Db,
+  id: string,
+  staff: string,
+  resolution: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const note = resolution.trim().slice(0, 500);
   const rows = await db
     .update(schema.supportRequests)
     .set({ status: 'answered', resolution: note || null, resolvedAt: new Date(), resolvedBy: staff })
     .where(and(eq(schema.supportRequests.id, id), eq(schema.supportRequests.status, 'open')))
     .returning({ id: schema.supportRequests.id });
-  return rows.length ? { ok: true } : { ok: false, error: 'That request is no longer open (someone may have answered it already).' };
+  return rows.length
+    ? { ok: true }
+    : { ok: false, error: 'That request is no longer open (someone may have answered it already).' };
 }

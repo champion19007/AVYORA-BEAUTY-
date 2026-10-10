@@ -24,12 +24,7 @@ import { orders } from '@/db/schema';
 
 export type RiskSignal = {
   /** Stable identifier, so a reviewer sees the same wording every time. */
-  code:
-    | 'address_incomplete'
-    | 'address_junk'
-    | 'velocity'
-    | 'prior_returns'
-    | 'high_value_first_order';
+  code: 'address_incomplete' | 'address_junk' | 'velocity' | 'prior_returns' | 'high_value_first_order';
   /** Plain-language reason, shown to staff reviewing a held order. */
   reason: string;
   /** 0-100 severity of this one signal. */
@@ -59,11 +54,7 @@ export type RiskAssessment = {
 };
 
 /** Repeated characters, keyboard mashing, or obvious placeholder words. */
-const JUNK_PATTERNS = [
-  /(.)\1{4,}/i,
-  /\b(asdf|qwer|zxcv|test|abcd|xyz|dummy|nil)\b/i,
-  /^\W+$/,
-];
+const JUNK_PATTERNS = [/(.)\1{4,}/i, /\b(asdf|qwer|zxcv|test|abcd|xyz|dummy|nil)\b/i, /^\W+$/];
 
 /**
  * Does the address describe somewhere a courier could actually stand?
@@ -280,18 +271,11 @@ export function combineSignals(signals: RiskSignal[]): RiskAssessment {
   const weights = signals.map((s) => s.weight).sort((a, b) => b - a);
   const [strongest, ...rest] = weights;
 
-  const score = Math.min(
-    100,
-    Math.round(strongest + rest.reduce((sum, w) => sum + w, 0) * CORROBORATION_WEIGHT)
-  );
+  const score = Math.min(100, Math.round(strongest + rest.reduce((sum, w) => sum + w, 0) * CORROBORATION_WEIGHT));
 
   // Corroboration required to refuse. A lone signal caps out at a hold.
   const status: RiskStatus =
-    score >= REJECT_AT && signals.length >= 2
-      ? 'rejected'
-      : score >= REVIEW_AT
-        ? 'review'
-        : 'approved';
+    score >= REJECT_AT && signals.length >= 2 ? 'rejected' : score >= REVIEW_AT ? 'review' : 'approved';
 
   return { score, status, signals };
 }
@@ -305,10 +289,7 @@ export function combineSignals(signals: RiskSignal[]): RiskAssessment {
 export async function assessCodOrder(input: RiskInput): Promise<RiskAssessment> {
   const phone = normalisePhone(input.phone);
 
-  const [velocity, history] = await Promise.all([
-    scoreVelocity(input.email, phone),
-    scoreHistory(input.email, phone),
-  ]);
+  const [velocity, history] = await Promise.all([scoreVelocity(input.email, phone), scoreHistory(input.email, phone)]);
 
   const signals = [
     ...scoreAddress(input.address),

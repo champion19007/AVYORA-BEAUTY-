@@ -58,10 +58,7 @@ export default async function ManagerStockPage() {
               const isLow = row.quantity > 0 && row.quantity <= row.lowStockThreshold;
 
               return (
-                <tr
-                  key={`${row.productId}-${row.size}`}
-                  className="transition-colors hover:bg-muted/40"
-                >
+                <tr key={`${row.productId}-${row.size}`} className="transition-colors hover:bg-muted/40">
                   <td className="p-4">{row.productName}</td>
                   <td className="p-4 text-muted-foreground">{row.size}</td>
 
@@ -72,11 +69,7 @@ export default async function ManagerStockPage() {
                         Out of stock
                       </span>
                     ) : (
-                      <span
-                        className={
-                          isLow ? 'font-medium text-amber-600 dark:text-amber-400' : 'tabular-nums'
-                        }
-                      >
+                      <span className={isLow ? 'font-medium text-amber-600 dark:text-amber-400' : 'tabular-nums'}>
                         {row.quantity}
                         {isLow && ' · low'}
                       </span>

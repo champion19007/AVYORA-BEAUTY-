@@ -86,11 +86,7 @@ export function AddressForm({ address }: { address?: Address }) {
         />
       </Field>
 
-      <Field
-        label="Flat, House no., Building, Company, Apartment"
-        htmlFor="line1"
-        error={err('line1')}
-      >
+      <Field label="Flat, House no., Building, Company, Apartment" htmlFor="line1" error={err('line1')}>
         <Input id="line1" name="line1" defaultValue={value('line1')} autoComplete="address-line1" required />
       </Field>
 
@@ -99,12 +95,7 @@ export function AddressForm({ address }: { address?: Address }) {
       </Field>
 
       <Field label="Landmark" htmlFor="landmark" error={err('landmark')}>
-        <Input
-          id="landmark"
-          name="landmark"
-          placeholder="E.g. near apollo hospital"
-          defaultValue={value('landmark')}
-        />
+        <Input id="landmark" name="landmark" placeholder="E.g. near apollo hospital" defaultValue={value('landmark')} />
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">

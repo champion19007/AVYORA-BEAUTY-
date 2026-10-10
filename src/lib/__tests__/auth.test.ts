@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  hashPassword,
-  verifyPassword,
-  createSessionToken,
-  verifySessionToken,
-  getAdminConfig,
-} from '../auth';
+import { hashPassword, verifyPassword, createSessionToken, verifySessionToken, getAdminConfig } from '../auth';
 
 const SECRET = 'a'.repeat(48);
 

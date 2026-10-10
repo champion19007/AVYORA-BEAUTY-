@@ -11,7 +11,11 @@ const body = (version: string, validFor = 60_000, serverNow = Date.now()) => ({
 
 /** A fetch whose responses the test resolves by hand. */
 function controllableFetch() {
-  const calls: { url: string; signal: AbortSignal; respond: (b: unknown, init?: { status?: number; date?: Date }) => void }[] = [];
+  const calls: {
+    url: string;
+    signal: AbortSignal;
+    respond: (b: unknown, init?: { status?: number; date?: Date }) => void;
+  }[] = [];
   const impl = vi.fn((url: string, init?: RequestInit) => {
     return new Promise<Response>((resolve, reject) => {
       const signal = init!.signal!;

@@ -69,11 +69,7 @@ async function sendViaGmail(to: string, subject: string, text: string): Promise<
  * connection open sensibly, and an HTTPS call needs no extra egress rules
  * after the AWS move. Swapping to SES later is a change to this function only.
  */
-export async function sendEmail(
-  to: string,
-  subject: string,
-  text: string
-): Promise<DeliveryResult> {
+export async function sendEmail(to: string, subject: string, text: string): Promise<DeliveryResult> {
   if (!emailDeliveryConfigured()) {
     return { ok: false, error: 'Email delivery is not configured on this deployment.' };
   }
@@ -194,7 +190,11 @@ export async function checkTwilioVerification(phone: string, code: string): Prom
 const fast2smsConfigured = () => Boolean(process.env.FAST2SMS_API_KEY);
 
 export function smsDeliveryConfigured(): boolean {
-  return twilioVerifyConfigured() || fast2smsConfigured() || Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID);
+  return (
+    twilioVerifyConfigured() ||
+    fast2smsConfigured() ||
+    Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID)
+  );
 }
 
 /** `phone` is the 10-digit number `phoneSchema` produces. */
@@ -325,19 +325,16 @@ export async function sendWhatsApp(text: string): Promise<DeliveryResult> {
       };
 
   try {
-    const response = await fetch(
-      `https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        // An order must never wait on a notification.
-        signal: AbortSignal.timeout(10_000),
-      }
-    );
+    const response = await fetch(`https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      // An order must never wait on a notification.
+      signal: AbortSignal.timeout(10_000),
+    });
 
     if (!response.ok) {
       const detail = await response.text().catch(() => '');

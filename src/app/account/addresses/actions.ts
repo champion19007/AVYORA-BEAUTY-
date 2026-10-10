@@ -4,13 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { reportError } from '@/lib/observability';
-import {
-  addressSchema,
-  createAddress,
-  deleteAddress,
-  setDefaultAddress,
-  updateAddress,
-} from '@/lib/addresses';
+import { addressSchema, createAddress, deleteAddress, setDefaultAddress, updateAddress } from '@/lib/addresses';
 
 /**
  * Address book mutations.
@@ -61,17 +55,12 @@ function readForm(formData: FormData) {
  * re-rendered with what the customer typed still in it — losing a filled-in
  * address to a validation error is the fastest way to lose the order.
  */
-export async function saveAddress(
-  _prev: AddressFormState,
-  formData: FormData
-): Promise<AddressFormState> {
+export async function saveAddress(_prev: AddressFormState, formData: FormData): Promise<AddressFormState> {
   const userId = await requireUserId();
   if (!userId) return { error: 'Please sign in to save an address.' };
 
   const raw = readForm(formData);
-  const values = Object.fromEntries(
-    Object.entries(raw).map(([k, v]) => [k, typeof v === 'boolean' ? String(v) : v])
-  );
+  const values = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, typeof v === 'boolean' ? String(v) : v]));
 
   const parsed = addressSchema.safeParse(raw);
   if (!parsed.success) {

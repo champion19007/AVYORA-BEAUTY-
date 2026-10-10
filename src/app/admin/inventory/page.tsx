@@ -22,11 +22,7 @@ export const dynamic = 'force-dynamic';
  * is invisibly unbuyable. Those are listed separately with a box to start
  * counting them, rather than being left to fail quietly at checkout.
  */
-export default async function AdminInventoryPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ stale?: string }>;
-}) {
+export default async function AdminInventoryPage({ searchParams }: { searchParams: Promise<{ stale?: string }> }) {
   const { stale } = await searchParams;
   if (!isDatabaseConfigured()) {
     return (
@@ -47,9 +43,9 @@ export default async function AdminInventoryPage({
           role="alert"
           className="rounded-lg border border-amber-500/40 bg-amber-50 p-4 text-[14px] leading-relaxed text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
         >
-          <strong>{stale.replace('::', ' · ')}</strong> was not changed. Its count moved after this
-          page loaded — a sale or the stockroom changed it — so your number would have overwritten
-          theirs. The figures below are current; set it again if it still needs changing.
+          <strong>{stale.replace('::', ' · ')}</strong> was not changed. Its count moved after this page loaded — a sale
+          or the stockroom changed it — so your number would have overwritten theirs. The figures below are current; set
+          it again if it still needs changing.
         </p>
       )}
       <section aria-labelledby="to-ship">
@@ -73,11 +69,14 @@ export default async function AdminInventoryPage({
                 >
                   <span className="font-medium">{o.orderNumber}</span>
                   <span className="text-muted-foreground">
-                    {o.itemCount} item{o.itemCount === 1 ? '' : 's'} · {[o.shippingCity, o.shippingState].filter(Boolean).join(', ') || 'No address'}
+                    {o.itemCount} item{o.itemCount === 1 ? '' : 's'} ·{' '}
+                    {[o.shippingCity, o.shippingState].filter(Boolean).join(', ') || 'No address'}
                   </span>
                   <span className="tabular-nums">{formatPaise(o.total)}</span>
                   <StatusPill kind="fulfilment" value={o.status} />
-                  <span className="ml-auto text-muted-foreground">{o.paymentProvider === 'cod' ? 'Cash on delivery' : 'Paid online'}</span>
+                  <span className="ml-auto text-muted-foreground">
+                    {o.paymentProvider === 'cod' ? 'Cash on delivery' : 'Paid online'}
+                  </span>
                 </Link>
               </li>
             ))}
@@ -88,8 +87,8 @@ export default async function AdminInventoryPage({
       <div>
         <h1 className="font-headline text-3xl font-normal tracking-tight">Inventory</h1>
         <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
-          Read-only by habit. Counting belongs to the stockroom, who are at the shelf — changing a
-          number here overwrites what they counted, so it asks before it does.
+          Read-only by habit. Counting belongs to the stockroom, who are at the shelf — changing a number here
+          overwrites what they counted, so it asks before it does.
         </p>
       </div>
 
@@ -175,17 +174,14 @@ export default async function AdminInventoryPage({
         <section>
           <h2 className="font-headline text-xl font-normal tracking-tight">Not yet counted</h2>
           <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
-            These {untracked.length} SKU{untracked.length === 1 ? '' : 's'} have no inventory row,
-            so they cannot be sold at all. Enter a count to bring one under stock control.
+            These {untracked.length} SKU{untracked.length === 1 ? '' : 's'} have no inventory row, so they cannot be
+            sold at all. Enter a count to bring one under stock control.
           </p>
 
           {/* No confirmation here: there is no counted value to overwrite. */}
           <ul className="mt-5 divide-y divide-border rounded-xl border border-border bg-card">
             {untracked.map((sku) => (
-              <li
-                key={`${sku.productId}-${sku.size}`}
-                className="flex flex-wrap items-center gap-4 p-4"
-              >
+              <li key={`${sku.productId}-${sku.size}`} className="flex flex-wrap items-center gap-4 p-4">
                 <span className="text-[15px]">
                   {sku.productName}
                   <span className="ml-2 text-muted-foreground">{sku.size}</span>

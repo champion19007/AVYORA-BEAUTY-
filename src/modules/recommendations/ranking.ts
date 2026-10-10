@@ -54,9 +54,7 @@ export function rankRecommendations(
     .map((product, order) => ({ product, order }))
     .filter(
       ({ product }) =>
-        product.id !== target.id &&
-        !signals.conflicts?.has(product.id) &&
-        (signals.available?.(product.id) ?? true)
+        product.id !== target.id && !signals.conflicts?.has(product.id) && (signals.available?.(product.id) ?? true)
     );
 
   const scored = eligible.map(({ product, order }) => {

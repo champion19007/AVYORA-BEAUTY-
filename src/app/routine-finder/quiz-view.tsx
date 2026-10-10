@@ -75,7 +75,10 @@ export function QuizView({
           Question {index + 1} of {questions.length}
         </p>
         <div className="mt-3 h-px w-full bg-border" aria-hidden="true">
-          <div className="h-px bg-foreground transition-all" style={{ width: `${((index + 1) / questions.length) * 100}%` }} />
+          <div
+            className="h-px bg-foreground transition-all"
+            style={{ width: `${((index + 1) / questions.length) * 100}%` }}
+          />
         </div>
       </div>
 
@@ -88,14 +91,27 @@ export function QuizView({
       >
         <fieldset aria-describedby={error ? errorId : undefined}>
           <legend className="contents">
-            <h1 ref={headingRef} tabIndex={-1} className="font-headline text-4xl font-normal leading-tight tracking-tight outline-none">
+            <h1
+              ref={headingRef}
+              tabIndex={-1}
+              className="font-headline text-4xl font-normal leading-tight tracking-tight outline-none"
+            >
               {q.label}
             </h1>
           </legend>
-          {'help' in q && q.help && <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted-foreground">{q.help}</p>}
+          {'help' in q && q.help && (
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted-foreground">{q.help}</p>
+          )}
 
           <div className="mt-8">
-            <QuestionBody q={q} answers={answers} set={set} onPick={(a) => next(a)} invalid={Boolean(error)} errorId={errorId} />
+            <QuestionBody
+              q={q}
+              answers={answers}
+              set={set}
+              onPick={(a) => next(a)}
+              invalid={Boolean(error)}
+              errorId={errorId}
+            />
           </div>
           {error && (
             <p id={errorId} role="alert" className="mt-4 text-sm text-destructive">
@@ -105,7 +121,12 @@ export function QuizView({
         </fieldset>
 
         <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Button type="button" variant="ghost" onClick={() => (index === 0 ? onExit() : go(index - 1))} className="gap-2 rounded-full">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => (index === 0 ? onExit() : go(index - 1))}
+            className="gap-2 rounded-full"
+          >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back
           </Button>
           <Button type="submit" className="gap-2 rounded-full px-8">
@@ -120,7 +141,8 @@ export function QuizView({
       </form>
 
       <p className="mt-16 border-t border-border pt-6 text-xs leading-relaxed text-muted-foreground">
-        General skincare guidance, not medical advice. For a persistent or painful skin condition, please see a dermatologist.
+        General skincare guidance, not medical advice. For a persistent or painful skin condition, please see a
+        dermatologist.
       </p>
     </div>
   );
@@ -189,7 +211,10 @@ function QuestionBody({
                 checked={rank >= 0}
                 disabled={full}
                 onChange={() =>
-                  set({ priorities: rank >= 0 ? chosen.filter((c) => c !== o.value) : [...chosen, o.value as (typeof chosen)[number]] })
+                  set({
+                    priorities:
+                      rank >= 0 ? chosen.filter((c) => c !== o.value) : [...chosen, o.value as (typeof chosen)[number]],
+                  })
                 }
                 className="h-4 w-4 accent-foreground"
               />
@@ -204,18 +229,25 @@ function QuestionBody({
 
   if (q.kind === 'allergens') {
     const chosen = answers.allergens ?? [];
-    const toggle = (v: string) => set({ allergens: chosen.includes(v) ? chosen.filter((c) => c !== v) : [...chosen, v] });
+    const toggle = (v: string) =>
+      set({ allergens: chosen.includes(v) ? chosen.filter((c) => c !== v) : [...chosen, v] });
     return (
       <div className="grid grid-cols-3 gap-2">
         {[...ALLERGEN_OPTIONS, { value: UNLISTED_ALLERGEN, label: 'Something not listed here' }].map((o) => (
           <label key={o.value} className={cn(optionClass(chosen.includes(o.value)), 'px-4 py-3 text-sm')}>
-            <input type="checkbox" checked={chosen.includes(o.value)} onChange={() => toggle(o.value)} className="h-4 w-4 accent-foreground" />
+            <input
+              type="checkbox"
+              checked={chosen.includes(o.value)}
+              onChange={() => toggle(o.value)}
+              className="h-4 w-4 accent-foreground"
+            />
             {o.label}
           </label>
         ))}
         {chosen.includes(UNLISTED_ALLERGEN) && (
           <p className="col-span-3 mt-2 text-sm text-muted-foreground">
-            Because we cannot check for that ingredient, we will not suggest new products for you. We can still arrange what you already use.
+            Because we cannot check for that ingredient, we will not suggest new products for you. We can still arrange
+            what you already use.
           </p>
         )}
       </div>
@@ -261,12 +293,18 @@ const ROLE_LABELS: Record<OwnedDraft['role'], string> = {
 };
 
 function OwnedEditor({ items, onChange }: { items: OwnedDraft[]; onChange: (items: OwnedDraft[]) => void }) {
-  const update = (i: number, patch: Partial<OwnedDraft>) => onChange(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const update = (i: number, patch: Partial<OwnedDraft>) =>
+    onChange(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   return (
     <div className="space-y-3">
-      {items.length === 0 && <p className="text-[15px] text-muted-foreground">Nothing added. Continue if you are not using anything yet.</p>}
+      {items.length === 0 && (
+        <p className="text-[15px] text-muted-foreground">Nothing added. Continue if you are not using anything yet.</p>
+      )}
       {items.map((item, i) => (
-        <div key={item.id} className="grid grid-cols-[1fr_12rem_auto_auto] items-end gap-3 rounded-2xl border border-border p-4">
+        <div
+          key={item.id}
+          className="grid grid-cols-[1fr_12rem_auto_auto] items-end gap-3 rounded-2xl border border-border p-4"
+        >
           <label className="text-sm">
             <span className="font-medium">Product name</span>
             <input
@@ -291,10 +329,21 @@ function OwnedEditor({ items, onChange }: { items: OwnedDraft[]; onChange: (item
             </select>
           </label>
           <label className="flex items-center gap-2 pb-2 text-sm">
-            <input type="checkbox" checked={item.prescribed} onChange={(e) => update(i, { prescribed: e.target.checked })} className="h-4 w-4 accent-foreground" />
+            <input
+              type="checkbox"
+              checked={item.prescribed}
+              onChange={(e) => update(i, { prescribed: e.target.checked })}
+              className="h-4 w-4 accent-foreground"
+            />
             Prescribed
           </label>
-          <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${item.label || 'this product'}`} onClick={() => onChange(items.filter((_, j) => j !== i))}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Remove ${item.label || 'this product'}`}
+            onClick={() => onChange(items.filter((_, j) => j !== i))}
+          >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
@@ -304,7 +353,12 @@ function OwnedEditor({ items, onChange }: { items: OwnedDraft[]; onChange: (item
           type="button"
           variant="outline"
           className="gap-2 rounded-full"
-          onClick={() => onChange([...items, { id: `owned-${Date.now().toString(36)}-${items.length}`, label: '', role: 'cleanse', prescribed: false }])}
+          onClick={() =>
+            onChange([
+              ...items,
+              { id: `owned-${Date.now().toString(36)}-${items.length}`, label: '', role: 'cleanse', prescribed: false },
+            ])
+          }
         >
           <Plus className="h-4 w-4" aria-hidden="true" /> Add a product
         </Button>

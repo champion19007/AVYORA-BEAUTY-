@@ -55,8 +55,7 @@ export function sniffImageType(bytes: Uint8Array): { type: string; ext: string }
 }
 
 export type UploadResult =
-  | { ok: true; id: string; url: string; deduplicated: boolean }
-  | { ok: false; message: string };
+  { ok: true; id: string; url: string; deduplicated: boolean } | { ok: false; message: string };
 
 export async function uploadMedia(
   bytes: Uint8Array,

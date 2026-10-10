@@ -13,7 +13,15 @@ export type AccordionItem = { id: string; question: string; answer: React.ReactN
  * labelled by it. Height animates with CSS grid rows, and not at all under
  * reduced motion.
  */
-export function Accordion({ items, headingLevel: H = 'h3', defaultOpen = null }: { items: AccordionItem[]; headingLevel?: 'h2' | 'h3' | 'h4'; defaultOpen?: string | null }) {
+export function Accordion({
+  items,
+  headingLevel: H = 'h3',
+  defaultOpen = null,
+}: {
+  items: AccordionItem[];
+  headingLevel?: 'h2' | 'h3' | 'h4';
+  defaultOpen?: string | null;
+}) {
   const [open, setOpen] = useState<string | null>(defaultOpen);
   const base = useId();
   return (
@@ -34,7 +42,10 @@ export function Accordion({ items, headingLevel: H = 'h3', defaultOpen = null }:
                 className="nv-focus flex w-full items-center justify-between gap-6 py-[24px] text-left text-nv-intro font-medium text-nv-ink"
               >
                 <span>{item.question}</span>
-                <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-nv-ink text-white">
+                <span
+                  aria-hidden="true"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-nv-ink text-white"
+                >
                   {expanded ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 </span>
               </button>

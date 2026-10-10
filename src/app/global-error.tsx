@@ -10,11 +10,7 @@ import { SUPPORT_EMAIL } from '@/data/business-info';
  * the thing that failed. This replaces the whole document, so it carries its
  * own <html> and <body> and cannot rely on any app styling.
  */
-export default function GlobalError({
-  error,
-}: {
-  error: Error & { digest?: string };
-}) {
+export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
     console.error(
       JSON.stringify({
@@ -45,9 +41,7 @@ export default function GlobalError({
         }}
       >
         <div style={{ maxWidth: '32rem' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 500, marginBottom: '1rem' }}>
-            Something went wrong
-          </h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 500, marginBottom: '1rem' }}>Something went wrong</h1>
           <p style={{ lineHeight: 1.7, opacity: 0.75 }}>
             This is on us. Please try again in a moment, or email{' '}
             <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#C9A227' }}>
@@ -56,9 +50,7 @@ export default function GlobalError({
             .
           </p>
           {error.digest && (
-            <p style={{ marginTop: '1rem', fontSize: '0.8rem', opacity: 0.6 }}>
-              Reference: {error.digest}
-            </p>
+            <p style={{ marginTop: '1rem', fontSize: '0.8rem', opacity: 0.6 }}>Reference: {error.digest}</p>
           )}
           {/*
             A plain anchor, not next/link, on purpose: this boundary fires when

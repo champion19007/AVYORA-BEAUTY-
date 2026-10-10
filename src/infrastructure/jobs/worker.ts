@@ -76,9 +76,7 @@ async function runOne(job: JobRow): Promise<'succeeded' | 'retried' | 'dead' | '
     }
     if (!handler) throw new PermanentJobError(`No handler registered for job type "${job.type}".`);
 
-    await runWithRequestId(job.requestId, () =>
-      handler((job.payload ?? {}) as Record<string, unknown>, job)
-    );
+    await runWithRequestId(job.requestId, () => handler((job.payload ?? {}) as Record<string, unknown>, job));
     return (await complete(job)) ? 'succeeded' : 'lost';
   } catch (err) {
     reportError(err, { scope: `jobs.${job.type}`, correlationId: String(job.id) });

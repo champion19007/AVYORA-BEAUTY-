@@ -104,9 +104,7 @@ export function contentSecurityPolicy(isDev: boolean): string {
     "default-src 'self'",
     // 'unsafe-inline' is required by statically prerendered Next output; see
     // the note above. 'unsafe-eval' is dev-only, for the React refresh runtime.
-    `script-src 'self' 'unsafe-inline' https://sdk.cashfree.com${
-      isDev ? " 'unsafe-eval'" : ''
-    }`,
+    `script-src 'self' 'unsafe-inline' https://sdk.cashfree.com${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
     // Unsplash for product imagery, Google for signed-in avatars.
@@ -131,7 +129,9 @@ export const CAMERA_ROUTES = ['/scan'];
 
 /** Headers applied to every response. */
 export function securityHeaders(pathname = '/'): Record<string, string> {
-  const camera = CAMERA_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`)) ? 'camera=(self)' : 'camera=()';
+  const camera = CAMERA_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))
+    ? 'camera=(self)'
+    : 'camera=()';
   return {
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',

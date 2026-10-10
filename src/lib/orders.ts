@@ -109,8 +109,7 @@ function isDuplicateOrderKey(err: unknown): boolean {
     const e = current as PgError;
     if (
       e.code === '23505' &&
-      (e.constraint === 'orders_idempotency_idx' ||
-        e.constraint_name === 'orders_idempotency_idx')
+      (e.constraint === 'orders_idempotency_idx' || e.constraint_name === 'orders_idempotency_idx')
     ) {
       return true;
     }
@@ -151,10 +150,7 @@ class OutOfStockError extends Error {
  * The insert of the order and its lines runs in a transaction so a failure
  * partway cannot leave an order with missing items.
  */
-export async function createOrder(
-  input: CheckoutInput,
-  userId?: string | null
-): Promise<CreateOrderResult> {
+export async function createOrder(input: CheckoutInput, userId?: string | null): Promise<CreateOrderResult> {
   // Sample inventory is never sold as real stock (lib/catalogue-mode.ts).
   if (sampleOrdersBlocked()) return { ok: false, error: SAMPLE_ORDER_MESSAGE };
   const parsed = checkoutSchema.safeParse(input);
@@ -164,7 +160,11 @@ export async function createOrder(
   const data = parsed.data;
 
   if (guestPhoneCheckRequired(userId) && !(await phoneProofValid(data.phoneProof, data.address.phone))) {
-    return { ok: false, error: 'Verify your mobile number with the code we send before placing the order.', code: 'phone_unverified' };
+    return {
+      ok: false,
+      error: 'Verify your mobile number with the code we send before placing the order.',
+      code: 'phone_unverified',
+    };
   }
 
   /*
@@ -250,8 +250,12 @@ export async function createOrder(
         // A struck-out price means a discount applied; which kind depends on
         // whether the owner or the catalogue set it.
         source: pricingRow
-          ? effective.wasPrice !== null ? 'offer' : 'override'
-          : effective.wasPrice !== null ? 'catalogue-sale' : 'catalogue',
+          ? effective.wasPrice !== null
+            ? 'offer'
+            : 'override'
+          : effective.wasPrice !== null
+            ? 'catalogue-sale'
+            : 'catalogue',
         offerLabel: effective.offerLabel,
         pricingVersion: pricingRow?.version ?? null,
         offerEndsAt: pricingRow?.offerEndsAt?.toISOString() ?? null,
@@ -282,9 +286,7 @@ export async function createOrder(
     };
   }
 
-  const totals = calculateTotals(
-    lines.map((l) => ({ unitPrice: l.unitPrice / 100, quantity: l.quantity }))
-  );
+  const totals = calculateTotals(lines.map((l) => ({ unitPrice: l.unitPrice / 100, quantity: l.quantity })));
 
   const orderNumber = generateOrderNumber();
   const requestId = await currentRequestId();
@@ -346,9 +348,7 @@ export async function createOrder(
 
       createdOrderId = order.id;
 
-      await tx.insert(orderItems).values(
-        lines.map((l) => ({ ...l, orderId: order.id }))
-      );
+      await tx.insert(orderItems).values(lines.map((l) => ({ ...l, orderId: order.id })));
 
       /*
        * The order and the fact that it happened commit together.
@@ -363,13 +363,7 @@ export async function createOrder(
        * the order, so they act on what is true when they run rather than on a
        * snapshot that may be minutes old.
        */
-      await emitEvent(
-        'order.placed',
-        order.id,
-        { orderId: order.id, orderNumber },
-        tx,
-        requestId
-      );
+      await emitEvent('order.placed', order.id, { orderId: order.id, orderNumber }, tx, requestId);
 
       for (const sku of reservation.depleted) {
         await emitEvent('inventory.stock_out', sku.productId, sku, tx, requestId);
@@ -429,11 +423,7 @@ export async function createOrder(
 
 /** Looks up an order and its lines by the customer-facing reference. */
 export async function getOrderByNumber(orderNumber: string) {
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.orderNumber, orderNumber))
-    .limit(1);
+  const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
 
   if (!order) return null;
 
@@ -464,7 +454,12 @@ export async function getOrdersForUser(userId: string) {
   const lines = await db
     .select()
     .from(orderItems)
-    .where(inArray(orderItems.orderId, rows.map((o) => o.id)));
+    .where(
+      inArray(
+        orderItems.orderId,
+        rows.map((o) => o.id)
+      )
+    );
 
   const byOrder = new Map<string, typeof lines>();
   for (const line of lines) {
@@ -481,10 +476,7 @@ export async function getOrdersForUser(userId: string) {
  * the order it belongs to.
  */
 export async function attachPaymentReference(orderId: string, reference: string) {
-  await db
-    .update(orders)
-    .set({ paymentReference: reference, updatedAt: new Date() })
-    .where(eq(orders.id, orderId));
+  await db.update(orders).set({ paymentReference: reference, updatedAt: new Date() }).where(eq(orders.id, orderId));
 }
 
 /**
@@ -510,11 +502,7 @@ export async function markOrderPaid(
 
   let amount = capturedPaise;
   if (typeof amount !== 'number') {
-    const [order] = await db
-      .select({ total: orders.total })
-      .from(orders)
-      .where(eq(orders.id, orderId))
-      .limit(1);
+    const [order] = await db.select({ total: orders.total }).from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order) return { ok: false, error: 'Order not found' };
     amount = order.total;
   }
@@ -612,10 +600,6 @@ export async function cancelOrder(orderId: string): Promise<boolean> {
 
 /** Finds an order by the payment reference stored against it. */
 export async function getOrderByPaymentReference(reference: string) {
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.paymentReference, reference))
-    .limit(1);
+  const [order] = await db.select().from(orders).where(eq(orders.paymentReference, reference)).limit(1);
   return order ?? null;
 }

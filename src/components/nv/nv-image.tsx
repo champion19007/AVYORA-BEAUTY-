@@ -47,7 +47,12 @@ export function NvImage({
       data-image-state={failed ? 'failed' : 'ok'}
     >
       {failed ? (
-        <div className={cn('absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-nv-small', onDark ? 'text-white/80' : 'text-nv-muted')}>
+        <div
+          className={cn(
+            'absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-nv-small',
+            onDark ? 'text-white/80' : 'text-nv-muted'
+          )}
+        >
           <ImageOff className="h-5 w-5" aria-hidden="true" />
           <span>{alt || 'Image unavailable'}</span>
         </div>

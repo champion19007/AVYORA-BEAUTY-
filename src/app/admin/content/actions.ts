@@ -6,12 +6,7 @@ import { isDatabaseConfigured } from '@/db';
 import { getStaffSession } from '@/lib/staff-auth';
 import { limit } from '@/lib/rate-limit';
 import { revalidateContent } from '@/lib/storefront-cache';
-import {
-  publishDocument,
-  restoreRevision,
-  saveDraft,
-  unpublishDocument,
-} from '@/modules/cms/cms-commands';
+import { publishDocument, restoreRevision, saveDraft, unpublishDocument } from '@/modules/cms/cms-commands';
 import { isContentType, type ContentType } from '@/modules/cms/content-types';
 import { uploadMedia } from '@/modules/cms/media';
 
@@ -55,10 +50,7 @@ function bodyFrom(type: ContentType, form: FormData): unknown {
 
 const editorPath = (type: string, slug: string) => `/admin/content/${type}/${slug}`;
 
-export async function saveContent(
-  _prev: ContentFormState,
-  form: FormData
-): Promise<ContentFormState> {
+export async function saveContent(_prev: ContentFormState, form: FormData): Promise<ContentFormState> {
   if (!isDatabaseConfigured()) return { error: 'No database configured.' };
   const actor = await ownerActor();
   if (!actor) return { error: 'Only the owner can edit content.' };
@@ -137,10 +129,7 @@ export async function restoreContent(form: FormData): Promise<void> {
 
 export type UploadFormState = { error?: string; uploaded?: { id: string; url: string } };
 
-export async function uploadContentMedia(
-  _prev: UploadFormState,
-  form: FormData
-): Promise<UploadFormState> {
+export async function uploadContentMedia(_prev: UploadFormState, form: FormData): Promise<UploadFormState> {
   if (!isDatabaseConfigured()) return { error: 'No database configured.' };
   const actor = await ownerActor();
   if (!actor) return { error: 'Only the owner can upload media.' };

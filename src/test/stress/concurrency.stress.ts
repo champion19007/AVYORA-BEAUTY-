@@ -111,7 +111,9 @@ describe('checkout under contention', () => {
     const ok = results.filter((r) => r.status === 'fulfilled' && r.value.ok).length;
     const orders = await db.select().from(schema.orders);
 
-    note(`oversell: 60 buyers for 10 units → ${ok} orders, stock ${await stockOf(A)}, ${rejected.length} errors, ${ms} ms`);
+    note(
+      `oversell: 60 buyers for 10 units → ${ok} orders, stock ${await stockOf(A)}, ${rejected.length} errors, ${ms} ms`
+    );
     expect(rejected).toHaveLength(0);
     expect(ok).toBe(10);
     expect(orders).toHaveLength(10);
@@ -130,13 +132,21 @@ describe('checkout under contention', () => {
         ...CHECKOUT,
         items:
           i % 2 === 0
-            ? [{ ...A, quantity: 1 }, { ...B, quantity: 1 }]
-            : [{ ...B, quantity: 1 }, { ...A, quantity: 1 }],
+            ? [
+                { ...A, quantity: 1 },
+                { ...B, quantity: 1 },
+              ]
+            : [
+                { ...B, quantity: 1 },
+                { ...A, quantity: 1 },
+              ],
       })
     );
     const failed = results.filter((r) => r.status === 'fulfilled' && !r.value.ok).length;
 
-    note(`opposite baskets: 40 checkouts → ${40 - failed - rejected.length} ok, ${failed} refused, ${rejected.length} errors, ${ms} ms`);
+    note(
+      `opposite baskets: 40 checkouts → ${40 - failed - rejected.length} ok, ${failed} refused, ${rejected.length} errors, ${ms} ms`
+    );
     for (const r of rejected) note(`  error: ${String(r.reason?.message ?? r.reason).slice(0, 160)}`);
     expect(rejected).toHaveLength(0);
     expect(failed).toBe(0);
@@ -155,7 +165,9 @@ describe('checkout under contention', () => {
       results.flatMap((r) => (r.status === 'fulfilled' && r.value.ok ? [r.value.orderNumber] : []))
     );
 
-    note(`idempotent retries: 30 identical → ${numbers.size} distinct order(s), stock ${await stockOf(A)}, ${rejected.length} errors, ${ms} ms`);
+    note(
+      `idempotent retries: 30 identical → ${numbers.size} distinct order(s), stock ${await stockOf(A)}, ${rejected.length} errors, ${ms} ms`
+    );
     expect(rejected).toHaveLength(0);
     expect(numbers.size).toBe(1);
     expect(await db.select().from(schema.orders)).toHaveLength(1);
@@ -173,7 +185,10 @@ describe('payments under contention', () => {
       items: [{ ...A, quantity: 1 }],
     } as never);
     if (!created.ok) throw new Error(created.error);
-    await db.update(schema.orders).set({ paymentReference: 'order_STRESS' }).where(eq(schema.orders.id, created.orderId));
+    await db
+      .update(schema.orders)
+      .set({ paymentReference: 'order_STRESS' })
+      .where(eq(schema.orders.id, created.orderId));
     await applyPaymentSignal(created.orderId, { type: 'session_opened' });
     const [order] = await db.select().from(schema.orders).where(eq(schema.orders.id, created.orderId));
 
@@ -194,7 +209,9 @@ describe('payments under contention', () => {
     const recorded = await db.select().from(schema.paymentEvents);
     const [after] = await db.select().from(schema.orders).where(eq(schema.orders.id, created.orderId));
 
-    note(`webhook storm: 40 deliveries → ${recorded.length} recorded, ${paidEvents.length} order.paid, status ${after.paymentStatus}, ${rejected.length} errors, ${ms} ms`);
+    note(
+      `webhook storm: 40 deliveries → ${recorded.length} recorded, ${paidEvents.length} order.paid, status ${after.paymentStatus}, ${rejected.length} errors, ${ms} ms`
+    );
     expect(rejected).toHaveLength(0);
     expect(recorded).toHaveLength(11);
     expect(paidEvents).toHaveLength(1);
@@ -240,9 +257,7 @@ describe('admin edits under contention', () => {
 describe('carts under contention', () => {
   it('creates one cart when a new visitor fires many saves at once', async () => {
     await reset();
-    const { ms, rejected } = await burst(25, (i) =>
-      saveCart([{ ...A, quantity: (i % 5) + 1 }], null, 'anon-stress')
-    );
+    const { ms, rejected } = await burst(25, (i) => saveCart([{ ...A, quantity: (i % 5) + 1 }], null, 'anon-stress'));
     const carts = await db.select().from(schema.carts);
     const items = await db.select().from(schema.cartItems);
     note(`cart saves: 25 at once → ${carts.length} cart, ${items.length} line, ${rejected.length} errors, ${ms} ms`);
@@ -264,9 +279,7 @@ describe('job queue under contention', () => {
 
     const started = performance.now();
     const results = await Promise.all(
-      Array.from({ length: 8 }, (_, w) =>
-        runJobs({ workerId: `w${w}`, limit: 300, deadlineMs: 60_000 })
-      )
+      Array.from({ length: 8 }, (_, w) => runJobs({ workerId: `w${w}`, limit: 300, deadlineMs: 60_000 }))
     );
     const ms = Math.round(performance.now() - started);
     const claimed = results.reduce((n, r) => n + r.claimed, 0);
@@ -275,7 +288,9 @@ describe('job queue under contention', () => {
       sql`select count(*)::int as n from jobs where status <> 'succeeded'`
     )) as unknown as { n: number }[];
 
-    note(`jobs: 300 jobs, 8 workers → ${runs.size} ran, ${twice} ran twice, ${claimed} claims, ${left} unfinished, ${ms} ms`);
+    note(
+      `jobs: 300 jobs, 8 workers → ${runs.size} ran, ${twice} ran twice, ${claimed} claims, ${left} unfinished, ${ms} ms`
+    );
     expect(runs.size).toBe(300);
     expect(twice).toBe(0);
     expect(claimed).toBe(300);

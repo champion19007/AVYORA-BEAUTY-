@@ -7,13 +7,7 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import * as schema from '@/db/schema';
 import { hashGuestSecret, newGuestSecret, type Owner } from '@/lib/guest-owner';
-import {
-  activeConsent,
-  grantConsent,
-  savedRoutines,
-  saveRoutine,
-  withdrawConsent,
-} from '../personal-records';
+import { activeConsent, grantConsent, savedRoutines, saveRoutine, withdrawConsent } from '../personal-records';
 
 /*
  * The database is the enforcement point for ownership, consent and expiry,
@@ -36,7 +30,12 @@ const bob: Owner = { kind: 'user', userId: 'u-bob' };
 const guest: Owner = { kind: 'guest', ownerHash: guestA };
 const otherGuest: Owner = { kind: 'guest', ownerHash: guestB };
 
-const SAVE = { answers: { skinType: 'dry', pregnancy: 'unknown' }, result: { mode: 'essentials' }, engineVersion: 'test', kbRelease: null };
+const SAVE = {
+  answers: { skinType: 'dry', pregnancy: 'unknown' },
+  result: { mode: 'essentials' },
+  engineVersion: 'test',
+  kbRelease: null,
+};
 
 beforeAll(async () => {
   preDir = mkdtempSync(join(tmpdir(), 'pre0016-'));
@@ -77,8 +76,18 @@ const grant = async (owner: Owner, purpose: schema.ConsentPurpose) =>
 
 describe('migrating existing routines', () => {
   it('keeps every legacy row, its id and its content, marked as legacy', async () => {
-    expect(await rows(`SELECT id, user_id, anonymous_id, schema_version, answers FROM routine_results WHERE schema_version = 0 ORDER BY id`)).toEqual([
-      { id: 'legacy-guest', user_id: null, anonymous_id: 'cart-cookie-value', schema_version: 0, answers: { pregnancy: 'no' } },
+    expect(
+      await rows(
+        `SELECT id, user_id, anonymous_id, schema_version, answers FROM routine_results WHERE schema_version = 0 ORDER BY id`
+      )
+    ).toEqual([
+      {
+        id: 'legacy-guest',
+        user_id: null,
+        anonymous_id: 'cart-cookie-value',
+        schema_version: 0,
+        answers: { pregnancy: 'no' },
+      },
       { id: 'legacy-user', user_id: 'u-alice', anonymous_id: null, schema_version: 0, answers: { pregnancy: 'yes' } },
     ]);
   });
@@ -89,22 +98,34 @@ describe('migrating existing routines', () => {
   });
 
   it('refuses the old automatic save (no version, no consent)', async () => {
-    await expect(q(`INSERT INTO routine_results (id, anonymous_id, answers, result) VALUES ('x', 'cart', '{}', '{}')`)).rejects.toThrow(/schema_version/);
     await expect(
-      q(`INSERT INTO routine_results (id, anonymous_id, answers, result, schema_version) VALUES ('x', 'cart', '{}', '{}', 1)`)
+      q(`INSERT INTO routine_results (id, anonymous_id, answers, result) VALUES ('x', 'cart', '{}', '{}')`)
+    ).rejects.toThrow(/schema_version/);
+    await expect(
+      q(
+        `INSERT INTO routine_results (id, anonymous_id, answers, result, schema_version) VALUES ('x', 'cart', '{}', '{}', 1)`
+      )
     ).rejects.toThrow(/routine_results_versioned_owner/);
   });
 
   it('a legacy row cannot be given a guest owner or consent after the fact', async () => {
-    await expect(q(`UPDATE routine_results SET anonymous_owner_hash = $1 WHERE id = 'legacy-guest'`, [guestA])).rejects.toThrow(/legacy_shape/);
+    await expect(
+      q(`UPDATE routine_results SET anonymous_owner_hash = $1 WHERE id = 'legacy-guest'`, [guestA])
+    ).rejects.toThrow(/legacy_shape/);
   });
 });
 
 describe('exactly one owner', () => {
   it.each([
-    ['consent_records', `INSERT INTO consent_records (user_id, anonymous_owner_hash, purpose, policy_version) VALUES ('u-alice', '${guestA}', 'routine_saving', 'p')`],
+    [
+      'consent_records',
+      `INSERT INTO consent_records (user_id, anonymous_owner_hash, purpose, policy_version) VALUES ('u-alice', '${guestA}', 'routine_saving', 'p')`,
+    ],
     ['consent_records', `INSERT INTO consent_records (purpose, policy_version) VALUES ('routine_saving', 'p')`],
-    ['consent_records', `INSERT INTO consent_records (anonymous_owner_hash, purpose, policy_version) VALUES ('client-chosen-id', 'routine_saving', 'p')`],
+    [
+      'consent_records',
+      `INSERT INTO consent_records (anonymous_owner_hash, purpose, policy_version) VALUES ('client-chosen-id', 'routine_saving', 'p')`,
+    ],
   ])('%s refuses two owners, no owner, or a value that is not a secret hash', async (_, sql) => {
     await expect(q(sql)).rejects.toThrow(/one_owner|hash_shape/);
   });
@@ -116,12 +137,17 @@ describe('exactly one owner', () => {
                        ALTER TABLE scan_sessions DISABLE TRIGGER scan_sessions_require_consent;`);
     const consent = await grant(alice, 'routine_saving');
     await expect(
-      q(`INSERT INTO skin_profiles (user_id, anonymous_owner_hash, consent_id, schema_version, answers, expires_at)
-         VALUES ('u-alice', $1, $2, 1, '{}', now() + interval '1 day')`, [guestA, consent])
+      q(
+        `INSERT INTO skin_profiles (user_id, anonymous_owner_hash, consent_id, schema_version, answers, expires_at)
+         VALUES ('u-alice', $1, $2, 1, '{}', now() + interval '1 day')`,
+        [guestA, consent]
+      )
     ).rejects.toThrow(/skin_profiles_one_owner/);
     const photo = await grant(alice, 'photo_processing');
     await expect(
-      q(`INSERT INTO scan_sessions (consent_id, mode, expires_at) VALUES ($1, 'local', now() + interval '1 day')`, [photo])
+      q(`INSERT INTO scan_sessions (consent_id, mode, expires_at) VALUES ($1, 'local', now() + interval '1 day')`, [
+        photo,
+      ])
     ).rejects.toThrow(/scan_sessions_one_owner/);
     await client.exec(`ALTER TABLE skin_profiles ENABLE TRIGGER skin_profiles_require_consent;
                        ALTER TABLE scan_sessions ENABLE TRIGGER scan_sessions_require_consent;`);
@@ -130,8 +156,11 @@ describe('exactly one owner', () => {
   it('a record cannot borrow another owner’s consent', async () => {
     const aliceConsent = await grant(alice, 'routine_saving');
     await expect(
-      q(`INSERT INTO skin_profiles (user_id, consent_id, schema_version, answers, expires_at)
-         VALUES ('u-bob', $1, 1, '{}', now() + interval '1 day')`, [aliceConsent])
+      q(
+        `INSERT INTO skin_profiles (user_id, consent_id, schema_version, answers, expires_at)
+         VALUES ('u-bob', $1, 1, '{}', now() + interval '1 day')`,
+        [aliceConsent]
+      )
     ).rejects.toThrow(/different owner/);
   });
 
@@ -157,12 +186,18 @@ describe('consent purposes', () => {
   it('a consent for one purpose cannot stand in for another', async () => {
     const photo = await grant(alice, 'photo_processing');
     await expect(
-      q(`INSERT INTO skin_profiles (user_id, consent_id, schema_version, answers, expires_at)
-         VALUES ('u-alice', $1, 1, '{}', now() + interval '1 day')`, [photo])
+      q(
+        `INSERT INTO skin_profiles (user_id, consent_id, schema_version, answers, expires_at)
+         VALUES ('u-alice', $1, 1, '{}', now() + interval '1 day')`,
+        [photo]
+      )
     ).rejects.toThrow(/skin_profiles_consent_fk/);
     const saving = await grant(alice, 'routine_saving');
     await expect(
-      q(`INSERT INTO scan_sessions (user_id, consent_id, mode, expires_at) VALUES ('u-alice', $1, 'local', now() + interval '1 day')`, [saving])
+      q(
+        `INSERT INTO scan_sessions (user_id, consent_id, mode, expires_at) VALUES ('u-alice', $1, 'local', now() + interval '1 day')`,
+        [saving]
+      )
     ).rejects.toThrow(/scan_sessions_consent_fk/);
   });
 
@@ -172,7 +207,9 @@ describe('consent purposes', () => {
     await expect(
       q(`INSERT INTO consent_records (user_id, purpose, policy_version) VALUES ('u-alice', 'model_research', 'p2')`)
     ).rejects.toThrow(/one_active_user/);
-    await expect(q(`INSERT INTO consent_records (user_id, purpose, policy_version) VALUES ('u-alice', 'marketing', 'p')`)).rejects.toThrow(/consent_records_purpose/);
+    await expect(
+      q(`INSERT INTO consent_records (user_id, purpose, policy_version) VALUES ('u-alice', 'marketing', 'p')`)
+    ).rejects.toThrow(/consent_records_purpose/);
   });
 });
 
@@ -186,16 +223,22 @@ describe('consent withdrawal', () => {
     expect(await saveRoutine(db as never, guest, SAVE)).toEqual({ saved: false, reason: 'no_consent' });
     expect(await savedRoutines(db as never, guest)).toEqual([]);
     await expect(
-      q(`INSERT INTO skin_profiles (anonymous_owner_hash, consent_id, schema_version, answers, expires_at)
-         VALUES ($1, $2, 1, '{}', now() + interval '1 day')`, [guestA, consentId])
+      q(
+        `INSERT INTO skin_profiles (anonymous_owner_hash, consent_id, schema_version, answers, expires_at)
+         VALUES ($1, $2, 1, '{}', now() + interval '1 day')`,
+        [guestA, consentId]
+      )
     ).rejects.toThrow(/has been withdrawn/);
   });
 
   it('revokes scans and their results, and refuses to advance them', async () => {
     const photo = await grant(alice, 'photo_processing');
-    await q(`INSERT INTO scan_sessions (id, user_id, consent_id, mode, status, result, expires_at)
+    await q(
+      `INSERT INTO scan_sessions (id, user_id, consent_id, mode, status, result, expires_at)
              VALUES ('00000000-0000-0000-0000-000000000001', 'u-alice', $1, 'hosted', 'queued', '{"x":1}', now() + interval '1 day'),
-                    ('00000000-0000-0000-0000-000000000002', 'u-alice', $1, 'local', 'completed', '{"x":2}', now() + interval '1 day')`, [photo]);
+                    ('00000000-0000-0000-0000-000000000002', 'u-alice', $1, 'local', 'completed', '{"x":2}', now() + interval '1 day')`,
+      [photo]
+    );
     await withdrawConsent(db as never, alice, 'photo_processing');
     expect(await rows(`SELECT status, result FROM scan_sessions ORDER BY id`)).toEqual([
       { status: 'revoked', result: null },
@@ -207,8 +250,12 @@ describe('consent withdrawal', () => {
   it('is permanent: a withdrawn consent cannot be restored or edited; a new grant is a new record', async () => {
     const id = await grant(bob, 'model_research');
     await withdrawConsent(db as never, bob, 'model_research');
-    await expect(q(`UPDATE consent_records SET withdrawn_at = NULL WHERE id = $1`, [id])).rejects.toThrow(/only be withdrawn, once/);
-    await expect(q(`UPDATE consent_records SET purpose = 'routine_saving' WHERE id = $1`, [id])).rejects.toThrow(/only be withdrawn, once/);
+    await expect(q(`UPDATE consent_records SET withdrawn_at = NULL WHERE id = $1`, [id])).rejects.toThrow(
+      /only be withdrawn, once/
+    );
+    await expect(q(`UPDATE consent_records SET purpose = 'routine_saving' WHERE id = $1`, [id])).rejects.toThrow(
+      /only be withdrawn, once/
+    );
     const again = await grant(bob, 'model_research');
     expect(again).not.toBe(id);
   });
@@ -218,13 +265,20 @@ describe('expiry', () => {
   it('guest records expire within 30 days; account records must expire', async () => {
     const c = await grant(guest, 'routine_saving');
     await expect(
-      q(`INSERT INTO skin_profiles (anonymous_owner_hash, consent_id, schema_version, answers, expires_at)
-         VALUES ($1, $2, 1, '{}', now() + interval '31 days')`, [guestA, c])
+      q(
+        `INSERT INTO skin_profiles (anonymous_owner_hash, consent_id, schema_version, answers, expires_at)
+         VALUES ($1, $2, 1, '{}', now() + interval '31 days')`,
+        [guestA, c]
+      )
     ).rejects.toThrow(/guest_expiry/);
     await grant(alice, 'routine_saving');
     const saved = await saveRoutine(db as never, alice, SAVE);
     expect(saved.saved).toBe(true);
-    expect(await rows(`SELECT (expires_at - created_at) = interval '180 days' AS ok FROM routine_results WHERE user_id = 'u-alice' AND schema_version = 1`)).toEqual([{ ok: true }]);
+    expect(
+      await rows(
+        `SELECT (expires_at - created_at) = interval '180 days' AS ok FROM routine_results WHERE user_id = 'u-alice' AND schema_version = 1`
+      )
+    ).toEqual([{ ok: true }]);
   });
 
   it('a guest save gets 30 days, and expired routines are no longer returned', async () => {
@@ -236,23 +290,53 @@ describe('expiry', () => {
 
   it.each([
     ['observations kept beyond 7 days', `'local', NULL, NULL, now() + interval '8 days'`, /scan_sessions_expiry/],
-    ['a public URL as the photo key', `'hosted', 'https://cdn.example.test/scan.jpg', now() + interval '1 hour', now() + interval '1 day'`, /private_object/],
-    ['a key outside the private prefix', `'hosted', 'public/scans/a.jpg', now() + interval '1 hour', now() + interval '1 day'`, /private_object/],
-    ['a key escaping the prefix', `'hosted', 'private/scans/../media/a.jpg', now() + interval '1 hour', now() + interval '1 day'`, /private_object/],
-    ['a photo kept beyond 24 hours', `'hosted', 'private/scans/a.jpg', now() + interval '25 hours', now() + interval '2 days'`, /private_object/],
-    ['a photo with no deletion time', `'hosted', 'private/scans/a.jpg', NULL, now() + interval '1 day'`, /private_object/],
-    ['a stored photo for a local scan', `'local', 'private/scans/a.jpg', now() + interval '1 hour', now() + interval '1 day'`, /private_object/],
+    [
+      'a public URL as the photo key',
+      `'hosted', 'https://cdn.example.test/scan.jpg', now() + interval '1 hour', now() + interval '1 day'`,
+      /private_object/,
+    ],
+    [
+      'a key outside the private prefix',
+      `'hosted', 'public/scans/a.jpg', now() + interval '1 hour', now() + interval '1 day'`,
+      /private_object/,
+    ],
+    [
+      'a key escaping the prefix',
+      `'hosted', 'private/scans/../media/a.jpg', now() + interval '1 hour', now() + interval '1 day'`,
+      /private_object/,
+    ],
+    [
+      'a photo kept beyond 24 hours',
+      `'hosted', 'private/scans/a.jpg', now() + interval '25 hours', now() + interval '2 days'`,
+      /private_object/,
+    ],
+    [
+      'a photo with no deletion time',
+      `'hosted', 'private/scans/a.jpg', NULL, now() + interval '1 day'`,
+      /private_object/,
+    ],
+    [
+      'a stored photo for a local scan',
+      `'local', 'private/scans/a.jpg', now() + interval '1 hour', now() + interval '1 day'`,
+      /private_object/,
+    ],
   ])('scans refuse %s', async (_, values, error) => {
     const photo = await grant(alice, 'photo_processing');
     await expect(
-      q(`INSERT INTO scan_sessions (user_id, consent_id, mode, object_key, object_expires_at, expires_at) VALUES ('u-alice', $1, ${values})`, [photo])
+      q(
+        `INSERT INTO scan_sessions (user_id, consent_id, mode, object_key, object_expires_at, expires_at) VALUES ('u-alice', $1, ${values})`,
+        [photo]
+      )
     ).rejects.toThrow(error);
   });
 
   it('accepts a private, short-lived hosted photo', async () => {
     const photo = await grant(alice, 'photo_processing');
-    await q(`INSERT INTO scan_sessions (user_id, consent_id, mode, object_key, object_expires_at, expires_at)
-             VALUES ('u-alice', $1, 'hosted', 'private/scans/abc.jpg', now() + interval '1 hour', now() + interval '7 days')`, [photo]);
+    await q(
+      `INSERT INTO scan_sessions (user_id, consent_id, mode, object_key, object_expires_at, expires_at)
+             VALUES ('u-alice', $1, 'hosted', 'private/scans/abc.jpg', now() + interval '1 hour', now() + interval '7 days')`,
+      [photo]
+    );
   });
 });
 
@@ -264,8 +348,11 @@ describe('weekly feedback', () => {
     return r.routineId;
   };
   const feedback = (routineId: string, week: number, over = '') =>
-    q(`INSERT INTO routine_feedback (routine_id, user_id, week, adherence, tolerability, reported_change)
-       VALUES ($1, 'u-alice', $2, ${over || `'most_days', 'comfortable', 'same'`})`, [routineId, week]);
+    q(
+      `INSERT INTO routine_feedback (routine_id, user_id, week, adherence, tolerability, reported_change)
+       VALUES ($1, 'u-alice', $2, ${over || `'most_days', 'comfortable', 'same'`})`,
+      [routineId, week]
+    );
 
   it('one report per routine per week', async () => {
     const routine = await routineFor(alice);
@@ -286,8 +373,11 @@ describe('weekly feedback', () => {
     await expect(feedback('no-such-routine', 1)).rejects.toThrow(/foreign key/);
     const routine = await routineFor(alice);
     await expect(
-      q(`INSERT INTO routine_feedback (routine_id, user_id, week, adherence, tolerability, reported_change)
-         VALUES ($1, 'u-nobody', 1, 'most_days', 'comfortable', 'same')`, [routine])
+      q(
+        `INSERT INTO routine_feedback (routine_id, user_id, week, adherence, tolerability, reported_change)
+         VALUES ($1, 'u-nobody', 1, 'most_days', 'comfortable', 'same')`,
+        [routine]
+      )
     ).rejects.toThrow(/foreign key/);
   });
 
@@ -295,8 +385,11 @@ describe('weekly feedback', () => {
     await q(`INSERT INTO users (id, email) VALUES ('u-carol', 'carol@example.test')`);
     const carol: Owner = { kind: 'user', userId: 'u-carol' };
     const routine = await routineFor(carol);
-    await q(`INSERT INTO routine_feedback (routine_id, user_id, week, adherence, tolerability, reported_change)
-             VALUES ($1, 'u-carol', 1, 'most_days', 'comfortable', 'same')`, [routine]);
+    await q(
+      `INSERT INTO routine_feedback (routine_id, user_id, week, adherence, tolerability, reported_change)
+             VALUES ($1, 'u-carol', 1, 'most_days', 'comfortable', 'same')`,
+      [routine]
+    );
     await q(`DELETE FROM users WHERE id = 'u-carol'`);
     for (const table of ['consent_records', 'skin_profiles', 'routine_results', 'routine_feedback']) {
       expect(await rows(`SELECT count(*)::int n FROM ${table} WHERE user_id = 'u-carol'`)).toEqual([{ n: 0 }]);

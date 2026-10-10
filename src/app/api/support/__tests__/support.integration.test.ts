@@ -7,9 +7,20 @@ const { client, db } = await createMigratedDb();
 vi.mock('@/db', () => ({ db, getDatabase: () => db, isDatabaseConfigured: () => true }));
 const { POST } = await import('../route');
 
-const VALID = { name: 'Test Person', email: 'Person@Example.test', message: 'Which cleanser suits dry skin?', contactConsent: true };
+const VALID = {
+  name: 'Test Person',
+  email: 'Person@Example.test',
+  message: 'Which cleanser suits dry skin?',
+  contactConsent: true,
+};
 const post = (body: unknown, origin = 'http://localhost') =>
-  POST(new Request('http://localhost/api/support', { method: 'POST', headers: { 'content-type': 'application/json', origin, host: 'localhost' }, body: JSON.stringify(body) }));
+  POST(
+    new Request('http://localhost/api/support', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin, host: 'localhost' },
+      body: JSON.stringify(body),
+    })
+  );
 
 afterAll(async () => {
   await client.close();
@@ -44,7 +55,10 @@ describe('POST /api/support', () => {
     const { listSupportRequests, markSupportAnswered } = await import('@/modules/support/support');
     await post(VALID);
     const [r] = await listSupportRequests(db, 'open');
-    const [first, second] = await Promise.all([markSupportAnswered(db, r.id, 'owner', 'Replied by email'), markSupportAnswered(db, r.id, 'manager', 'Also replied')]);
+    const [first, second] = await Promise.all([
+      markSupportAnswered(db, r.id, 'owner', 'Replied by email'),
+      markSupportAnswered(db, r.id, 'manager', 'Also replied'),
+    ]);
     expect([first.ok, second.ok].sort()).toEqual([false, true]);
     expect(await listSupportRequests(db, 'open')).toEqual([]);
     const [done] = await listSupportRequests(db);

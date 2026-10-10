@@ -37,10 +37,7 @@ export function accountKey(userId: string): string {
 }
 
 /** Finds or creates the cart for a signed-in user or an anonymous visitor. */
-async function resolveCartId(
-  userId: string | null,
-  anonymousId: string | null
-): Promise<string | null> {
+async function resolveCartId(userId: string | null, anonymousId: string | null): Promise<string | null> {
   if (!isDatabaseConfigured()) return null;
   if (!userId && !anonymousId) return null;
 
@@ -117,9 +114,9 @@ export async function saveCart(
     await tx.delete(cartItems).where(eq(cartItems.cartId, cartId));
 
     if (clean.length > 0) {
-      await tx.insert(cartItems).values(
-        clean.map((l) => ({ cartId, productId: l.productId, size: l.size, quantity: l.quantity }))
-      );
+      await tx
+        .insert(cartItems)
+        .values(clean.map((l) => ({ cartId, productId: l.productId, size: l.size, quantity: l.quantity })));
     }
 
     await tx.update(carts).set({ updatedAt: new Date() }).where(eq(carts.id, cartId));
@@ -131,10 +128,7 @@ export async function saveCart(
 }
 
 /** Reads the stored cart. */
-export async function loadCart(
-  userId: string | null,
-  anonymousId: string | null
-): Promise<ServerCartLine[]> {
+export async function loadCart(userId: string | null, anonymousId: string | null): Promise<ServerCartLine[]> {
   if (!isDatabaseConfigured()) return [];
   const key = cartCacheKey(userId, anonymousId);
   if (!key) return [];
@@ -237,7 +231,10 @@ export async function mergeIntoAccount(
     const wishlist = mergeWishlists(accountWishlist, guestWishlist);
     const added = wishlist.filter((id) => !accountWishlist.includes(id));
     if (added.length > 0) {
-      await tx.insert(wishlistItems).values(added.map((productId) => ({ userId, productId }))).onConflictDoNothing();
+      await tx
+        .insert(wishlistItems)
+        .values(added.map((productId) => ({ userId, productId })))
+        .onConflictDoNothing();
     }
 
     return { lines: merged.lines, wishlist, adjustments: merged.adjustments };

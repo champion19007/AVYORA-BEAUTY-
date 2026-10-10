@@ -18,7 +18,13 @@ type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 const rr = schema.routineResults;
 
 export type Failure = { ok: false; status: number; code: string; message: string; details?: Record<string, unknown> };
-const fail = (status: number, code: string, message: string, details?: Record<string, unknown>): Failure => ({ ok: false, status, code, message, details });
+const fail = (status: number, code: string, message: string, details?: Record<string, unknown>): Failure => ({
+  ok: false,
+  status,
+  code,
+  message,
+  details,
+});
 
 const ownedBy = (owner: Owner) =>
   owner.kind === 'user' ? eq(rr.userId, owner.userId) : eq(rr.anonymousOwnerHash, owner.ownerHash);
@@ -27,10 +33,19 @@ const ownedBy = (owner: Owner) =>
 export const requestHash = (request: RoutineRequest) => inputHash(request);
 
 /** The routine an earlier request with this key created, or a conflict if the request differs. */
-export async function replay(db: Db, owner: Owner, key: string, hash: string): Promise<{ ok: true; id: string } | Failure | null> {
-  const [row] = await db.select({ id: rr.id, requestHash: rr.requestHash }).from(rr).where(and(ownedBy(owner), eq(rr.idempotencyKey, key)));
+export async function replay(
+  db: Db,
+  owner: Owner,
+  key: string,
+  hash: string
+): Promise<{ ok: true; id: string } | Failure | null> {
+  const [row] = await db
+    .select({ id: rr.id, requestHash: rr.requestHash })
+    .from(rr)
+    .where(and(ownedBy(owner), eq(rr.idempotencyKey, key)));
   if (!row) return null;
-  if (row.requestHash !== hash) return fail(409, 'idempotency_conflict', 'This idempotency key was already used for a different request.');
+  if (row.requestHash !== hash)
+    return fail(409, 'idempotency_conflict', 'This idempotency key was already used for a different request.');
   return { ok: true, id: row.id };
 }
 
@@ -39,7 +54,12 @@ export async function replay(db: Db, owner: Owner, key: string, hash: string): P
  * under live photo consent. Anything else (foreign, missing, expired,
  * withdrawn, unfinished) is the same 404, so ids cannot be probed.
  */
-export async function scanObservations(db: Db, owner: Owner, scanId: string, now = new Date()): Promise<{ ok: true; observations: Observation[] } | Failure> {
+export async function scanObservations(
+  db: Db,
+  owner: Owner,
+  scanId: string,
+  now = new Date()
+): Promise<{ ok: true; observations: Observation[] } | Failure> {
   const s = schema.scanSessions;
   const [row] = await db
     .select({ result: s.result })
@@ -83,10 +103,16 @@ export async function insertRoutine(
   const now = input.now ?? new Date();
   const hash = requestHash(input.request);
   const ownerKey = owner.kind === 'user' ? `u:${owner.userId}` : `g:${owner.ownerHash}`;
-  const expiresAt = new Date(now.getTime() + (owner.kind === 'guest' ? GUEST_RETENTION_DAYS : ACCOUNT_RETENTION_DAYS) * 86_400_000);
+  const expiresAt = new Date(
+    now.getTime() + (owner.kind === 'guest' ? GUEST_RETENTION_DAYS : ACCOUNT_RETENTION_DAYS) * 86_400_000
+  );
   const owned = ownerColumns(owner);
   // The persistence boundary re-checks the hard invariant itself, so no caller can store a broken plan.
-  if (input.snapshot.status === 'invalid' || input.snapshot.status === 'no_match' || input.snapshot.problems.length > 0) {
+  if (
+    input.snapshot.status === 'invalid' ||
+    input.snapshot.status === 'no_match' ||
+    input.snapshot.problems.length > 0
+  ) {
     return fail(422, 'invalid_plan', 'Only a routine with no broken safety rules can be saved.');
   }
 
@@ -100,7 +126,15 @@ export async function insertRoutine(
 
     const [profile] = await tx
       .insert(schema.skinProfiles)
-      .values({ ...owned, consentId: consent.id, schemaVersion: 2, answers: input.request.profile, createdAt: now, updatedAt: now, expiresAt })
+      .values({
+        ...owned,
+        consentId: consent.id,
+        schemaVersion: 2,
+        answers: input.request.profile,
+        createdAt: now,
+        updatedAt: now,
+        expiresAt,
+      })
       .returning({ id: schema.skinProfiles.id });
     const [routine] = await tx
       .insert(rr)
@@ -159,15 +193,31 @@ export async function getRoutine(db: Db, owner: Owner, id: string, now = new Dat
     .innerJoin(schema.consentRecords, eq(schema.consentRecords.id, rr.consentId))
     .leftJoin(schema.kbReleases, eq(schema.kbReleases.id, rr.kbRelease))
     .leftJoin(schema.kbActiveRelease, eq(schema.kbActiveRelease.singleton, true))
-    .where(and(eq(rr.id, id), ownedBy(owner), gte(rr.schemaVersion, 2), gt(rr.expiresAt, now), isNull(schema.consentRecords.withdrawnAt)));
+    .where(
+      and(
+        eq(rr.id, id),
+        ownedBy(owner),
+        gte(rr.schemaVersion, 2),
+        gt(rr.expiresAt, now),
+        isNull(schema.consentRecords.withdrawnAt)
+      )
+    );
   if (!row) return null;
   const slots = await db
     .select()
     .from(schema.routineScheduleSlots)
     .where(eq(schema.routineScheduleSlots.routineId, id))
-    .orderBy(asc(schema.routineScheduleSlots.day), asc(schema.routineScheduleSlots.session), asc(schema.routineScheduleSlots.position));
+    .orderBy(
+      asc(schema.routineScheduleSlots.day),
+      asc(schema.routineScheduleSlots.session),
+      asc(schema.routineScheduleSlots.position)
+    );
   const validity: Validity =
-    row.releaseStatus === 'revoked' || row.releaseStatus === null ? 'revoked' : row.activeId === row.routine.kbRelease ? 'current' : 'outdated';
+    row.releaseStatus === 'revoked' || row.releaseStatus === null
+      ? 'revoked'
+      : row.activeId === row.routine.kbRelease
+        ? 'current'
+        : 'outdated';
   return {
     id: row.routine.id,
     createdAt: row.routine.createdAt.toISOString(),
@@ -188,7 +238,9 @@ export async function listRoutines(db: Db, owner: Owner, now = new Date()) {
     .select({ id: rr.id })
     .from(rr)
     .innerJoin(schema.consentRecords, eq(schema.consentRecords.id, rr.consentId))
-    .where(and(ownedBy(owner), gte(rr.schemaVersion, 2), gt(rr.expiresAt, now), isNull(schema.consentRecords.withdrawnAt)))
+    .where(
+      and(ownedBy(owner), gte(rr.schemaVersion, 2), gt(rr.expiresAt, now), isNull(schema.consentRecords.withdrawnAt))
+    )
     .orderBy(sql`${rr.createdAt} DESC`)
     .limit(50);
   return rows.map((r) => r.id);
@@ -223,21 +275,44 @@ export async function routineHistory(db: Db, owner: Owner, now = new Date()) {
     .limit(100);
   return rows.map((r) => {
     const state: RoutineState =
-      r.withdrawnAt !== null ? 'consent_withdrawn'
-      : r.expiresAt !== null && r.expiresAt <= now ? 'expired'
-      : r.releaseStatus === 'revoked' || r.releaseStatus === null ? 'revoked'
-      : r.activeId === r.kbRelease ? 'current'
-      : 'outdated';
-    return { id: r.id, createdAt: r.createdAt.toISOString(), expiresAt: r.expiresAt!.toISOString(), kbRelease: r.kbRelease, state, week: Math.min(52, Math.floor((now.getTime() - r.createdAt.getTime()) / 604_800_000) + 1) };
+      r.withdrawnAt !== null
+        ? 'consent_withdrawn'
+        : r.expiresAt !== null && r.expiresAt <= now
+          ? 'expired'
+          : r.releaseStatus === 'revoked' || r.releaseStatus === null
+            ? 'revoked'
+            : r.activeId === r.kbRelease
+              ? 'current'
+              : 'outdated';
+    return {
+      id: r.id,
+      createdAt: r.createdAt.toISOString(),
+      expiresAt: r.expiresAt!.toISOString(),
+      kbRelease: r.kbRelease,
+      state,
+      week: Math.min(52, Math.floor((now.getTime() - r.createdAt.getTime()) / 604_800_000) + 1),
+    };
   });
 }
 
 /** Deletes an owned routine with its saved answers, schedule and feedback. Idempotent. */
 export async function deleteRoutine(db: Db, owner: Owner, id: string): Promise<void> {
   await db.transaction(async (tx) => {
-    const [gone] = await tx.delete(rr).where(and(eq(rr.id, id), ownedBy(owner), gte(rr.schemaVersion, 1))).returning({ profileId: rr.profileId });
+    const [gone] = await tx
+      .delete(rr)
+      .where(and(eq(rr.id, id), ownedBy(owner), gte(rr.schemaVersion, 1)))
+      .returning({ profileId: rr.profileId });
     if (gone?.profileId) {
-      await tx.delete(schema.skinProfiles).where(and(eq(schema.skinProfiles.id, gone.profileId), owner.kind === 'user' ? eq(schema.skinProfiles.userId, owner.userId) : eq(schema.skinProfiles.anonymousOwnerHash, owner.ownerHash)));
+      await tx
+        .delete(schema.skinProfiles)
+        .where(
+          and(
+            eq(schema.skinProfiles.id, gone.profileId),
+            owner.kind === 'user'
+              ? eq(schema.skinProfiles.userId, owner.userId)
+              : eq(schema.skinProfiles.anonymousOwnerHash, owner.ownerHash)
+          )
+        );
     }
   });
 }
@@ -252,10 +327,18 @@ export async function addFeedback(
 ): Promise<{ ok: true } | Failure> {
   const routine = await getRoutine(db, { kind: 'user', userId }, routineId, now);
   if (!routine) return fail(404, 'not_found', 'That routine is not available.');
-  if (routine.kbRelease !== input.kbRelease) return fail(409, 'stale_routine', 'This routine has changed; reload it before sending feedback.');
+  if (routine.kbRelease !== input.kbRelease)
+    return fail(409, 'stale_routine', 'This routine has changed; reload it before sending feedback.');
   const inserted = await db
     .insert(schema.routineFeedback)
-    .values({ routineId, userId, week: input.week, adherence: input.adherence, tolerability: input.tolerability, reportedChange: input.reportedChange })
+    .values({
+      routineId,
+      userId,
+      week: input.week,
+      adherence: input.adherence,
+      tolerability: input.tolerability,
+      reportedChange: input.reportedChange,
+    })
     .onConflictDoNothing()
     .returning({ id: schema.routineFeedback.id });
   if (!inserted.length) return fail(409, 'feedback_exists', 'Feedback for that week was already sent.');
@@ -274,7 +357,10 @@ export async function claimGuestRecords(db: Db, userId: string, ownerHash: strin
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`claim:${ownerHash}`}, 0))`);
     const c = schema.consentRecords;
-    const grants = await tx.select().from(c).where(and(eq(c.anonymousOwnerHash, ownerHash), isNull(c.withdrawnAt)));
+    const grants = await tx
+      .select()
+      .from(c)
+      .where(and(eq(c.anonymousOwnerHash, ownerHash), isNull(c.withdrawnAt)));
     let moved = 0;
 
     // An idempotency key the account already used would collide; the guest copy loses its key.
@@ -284,9 +370,15 @@ export async function claimGuestRecords(db: Db, userId: string, ownerHash: strin
         SELECT idempotency_key FROM routine_results WHERE user_id = ${userId} AND idempotency_key IS NOT NULL)`);
 
     for (const grant of grants) {
-      const [existing] = await tx.select().from(c).where(and(eq(c.userId, userId), eq(c.purpose, grant.purpose), isNull(c.withdrawnAt)));
+      const [existing] = await tx
+        .select()
+        .from(c)
+        .where(and(eq(c.userId, userId), eq(c.purpose, grant.purpose), isNull(c.withdrawnAt)));
       const target =
-        existing ?? (await tx.insert(c).values({ userId, purpose: grant.purpose, policyVersion: grant.policyVersion }).returning())[0];
+        existing ??
+        (
+          await tx.insert(c).values({ userId, purpose: grant.purpose, policyVersion: grant.policyVersion }).returning()
+        )[0];
       const to = { userId, anonymousOwnerHash: null, consentId: target.id };
       for (const table of [schema.skinProfiles, schema.routineResults, schema.scanSessions] as const) {
         const rows = await tx
@@ -304,7 +396,10 @@ export async function claimGuestRecords(db: Db, userId: string, ownerHash: strin
 
 /** Deletes versioned routines and saved answers past their expiry. Run by the daily sweep. */
 export async function purgeExpiredRoutines(db: Db, now = new Date()): Promise<number> {
-  const routines = await db.delete(rr).where(and(gte(rr.schemaVersion, 1), isNotNull(rr.expiresAt), sql`${rr.expiresAt} <= ${now}`)).returning({ id: rr.id });
+  const routines = await db
+    .delete(rr)
+    .where(and(gte(rr.schemaVersion, 1), isNotNull(rr.expiresAt), sql`${rr.expiresAt} <= ${now}`))
+    .returning({ id: rr.id });
   await db.delete(schema.skinProfiles).where(sql`${schema.skinProfiles.expiresAt} <= ${now}`);
   return routines.length;
 }

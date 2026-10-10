@@ -69,7 +69,8 @@ const VALID_MOBILE = /^[6-9]\d{9}$/;
 
 export async function sendCheckoutCode(rawPhone: string): Promise<PhoneCodeResult> {
   const session = await auth().catch(() => null);
-  if (!guestPhoneCheckRequired(session?.user?.id)) return { ok: false, error: 'Mobile verification is not needed here.' };
+  if (!guestPhoneCheckRequired(session?.user?.id))
+    return { ok: false, error: 'Mobile verification is not needed here.' };
 
   const phone = normalisePhone(String(rawPhone ?? ''));
   if (!VALID_MOBILE.test(phone)) return { ok: false, error: 'Enter a valid 10-digit Indian mobile number' };

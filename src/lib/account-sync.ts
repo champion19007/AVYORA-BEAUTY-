@@ -31,7 +31,12 @@ export type SyncDecision =
 export function decideSync(local: LocalState, server: ServerState): SyncDecision {
   if (server.accountKey === null) return local.owner === null ? { kind: 'keep' } : { kind: 'clear' };
 
-  const adopt: SyncDecision = { kind: 'adopt', owner: server.accountKey, lines: server.cart ?? [], wishlist: server.wishlist ?? [] };
+  const adopt: SyncDecision = {
+    kind: 'adopt',
+    owner: server.accountKey,
+    lines: server.cart ?? [],
+    wishlist: server.wishlist ?? [],
+  };
   if (local.owner === server.accountKey) return local.pendingChanges ? { kind: 'keep' } : adopt;
   if (local.owner !== null) return adopt; // another account's state: discarded, never merged
   const hasGuestState = local.lines.length > 0 || local.wishlist.length > 0;

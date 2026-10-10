@@ -106,9 +106,7 @@ export async function dailySales(days = 30): Promise<DailyPoint[]> {
       .groupBy(sql`to_char(${orders.createdAt}, 'YYYY-MM-DD')`)
   );
 
-  const byDay = new Map(
-    rows.map((r) => [r.day, { orders: Number(r.count ?? 0), revenue: Number(r.revenue ?? 0) }])
-  );
+  const byDay = new Map(rows.map((r) => [r.day, { orders: Number(r.count ?? 0), revenue: Number(r.revenue ?? 0) }]));
 
   // Days with no orders must appear as zero, not vanish — a gap in a series
   // reads as "no data" when it means "no sales", and they are different.
@@ -161,8 +159,7 @@ export function computeTrend(points: DailyPoint[]): Trend {
   return {
     recentAverage,
     priorAverage,
-    changePercent:
-      priorAverage > 0 ? ((recentAverage - priorAverage) / priorAverage) * 100 : null,
+    changePercent: priorAverage > 0 ? ((recentAverage - priorAverage) / priorAverage) * 100 : null,
     next7Days: Math.round(recentAverage * 7),
     sampleDays: recent.length,
   };

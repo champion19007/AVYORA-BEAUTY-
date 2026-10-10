@@ -66,7 +66,10 @@ describe('bounded request bodies', () => {
         },
       })
     );
-    const r = await readBoundedText(new Request('http://x', { method: 'POST', body: counted, duplex: 'half' } as RequestInit), 4 * 1024);
+    const r = await readBoundedText(
+      new Request('http://x', { method: 'POST', body: counted, duplex: 'half' } as RequestInit),
+      4 * 1024
+    );
     expect(r.ok).toBe(false);
     if (!r.ok) expect(await r.response.json()).toMatchObject({ error: { code: 'payload_too_large' } });
     expect(pulled).toBeLessThan(20);

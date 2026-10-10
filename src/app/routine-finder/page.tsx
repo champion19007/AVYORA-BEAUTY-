@@ -94,7 +94,15 @@ export default function RoutineFinderPage() {
   );
 }
 
-function Intro({ unavailable, onStart, onOpen }: { unavailable: boolean; onStart: () => void; onOpen: (id: string) => void }) {
+function Intro({
+  unavailable,
+  onStart,
+  onOpen,
+}: {
+  unavailable: boolean;
+  onStart: () => void;
+  onOpen: (id: string) => void;
+}) {
   const [saved, setSaved] = useState<SavedSummary[] | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -112,13 +120,15 @@ function Intro({ unavailable, onStart, onOpen }: { unavailable: boolean; onStart
         A routine you can keep, at a price you choose
       </h1>
       <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-        Fifteen short questions. We build a real week of morning and evening steps, use what you already own, and explain everything we leave out.
+        Fifteen short questions. We build a real week of morning and evening steps, use what you already own, and
+        explain everything we leave out.
       </p>
 
       {unavailable && (
         <div role="alert" className="mt-8 max-w-2xl rounded-2xl bg-primary/10 px-5 py-4 text-[15px]">
-          That saved routine is no longer available. Saved routines expire (30 days without an account, 180 with one), and are removed if they are deleted or
-          you withdraw permission to keep them. They can only be opened from the browser or account that saved them.
+          That saved routine is no longer available. Saved routines expire (30 days without an account, 180 with one),
+          and are removed if they are deleted or you withdraw permission to keep them. They can only be opened from the
+          browser or account that saved them.
         </div>
       )}
 
@@ -142,14 +152,21 @@ function Intro({ unavailable, onStart, onOpen }: { unavailable: boolean; onStart
             {saved.map((r) => (
               <li key={r.id} className="flex items-center justify-between gap-4 px-6 py-4">
                 <div>
-                  <p className="font-medium">Saved {new Date(r.createdAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}</p>
+                  <p className="font-medium">
+                    Saved {new Date(r.createdAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {r.validity === 'current' ? 'Up to date' : r.validity === 'outdated' ? 'Guidance updated since; can be recalculated' : 'No longer valid; can be recalculated'}
+                    {r.validity === 'current'
+                      ? 'Up to date'
+                      : r.validity === 'outdated'
+                        ? 'Guidance updated since; can be recalculated'
+                        : 'No longer valid; can be recalculated'}
                     {' · '}kept until {new Date(r.expiresAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
                   </p>
                 </div>
                 <Button variant="outline" className="rounded-full" onClick={() => onOpen(r.id)}>
-                  Open<span className="sr-only"> routine saved {new Date(r.createdAt).toLocaleDateString('en-IN')}</span>
+                  Open
+                  <span className="sr-only"> routine saved {new Date(r.createdAt).toLocaleDateString('en-IN')}</span>
                 </Button>
               </li>
             ))}

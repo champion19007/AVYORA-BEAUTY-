@@ -125,7 +125,10 @@ describe('analytics landing zone', () => {
     expect(result.files).toHaveLength(1);
     expect(result.files[0]).toMatch(/^landing\/domain_events\/dt=\d{4}-\d{2}-\d{2}\/part-000000000001\.ndjson$/);
 
-    const lines = new TextDecoder().decode((await storage.get(result.files[0]))!).trim().split('\n');
+    const lines = new TextDecoder()
+      .decode((await storage.get(result.files[0]))!)
+      .trim()
+      .split('\n');
     const rows = lines.map((l) => JSON.parse(l));
     expect(rows.map((r) => r.name)).toEqual(['order.placed', 'order.paid']);
     expect(rows[0]).toMatchObject({ schema_version: 1, event_id: 1, subject: 'o1' });
@@ -169,7 +172,10 @@ describe('analytics landing zone', () => {
 
     const keys = await storage.list('landing/');
     expect(keys).toHaveLength(1); // the same file, overwritten, not a second one
-    const lines = new TextDecoder().decode((await storage.get(keys[0]))!).trim().split('\n');
+    const lines = new TextDecoder()
+      .decode((await storage.get(keys[0]))!)
+      .trim()
+      .split('\n');
     expect(lines.map((l) => JSON.parse(l).event_id)).toEqual([1, 2]);
   });
 });
@@ -193,7 +199,12 @@ describe('event stream relay', () => {
   });
 
   it('keeps an undelivered event for retry when the broker is down', async () => {
-    const down = { kind: 'down', send: async () => { throw new Error('broker unreachable'); } };
+    const down = {
+      kind: 'down',
+      send: async () => {
+        throw new Error('broker unreachable');
+      },
+    };
     await drain('stream-relay-test', streamRelay(down));
     await emitEvent('order.placed', 'o1', {});
 
@@ -228,8 +239,13 @@ describe('event stream relay', () => {
 
   it('treats a per-record error inside a 200 as a failure', async () => {
     const fakeFetch = (async () =>
-      new Response(JSON.stringify({ error_code: 40403, message: 'topic not found' }), { status: 200 })) as unknown as typeof fetch;
-    const producer = new KafkaRestProducer({ baseUrl: 'https://k', clusterId: 'c', apiKey: 'k', apiSecret: 's' }, fakeFetch);
+      new Response(JSON.stringify({ error_code: 40403, message: 'topic not found' }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    const producer = new KafkaRestProducer(
+      { baseUrl: 'https://k', clusterId: 'c', apiKey: 'k', apiSecret: 's' },
+      fakeFetch
+    );
     await expect(producer.send({ topic: 't', key: 'k', value: {} })).rejects.toThrow('topic not found');
   });
 });

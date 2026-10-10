@@ -79,7 +79,10 @@ const ACTIVE_CLASSES: Record<TreatmentClass, readonly IngredientClass[]> = {
 
 /** Splits a declared INCI list on commas, keeping commas inside names such as "1,2-Hexanediol". */
 export function splitInci(fullInci: string): string[] {
-  return fullInci.split(/,(?!\d)/).map((x) => x.trim()).filter(Boolean);
+  return fullInci
+    .split(/,(?!\d)/)
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -97,26 +100,31 @@ export function formulationProblems(f: Formulation, evidence: readonly EvidenceS
   const problems: string[] = [];
 
   if (!Number.isInteger(f.version) || f.version < 1) problems.push(`${where}: version must be a positive integer`);
-  if (!evidence.some((e) => e.id === f.sourceId)) problems.push(`${where}: evidence source ${f.sourceId} does not exist`);
+  if (!evidence.some((e) => e.id === f.sourceId))
+    problems.push(`${where}: evidence source ${f.sourceId} does not exist`);
 
   const positions = f.ingredients.map((i) => i.position).sort((a, b) => a - b);
-  if (positions.some((p, i) => p !== i + 1)) problems.push(`${where}: positions must run 1..${positions.length} without gaps or repeats`);
+  if (positions.some((p, i) => p !== i + 1))
+    problems.push(`${where}: positions must run 1..${positions.length} without gaps or repeats`);
 
   let percentTotal = 0;
   for (const ing of f.ingredients) {
     const at = `${where} #${ing.position} "${ing.inciLabel}"`;
     const r = resolveLabel(ing.inciLabel);
-    if (r.status === 'ambiguous') problems.push(`${at}: ambiguous label (${r.candidates.join(', ')}); declare the exact INCI name`);
+    if (r.status === 'ambiguous')
+      problems.push(`${at}: ambiguous label (${r.candidates.join(', ')}); declare the exact INCI name`);
     if (ing.ingredientId !== null) {
       if (!DICTIONARY.has(ing.ingredientId)) problems.push(`${at}: unknown ingredient id ${ing.ingredientId}`);
-      else if (r.status === 'resolved' && r.id !== ing.ingredientId) problems.push(`${at}: label resolves to ${r.id}, record says ${ing.ingredientId}`);
+      else if (r.status === 'resolved' && r.id !== ing.ingredientId)
+        problems.push(`${at}: label resolves to ${r.id}, record says ${ing.ingredientId}`);
     } else if (r.status === 'resolved') {
       // A label the dictionary knows must carry its identity, or allergy and active checks would miss it.
       problems.push(`${at}: label resolves to ${r.id}; record its canonical id`);
     }
     const c = ing.concentration;
     if (c.known) {
-      if (!(CONCENTRATION_UNITS as readonly string[]).includes(c.unit)) problems.push(`${at}: invalid unit ${String(c.unit)}`);
+      if (!(CONCENTRATION_UNITS as readonly string[]).includes(c.unit))
+        problems.push(`${at}: invalid unit ${String(c.unit)}`);
       if (!Number.isFinite(c.value) || c.value <= 0) problems.push(`${at}: concentration must be a positive number`);
       if (c.unit.startsWith('percent')) {
         if (c.value > 100) problems.push(`${at}: concentration above 100%`);
@@ -143,7 +151,8 @@ export function formulationProblems(f: Formulation, evidence: readonly EvidenceS
       });
     }
   }
-  if (f.coverage === 'unknown' && f.ingredients.length > 0) problems.push(`${where}: unknown coverage cannot list ingredients; use partial`);
+  if (f.coverage === 'unknown' && f.ingredients.length > 0)
+    problems.push(`${where}: unknown coverage cannot list ingredients; use partial`);
 
   return problems;
 }
@@ -168,13 +177,21 @@ export function knowledgeProblems(k: Knowledge): string[] {
     if (!k.formulations.some((f) => f.productId === productId && f.version === d.formulationVersion)) {
       problems.push(`Directions for ${productId} name formulation v${d.formulationVersion}, which does not exist`);
     }
-    for (const id of d.evidenceIds) if (!evidenceIds.has(id)) problems.push(`Directions for ${productId}: evidence ${id} does not exist`);
-    if (d.maxWeeklyUses !== null && (!Number.isInteger(d.maxWeeklyUses) || d.maxWeeklyUses < 1 || d.maxWeeklyUses > 14)) {
+    for (const id of d.evidenceIds)
+      if (!evidenceIds.has(id)) problems.push(`Directions for ${productId}: evidence ${id} does not exist`);
+    if (
+      d.maxWeeklyUses !== null &&
+      (!Number.isInteger(d.maxWeeklyUses) || d.maxWeeklyUses < 1 || d.maxWeeklyUses > 14)
+    ) {
       problems.push(`Directions for ${productId}: maxWeeklyUses must be 1-14 or null`);
     }
     if (d.introductionWeeklyUses !== undefined) {
       const ceiling = d.maxWeeklyUses ?? 14;
-      if (!Number.isInteger(d.introductionWeeklyUses) || d.introductionWeeklyUses < 1 || d.introductionWeeklyUses > ceiling) {
+      if (
+        !Number.isInteger(d.introductionWeeklyUses) ||
+        d.introductionWeeklyUses < 1 ||
+        d.introductionWeeklyUses > ceiling
+      ) {
         problems.push(`Directions for ${productId}: introductionWeeklyUses must be 1-${ceiling}`);
       }
     }
@@ -192,8 +209,7 @@ export function coverageOf(productId: string, formulations: readonly Formulation
 }
 
 export type Readiness =
-  | { ready: true }
-  | { ready: false; reason: 'directions_pending' | 'formulation_incomplete'; problems: string[] };
+  { ready: true } | { ready: false; reason: 'directions_pending' | 'formulation_incomplete'; problems: string[] };
 
 /**
  * Whether a treatment may enter a routine: approved directions for a
@@ -206,11 +222,17 @@ export function treatmentReadiness(productId: string, treatmentClass: TreatmentC
   if (!directions) return { ready: false, reason: 'directions_pending', problems: ['No approved directions'] };
 
   const f = k.formulations.find((x) => x.productId === productId && x.version === directions.formulationVersion);
-  if (!f) return { ready: false, reason: 'formulation_incomplete', problems: [`No formulation v${directions.formulationVersion}`] };
+  if (!f)
+    return {
+      ready: false,
+      reason: 'formulation_incomplete',
+      problems: [`No formulation v${directions.formulationVersion}`],
+    };
 
   const problems = formulationProblems(f, k.evidence);
   if (f.coverage !== 'complete') problems.push(`Coverage is ${f.coverage}, not complete`);
-  for (const id of directions.evidenceIds) if (!k.evidence.some((e) => e.id === id)) problems.push(`Evidence ${id} missing`);
+  for (const id of directions.evidenceIds)
+    if (!k.evidence.some((e) => e.id === id)) problems.push(`Evidence ${id} missing`);
 
   const classes = ACTIVE_CLASSES[treatmentClass];
   const active = f.ingredients.find((i) => {

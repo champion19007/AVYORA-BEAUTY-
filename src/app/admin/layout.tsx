@@ -1,8 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { LayoutDashboard, Package, Boxes, LogOut, Tag, LineChart, PackagePlus, FileText,
-  BookOpen, Activity, ClipboardCheck } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Package,
+  Boxes,
+  LogOut,
+  Tag,
+  LineChart,
+  PackagePlus,
+  FileText,
+  BookOpen,
+  Activity,
+  ClipboardCheck,
+} from 'lucide-react';
 import { isAdmin } from '@/lib/admin-guard';
 import { adminSignOut } from './actions';
 

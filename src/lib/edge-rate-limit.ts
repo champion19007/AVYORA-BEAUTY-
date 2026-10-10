@@ -50,11 +50,7 @@ export type EdgeRateLimitResult = {
  * Synchronous by design: there is nothing to await, so middleware cannot block
  * on it.
  */
-export function edgeRateLimit(
-  key: string,
-  limit: number,
-  windowSeconds: number
-): EdgeRateLimitResult {
+export function edgeRateLimit(key: string, limit: number, windowSeconds: number): EdgeRateLimitResult {
   const now = Date.now();
   const windowMs = windowSeconds * 1000;
 

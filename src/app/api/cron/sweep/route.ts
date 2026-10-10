@@ -40,9 +40,21 @@ export async function GET(request: Request) {
   const idempotencyKeysPruned = await pruneExpiredIdempotencyKeys().catch(() => 0);
   const rateLimitsPruned = await pruneRateLimits().catch(() => 0);
   const expiredRoutinesDeleted = await purgeExpiredRoutines(db).catch(() => 0);
-  const scans = await sweepScans(db, privateStorage()).catch(() => ({ photosDeleted: 0, photoFailures: -1, scansDeleted: 0 }));
+  const scans = await sweepScans(db, privateStorage()).catch(() => ({
+    photosDeleted: 0,
+    photoFailures: -1,
+    scansDeleted: 0,
+  }));
 
   const unconfirmedSignupsDeleted = await purgeUnconfirmed(db).catch(() => 0);
 
-  return NextResponse.json({ ok: true, ...result, idempotencyKeysPruned, rateLimitsPruned, expiredRoutinesDeleted, scans, unconfirmedSignupsDeleted });
+  return NextResponse.json({
+    ok: true,
+    ...result,
+    idempotencyKeysPruned,
+    rateLimitsPruned,
+    expiredRoutinesDeleted,
+    scans,
+    unconfirmedSignupsDeleted,
+  });
 }

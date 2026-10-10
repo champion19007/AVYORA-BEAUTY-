@@ -42,8 +42,8 @@ export default async function AccountDataPage() {
       <section className="mt-10 rounded-xl border border-border bg-card p-6">
         <h2 className="font-headline text-xl font-normal tracking-tight">How you sign in</h2>
         <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-          You sign in with Google. We never see or store your Google password, and there is no
-          separate Avyora password to remember or lose.
+          You sign in with Google. We never see or store your Google password, and there is no separate Avyora password
+          to remember or lose.
         </p>
       </section>
 
@@ -61,8 +61,8 @@ export default async function AccountDataPage() {
       <section className="mt-5 rounded-xl border border-border bg-card p-6">
         <h2 className="font-headline text-xl font-normal tracking-tight">Deleting your data</h2>
         <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-          Write to us and we will erase your account and everything attached to it. Orders already
-          placed are kept as long as tax and accounting rules require, then deleted. See the{' '}
+          Write to us and we will erase your account and everything attached to it. Orders already placed are kept as
+          long as tax and accounting rules require, then deleted. See the{' '}
           <Link href="/privacy" className="text-primary underline underline-offset-4">
             privacy policy
           </Link>{' '}

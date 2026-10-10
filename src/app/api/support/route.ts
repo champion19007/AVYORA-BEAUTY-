@@ -28,7 +28,8 @@ const bodySchema = z
  */
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return apiError(403, 'bad_origin', 'Invalid request origin.');
-  if (!isDatabaseConfigured()) return apiError(503, 'unavailable', 'Requests cannot be sent right now. Please email us instead.');
+  if (!isDatabaseConfigured())
+    return apiError(503, 'unavailable', 'Requests cannot be sent right now. Please email us instead.');
   const read = await readBoundedJson(request, BODY_LIMITS.support);
   if (!read.ok) return read.response;
   const parsed = bodySchema.safeParse(read.json);

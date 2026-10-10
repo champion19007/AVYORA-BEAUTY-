@@ -29,7 +29,10 @@ const ADMISSION_LOCK = 0x5ca9_ad31;
 
 export type AdmissionResult =
   | { admitted: true; scanSessionId: string }
-  | { admitted: false; reason: 'owner_daily' | 'owner_30_days' | 'ip_daily' | 'global_daily' | 'no_consent' | 'unavailable' };
+  | {
+      admitted: false;
+      reason: 'owner_daily' | 'owner_30_days' | 'ip_daily' | 'global_daily' | 'no_consent' | 'unavailable';
+    };
 
 const startOfUtcDay = (now: Date) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
@@ -58,15 +61,24 @@ export async function admitHostedScan(
       if ((await counted(tx as never, and(gte(schema.scanAdmissions.admittedAt, dayStart)))) >= quotas.globalDay) {
         return { admitted: false as const, reason: 'global_daily' as const };
       }
-      if ((await counted(tx as never, and(ownerMatch, gte(schema.scanAdmissions.admittedAt, dayStart)))) >= quotas.perOwnerDay) {
+      if (
+        (await counted(tx as never, and(ownerMatch, gte(schema.scanAdmissions.admittedAt, dayStart)))) >=
+        quotas.perOwnerDay
+      ) {
         return { admitted: false as const, reason: 'owner_daily' as const };
       }
-      if ((await counted(tx as never, and(ownerMatch, gte(schema.scanAdmissions.admittedAt, thirtyDaysAgo)))) >= quotas.perOwner30Days) {
+      if (
+        (await counted(tx as never, and(ownerMatch, gte(schema.scanAdmissions.admittedAt, thirtyDaysAgo)))) >=
+        quotas.perOwner30Days
+      ) {
         return { admitted: false as const, reason: 'owner_30_days' as const };
       }
       if (
         ipKey &&
-        (await counted(tx as never, and(eq(schema.scanAdmissions.ipKey, ipKey), gte(schema.scanAdmissions.admittedAt, dayStart)))) >= quotas.perIpDay
+        (await counted(
+          tx as never,
+          and(eq(schema.scanAdmissions.ipKey, ipKey), gte(schema.scanAdmissions.admittedAt, dayStart))
+        )) >= quotas.perIpDay
       ) {
         return { admitted: false as const, reason: 'ip_daily' as const };
       }
@@ -97,7 +109,10 @@ export async function admitHostedScan(
  * Records the next billable attempt for a scan, or refuses once the budget is
  * spent. Call before starting inference; a refusal means do not call the provider.
  */
-export async function recordBillableAttempt(db: Db, scanSessionId: string): Promise<{ ok: true; attempt: number } | { ok: false }> {
+export async function recordBillableAttempt(
+  db: Db,
+  scanSessionId: string
+): Promise<{ ok: true; attempt: number } | { ok: false }> {
   try {
     return await db.transaction(async (tx) => {
       const [row] = await tx

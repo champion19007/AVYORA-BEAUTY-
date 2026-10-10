@@ -20,7 +20,10 @@ export function RoutineActions({ id, openable }: { id: string; openable: boolean
   return (
     <div className="flex flex-wrap items-center gap-3">
       {openable && (
-        <Link href={`/routine-finder?saved=${encodeURIComponent(id)}`} className="inline-flex h-10 items-center rounded-full border border-border px-5 text-sm hover:border-foreground">
+        <Link
+          href={`/routine-finder?saved=${encodeURIComponent(id)}`}
+          className="inline-flex h-10 items-center rounded-full border border-border px-5 text-sm hover:border-foreground"
+        >
           Open
         </Link>
       )}
@@ -76,7 +79,12 @@ export function WithdrawSaving({ purpose = 'routine_saving' }: { purpose?: 'rout
           </Button>
         </>
       ) : (
-        <Button variant="outline" className="rounded-full" disabled={step === 'busy'} onClick={() => setStep('confirm')}>
+        <Button
+          variant="outline"
+          className="rounded-full"
+          disabled={step === 'busy'}
+          onClick={() => setStep('confirm')}
+        >
           {step === 'busy' ? 'Withdrawing…' : 'Withdraw permission'}
         </Button>
       )}
@@ -87,8 +95,8 @@ export function WithdrawSaving({ purpose = 'routine_saving' }: { purpose?: 'rout
       )}
       {pendingPhotos > 0 && (
         <p role="status" className="w-full text-sm">
-          Permission withdrawn. {pendingPhotos === 1 ? 'One photo' : `${pendingPhotos} photos`} could not be deleted yet; deletion is retried
-          automatically, and pressing the button again retries it now.
+          Permission withdrawn. {pendingPhotos === 1 ? 'One photo' : `${pendingPhotos} photos`} could not be deleted
+          yet; deletion is retried automatically, and pressing the button again retries it now.
         </p>
       )}
     </div>
@@ -96,9 +104,23 @@ export function WithdrawSaving({ purpose = 'routine_saving' }: { purpose?: 'rout
 }
 
 const FEEDBACK = {
-  adherence: { label: 'How often did you follow it?', options: { every_day: 'Every day', most_days: 'Most days', some_days: 'Some days', not_at_all: 'Not at all' } },
-  tolerability: { label: 'How did your skin feel?', options: { comfortable: 'Comfortable', mild_discomfort: 'Mild discomfort', irritated: 'Irritated', stopped: 'I stopped using it' } },
-  reportedChange: { label: 'Any change?', options: { better: 'Better', same: 'The same', worse: 'Worse', unsure: 'Not sure' } },
+  adherence: {
+    label: 'How often did you follow it?',
+    options: { every_day: 'Every day', most_days: 'Most days', some_days: 'Some days', not_at_all: 'Not at all' },
+  },
+  tolerability: {
+    label: 'How did your skin feel?',
+    options: {
+      comfortable: 'Comfortable',
+      mild_discomfort: 'Mild discomfort',
+      irritated: 'Irritated',
+      stopped: 'I stopped using it',
+    },
+  },
+  reportedChange: {
+    label: 'Any change?',
+    options: { better: 'Better', same: 'The same', worse: 'Worse', unsure: 'Not sure' },
+  },
 } as const;
 type FeedbackField = keyof typeof FEEDBACK;
 
@@ -109,7 +131,9 @@ type FeedbackField = keyof typeof FEEDBACK;
  */
 export function WeeklyFeedback({ id, kbRelease, week }: { id: string; kbRelease: string; week: number }) {
   const [values, setValues] = useState<Partial<Record<FeedbackField, string>>>({});
-  const [state, setState] = useState<{ kind: 'idle' | 'busy' | 'sent' } | { kind: 'error'; message: string }>({ kind: 'idle' });
+  const [state, setState] = useState<{ kind: 'idle' | 'busy' | 'sent' } | { kind: 'error'; message: string }>({
+    kind: 'idle',
+  });
   const complete = (Object.keys(FEEDBACK) as FeedbackField[]).every((f) => values[f]);
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +157,14 @@ export function WeeklyFeedback({ id, kbRelease, week }: { id: string; kbRelease:
             <legend className="text-sm font-medium">{FEEDBACK[field].label}</legend>
             {Object.entries(FEEDBACK[field].options).map(([value, text]) => (
               <label key={value} className="mt-2 flex items-center gap-2 text-sm">
-                <input type="radio" name={`${id}-${field}`} value={value} autoComplete="off" checked={values[field] === value} onChange={() => setValues((v) => ({ ...v, [field]: value }))} />
+                <input
+                  type="radio"
+                  name={`${id}-${field}`}
+                  value={value}
+                  autoComplete="off"
+                  checked={values[field] === value}
+                  onChange={() => setValues((v) => ({ ...v, [field]: value }))}
+                />
                 {text}
               </label>
             ))}
@@ -143,7 +174,10 @@ export function WeeklyFeedback({ id, kbRelease, week }: { id: string; kbRelease:
           <Button type="submit" className="rounded-full" disabled={!complete || state.kind === 'busy'}>
             {state.kind === 'busy' ? 'Sending…' : 'Send'}
           </Button>
-          <p className="mt-2 text-xs text-muted-foreground">If your skin is irritated, stop the new products. For a reaction that does not settle, see a doctor or pharmacist.</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            If your skin is irritated, stop the new products. For a reaction that does not settle, see a doctor or
+            pharmacist.
+          </p>
           {state.kind === 'error' && (
             <p role="alert" className="mt-2 text-sm text-destructive">
               {state.message}

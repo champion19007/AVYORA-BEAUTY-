@@ -59,9 +59,7 @@ function addressToValues(a: Address): Record<string, string> {
  * their address and phone number and must not be readable by URL alone.
  */
 function orderUrl(orderNumber: string, accessToken?: string | null) {
-  return accessToken
-    ? `/orders/${orderNumber}?t=${encodeURIComponent(accessToken)}`
-    : `/orders/${orderNumber}`;
+  return accessToken ? `/orders/${orderNumber}?t=${encodeURIComponent(accessToken)}` : `/orders/${orderNumber}`;
 }
 
 /** Loads Cashfree's checkout SDK once, on demand. */
@@ -147,11 +145,22 @@ function VerifiedPhoneField({
           className={cn('h-11 rounded-md', verified && 'bg-muted text-muted-foreground')}
         />
         {verified ? (
-          <Button type="button" variant="outline" className="h-11 shrink-0" onClick={() => (onProof(null), setSent(false))}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 shrink-0"
+            onClick={() => (onProof(null), setSent(false))}
+          >
             Change
           </Button>
         ) : (
-          <Button type="button" variant="outline" className="h-11 shrink-0" disabled={busy || !TEN_DIGIT_MOBILE.test(value.trim())} onClick={send}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 shrink-0"
+            disabled={busy || !TEN_DIGIT_MOBILE.test(value.trim())}
+            onClick={send}
+          >
             {busy && !sent ? <Loader2 className="h-4 w-4 animate-spin" /> : sent ? 'Resend' : 'Get OTP'}
           </Button>
         )}
@@ -228,9 +237,7 @@ export function CheckoutClient({
   // touching the form at all.
   const preselected = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0];
 
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    preselected?.id ?? null
-  );
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(preselected?.id ?? null);
   const [values, setValues] = useState<Record<string, string>>(() => ({
     email: defaultEmail,
     ...(preselected ? addressToValues(preselected) : {}),
@@ -273,13 +280,11 @@ export function CheckoutClient({
     if (!values.fullName || values.fullName.trim().length < 2) e.fullName = 'Enter your full name';
     if (!TEN_DIGIT_MOBILE.test((values.phone || '').trim())) e.phone = 'Enter a valid Indian mobile number';
     else if (phoneCheck && !phoneProof) e.phone = 'Verify your mobile number with the code we send';
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((values.email || '').trim()))
-      e.email = 'Enter a valid email address';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((values.email || '').trim())) e.email = 'Enter a valid email address';
     if (!values.line1 || values.line1.trim().length < 4) e.line1 = 'Enter your address';
     if (!values.city || values.city.trim().length < 2) e.city = 'Enter your city';
     if (!values.state || values.state.trim().length < 2) e.state = 'Enter your state';
-    if (!/^\d{6}$/.test((values.postalCode || '').trim()))
-      e.postalCode = 'Enter a valid 6-digit PIN code';
+    if (!/^\d{6}$/.test((values.postalCode || '').trim())) e.postalCode = 'Enter a valid 6-digit PIN code';
     return e;
   };
 
@@ -430,9 +435,7 @@ export function CheckoutClient({
     return (
       <div className="container mx-auto max-w-2xl px-4 py-24 text-center">
         <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h1 className="mt-6 font-headline text-3xl font-normal tracking-tight">
-          Your bag is empty
-        </h1>
+        <h1 className="mt-6 font-headline text-3xl font-normal tracking-tight">Your bag is empty</h1>
         <p className="mt-4 text-muted-foreground">Add a formulation before checking out.</p>
         <Link href="/collections">
           <Button className="mt-8 rounded-md px-10 py-6 text-xs font-semibold uppercase tracking-[0.2em]">
@@ -447,9 +450,7 @@ export function CheckoutClient({
     <div className="container mx-auto max-w-6xl px-4 py-14">
       <header className="mb-12 text-center">
         <span className="eyebrow">Checkout</span>
-        <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
-          Complete your order
-        </h1>
+        <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">Complete your order</h1>
       </header>
 
       <form onSubmit={submit} className="grid grid-cols-1 gap-12 lg:grid-cols-5">
@@ -474,18 +475,14 @@ export function CheckoutClient({
                   }}
                   className={cn(
                     'flex w-full gap-3 rounded-lg border p-5 text-left transition-colors',
-                    selectedAddressId === a.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
+                    selectedAddressId === a.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                   )}
                 >
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   <span className="text-sm leading-relaxed">
                     <span className="font-medium">{a.fullName}</span>
                     {a.isDefault && (
-                      <span className="ml-2 text-[10px] uppercase tracking-[0.16em] text-primary">
-                        Default
-                      </span>
+                      <span className="ml-2 text-[10px] uppercase tracking-[0.16em] text-primary">Default</span>
                     )}
                     <span className="mt-1 block text-muted-foreground">
                       {a.line1}
@@ -508,9 +505,7 @@ export function CheckoutClient({
                 }}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-lg border p-5 text-left transition-colors',
-                  selectedAddressId === null
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50'
+                  selectedAddressId === null ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                 )}
               >
                 <Plus className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
@@ -565,30 +560,31 @@ export function CheckoutClient({
                   />
                 </div>
               ) : (
-              <div key={f.name} className={cn(f.span === 2 && 'sm:col-span-2')}>
-                <Label htmlFor={f.name} className="text-xs font-medium">
-                  {f.label}
-                </Label>
-                <Input
-                  id={f.name}
-                  name={f.name}
-                  // Every address field is plain text; email moved out above.
-                  type="text"
-                  inputMode={'inputMode' in f ? f.inputMode : undefined}
-                  autoComplete={f.autoComplete}
-                  value={values[f.name] ?? ''}
-                  onChange={(e) => set(f.name, e.target.value)}
-                  aria-invalid={!!errors[f.name]}
-                  aria-describedby={errors[f.name] ? `${f.name}-error` : undefined}
-                  className="mt-1.5 h-11 rounded-md"
-                />
-                {errors[f.name] && (
-                  <p id={`${f.name}-error`} className="mt-1.5 text-xs text-destructive">
-                    {errors[f.name]}
-                  </p>
-                )}
-              </div>
-            ))}
+                <div key={f.name} className={cn(f.span === 2 && 'sm:col-span-2')}>
+                  <Label htmlFor={f.name} className="text-xs font-medium">
+                    {f.label}
+                  </Label>
+                  <Input
+                    id={f.name}
+                    name={f.name}
+                    // Every address field is plain text; email moved out above.
+                    type="text"
+                    inputMode={'inputMode' in f ? f.inputMode : undefined}
+                    autoComplete={f.autoComplete}
+                    value={values[f.name] ?? ''}
+                    onChange={(e) => set(f.name, e.target.value)}
+                    aria-invalid={!!errors[f.name]}
+                    aria-describedby={errors[f.name] ? `${f.name}-error` : undefined}
+                    className="mt-1.5 h-11 rounded-md"
+                  />
+                  {errors[f.name] && (
+                    <p id={`${f.name}-error`} className="mt-1.5 text-xs text-destructive">
+                      {errors[f.name]}
+                    </p>
+                  )}
+                </div>
+              )
+            )}
           </div>
 
           <h2 className="mt-12 font-headline text-xl font-normal tracking-tight">Payment</h2>
@@ -601,9 +597,7 @@ export function CheckoutClient({
                 onClick={() => setMethod('cashfree')}
                 className={cn(
                   'w-full rounded-lg border p-5 text-left transition-colors',
-                  method === 'cashfree'
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50'
+                  method === 'cashfree' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                 )}
               >
                 <p className="text-sm font-medium">Pay online</p>
@@ -619,21 +613,15 @@ export function CheckoutClient({
               onClick={() => setMethod('cod')}
               className={cn(
                 'w-full rounded-lg border p-5 text-left transition-colors',
-                method === 'cod'
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/50'
+                method === 'cod' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
               )}
             >
               <p className="text-sm font-medium">Cash on delivery</p>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                Pay the courier when your order arrives.
-              </p>
+              <p className="mt-1.5 text-sm text-muted-foreground">Pay the courier when your order arrives.</p>
             </button>
           </div>
           {!onlineEnabled && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Online payment is not enabled on this deployment yet.
-            </p>
+            <p className="mt-3 text-xs text-muted-foreground">Online payment is not enabled on this deployment yet.</p>
           )}
         </div>
 
@@ -645,18 +633,12 @@ export function CheckoutClient({
             <ul className="mt-5 space-y-4">
               {cart.map(({ product: item, ...line }) => {
                 const unit = unitPrice(line, prices);
-                const available = stock ? stock[skuKey(line.productId, line.size)] ?? 0 : null;
+                const available = stock ? (stock[skuKey(line.productId, line.size)] ?? 0) : null;
                 const cap = Math.min(MAX_QUANTITY_PER_SKU, available ?? MAX_QUANTITY_PER_SKU);
                 return (
                   <li key={`${line.productId}-${line.size}`} className="flex gap-3">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
-                      <Image
-                        src={item.images[0]}
-                        alt={item.name}
-                        fill
-                        sizes="64px"
-                        className="object-cover"
-                      />
+                      <Image src={item.images[0]} alt={item.name} fill sizes="64px" className="object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{item.name}</p>
@@ -697,9 +679,7 @@ export function CheckoutClient({
                         </button>
                       </div>
                     </div>
-                    <span className="text-sm tabular-nums">
-                      {formatPaise(unit.price * line.quantity)}
-                    </span>
+                    <span className="text-sm tabular-nums">{formatPaise(unit.price * line.quantity)}</span>
                   </li>
                 );
               })}
@@ -712,31 +692,23 @@ export function CheckoutClient({
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Delivery</dt>
-                <dd className="tabular-nums">
-                  {totals.shipping === 0 ? 'Free' : formatPaise(totals.shipping)}
-                </dd>
+                <dd className="tabular-nums">{totals.shipping === 0 ? 'Free' : formatPaise(totals.shipping)}</dd>
               </div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-medium">
                 <dt>Total</dt>
                 <dd className="tabular-nums">{formatPaise(totals.total)}</dd>
               </div>
-              <p className="pt-1 text-xs text-muted-foreground">
-                Includes {formatPaise(totals.tax)} GST
-              </p>
+              <p className="pt-1 text-xs text-muted-foreground">Includes {formatPaise(totals.tax)} GST</p>
             </dl>
 
             {problems.length > 0 && (
               <p role="alert" className="mt-5 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                Some items are no longer available in the quantity in your bag. Adjust them above to
-                continue.
+                Some items are no longer available in the quantity in your bag. Adjust them above to continue.
               </p>
             )}
 
             {formError && (
-              <p
-                role="alert"
-                className="mt-5 rounded-md bg-destructive/10 p-3 text-sm text-destructive"
-              >
+              <p role="alert" className="mt-5 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
                 {formError}
               </p>
             )}

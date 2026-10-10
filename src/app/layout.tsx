@@ -85,7 +85,8 @@ export const metadata: Metadata = {
   // No canonical here: each public page declares its own (a root '/' made every page point at the home page; re-audit A20).
   openGraph: {
     title: 'Avyora | Skincare built around a simple routine',
-    description: 'Cleansers, serums, moisturisers and sunscreen, with a routine finder that starts from the essentials.',
+    description:
+      'Cleansers, serums, moisturisers and sunscreen, with a routine finder that starts from the essentials.',
     url: SITE_URL,
     siteName: 'Avyora Skincare',
     locale: 'en_US',
@@ -102,7 +103,8 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Avyora | Skincare built around a simple routine',
-    description: 'Cleansers, serums, moisturisers and sunscreen, with a routine finder that starts from the essentials.',
+    description:
+      'Cleansers, serums, moisturisers and sunscreen, with a routine finder that starts from the essentials.',
   },
   robots: {
     index: true,
@@ -132,8 +134,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${foglihten.variable} ${jost.variable} ${inter.variable} ${instrumentSerif.variable}`}>
-      <body className={REDESIGN ? 'nv-theme antialiased bg-nv-page font-nv text-nv-ink' : 'antialiased font-body bg-background'}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${foglihten.variable} ${jost.variable} ${inter.variable} ${instrumentSerif.variable}`}
+    >
+      <body
+        className={
+          REDESIGN ? 'nv-theme antialiased bg-nv-page font-nv text-nv-ink' : 'antialiased font-body bg-background'
+        }
+      >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <ClientLayoutWrapper
             authEnabled={isCustomerAuthConfigured()}

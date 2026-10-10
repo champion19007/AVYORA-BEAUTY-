@@ -68,8 +68,6 @@ export function unresolvedSlots(): string[] {
 export function assertSlotsResolve(): void {
   const missing = unresolvedSlots();
   if (missing.length > 0) {
-    throw new Error(
-      `Routine slots reference SKUs missing from the catalogue: ${missing.join(', ')}`
-    );
+    throw new Error(`Routine slots reference SKUs missing from the catalogue: ${missing.join(', ')}`);
   }
 }

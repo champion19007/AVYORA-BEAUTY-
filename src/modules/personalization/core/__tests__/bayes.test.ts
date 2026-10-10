@@ -35,7 +35,11 @@ const TEST_PARAM: BayesParameter = {
   review: { status: 'draft' },
 };
 const SET: ParameterSet = { releaseId: 'kb_test', schemaVersion: 1, parameters: [TEST_PARAM] };
-const quiz = (evidenceGroup: string, observation: string): Observation => ({ evidenceGroup, observation, source: 'quiz' });
+const quiz = (evidenceGroup: string, observation: string): Observation => ({
+  evidenceGroup,
+  observation,
+  source: 'quiz',
+});
 const photo = (evidenceGroup: string, observation: string, modelVersion = 'photo-model-TEST-1'): Observation => ({
   evidenceGroup,
   observation,
@@ -93,8 +97,20 @@ describe('correlated evidence', () => {
     const r = acne([quiz('blemishes', 'frequent'), photo('blemishes', 'frequent')]);
     expect(r.probability).toBeCloseTo(0.428571, 6);
     expect(r.trace).toEqual([
-      { status: 'accepted', evidenceGroup: 'blemishes', observation: 'frequent', source: 'quiz', logLikelihoodRatio: Math.log(0.6) - Math.log(0.2) },
-      { status: 'rejected', evidenceGroup: 'blemishes', observation: 'frequent', source: 'photo', reason: 'duplicate_in_group' },
+      {
+        status: 'accepted',
+        evidenceGroup: 'blemishes',
+        observation: 'frequent',
+        source: 'quiz',
+        logLikelihoodRatio: Math.log(0.6) - Math.log(0.2),
+      },
+      {
+        status: 'rejected',
+        evidenceGroup: 'blemishes',
+        observation: 'frequent',
+        source: 'photo',
+        reason: 'duplicate_in_group',
+      },
     ]);
   });
 
@@ -109,7 +125,10 @@ describe('correlated evidence', () => {
   });
 
   it('photo evidence outside the calibration scope never counts', () => {
-    const quizOnly: ParameterSet = { ...SET, parameters: [{ ...TEST_PARAM, calibrationScope: { sources: ['quiz'], photoModelVersions: [] } }] };
+    const quizOnly: ParameterSet = {
+      ...SET,
+      parameters: [{ ...TEST_PARAM, calibrationScope: { sources: ['quiz'], photoModelVersions: [] } }],
+    };
     expect(acne([photo('blemishes', 'frequent')], quizOnly).probability).toBeCloseTo(0.2, 12);
   });
 
@@ -126,8 +145,14 @@ describe('parameter validation and fallback', () => {
     ['prior 1', { prior: 1 }],
     ['prior NaN', { prior: Number.NaN }],
     ['prior Infinity', { prior: Number.POSITIVE_INFINITY }],
-    ['a zero likelihood', { groups: [{ evidenceGroup: 'blemishes', observation: 'frequent', pGivenConcern: 0, pGivenNotConcern: 0.2 }] }],
-    ['a likelihood of 1', { groups: [{ evidenceGroup: 'blemishes', observation: 'frequent', pGivenConcern: 1, pGivenNotConcern: 0.2 }] }],
+    [
+      'a zero likelihood',
+      { groups: [{ evidenceGroup: 'blemishes', observation: 'frequent', pGivenConcern: 0, pGivenNotConcern: 0.2 }] },
+    ],
+    [
+      'a likelihood of 1',
+      { groups: [{ evidenceGroup: 'blemishes', observation: 'frequent', pGivenConcern: 1, pGivenNotConcern: 0.2 }] },
+    ],
     ['no calibration scope', { calibrationScope: { sources: [], photoModelVersions: [] } }],
   ])('rejects %s, and falls back to reported priorities with no percentage', (_, patch) => {
     const set: ParameterSet = { ...SET, parameters: [{ ...TEST_PARAM, ...patch }] };
@@ -143,8 +168,16 @@ describe('parameter validation and fallback', () => {
   });
 
   it.each(['provisional', 'synthetic_fixture'] as const)('does not turn %s parameters into percentages', (status) => {
-    const r = inferConcerns({ ...SET, parameters: [{ ...TEST_PARAM, validationStatus: status }] }, [quiz('blemishes', 'frequent')], ['acne']);
-    expect(r).toMatchObject({ basis: 'reported', priorities: ['acne'], problems: ['No validated parameters in this release'] });
+    const r = inferConcerns(
+      { ...SET, parameters: [{ ...TEST_PARAM, validationStatus: status }] },
+      [quiz('blemishes', 'frequent')],
+      ['acne']
+    );
+    expect(r).toMatchObject({
+      basis: 'reported',
+      priorities: ['acne'],
+      problems: ['No validated parameters in this release'],
+    });
     expect(r.concerns[0]).toEqual({ concern: 'acne', basis: 'reported', reportedRank: 1, trace: [] });
   });
 
@@ -163,7 +196,9 @@ describe('parameter validation and fallback', () => {
   it('reads parameters from a release, refusing development fixtures unless allowed', () => {
     const manifest = { releaseId: 'kb_x', schemaVersion: 1, fixture: true };
     expect(readParameterSet(manifest, { parameters: [TEST_PARAM] })).toBeNull();
-    expect(readParameterSet(manifest, { parameters: [TEST_PARAM] }, { allowFixture: true })?.parameters).toHaveLength(1);
+    expect(readParameterSet(manifest, { parameters: [TEST_PARAM] }, { allowFixture: true })?.parameters).toHaveLength(
+      1
+    );
     expect(readParameterSet({ ...manifest, fixture: false }, { nope: 1 })).toBeNull();
   });
 });
@@ -177,14 +212,25 @@ describe('numerical stability', () => {
   });
 
   it('many strong ratios stay finite and in range', () => {
-    const groups = Array.from({ length: 60 }, (_, i) => ({ evidenceGroup: `g${i}`, observation: 'x', pGivenConcern: 1 - 1e-12, pGivenNotConcern: 1e-12 }));
+    const groups = Array.from({ length: 60 }, (_, i) => ({
+      evidenceGroup: `g${i}`,
+      observation: 'x',
+      pGivenConcern: 1 - 1e-12,
+      pGivenNotConcern: 1e-12,
+    }));
     const set: ParameterSet = { ...SET, parameters: [{ ...TEST_PARAM, prior: 1e-9, groups }] };
-    const up = acne(groups.map((g) => quiz(g.evidenceGroup, 'x')), set);
+    const up = acne(
+      groups.map((g) => quiz(g.evidenceGroup, 'x')),
+      set
+    );
     expect(Number.isFinite(up.logOdds)).toBe(true);
     expect(up.probability).toBeGreaterThan(0.999999);
     expect(up.probability).toBeLessThanOrEqual(1);
     const downGroups = groups.map((g) => ({ ...g, pGivenConcern: 1e-12, pGivenNotConcern: 1 - 1e-12 }));
-    const down = acne(downGroups.map((g) => quiz(g.evidenceGroup, 'x')), { ...set, parameters: [{ ...TEST_PARAM, prior: 1 - 1e-9, groups: downGroups }] });
+    const down = acne(
+      downGroups.map((g) => quiz(g.evidenceGroup, 'x')),
+      { ...set, parameters: [{ ...TEST_PARAM, prior: 1 - 1e-9, groups: downGroups }] }
+    );
     expect(down.probability).toBeGreaterThanOrEqual(0);
     expect(down.probability).toBeLessThan(1e-6);
   });
@@ -192,7 +238,12 @@ describe('numerical stability', () => {
 
 describe('determinism', () => {
   it('identical inputs give byte-identical output, whatever the input order', () => {
-    const obs = [quiz('oiliness', 'yes'), photo('blemishes', 'frequent'), quiz('blemishes', 'frequent'), quiz('dark_circles', 'no')];
+    const obs = [
+      quiz('oiliness', 'yes'),
+      photo('blemishes', 'frequent'),
+      quiz('blemishes', 'frequent'),
+      quiz('dark_circles', 'no'),
+    ];
     const a = JSON.stringify(inferConcerns(SET, obs, ['acne', 'dryness']));
     const b = JSON.stringify(inferConcerns(SET, [...obs].reverse(), ['acne', 'dryness']));
     expect(b).toBe(a);
@@ -201,11 +252,23 @@ describe('determinism', () => {
 
 describe('safety is independent of concern scores', () => {
   it('no evidence, however strong, lifts a safety exclusion', () => {
-    const rules = DECISION_RULES.map((r) => ({ ...r, review: { status: 'approved' as const, reviewerId: 'TEST', reviewedAt: '2026-01-01', sourceIds: ['TEST'] } }));
-    const profile = { pregnancy: 'unknown', currentCondition: 'clear', reactivity: 'low', experienceLevel: 'N3', ageRange: '25_34' };
+    const rules = DECISION_RULES.map((r) => ({
+      ...r,
+      review: { status: 'approved' as const, reviewerId: 'TEST', reviewedAt: '2026-01-01', sourceIds: ['TEST'] },
+    }));
+    const profile = {
+      pregnancy: 'unknown',
+      currentCondition: 'clear',
+      reactivity: 'low',
+      experienceLevel: 'N3',
+      ageRange: '25_34',
+    };
     const safety = applyRules(rules, profile);
     const weak = combineWithSafety(inferConcerns(SET, [], ['aging']), safety);
-    const strong = combineWithSafety(inferConcerns(SET, [quiz('blemishes', 'frequent'), quiz('oiliness', 'yes')], ['aging']), safety);
+    const strong = combineWithSafety(
+      inferConcerns(SET, [quiz('blemishes', 'frequent'), quiz('oiliness', 'yes')], ['aging']),
+      safety
+    );
     expect(weak.excludedClasses).toEqual(['retinoid']);
     expect(strong.excludedClasses).toEqual(['retinoid']);
     expect(strong.inference.priorities[0]).toBe('acne');
@@ -239,7 +302,11 @@ describe('browser and server parity', () => {
 
     const cases: [ParameterSet | null, Observation[], string[]][] = [
       [SET, [quiz('blemishes', 'frequent')], ['acne']],
-      [SET, [quiz('blemishes', 'frequent'), photo('blemishes', 'frequent'), quiz('oiliness', 'yes')], ['dryness', 'acne']],
+      [
+        SET,
+        [quiz('blemishes', 'frequent'), photo('blemishes', 'frequent'), quiz('oiliness', 'yes')],
+        ['dryness', 'acne'],
+      ],
       [null, [], ['texture']],
       [{ ...SET, schemaVersion: 2 }, [quiz('blemishes', 'frequent')], ['acne']],
     ];

@@ -25,22 +25,21 @@ export default function Page() {
 
       <h2>Despatch and delivery times</h2>
       <p>
-        Orders are usually despatched within [TO CONFIRM] business days. Delivery typically takes [TO CONFIRM]
-        business days depending on your location. These are estimates, not guarantees; couriers can
-        be delayed by weather, strikes and public holidays.
+        Orders are usually despatched within [TO CONFIRM] business days. Delivery typically takes [TO CONFIRM] business
+        days depending on your location. These are estimates, not guarantees; couriers can be delayed by weather,
+        strikes and public holidays.
       </p>
 
       <h2>Tracking</h2>
       <p>
-        Follow your order&apos;s status on our <a href="/track-order">order tracking page</a> with your
-        order number.
+        Follow your order&apos;s status on our <a href="/track-order">order tracking page</a> with your order number.
       </p>
 
       <h2>If something goes wrong</h2>
       <p>
         If your order has not arrived within [TO CONFIRM] days of despatch, email{' '}
-        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your order number and we
-        will chase it with the courier.
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your order number and we will chase it with the
+        courier.
       </p>
     </>
   );

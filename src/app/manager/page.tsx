@@ -74,9 +74,7 @@ export default async function DispatchPage() {
              * to stop.
              */
             const onHold =
-              order.fraudStatus === 'review' ||
-              order.fraudStatus === 'pending' ||
-              order.attentionReason !== null;
+              order.fraudStatus === 'review' || order.fraudStatus === 'pending' || order.attentionReason !== null;
 
             return (
               <li key={order.id} className="rounded-xl border border-border bg-card p-6">
@@ -121,8 +119,8 @@ export default async function DispatchPage() {
                     {order.attentionReason
                       ? 'On hold — the owner needs to decide what happens to this order before it is packed.'
                       : order.fraudStatus === 'review'
-                      ? 'On hold — this cash-on-delivery order failed an automatic check. Confirm with the customer before packing.'
-                      : 'Risk check still running. Wait a moment and refresh.'}
+                        ? 'On hold — this cash-on-delivery order failed an automatic check. Confirm with the customer before packing.'
+                        : 'Risk check still running. Wait a moment and refresh.'}
                   </p>
                 )}
 
@@ -134,8 +132,7 @@ export default async function DispatchPage() {
                     <ul className="mt-2 text-[15px] leading-relaxed">
                       {order.items.map((item, i) => (
                         <li key={i}>
-                          <span className="font-medium tabular-nums">{item.quantity} ×</span>{' '}
-                          {item.name}
+                          <span className="font-medium tabular-nums">{item.quantity} ×</span> {item.name}
                           <span className="text-muted-foreground"> · {item.size}</span>
                         </li>
                       ))}
@@ -152,9 +149,7 @@ export default async function DispatchPage() {
                         {order.city}
                         {order.state ? `, ${order.state}` : ''} {order.postalCode}
                       </span>
-                      {order.phone && (
-                        <span className="block text-muted-foreground">{order.phone}</span>
-                      )}
+                      {order.phone && <span className="block text-muted-foreground">{order.phone}</span>}
                     </p>
                   </div>
                 </div>

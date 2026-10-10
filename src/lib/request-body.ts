@@ -30,17 +30,23 @@ export const BODY_LIMITS = {
 export type BoundedRead = { ok: true; text: string } | { ok: false; response: Response };
 
 const tooLarge = (maxBytes: number) =>
-  new Response(JSON.stringify({ error: { code: 'payload_too_large', message: `Request body exceeds ${maxBytes} bytes.` } }), {
-    status: 413,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
+  new Response(
+    JSON.stringify({ error: { code: 'payload_too_large', message: `Request body exceeds ${maxBytes} bytes.` } }),
+    {
+      status: 413,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    }
+  );
 
 export async function readBoundedText(request: Request, maxBytes: number): Promise<BoundedRead> {
   const read = await readBoundedBytes(request, maxBytes);
   return read.ok ? { ok: true, text: new TextDecoder().decode(read.bytes) } : read;
 }
 
-export async function readBoundedBytes(request: Request, maxBytes: number): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; response: Response }> {
+export async function readBoundedBytes(
+  request: Request,
+  maxBytes: number
+): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; response: Response }> {
   const declared = Number(request.headers.get('content-length') ?? NaN);
   if (Number.isFinite(declared) && declared > maxBytes) return { ok: false, response: tooLarge(maxBytes) };
   if (!request.body) return { ok: true, bytes: new Uint8Array(0) };

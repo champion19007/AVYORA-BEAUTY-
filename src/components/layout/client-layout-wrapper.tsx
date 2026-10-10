@@ -93,14 +93,12 @@ export function ClientLayoutWrapper({
   if (isBareLayout) {
     return (
       <MaybeSession enabled={authEnabled}>
-      <AppProvider>
-        <div className="min-h-screen bg-background text-foreground flex items-center justify-center transition-colors duration-300">
-          <main className="w-full animate-in fade-in duration-700">
-            {children}
-          </main>
-          <Toaster />
-        </div>
-      </AppProvider>
+        <AppProvider>
+          <div className="min-h-screen bg-background text-foreground flex items-center justify-center transition-colors duration-300">
+            <main className="w-full animate-in fade-in duration-700">{children}</main>
+            <Toaster />
+          </div>
+        </AppProvider>
       </MaybeSession>
     );
   }
@@ -112,7 +110,10 @@ export function ClientLayoutWrapper({
       <MaybeSession enabled={authEnabled}>
         <AppProvider>
           <div className="flex min-h-screen w-full flex-col bg-nv-page text-nv-ink">
-            <a href="#main" className="nv-focus sr-only z-50 rounded-nv-pill bg-nv-ink px-6 py-3 text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+            <a
+              href="#main"
+              className="nv-focus sr-only z-50 rounded-nv-pill bg-nv-ink px-6 py-3 text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+            >
               Skip to content
             </a>
             <SiteHeader />
@@ -131,19 +132,19 @@ export function ClientLayoutWrapper({
 
   return (
     <MaybeSession enabled={authEnabled}>
-    <AppProvider>
-      <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
-        <AnnouncementBar />
-        <Header deliverTo={deliverTo} />
-        <main key={pathname} className="flex-1 w-full animate-in fade-in duration-700">
-          {children}
-        </main>
-        <Footer />
-        <CartDrawer />
-        <SampleNotice />
-        <Toaster />
-      </div>
-    </AppProvider>
+      <AppProvider>
+        <div className="flex min-h-screen w-full flex-col bg-background text-foreground transition-colors duration-300">
+          <AnnouncementBar />
+          <Header deliverTo={deliverTo} />
+          <main key={pathname} className="flex-1 w-full animate-in fade-in duration-700">
+            {children}
+          </main>
+          <Footer />
+          <CartDrawer />
+          <SampleNotice />
+          <Toaster />
+        </div>
+      </AppProvider>
     </MaybeSession>
   );
 }

@@ -26,9 +26,7 @@ import { secureAccountLinkedToGoogle } from '@/lib/customer-accounts';
  * this is the customer identity system.
  */
 
-const googleConfigured = Boolean(
-  process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
-);
+const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
 
 const databaseConfigured = Boolean(process.env.DATABASE_URL);
 

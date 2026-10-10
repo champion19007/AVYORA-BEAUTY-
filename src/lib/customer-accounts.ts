@@ -77,9 +77,7 @@ export async function accountMethods(email: string): Promise<AccountMethods> {
   };
 }
 
-export type PasswordSignInResult =
-  | { ok: true; userId: string }
-  | { ok: false; reason: 'invalid' | 'no_password' };
+export type PasswordSignInResult = { ok: true; userId: string } | { ok: false; reason: 'invalid' | 'no_password' };
 
 /**
  * Checks an email and password.
@@ -89,10 +87,7 @@ export type PasswordSignInResult =
  * password" measurably faster for unknown emails than for known ones, which
  * hands back exactly the enumeration signal we are trying to bound elsewhere.
  */
-export async function signInWithPassword(
-  email: string,
-  password: string
-): Promise<PasswordSignInResult> {
+export async function signInWithPassword(email: string, password: string): Promise<PasswordSignInResult> {
   const [user] = await db
     .select({ id: users.id, passwordHash: users.passwordHash })
     .from(users)
@@ -125,30 +120,17 @@ function getDummyHash(): Promise<string> {
   return dummyHash;
 }
 
-export type SignUpResult =
-  | { ok: true; userId: string }
-  | { ok: false; reason: 'email_taken' };
+export type SignUpResult = { ok: true; userId: string } | { ok: false; reason: 'email_taken' };
 
 /** Creates an account with a password. */
-export async function signUpWithPassword(
-  email: string,
-  password: string,
-  name: string | null
-): Promise<SignUpResult> {
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
+export async function signUpWithPassword(email: string, password: string, name: string | null): Promise<SignUpResult> {
+  const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
 
   if (existing.length > 0) return { ok: false, reason: 'email_taken' };
 
   const passwordHash = await hashPassword(password);
 
-  const [row] = await db
-    .insert(users)
-    .values({ email, name, passwordHash })
-    .returning({ id: users.id });
+  const [row] = await db.insert(users).values({ email, name, passwordHash }).returning({ id: users.id });
 
   return { ok: true, userId: row!.id };
 }
@@ -163,21 +145,14 @@ export async function signUpWithPassword(
  * what the code proved.
  */
 export async function findOrCreateByEmail(email: string): Promise<string> {
-  const [existing] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
 
   if (existing) {
     await db.update(users).set({ emailVerified: new Date() }).where(eq(users.id, existing.id));
     return existing.id;
   }
 
-  const [row] = await db
-    .insert(users)
-    .values({ email, emailVerified: new Date() })
-    .returning({ id: users.id });
+  const [row] = await db.insert(users).values({ email, emailVerified: new Date() }).returning({ id: users.id });
 
   return row!.id;
 }
@@ -193,11 +168,7 @@ export async function findOrCreateByEmail(email: string): Promise<string> {
  * something to guess at here.
  */
 export async function findOrCreateByPhone(phone: string): Promise<string> {
-  const [existing] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.phone, phone))
-    .limit(1);
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
 
   if (existing) {
     await db.update(users).set({ phoneVerified: new Date() }).where(eq(users.id, existing.id));
@@ -223,10 +194,7 @@ export async function findOrCreateByPhone(phone: string): Promise<string> {
  * one — the code proved control of an inbox, which is not the same as
  * permission to register on someone's behalf.
  */
-export async function setPasswordByEmail(
-  email: string,
-  password: string
-): Promise<string | null> {
+export async function setPasswordByEmail(email: string, password: string): Promise<string | null> {
   const passwordHash = await hashPassword(password);
 
   const [row] = await db

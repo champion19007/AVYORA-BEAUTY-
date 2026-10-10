@@ -57,9 +57,7 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
 /* -------------------------------------------------------------------------- */
 
 async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
-    'deriveBits',
-  ]);
+  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
     key,
@@ -106,13 +104,10 @@ export async function verifyPassword(password: string, stored: string): Promise<
 type SessionPayload = { sub: string; exp: number };
 
 async function hmacKey(secret: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify']
-  );
+  return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+    'verify',
+  ]);
 }
 
 /** Signs a session token as `<payload>.<signature>`. */
@@ -130,10 +125,7 @@ export async function createSessionToken(subject: string, secret: string): Promi
  * Verifies signature and expiry. Returns the payload, or null for anything
  * malformed, tampered with, or expired.
  */
-export async function verifySessionToken(
-  token: string | undefined,
-  secret: string
-): Promise<SessionPayload | null> {
+export async function verifySessionToken(token: string | undefined, secret: string): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
     const [body, signature] = token.split('.');

@@ -1,6 +1,16 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowUpRight, CalendarDays, Check, ClipboardList, FlaskConical, MessageCircleQuestion, Star, Wallet, Bookmark } from 'lucide-react';
+import {
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  ClipboardList,
+  FlaskConical,
+  MessageCircleQuestion,
+  Star,
+  Wallet,
+  Bookmark,
+} from 'lucide-react';
 import { Accordion } from '@/components/nv/accordion';
 import { formatPaise } from '@/lib/money';
 import { SUPPORT_EMAIL } from '@/data/business-info';
@@ -25,10 +35,22 @@ import type { EssentialStep, LandingProduct, LandingReview } from './data';
 
 const COLUMN = 'mx-auto w-full max-w-[calc(var(--nv-container)+2*var(--nv-gutter))] px-nv-gutter';
 
-function Photo({ slot, className, sizes, children }: { slot: keyof typeof PHOTO_SLOTS; className?: string; sizes: string; children?: React.ReactNode }) {
+function Photo({
+  slot,
+  className,
+  sizes,
+  children,
+}: {
+  slot: keyof typeof PHOTO_SLOTS;
+  className?: string;
+  sizes: string;
+  children?: React.ReactNode;
+}) {
   const p: PhotoSlot = PHOTO_SLOTS[slot];
   return (
-    <div className={`relative overflow-hidden bg-[radial-gradient(ellipse_at_60%_35%,#4a4642,#1a1a1a_75%)] ${className ?? ''}`}>
+    <div
+      className={`relative overflow-hidden bg-[radial-gradient(ellipse_at_60%_35%,#4a4642,#1a1a1a_75%)] ${className ?? ''}`}
+    >
       <Image src={p.src} alt={p.alt} fill sizes={sizes} className={`object-cover ${p.pos ?? 'object-center'}`} />
       {p.scrim && <div aria-hidden="true" className={`absolute inset-0 ${p.scrim}`} />}
       {children}
@@ -51,7 +73,8 @@ export function About() {
         <Photo slot="about" sizes="392px" className="h-[420px] rounded-nv-card lg:h-[512px]" />
         <div className="flex flex-col justify-between gap-8 lg:h-[512px] lg:gap-0">
           <h2 id="about-heading" className="text-nv-lead lg:indent-[70px] font-medium">
-            Avyora builds a routine around your skin, <span className="text-nv-muted">your budget and the products you already own.</span> Start with cleanse,
+            Avyora builds a routine around your skin,{' '}
+            <span className="text-nv-muted">your budget and the products you already own.</span> Start with cleanse,
             moisturise and protect, and add a treatment only when its directions have been reviewed.
           </h2>
           <div className="grid gap-nv-gap sm:grid-cols-2 lg:h-[347px]">
@@ -61,14 +84,23 @@ export function About() {
                 7<span className="ml-1 align-top text-nv-intro">days</span>
               </p>
               <p className="mt-3 text-nv-body text-nv-muted">Morning and evening steps for every day, in order.</p>
-              <Link href="/routine-finder" className="nv-focus mt-6 inline-flex h-[49px] items-center justify-center rounded-nv-pill bg-nv-ink text-nv-label text-white hover:bg-nv-accent">
+              <Link
+                href="/routine-finder"
+                className="nv-focus mt-6 inline-flex h-[49px] items-center justify-center rounded-nv-pill bg-nv-ink text-nv-label text-white hover:bg-nv-accent"
+              >
                 Find your routine
               </Link>
             </div>
-            <Photo slot="aboutCard" sizes="388px" className="flex min-h-[260px] flex-col justify-end rounded-nv-card p-6 text-white">
+            <Photo
+              slot="aboutCard"
+              sizes="388px"
+              className="flex min-h-[260px] flex-col justify-end rounded-nv-card p-6 text-white"
+            >
               <div className="relative">
                 <p className="text-nv-contact font-medium">Reviewed before it is shown</p>
-                <p className="mt-2 text-nv-label text-white/85">Directions and ingredient cautions appear only after review.</p>
+                <p className="mt-2 text-nv-label text-white/85">
+                  Directions and ingredient cautions appear only after review.
+                </p>
               </div>
             </Photo>
           </div>
@@ -86,21 +118,39 @@ export function Results({ products }: { products: LandingProduct[] }) {
       <div className={COLUMN}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-12">
           <Heading id="results-heading">Best sellers</Heading>
-          <p className="max-w-[305px] sm:text-right text-nv-body text-nv-muted">Current prices and stock, straight from the shop.</p>
+          <p className="max-w-[305px] sm:text-right text-nv-body text-nv-muted">
+            Current prices and stock, straight from the shop.
+          </p>
         </div>
         {products.length === 0 ? (
           <p className="mt-16 text-nv-body text-nv-muted">
-            Products are unavailable right now. <Link href="/collections" className="nv-focus underline">Browse the shop</Link>.
+            Products are unavailable right now.{' '}
+            <Link href="/collections" className="nv-focus underline">
+              Browse the shop
+            </Link>
+            .
           </p>
         ) : (
           <ul className="mt-[42px] grid gap-nv-gap sm:grid-cols-2">
             {products.map((p) => (
               <li key={p.id} className="nv-reveal relative aspect-[616/585] overflow-hidden rounded-nv-card bg-nv-line">
-                <Image src={p.image} alt="" fill sizes="(min-width: 1320px) 616px, 50vw" className="object-cover object-center" />
-                <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.55),transparent_50%),linear-gradient(to_bottom,rgba(0,0,0,0.25),transparent_30%)]" />
+                <Image
+                  src={p.image}
+                  alt=""
+                  fill
+                  sizes="(min-width: 1320px) 616px, 50vw"
+                  className="object-cover object-center"
+                />
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.55),transparent_50%),linear-gradient(to_bottom,rgba(0,0,0,0.25),transparent_30%)]"
+                />
                 <div className="absolute left-5 top-5 flex flex-wrap gap-2 lg:left-8 lg:top-8">
                   {p.concerns.map((c) => (
-                    <span key={c} className="rounded-nv-pill bg-nv-glass px-4 py-2 text-nv-label capitalize text-white backdrop-blur-sm">
+                    <span
+                      key={c}
+                      className="rounded-nv-pill bg-nv-glass px-4 py-2 text-nv-label capitalize text-white backdrop-blur-sm"
+                    >
                       {c.replace(/-/g, ' ')}
                     </span>
                   ))}
@@ -116,7 +166,10 @@ export function Results({ products }: { products: LandingProduct[] }) {
                       <QuickAdd productId={p.id} productName={p.name} skus={p.skus} />
                     </div>
                   </div>
-                  <span aria-hidden="true" className="relative z-10 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full bg-white text-nv-ink">
+                  <span
+                    aria-hidden="true"
+                    className="relative z-10 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full bg-white text-nv-ink"
+                  >
                     <ArrowUpRight className="h-5 w-5" />
                   </span>
                 </div>
@@ -137,7 +190,8 @@ export function Vision() {
       <Photo slot="vision" sizes="100vw" className="min-h-[560px] lg:h-screen lg:min-h-[640px]">
         <div className={`${COLUMN} relative pt-24 lg:pt-[145px]`}>
           <h2 id="vision-heading" className="max-w-[600px] lg:ml-6 text-nv-statement font-medium text-white">
-            “Fewer steps you can keep, <span className="text-nv-faint">chosen for your skin and your budget,</span> beat a shelf of products you never finish.”
+            “Fewer steps you can keep, <span className="text-nv-faint">chosen for your skin and your budget,</span> beat
+            a shelf of products you never finish.”
           </h2>
         </div>
       </Photo>
@@ -148,12 +202,32 @@ export function Vision() {
 /* ----------------------------------------------------------- Features -- */
 
 const FEATURES = [
-  { icon: ClipboardList, title: 'Short questionnaire', text: 'Skin type, sensitivity, budget and what you already use.' },
-  { icon: CalendarDays, title: 'A real weekly routine', text: 'Every morning and evening, in order, for all seven days.' },
-  { icon: FlaskConical, title: 'Ingredient checks', text: 'Known allergens and conflicts are checked before anything is suggested.' },
-  { icon: Wallet, title: 'Your budget, your shelf', text: 'Uses what you own first and keeps new purchases within your budget.' },
+  {
+    icon: ClipboardList,
+    title: 'Short questionnaire',
+    text: 'Skin type, sensitivity, budget and what you already use.',
+  },
+  {
+    icon: CalendarDays,
+    title: 'A real weekly routine',
+    text: 'Every morning and evening, in order, for all seven days.',
+  },
+  {
+    icon: FlaskConical,
+    title: 'Ingredient checks',
+    text: 'Known allergens and conflicts are checked before anything is suggested.',
+  },
+  {
+    icon: Wallet,
+    title: 'Your budget, your shelf',
+    text: 'Uses what you own first and keeps new purchases within your budget.',
+  },
   { icon: MessageCircleQuestion, title: 'Ask Avyora', text: 'Answers from reviewed information, with sources.' },
-  { icon: Bookmark, title: 'Saved routines', text: `Kept ${ACCOUNT_RETENTION_DAYS} days with an account, ${GUEST_RETENTION_DAYS} without; delete any time.` },
+  {
+    icon: Bookmark,
+    title: 'Saved routines',
+    text: `Kept ${ACCOUNT_RETENTION_DAYS} days with an account, ${GUEST_RETENTION_DAYS} without; delete any time.`,
+  },
 ];
 
 export function Features() {
@@ -162,7 +236,10 @@ export function Features() {
       <div className={COLUMN}>
         <div className="flex flex-wrap items-center justify-between gap-6">
           <Heading id="features-heading">How it works</Heading>
-          <Link href="/routine-finder" className="nv-focus inline-flex h-[49px] items-center rounded-nv-pill bg-nv-ink px-6 text-nv-label text-white hover:bg-nv-accent">
+          <Link
+            href="/routine-finder"
+            className="nv-focus inline-flex h-[49px] items-center rounded-nv-pill bg-nv-ink px-6 text-nv-label text-white hover:bg-nv-accent"
+          >
             Find your routine
           </Link>
         </div>
@@ -191,7 +268,8 @@ export function Services() {
       <Photo slot="services" sizes="100vw" className="lg:h-[986px]">
         <div className={`${COLUMN} relative py-20 lg:py-[150px]`}>
           <h2 id="services-heading" className="max-w-[600px] lg:ml-6 text-nv-statement font-medium text-white">
-            Shop the range, <span className="text-nv-faint">build a routine from it, look up an ingredient or read the journal.</span>
+            Shop the range,{' '}
+            <span className="text-nv-faint">build a routine from it, look up an ingredient or read the journal.</span>
           </h2>
           {/* The reference's service rows: label, short description, divider and arrow, each a real route. */}
           <ul className="mt-12 max-w-[1192px] lg:ml-6 lg:mt-16 border-t border-white/20">
@@ -202,12 +280,18 @@ export function Services() {
               ['Journal', 'Articles on routines and ingredients.', '/journal'],
             ].map(([label, text, href]) => (
               <li key={href} className="border-b border-white/20">
-                <Link href={href} className="nv-focus-light group flex items-center justify-between gap-8 py-6 text-white">
+                <Link
+                  href={href}
+                  className="nv-focus-light group flex items-center justify-between gap-8 py-6 text-white"
+                >
                   <span>
                     <span className="block text-nv-contact font-medium">{label}</span>
                     <span className="mt-1 block text-nv-label text-white/70">{text}</span>
                   </span>
-                  <ArrowUpRight className="nv-motion h-5 w-5 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
+                  <ArrowUpRight
+                    className="nv-motion h-5 w-5 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
                 </Link>
               </li>
             ))}
@@ -226,7 +310,9 @@ export function Testimonials({ review }: { review: LandingReview | null }) {
       <div className={COLUMN}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <Heading id="testimonials-heading">{review ? 'From customers' : 'Simple skincare'}</Heading>
-          <p className="max-w-[300px] sm:text-right text-nv-body text-nv-muted">Understand your skin and build a routine you can keep.</p>
+          <p className="max-w-[300px] sm:text-right text-nv-body text-nv-muted">
+            Understand your skin and build a routine you can keep.
+          </p>
         </div>
         <div className="mt-[42px] grid gap-nv-gap lg:h-[515px] lg:grid-cols-[304px_1fr_304px]">
           <div className="flex flex-col rounded-nv-card bg-nv-card p-8">
@@ -236,35 +322,56 @@ export function Testimonials({ review }: { review: LandingReview | null }) {
               <br />
               your skin
             </h3>
-            <p className="mt-3 text-nv-body text-nv-muted">Answers about your skin and habits decide what goes in your routine, and what stays out.</p>
-            <Link href="/routine-finder" className="nv-focus mt-6 inline-flex h-[49px] items-center justify-center rounded-nv-pill bg-nv-ink text-nv-label text-white hover:bg-nv-accent">
+            <p className="mt-3 text-nv-body text-nv-muted">
+              Answers about your skin and habits decide what goes in your routine, and what stays out.
+            </p>
+            <Link
+              href="/routine-finder"
+              className="nv-focus mt-6 inline-flex h-[49px] items-center justify-center rounded-nv-pill bg-nv-ink text-nv-label text-white hover:bg-nv-accent"
+            >
               Find your routine
             </Link>
           </div>
-          <Photo slot="testimonial" sizes="(min-width: 1024px) 616px, 100vw" className="aspect-[4/3] rounded-nv-card lg:aspect-auto" />
+          <Photo
+            slot="testimonial"
+            sizes="(min-width: 1024px) 616px, 100vw"
+            className="aspect-[4/3] rounded-nv-card lg:aspect-auto"
+          />
           <div className="flex flex-col rounded-nv-card bg-nv-card p-8">
             {review ? (
               <>
                 <p className="flex gap-1" aria-label={`Rated ${review.rating} out of 5`}>
                   {Array.from({ length: 5 }, (_, i) => (
-                    <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'fill-nv-ink' : 'text-nv-line'}`} aria-hidden="true" />
+                    <Star
+                      key={i}
+                      className={`h-4 w-4 ${i < review.rating ? 'fill-nv-ink' : 'text-nv-line'}`}
+                      aria-hidden="true"
+                    />
                   ))}
                 </p>
                 {/* The card has a fixed measured height: long reviews are clamped, with the full text on the product page. */}
                 <blockquote className="mt-6 line-clamp-[8] text-nv-quote font-medium">“{review.body}”</blockquote>
                 {review.productSlug && (
-                  <Link href={`/products/${review.productSlug}#reviews-heading`} className="nv-focus mt-3 text-nv-small underline underline-offset-4">
+                  <Link
+                    href={`/products/${review.productSlug}#reviews-heading`}
+                    className="nv-focus mt-3 text-nv-small underline underline-offset-4"
+                  >
                     Read the full review
                   </Link>
                 )}
                 <p className="mt-auto text-nv-label">{review.productName}</p>
-                <p className="text-nv-small text-nv-muted">{review.verified ? 'Verified purchase' : 'Customer review'}</p>
+                <p className="text-nv-small text-nv-muted">
+                  {review.verified ? 'Verified purchase' : 'Customer review'}
+                </p>
               </>
             ) : (
               <>
                 {/* No published reviews yet: product education, labelled as such, instead of a testimonial. */}
                 <p className="text-nv-small uppercase text-nv-muted">How routines work</p>
-                <p className="mt-6 text-nv-quote font-medium">Essentials every day. A treatment only when its directions have been reviewed, and never while your skin is irritated.</p>
+                <p className="mt-6 text-nv-quote font-medium">
+                  Essentials every day. A treatment only when its directions have been reviewed, and never while your
+                  skin is irritated.
+                </p>
               </>
             )}
           </div>
@@ -312,7 +419,8 @@ export function Pricing({ steps }: { steps: EssentialStep[] }) {
             <div className="flex min-h-[401px] flex-col rounded-nv-inner bg-nv-page p-6">
               <h3 className="text-nv-title font-medium">The three essentials</h3>
               <p className="mt-2 max-w-[360px] text-nv-label text-nv-muted">
-                Every routine starts with these. Prices are the lowest current price in stock for each step; your routine finder result may choose differently.
+                Every routine starts with these. Prices are the lowest current price in stock for each step; your
+                routine finder result may choose differently.
               </p>
               <ul className="mt-6 space-y-3">
                 {steps.map((s) => (
@@ -336,13 +444,22 @@ export function Pricing({ steps }: { steps: EssentialStep[] }) {
                   <span className="text-nv-label text-nv-muted">Essentials from </span>
                   <span className="text-nv-figure font-medium">{priced.length === 3 ? formatPaise(total) : '—'}</span>
                 </p>
-                <Link href="/routine-finder" className="nv-focus inline-flex h-[49px] items-center rounded-nv-pill bg-nv-ink px-6 text-nv-label text-white hover:bg-nv-accent">
+                <Link
+                  href="/routine-finder"
+                  className="nv-focus inline-flex h-[49px] items-center rounded-nv-pill bg-nv-ink px-6 text-nv-label text-white hover:bg-nv-accent"
+                >
                   Build my routine
                 </Link>
               </div>
             </div>
             <ul className="grid gap-x-8 gap-y-3 px-6 sm:grid-cols-2 py-6 text-nv-label text-nv-muted">
-              {['Allergy and conflict checks', 'Uses products you own', 'Stays within your budget', 'Saved with your permission', 'Prices confirmed at checkout'].map((t) => (
+              {[
+                'Allergy and conflict checks',
+                'Uses products you own',
+                'Stays within your budget',
+                'Saved with your permission',
+                'Prices confirmed at checkout',
+              ].map((t) => (
                 <li key={t} className="flex items-start gap-2">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-nv-ink" aria-hidden="true" />
                   {t}
@@ -372,7 +489,8 @@ const FAQ_ITEMS = [
   {
     id: 'routine',
     question: 'How is my routine built?',
-    answer: 'From your answers: skin type, sensitivity, budget and the products you already use. Every routine starts with cleanse, moisturise and protect. A treatment is added only when its directions have been reviewed and nothing in your answers rules it out.',
+    answer:
+      'From your answers: skin type, sensitivity, budget and the products you already use. Every routine starts with cleanse, moisturise and protect. A treatment is added only when its directions have been reviewed and nothing in your answers rules it out.',
   },
   {
     id: 'scan',
@@ -387,7 +505,8 @@ const FAQ_ITEMS = [
   {
     id: 'launch',
     question: 'When does Avyora officially launch?',
-    answer: 'We are currently running closed-loop beta testing to perfect our logic and initial formulations. Early testers who complete the routine builder today get priority placement for our first official batch drop.',
+    answer:
+      'We are currently running closed-loop beta testing to perfect our logic and initial formulations. Early testers who complete the routine builder today get priority placement for our first official batch drop.',
   },
   {
     id: 'returns',
@@ -405,7 +524,8 @@ const FAQ_ITEMS = [
   {
     id: 'medical',
     question: 'Is this medical advice?',
-    answer: 'No. Avyora gives general skincare guidance. For a persistent, painful or spreading skin problem, please see a dermatologist.',
+    answer:
+      'No. Avyora gives general skincare guidance. For a persistent, painful or spreading skin problem, please see a dermatologist.',
   },
 ];
 

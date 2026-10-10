@@ -23,7 +23,9 @@ const bodySchema = z.object({ purpose: PURPOSE, policyVersion: z.string().regex(
 async function guard(request: Request, owner: Owner | null): Promise<Response | null> {
   if (!isSameOrigin(request)) return apiError(403, 'bad_origin', 'Invalid request origin.');
   if (!isDatabaseConfigured()) return apiError(503, 'unavailable', 'Unavailable right now.');
-  const checks: LimitCheck[] = [{ policy: 'consent', subject: { kind: 'ip', address: trustedClientIp(request.headers) } }];
+  const checks: LimitCheck[] = [
+    { policy: 'consent', subject: { kind: 'ip', address: trustedClientIp(request.headers) } },
+  ];
   if (owner) checks.push({ policy: 'consent', subject: limiterSubject(owner) });
   const limited = await limit(checks);
   return limited.allowed ? null : limitResponse(limited);
@@ -44,7 +46,10 @@ export async function POST(request: Request) {
   }
   const grantee: Owner = owner ?? { kind: 'guest', ownerHash: await ensureGuestOwnerHash() };
   const grant = await grantConsent(db, grantee, parsed.data.purpose, parsed.data.policyVersion);
-  return privateJson({ consent: { purpose: grant.purpose, policyVersion: grant.policyVersion, grantedAt: grant.grantedAt } }, 201);
+  return privateJson(
+    { consent: { purpose: grant.purpose, policyVersion: grant.policyVersion, grantedAt: grant.grantedAt } },
+    201
+  );
 }
 
 /**
@@ -60,6 +65,10 @@ export async function DELETE(request: Request) {
   if (!purpose.success) return apiError(400, 'invalid_request', 'Unknown consent purpose.');
   const withdrawn = owner ? await withdrawConsent(db, owner, purpose.data) : false;
   // Photo deletion is reported as it happened: pending deletions are retried by the retention sweep.
-  const photos = owner && purpose.data === 'photo_processing' ? await purgeOwnerScans(db, privateStorage(), owner) : null;
-  return privateJson({ withdrawn, ...(photos ? { photosDeleted: photos.deleted, photoDeletionsPending: photos.pending } : {}) });
+  const photos =
+    owner && purpose.data === 'photo_processing' ? await purgeOwnerScans(db, privateStorage(), owner) : null;
+  return privateJson({
+    withdrawn,
+    ...(photos ? { photosDeleted: photos.deleted, photoDeletionsPending: photos.pending } : {}),
+  });
 }

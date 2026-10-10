@@ -30,9 +30,7 @@ afterAll(async () => {
   await client.close();
 });
 beforeEach(async () => {
-  await db.execute(
-    sql`truncate orders, order_items, ingredients, ingredient_interactions restart identity cascade`
-  );
+  await db.execute(sql`truncate orders, order_items, ingredients, ingredient_interactions restart identity cascade`);
   cache.clearLocal();
   await cache.invalidateNamespace(POLICIES.recommendations);
   await cache.invalidateNamespace(POLICIES.ingredients);
@@ -95,10 +93,15 @@ describe('ranking (pure)', () => {
   });
 
   it('never suggests the product itself, a conflict, or something sold out', () => {
-    const recs = rankRecommendations(product('ceramide-cream'), PRODUCTS, {
-      conflicts: new Set(['rice-toner']),
-      available: (id) => id !== 'ha-toner',
-    }, 30);
+    const recs = rankRecommendations(
+      product('ceramide-cream'),
+      PRODUCTS,
+      {
+        conflicts: new Set(['rice-toner']),
+        available: (id) => id !== 'ha-toner',
+      },
+      30
+    );
     const ids = recs.map((r) => r.productId);
     expect(ids).not.toContain('ceramide-cream');
     expect(ids).not.toContain('rice-toner');

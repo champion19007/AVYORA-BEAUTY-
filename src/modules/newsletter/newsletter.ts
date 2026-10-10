@@ -34,7 +34,13 @@ export async function requestSubscription(db: Db, rawEmail: string, now = new Da
   const placeholder = hashToken(randomBytes(32).toString('base64url'));
   const [row] = await db
     .insert(n)
-    .values({ email, status: 'pending', consentVersion: NEWSLETTER_CONSENT_VERSION, tokenHash: placeholder, createdAt: now })
+    .values({
+      email,
+      status: 'pending',
+      consentVersion: NEWSLETTER_CONSENT_VERSION,
+      tokenHash: placeholder,
+      createdAt: now,
+    })
     .onConflictDoUpdate({
       target: n.email,
       set: { status: 'pending', consentVersion: NEWSLETTER_CONSENT_VERSION, createdAt: now, unsubscribedAt: null },
@@ -49,7 +55,10 @@ export async function requestSubscription(db: Db, rawEmail: string, now = new Da
  * one place, so a token is never rotated after its email went out by a
  * different request. Null when the sign-up is no longer pending.
  */
-export async function issueConfirmationToken(db: Db, subscriberId: string): Promise<{ email: string; token: string } | null> {
+export async function issueConfirmationToken(
+  db: Db,
+  subscriberId: string
+): Promise<{ email: string; token: string } | null> {
   const token = randomBytes(32).toString('base64url');
   const [row] = await db
     .update(n)
@@ -66,9 +75,11 @@ export const NEWSLETTER_CONFIRM_JOB = 'newsletter.confirm';
  * failure throws, so the queue retries with backoff and finally parks it in
  * the dead-letter list on the system page; nothing claims it was delivered.
  */
-export function newsletterConfirmHandler(
-  deps: { db: Db; send: (to: string, subject: string, text: string) => Promise<{ ok: true } | { ok: false; error: string }>; siteUrl: string }
-) {
+export function newsletterConfirmHandler(deps: {
+  db: Db;
+  send: (to: string, subject: string, text: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  siteUrl: string;
+}) {
   return async (payload: Record<string, unknown>) => {
     const id = typeof payload.subscriberId === 'string' ? payload.subscriberId : null;
     if (!id) throw new PermanentJobError('No subscriber in the job payload.');
@@ -85,7 +96,13 @@ export async function confirmSubscription(db: Db, token: string, now = new Date(
   const rows = await db
     .update(n)
     .set({ status: 'subscribed', confirmedAt: now })
-    .where(and(eq(n.tokenHash, hashToken(token)), eq(n.status, 'pending'), sql`${n.createdAt} > ${new Date(now.getTime() - PENDING_DAYS * 86_400_000)}`))
+    .where(
+      and(
+        eq(n.tokenHash, hashToken(token)),
+        eq(n.status, 'pending'),
+        sql`${n.createdAt} > ${new Date(now.getTime() - PENDING_DAYS * 86_400_000)}`
+      )
+    )
     .returning({ id: n.id });
   return rows.length > 0;
 }

@@ -39,9 +39,7 @@ describe('order access tokens', () => {
   it('refuses a token whose payload was swapped', async () => {
     const token = await createOrderAccessToken('AVY-AAAAAA');
     const [, signature] = token!.split('.');
-    const forgedPayload = Buffer.from(
-      JSON.stringify({ sub: 'order:AVY-BBBBBB', exp: 2 ** 40 })
-    )
+    const forgedPayload = Buffer.from(JSON.stringify({ sub: 'order:AVY-BBBBBB', exp: 2 ** 40 }))
       .toString('base64')
       .replace(/\+/g, '-')
       .replace(/\//g, '_')

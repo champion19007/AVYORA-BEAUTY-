@@ -43,10 +43,7 @@ export async function getStockMap(productIds: string[]): Promise<Map<string, num
   const map = new Map<string, number>();
   if (!isDatabaseConfigured() || productIds.length === 0) return map;
 
-  const rows = await db
-    .select()
-    .from(inventory)
-    .where(inArray(inventory.productId, productIds));
+  const rows = await db.select().from(inventory).where(inArray(inventory.productId, productIds));
 
   for (const row of rows) {
     map.set(`${row.productId}::${row.size}`, row.allowBackorder ? Infinity : row.quantity);
@@ -119,9 +116,7 @@ export async function reserveStock(
       const [row] = await tx
         .select()
         .from(inventory)
-        .where(
-          and(eq(inventory.productId, line.productId), eq(inventory.size, line.size))
-        )
+        .where(and(eq(inventory.productId, line.productId), eq(inventory.size, line.size)))
         .limit(1);
 
       // No row at all means uncounted, which is not the same as plentiful.
@@ -143,10 +138,7 @@ export async function reserveStock(
  * whatever decided to release it — restoring stock and then failing to record
  * that you restored it would let the next caller do it again.
  */
-export async function releaseStock(
-  lines: StockLine[],
-  tx: Pick<typeof db, 'update'> = db
-): Promise<void> {
+export async function releaseStock(lines: StockLine[], tx: Pick<typeof db, 'update'> = db): Promise<void> {
   if (!isDatabaseConfigured()) return;
 
   for (const line of inLockOrder(lines)) {

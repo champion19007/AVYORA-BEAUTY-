@@ -24,13 +24,24 @@ const OBJECT_TTL_MS = 24 * 3_600_000;
 const ORPHAN_GRACE_MS = 15 * 60_000;
 
 export type ScanFailure =
-  | { ok: false; code: 'consent_required' | 'unavailable' | 'quota' | 'storage_unavailable' | 'wrong_state' | 'service_unavailable'; detail?: string }
+  | {
+      ok: false;
+      code:
+        'consent_required' | 'unavailable' | 'quota' | 'storage_unavailable' | 'wrong_state' | 'service_unavailable';
+      detail?: string;
+    }
   | { ok: false; code: 'invalid_image'; problem: ImageProblem };
 
-const ownedBy = (owner: Owner) => (owner.kind === 'user' ? eq(s.userId, owner.userId) : eq(s.anonymousOwnerHash, owner.ownerHash));
+const ownedBy = (owner: Owner) =>
+  owner.kind === 'user' ? eq(s.userId, owner.userId) : eq(s.anonymousOwnerHash, owner.ownerHash);
 
 /** Creates a session if consent is active and the durable owner, IP and global quotas allow. */
-export async function createHostedScan(db: Db, owner: Owner, ipAddress: string | null, now = new Date()): Promise<{ ok: true; id: string; expiresAt: Date } | ScanFailure> {
+export async function createHostedScan(
+  db: Db,
+  owner: Owner,
+  ipAddress: string | null,
+  now = new Date()
+): Promise<{ ok: true; id: string; expiresAt: Date } | ScanFailure> {
   const consent = await activeConsent(db, owner, 'photo_processing');
   if (!consent) return { ok: false, code: 'consent_required' };
   const admitted = await admitHostedScan(db, { owner, ipAddress, consentId: consent.id, now });
@@ -80,7 +91,12 @@ export async function uploadScanImage(
         status: 'uploaded',
         objectKey: key,
         objectExpiresAt: new Date(Math.min(now.getTime() + OBJECT_TTL_MS, scan.createdAt.getTime() + OBJECT_TTL_MS)),
-        quality: { width: checked.width, height: checked.height, brightness: Math.round(checked.brightness), contrast: Math.round(checked.contrast) },
+        quality: {
+          width: checked.width,
+          height: checked.height,
+          brightness: Math.round(checked.brightness),
+          contrast: Math.round(checked.contrast),
+        },
       })
       .where(and(eq(s.id, id), eq(s.status, 'created')))
       .returning({ id: s.id });
@@ -100,7 +116,14 @@ export async function uploadScanImage(
 export async function getScan(db: Db, owner: Owner, id: string, now = new Date()) {
   const scan = await liveSession(db, owner, id, now);
   if (!scan) return null;
-  return { id: scan.id, status: scan.status, mode: scan.mode, modelVersion: scan.modelVersion, result: scan.result, expiresAt: scan.expiresAt.toISOString() };
+  return {
+    id: scan.id,
+    status: scan.status,
+    mode: scan.mode,
+    modelVersion: scan.modelVersion,
+    result: scan.result,
+    expiresAt: scan.expiresAt.toISOString(),
+  };
 }
 
 /**
@@ -115,7 +138,10 @@ export async function deleteScan(
   owner: Owner,
   id: string
 ): Promise<{ found: boolean; photo: 'deleted' | 'none' | 'pending' }> {
-  const [scan] = await db.select().from(s).where(and(eq(s.id, id), ownedBy(owner)));
+  const [scan] = await db
+    .select()
+    .from(s)
+    .where(and(eq(s.id, id), ownedBy(owner)));
   if (!scan) return { found: false, photo: 'none' };
   await db.update(s).set({ status: 'revoked', result: null, quality: null }).where(eq(s.id, id));
   if (!scan.objectKey) return { found: true, photo: 'none' };
@@ -131,7 +157,10 @@ async function removePhoto(db: Db, storage: PrivateStorage | null, id: string, k
     reportError(err, { scope: 'scans.deletePhoto' });
     return false;
   }
-  await db.update(s).set({ objectKey: null, objectExpiresAt: null }).where(and(eq(s.id, id), eq(s.objectKey, key)));
+  await db
+    .update(s)
+    .set({ objectKey: null, objectExpiresAt: null })
+    .where(and(eq(s.id, id), eq(s.objectKey, key)));
   return true;
 }
 
@@ -157,8 +186,15 @@ export async function discardUnprocessedPhoto(db: Db, storage: PrivateStorage | 
  * place for the retention sweep to retry; the database never claims a
  * deletion that did not happen.
  */
-export async function purgeOwnerScans(db: Db, storage: PrivateStorage | null, owner: Owner): Promise<{ deleted: number; pending: number }> {
-  const rows = await db.select({ id: s.id }).from(s).where(and(ownedBy(owner), isNotNull(s.objectKey)));
+export async function purgeOwnerScans(
+  db: Db,
+  storage: PrivateStorage | null,
+  owner: Owner
+): Promise<{ deleted: number; pending: number }> {
+  const rows = await db
+    .select({ id: s.id })
+    .from(s)
+    .where(and(ownedBy(owner), isNotNull(s.objectKey)));
   let deleted = 0;
   let pending = 0;
   for (const r of rows) {
@@ -193,7 +229,12 @@ export async function sweepScans(db: Db, storage: PrivateStorage | null, now = n
     const due = await db
       .select({ id: s.id, key: s.objectKey })
       .from(s)
-      .where(and(isNotNull(s.objectKey), sql`(${s.objectExpiresAt} <= ${now} OR ${s.status} IN ('revoked', 'failed', 'expired', 'completed'))`))
+      .where(
+        and(
+          isNotNull(s.objectKey),
+          sql`(${s.objectExpiresAt} <= ${now} OR ${s.status} IN ('revoked', 'failed', 'expired', 'completed'))`
+        )
+      )
       .limit(batch);
     for (const row of due) {
       if (await removePhoto(db, storage, row.id, row.key!)) photosDeleted += 1;
@@ -226,7 +267,9 @@ export async function scanHealth(db: Db, now = new Date()) {
     .select({
       pending: sql<number>`count(*) filter (where ${s.status} in ('queued', 'processing'))`,
       overduePhotos: sql<number>`count(*) filter (where ${s.objectKey} is not null and ${s.objectExpiresAt} <= ${now})`,
-      oldestOverdue: sql<string | null>`min(${s.objectExpiresAt}) filter (where ${s.objectKey} is not null and ${s.objectExpiresAt} <= ${now})`,
+      oldestOverdue: sql<
+        string | null
+      >`min(${s.objectExpiresAt}) filter (where ${s.objectKey} is not null and ${s.objectExpiresAt} <= ${now})`,
       failed24h: sql<number>`count(*) filter (where ${s.status} = 'failed' and ${s.createdAt} > ${new Date(now.getTime() - 86_400_000)})`,
     })
     .from(s);

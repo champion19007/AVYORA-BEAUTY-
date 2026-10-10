@@ -38,7 +38,12 @@ export function developmentFixtureInput(): KnowledgeInput {
         fullInci: 'Aqua, Niacinamide, Glycerin',
         ingredients: [
           { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
-          { position: 2, inciLabel: 'Niacinamide', ingredientId: 'niacinamide', concentration: { known: true, value: 5, unit: 'percent_w_w' } },
+          {
+            position: 2,
+            inciLabel: 'Niacinamide',
+            ingredientId: 'niacinamide',
+            concentration: { known: true, value: 5, unit: 'percent_w_w' },
+          },
           { position: 3, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
         ],
         sourceId: FIXTURE_EVIDENCE_ID,
@@ -67,11 +72,21 @@ export function developmentFixtureInput(): KnowledgeInput {
         concern: 'acne',
         prior: 0.2,
         groups: [
-          { evidenceGroup: 'self_report_breakouts', observation: 'frequent', pGivenConcern: 0.6, pGivenNotConcern: 0.2 },
+          {
+            evidenceGroup: 'self_report_breakouts',
+            observation: 'frequent',
+            pGivenConcern: 0.6,
+            pGivenNotConcern: 0.2,
+          },
           { evidenceGroup: 'self_report_oiliness', observation: 'yes', pGivenConcern: 0.5, pGivenNotConcern: 0.25 },
         ],
         validationStatus: 'synthetic_fixture',
-        provenance: { trainingVersion: null, calibrationVersion: null, counts: null, note: 'Synthetic: illustrates the arithmetic only.' },
+        provenance: {
+          trainingVersion: null,
+          calibrationVersion: null,
+          counts: null,
+          note: 'Synthetic: illustrates the arithmetic only.',
+        },
         calibrationScope: { sources: ['quiz'], photoModelVersions: [] },
         review: FIXTURE_REVIEW,
       },

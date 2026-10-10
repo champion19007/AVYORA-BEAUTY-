@@ -44,7 +44,9 @@ afterAll(async () => {
   await client?.close();
 });
 beforeEach(async () => {
-  await client.exec('DELETE FROM order_items; DELETE FROM orders; DELETE FROM addresses; DELETE FROM domain_events; DELETE FROM inventory');
+  await client.exec(
+    'DELETE FROM order_items; DELETE FROM orders; DELETE FROM addresses; DELETE FROM domain_events; DELETE FROM inventory'
+  );
   await db.insert(inventory).values({ ...SKU, quantity: 10 });
 });
 

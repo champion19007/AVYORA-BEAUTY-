@@ -31,9 +31,7 @@ const MAX_ATTEMPTS = 5;
 
 export type OtpChannel = 'email' | 'sms';
 
-export type OtpVerifyResult =
-  | { ok: true }
-  | { ok: false; reason: 'expired' | 'invalid' | 'too_many_attempts' };
+export type OtpVerifyResult = { ok: true } | { ok: false; reason: 'expired' | 'invalid' | 'too_many_attempts' };
 
 /**
  * A six-digit code from a cryptographic source.
@@ -87,13 +85,7 @@ export async function verifyOtp(identifier: string, code: string): Promise<OtpVe
   const [row] = await db
     .select()
     .from(otpCodes)
-    .where(
-      and(
-        eq(otpCodes.identifier, identifier),
-        isNull(otpCodes.consumedAt),
-        gt(otpCodes.expiresAt, new Date())
-      )
-    )
+    .where(and(eq(otpCodes.identifier, identifier), isNull(otpCodes.consumedAt), gt(otpCodes.expiresAt, new Date())))
     .orderBy(sql`${otpCodes.createdAt} desc`)
     .limit(1);
 

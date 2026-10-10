@@ -11,9 +11,20 @@
  */
 import { spawn } from 'node:child_process';
 
-const env = { ...process.env, NEXT_PUBLIC_REDESIGN: '1', NEXT_PUBLIC_FACE_SCAN: '1', FACE_SCAN_HOSTED: '', DATABASE_URL: '', DATABASE_REPLICA_URL: '' };
+const env = {
+  ...process.env,
+  NEXT_PUBLIC_REDESIGN: '1',
+  NEXT_PUBLIC_FACE_SCAN: '1',
+  FACE_SCAN_HOSTED: '',
+  DATABASE_URL: '',
+  DATABASE_REPLICA_URL: '',
+};
 // `--start` serves an existing production build (npm run build:offline) instead of the dev server.
 const start = process.argv.includes('--start');
 const port = process.argv.slice(2).find((a) => /^\d+$/.test(a)) ?? (start ? '9004' : '9003');
-const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', start ? ['next', 'start', '-p', port] : ['next', 'dev', '--turbopack', '-p', port], { env, stdio: 'inherit', shell: process.platform === 'win32' });
+const child = spawn(
+  process.platform === 'win32' ? 'npx.cmd' : 'npx',
+  start ? ['next', 'start', '-p', port] : ['next', 'dev', '--turbopack', '-p', port],
+  { env, stdio: 'inherit', shell: process.platform === 'win32' }
+);
 child.on('exit', (code) => process.exit(code ?? 0));

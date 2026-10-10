@@ -27,10 +27,14 @@ describe('merge policy', () => {
   });
 
   it('caps at the purchase limit and at counted stock, and says so', () => {
-    const { lines, adjustments } = mergeCartLines([], [L('retinol', '90ml', 15), L('face-wash', '150ml', 4), L('retinol', '30ml', 2)], {
-      'face-wash::150ml': 1,
-      'retinol::30ml': 0,
-    });
+    const { lines, adjustments } = mergeCartLines(
+      [],
+      [L('retinol', '90ml', 15), L('face-wash', '150ml', 4), L('retinol', '30ml', 2)],
+      {
+        'face-wash::150ml': 1,
+        'retinol::30ml': 0,
+      }
+    );
     expect(lines).toEqual([L('retinol', '90ml', MAX_QUANTITY_PER_SKU), L('face-wash', '150ml', 1)]);
     expect(adjustments.map((a) => [a.productId, a.reason, a.to])).toEqual([
       ['retinol', 'purchase_limit', MAX_QUANTITY_PER_SKU],
@@ -44,7 +48,10 @@ describe('merge policy', () => {
   });
 
   it('drops SKUs no longer sold, and nonsense quantities', () => {
-    const { lines, adjustments } = mergeCartLines([], [L('retinol', '60ml', 1), L('discontinued', '30ml', 1), L('face-wash', '150ml', -2), L('face-wash', '150ml', 1.5)]);
+    const { lines, adjustments } = mergeCartLines(
+      [],
+      [L('retinol', '60ml', 1), L('discontinued', '30ml', 1), L('face-wash', '150ml', -2), L('face-wash', '150ml', 1.5)]
+    );
     expect(lines).toEqual([]);
     expect(adjustments.map((a) => a.reason)).toEqual(['unavailable', 'unavailable']);
   });
@@ -56,12 +63,22 @@ describe('merge policy', () => {
   });
 
   it('unions wishlists, account first, dropping unknown products', () => {
-    expect(mergeWishlists(['retinol', 'face-wash'], ['face-wash', 'nonsense', 'ha-toner'])).toEqual(['retinol', 'face-wash', 'ha-toner']);
+    expect(mergeWishlists(['retinol', 'face-wash'], ['face-wash', 'nonsense', 'ha-toner'])).toEqual([
+      'retinol',
+      'face-wash',
+      'ha-toner',
+    ]);
   });
 });
 
 describe('what the browser does when it learns who is signed in', () => {
-  const guest = (over: Partial<LocalState> = {}): LocalState => ({ owner: null, lines: [], wishlist: [], pendingChanges: false, ...over });
+  const guest = (over: Partial<LocalState> = {}): LocalState => ({
+    owner: null,
+    lines: [],
+    wishlist: [],
+    pendingChanges: false,
+    ...over,
+  });
   const server = (accountKey: string | null, cart = [L('face-wash', '150ml', 1)], wishlist = ['retinol']) => ({
     accountKey,
     cart: accountKey ? cart : null,
@@ -73,20 +90,31 @@ describe('what the browser does when it learns who is signed in', () => {
   });
 
   it('signing out clears the account’s private bag and wishlist', () => {
-    expect(decideSync(guest({ owner: 'acct-A', lines: [L('retinol', '90ml', 1)] }), server(null))).toEqual({ kind: 'clear' });
+    expect(decideSync(guest({ owner: 'acct-A', lines: [L('retinol', '90ml', 1)] }), server(null))).toEqual({
+      kind: 'clear',
+    });
   });
 
   it('signing in with a guest bag merges it', () => {
-    expect(decideSync(guest({ lines: [L('retinol', '90ml', 1)] }), server('acct-A'))).toEqual({ kind: 'merge', owner: 'acct-A' });
+    expect(decideSync(guest({ lines: [L('retinol', '90ml', 1)] }), server('acct-A'))).toEqual({
+      kind: 'merge',
+      owner: 'acct-A',
+    });
     expect(decideSync(guest({ wishlist: ['retinol'] }), server('acct-A'))).toEqual({ kind: 'merge', owner: 'acct-A' });
   });
 
   it('signing in with nothing as a guest adopts the account’s saved state', () => {
-    expect(decideSync(guest(), server('acct-A'))).toMatchObject({ kind: 'adopt', owner: 'acct-A', lines: [L('face-wash', '150ml', 1)] });
+    expect(decideSync(guest(), server('acct-A'))).toMatchObject({
+      kind: 'adopt',
+      owner: 'acct-A',
+      lines: [L('face-wash', '150ml', 1)],
+    });
   });
 
   it('the same account adopts the server copy (another device may have changed it)...', () => {
-    expect(decideSync(guest({ owner: 'acct-A', lines: [L('retinol', '90ml', 1)] }), server('acct-A'))).toMatchObject({ kind: 'adopt' });
+    expect(decideSync(guest({ owner: 'acct-A', lines: [L('retinol', '90ml', 1)] }), server('acct-A'))).toMatchObject({
+      kind: 'adopt',
+    });
   });
 
   it('...unless it has unsent changes of its own', () => {
@@ -94,8 +122,16 @@ describe('what the browser does when it learns who is signed in', () => {
   });
 
   it('a different account on the same page never inherits the previous one’s bag', () => {
-    const decision = decideSync(guest({ owner: 'acct-A', lines: [L('retinol', '90ml', 5)], wishlist: ['ha-toner'] }), server('acct-B'));
-    expect(decision).toEqual({ kind: 'adopt', owner: 'acct-B', lines: [L('face-wash', '150ml', 1)], wishlist: ['retinol'] });
+    const decision = decideSync(
+      guest({ owner: 'acct-A', lines: [L('retinol', '90ml', 5)], wishlist: ['ha-toner'] }),
+      server('acct-B')
+    );
+    expect(decision).toEqual({
+      kind: 'adopt',
+      owner: 'acct-B',
+      lines: [L('face-wash', '150ml', 1)],
+      wishlist: ['retinol'],
+    });
   });
 });
 

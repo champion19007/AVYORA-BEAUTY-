@@ -22,8 +22,19 @@ import { HERO_IMAGE } from './photos';
 
 export function Hero() {
   return (
-    <section aria-labelledby="hero-heading" className="relative h-screen min-h-[640px] w-full overflow-hidden bg-nv-ink font-nv text-white">
-      <Image src={HERO_IMAGE.src} alt={HERO_IMAGE.alt} fill priority sizes="100vw" quality={80} className={`nv-hero-image object-cover ${HERO_IMAGE.pos}`} />
+    <section
+      aria-labelledby="hero-heading"
+      className="relative h-screen min-h-[640px] w-full overflow-hidden bg-nv-ink font-nv text-white"
+    >
+      <Image
+        src={HERO_IMAGE.src}
+        alt={HERO_IMAGE.alt}
+        fill
+        priority
+        sizes="100vw"
+        quality={80}
+        className={`nv-hero-image object-cover ${HERO_IMAGE.pos}`}
+      />
       {/*
         Not in the reference, whose photograph was shot for white type: a
         light scrim behind the copy areas keeps white text at 4.5:1 on any
@@ -35,7 +46,9 @@ export function Hero() {
       />
 
       <div className="nv-hero-in absolute right-nv-gutter top-[100px] flex w-[min(310px,calc(100%-2*var(--nv-gutter)))] lg:top-[120px] flex-col items-end gap-6 text-right">
-        <p className="text-nv-intro">Answer a few questions and get a weekly routine that fits your skin and your budget.</p>
+        <p className="text-nv-intro">
+          Answer a few questions and get a weekly routine that fits your skin and your budget.
+        </p>
         <Link
           href="/routine-finder"
           className="nv-focus-light inline-flex h-[49px] items-center rounded-nv-pill bg-white px-6 text-nv-label text-nv-ink transition-colors duration-nv-control ease-nv hover:bg-white/90"
@@ -44,9 +57,14 @@ export function Hero() {
         </Link>
       </div>
 
-      <Eyebrow className="nv-hero-in absolute left-nv-gutter hidden lg:block top-[calc(50%-20px)] w-[210px]">Cleanse, treat, moisturise and protect</Eyebrow>
+      <Eyebrow className="nv-hero-in absolute left-nv-gutter hidden lg:block top-[calc(50%-20px)] w-[210px]">
+        Cleanse, treat, moisturise and protect
+      </Eyebrow>
 
-      <h1 id="hero-heading" className="nv-hero-in absolute bottom-24 left-nv-gutter lg:bottom-[40px] max-w-[900px] text-balance text-nv-hero font-medium">
+      <h1
+        id="hero-heading"
+        className="nv-hero-in absolute bottom-24 left-nv-gutter lg:bottom-[40px] max-w-[900px] text-balance text-nv-hero font-medium"
+      >
         Skincare built around a simple routine
       </h1>
     </section>

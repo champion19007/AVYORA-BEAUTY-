@@ -29,5 +29,7 @@ for (const r of preview.records) {
   for (const p of r.problems) console.log(`  problem     ${p}`);
   for (const u of r.unresolved) console.log(`  unresolved  ${u}`);
 }
-console.log(`\n${preview.records.filter((r) => r.publishable).length}/${preview.records.length} publishable, ${preview.records.filter((r) => r.recommendable).length} recommendable.`);
+console.log(
+  `\n${preview.records.filter((r) => r.publishable).length}/${preview.records.length} publishable, ${preview.records.filter((r) => r.recommendable).length} recommendable.`
+);
 process.exitCode = preview.ok ? 0 : 1;

@@ -32,18 +32,12 @@ export async function register() {
  * Next calls this with the error plus request and context objects; their exact
  * shape is Next's, so they are passed straight through.
  */
-export async function onRequestError(
-  error: unknown,
-  request: unknown,
-  context: unknown
-): Promise<void> {
+export async function onRequestError(error: unknown, request: unknown, context: unknown): Promise<void> {
   if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
   const Sentry = await import('@sentry/nextjs');
-  await (
-    Sentry.captureRequestError as unknown as (
-      e: unknown,
-      r: unknown,
-      c: unknown
-    ) => void | Promise<void>
-  )(error, request, context);
+  await (Sentry.captureRequestError as unknown as (e: unknown, r: unknown, c: unknown) => void | Promise<void>)(
+    error,
+    request,
+    context
+  );
 }

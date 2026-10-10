@@ -3,7 +3,14 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import * as schema from '@/db/schema';
 import { compileRelease, type CompiledRelease } from './compile';
 import { productionInput } from './production-input';
-import { activateRelease, revokeRelease, rollbackRelease, storeRelease, type Actor, type ReleaseCommandResult } from './releases';
+import {
+  activateRelease,
+  revokeRelease,
+  rollbackRelease,
+  storeRelease,
+  type Actor,
+  type ReleaseCommandResult,
+} from './releases';
 
 /**
  * Knowledge operations for the staff console.
@@ -27,7 +34,9 @@ export type Validation =
 export function validateRepositoryKnowledge(): Validation {
   const { input, awaitingReview } = productionInput();
   const compiled = compileRelease(input, { fixture: false });
-  return compiled.ok ? { ok: true, release: compiled.release, awaitingReview } : { ok: false, errors: compiled.errors, awaitingReview };
+  return compiled.ok
+    ? { ok: true, release: compiled.release, awaitingReview }
+    : { ok: false, errors: compiled.errors, awaitingReview };
 }
 
 const ownerOnly = (actor: StaffActor, what: string): ReleaseCommandResult | null =>
@@ -38,7 +47,11 @@ export async function publishRepositoryRelease(db: Db, actor: StaffActor): Promi
   const refused = ownerOnly(actor, 'publish knowledge');
   if (refused) return refused;
   const v = validateRepositoryKnowledge();
-  if (!v.ok) return { ok: false, error: `Knowledge does not validate (${v.errors.length} problem${v.errors.length === 1 ? '' : 's'}): ${v.errors.slice(0, 5).join('; ')}` };
+  if (!v.ok)
+    return {
+      ok: false,
+      error: `Knowledge does not validate (${v.errors.length} problem${v.errors.length === 1 ? '' : 's'}): ${v.errors.slice(0, 5).join('; ')}`,
+    };
   const stored = await storeRelease(db, v.release, actor);
   if (!stored.ok) return stored;
   return activateRelease(db, v.release.manifest.releaseId, actor);
@@ -51,7 +64,12 @@ export async function rollbackKnowledge(db: Db, actor: StaffActor, reason: strin
   return rollbackRelease(db, actor, reason.trim());
 }
 
-export async function revokeKnowledge(db: Db, actor: StaffActor, releaseId: string, reason: string): Promise<ReleaseCommandResult> {
+export async function revokeKnowledge(
+  db: Db,
+  actor: StaffActor,
+  releaseId: string,
+  reason: string
+): Promise<ReleaseCommandResult> {
   const refused = ownerOnly(actor, 'revoke a release');
   if (refused) return refused;
   return revokeRelease(db, releaseId, actor, reason.trim());

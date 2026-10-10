@@ -140,9 +140,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : null;
     const rawUser = parseJson(readStorage('user'));
     const savedUser =
-      rawUser && typeof rawUser === 'object' && typeof (rawUser as User).email === 'string'
-        ? (rawUser as User)
-        : null;
+      rawUser && typeof rawUser === 'object' && typeof (rawUser as User).email === 'string' ? (rawUser as User) : null;
 
     /* eslint-disable react-hooks/set-state-in-effect -- rehydrating client-only
        persisted state after mount is exactly the case this rule cannot model:
@@ -174,16 +172,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /** Replaces local state with what the server confirmed, without echoing it back. */
-  const adoptServerState = useCallback((owner: string, serverLines: CartLine[], serverWishlist: string[]) => {
-    const nextLines = normaliseLines({ version: 2, lines: serverLines });
-    lastConfirmed.current = { cart: serialiseLines(nextLines), wishlist: JSON.stringify(serverWishlist) };
-    pendingChanges.current = false;
-    linesRef.current = nextLines;
-    setLines(nextLines);
-    setWishlist(serverWishlist);
-    setOwner(owner);
-    writeStorage(CART_MIRRORED_KEY, '1');
-  }, [setOwner]);
+  const adoptServerState = useCallback(
+    (owner: string, serverLines: CartLine[], serverWishlist: string[]) => {
+      const nextLines = normaliseLines({ version: 2, lines: serverLines });
+      lastConfirmed.current = { cart: serialiseLines(nextLines), wishlist: JSON.stringify(serverWishlist) };
+      pendingChanges.current = false;
+      linesRef.current = nextLines;
+      setLines(nextLines);
+      setWishlist(serverWishlist);
+      setOwner(owner);
+      writeStorage(CART_MIRRORED_KEY, '1');
+    },
+    [setOwner]
+  );
 
   /**
    * Asks the server who is signed in and reconciles (lib/account-sync):
@@ -205,7 +206,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (controller.signal.aborted) return;
 
       const decision = decideSync(
-        { owner: ownerRef.current ?? null, lines: linesRef.current, wishlist: wishlistRef.current, pendingChanges: pendingChanges.current },
+        {
+          owner: ownerRef.current ?? null,
+          lines: linesRef.current,
+          wishlist: wishlistRef.current,
+          pendingChanges: pendingChanges.current,
+        },
         server
       );
       if (decision.kind === 'keep') {
@@ -247,7 +253,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void syncIdentity();
     const onFocus = () => {
-      if (document.visibilityState === 'visible' && Date.now() - lastSyncAt.current > FOCUS_SYNC_INTERVAL_MS) void syncIdentity();
+      if (document.visibilityState === 'visible' && Date.now() - lastSyncAt.current > FOCUS_SYNC_INTERVAL_MS)
+        void syncIdentity();
     };
     const onStorage = (e: StorageEvent) => {
       if (e.key === OWNER_KEY) void syncIdentity();
@@ -372,16 +379,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const toggleWishlist = (productId: string) => {
-    setWishlist((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
-    );
+    setWishlist((prev) => (prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]));
   };
 
   const login = (email: string, isAdmin: boolean = false) => {
-    const mockUser = { 
-      name: isAdmin ? 'System Admin' : 'John Doe', 
+    const mockUser = {
+      name: isAdmin ? 'System Admin' : 'John Doe',
       email,
-      isAdmin 
+      isAdmin,
     };
     setUser(mockUser);
     setIsLoggedIn(true);

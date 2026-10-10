@@ -36,7 +36,9 @@ describe('linking Google to an existing account', () => {
 
   it('keeps a verified account as it is', async () => {
     const verified = new Date('2026-01-01T00:00:00Z');
-    await db.insert(users).values({ id: 'u2', email: 'b@example.test', passwordHash: 'owner', emailVerified: verified });
+    await db
+      .insert(users)
+      .values({ id: 'u2', email: 'b@example.test', passwordHash: 'owner', emailVerified: verified });
     await db.insert(sessions).values({ sessionToken: 't2', userId: 'u2', expires: later });
 
     await secureAccountLinkedToGoogle('u2');

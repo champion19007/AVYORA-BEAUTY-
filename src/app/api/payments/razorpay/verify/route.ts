@@ -2,15 +2,8 @@ import { NextResponse } from 'next/server';
 import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
 import { isSameOrigin } from '@/lib/security';
 import { isDatabaseConfigured } from '@/db';
-import {
-  getOrderByPaymentReference,
-  markOrderPaid,
-} from '@/lib/orders';
-import {
-  fetchRazorpayPayment,
-  getRazorpayConfig,
-  verifyPaymentSignature,
-} from '@/lib/razorpay';
+import { getOrderByPaymentReference, markOrderPaid } from '@/lib/orders';
+import { fetchRazorpayPayment, getRazorpayConfig, verifyPaymentSignature } from '@/lib/razorpay';
 
 /**
  * Verifies the handshake Razorpay Checkout returns to the browser.
@@ -48,10 +41,7 @@ export async function POST(request: Request) {
   const paymentId = body.razorpay_payment_id ?? '';
   const signature = body.razorpay_signature ?? '';
 
-  const valid = await verifyPaymentSignature(
-    { orderId, paymentId, signature },
-    config.keySecret
-  );
+  const valid = await verifyPaymentSignature({ orderId, paymentId, signature }, config.keySecret);
 
   const order = await getOrderByPaymentReference(orderId);
   if (!order) {

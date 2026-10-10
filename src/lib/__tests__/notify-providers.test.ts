@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emailDeliveryConfigured, sendEmail, sendOtpSms, sendWhatsApp, smsDeliveryConfigured, whatsappConfigured } from '@/lib/notify';
+import {
+  emailDeliveryConfigured,
+  sendEmail,
+  sendOtpSms,
+  sendWhatsApp,
+  smsDeliveryConfigured,
+  whatsappConfigured,
+} from '@/lib/notify';
 
 const gmail = vi.hoisted(() => ({ sendMail: vi.fn(), createTransport: vi.fn() }));
 vi.mock('nodemailer', () => ({ default: { createTransport: gmail.createTransport } }));
@@ -50,14 +57,24 @@ describe('Gmail', () => {
     expect(await sendEmail('buyer@example.com', 'Subject', 'Body')).toEqual({ ok: true });
 
     expect(fetch).not.toHaveBeenCalled();
-    expect(gmail.createTransport.mock.calls[0]![0].auth).toEqual({ user: 'shop@example.com', pass: 'abcdefghijklmnop' });
-    expect(gmail.sendMail).toHaveBeenCalledWith({ from: 'Avyora <shop@example.com>', to: 'buyer@example.com', subject: 'Subject', text: 'Body' });
+    expect(gmail.createTransport.mock.calls[0]![0].auth).toEqual({
+      user: 'shop@example.com',
+      pass: 'abcdefghijklmnop',
+    });
+    expect(gmail.sendMail).toHaveBeenCalledWith({
+      from: 'Avyora <shop@example.com>',
+      to: 'buyer@example.com',
+      subject: 'Subject',
+      text: 'Body',
+    });
   });
 
   it('reports a refused login as a failed send, not a crash', async () => {
     vi.stubEnv('GMAIL_USER', 'shop@example.com');
     vi.stubEnv('GMAIL_APP_PASSWORD', 'wrong');
-    gmail.createTransport.mockReturnValue({ sendMail: gmail.sendMail.mockRejectedValue(new Error('535 Invalid login')) });
+    gmail.createTransport.mockReturnValue({
+      sendMail: gmail.sendMail.mockRejectedValue(new Error('535 Invalid login')),
+    });
 
     expect((await sendEmail('buyer@example.com', 'S', 'B')).ok).toBe(false);
   });
@@ -81,7 +98,11 @@ describe('Meta WhatsApp', () => {
     expect(JSON.parse(init.body)).toMatchObject({
       to: '918369682814',
       type: 'template',
-      template: { name: 'avyora_new_order', language: { code: 'en' }, components: [{ type: 'body', parameters: [{ type: 'text', text: 'AVY-1, Rs 678 (PAID)' }] }] },
+      template: {
+        name: 'avyora_new_order',
+        language: { code: 'en' },
+        components: [{ type: 'body', parameters: [{ type: 'text', text: 'AVY-1, Rs 678 (PAID)' }] }],
+      },
     });
   });
 });

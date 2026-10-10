@@ -18,11 +18,7 @@ const PAGE_SIZE = 50;
  * without bound — fine on day one, a timeout on day four hundred. Newest
  * first, since an operator works the top of the list.
  */
-export default async function AdminOrdersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
+export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { page } = await searchParams;
   const pageNumber = Math.max(1, Number(page) || 1);
   const offset = (pageNumber - 1) * PAGE_SIZE;
@@ -92,9 +88,7 @@ export default async function AdminOrdersPage({
                   <td className="p-4">
                     <StatusPill kind="payment" value={order.paymentStatus} />
                     {order.paymentProvider === 'cod' && (
-                      <span className="mt-1 block text-[11px] text-muted-foreground">
-                        cash on delivery
-                      </span>
+                      <span className="mt-1 block text-[11px] text-muted-foreground">cash on delivery</span>
                     )}
                   </td>
                   <td className="p-4">

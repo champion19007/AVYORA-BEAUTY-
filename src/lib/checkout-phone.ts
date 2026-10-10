@@ -13,7 +13,11 @@ import { smsDeliveryConfigured } from '@/lib/notify';
  */
 
 /** Ten digits, as `addressSchema` and `phoneSchema` normalise it. */
-export const normalisePhone = (raw: string) => raw.trim().replace(/[\s-]/g, '').replace(/^(\+91|0)/, '');
+export const normalisePhone = (raw: string) =>
+  raw
+    .trim()
+    .replace(/[\s-]/g, '')
+    .replace(/^(\+91|0)/, '');
 
 // Its own key: a phone proof must never verify as any other signed token (staff sessions share SESSION_SECRET).
 const proofKey = () => `${process.env.SESSION_SECRET}:checkout-phone`;

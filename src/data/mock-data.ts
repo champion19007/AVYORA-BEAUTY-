@@ -25,13 +25,25 @@ export interface Product {
   reviewCount?: number;
   isBestSeller: boolean;
   isNewLaunch: boolean;
-  category: 'skin' | 'hair' | 'body' | 'lip' | 'cleanser' | 'toner' | 'essence' | 'serum' | 'moisturizer' | 'sun' | 'mask' | 'exfoliator';
+  category:
+    | 'skin'
+    | 'hair'
+    | 'body'
+    | 'lip'
+    | 'cleanser'
+    | 'toner'
+    | 'essence'
+    | 'serum'
+    | 'moisturizer'
+    | 'sun'
+    | 'mask'
+    | 'exfoliator';
   concerns: string[];
   ingredients: string[];
   sizes: { label: string; price: number }[];
 }
 
-const getImg = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
+const getImg = (id: string) => PlaceHolderImages.find((img) => img.id === id)?.imageUrl || '';
 
 /**
  * SAMPLE CATALOGUE: development and review data, not verified products.
@@ -53,7 +65,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'cleanser',
     concerns: ['first-cleanse', 'makeup-removal', 'spf-removal'],
     ingredients: ['Rice Bran Oil', 'Jojoba Oil'],
-    sizes: [{ label: '150ml', price: 649 }]
+    sizes: [{ label: '150ml', price: 649 }],
   },
   {
     id: 'centella-cleansing-balm',
@@ -68,7 +80,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'cleanser',
     concerns: ['first-cleanse', 'sensitivity', 'redness'],
     ingredients: ['Centella Asiatica'],
-    sizes: [{ label: '100ml', price: 799 }]
+    sizes: [{ label: '100ml', price: 799 }],
   },
   {
     id: 'face-wash',
@@ -83,7 +95,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'cleanser',
     concerns: ['face-wash', 'cleanse', 'barrier-support'],
     ingredients: ['Amino Acids', 'LHA'],
-    sizes: [{ label: '150ml', price: 349 }]
+    sizes: [{ label: '150ml', price: 349 }],
   },
   {
     id: 'papaya-enzyme-powder',
@@ -98,7 +110,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'cleanser',
     concerns: ['texture', 'dullness', 'exfoliation'],
     ingredients: ['Papain', 'Rice Starch'],
-    sizes: [{ label: '60g', price: 549 }]
+    sizes: [{ label: '60g', price: 549 }],
   },
 
   // PHASE 2: EXFOLIATION & SURFACE POLISHING
@@ -115,7 +127,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'exfoliator',
     concerns: ['exfoliation', 'texture', 'sensitive-skin'],
     ingredients: ['Gluconolactone (PHA)'],
-    sizes: [{ label: '30ml', price: 499 }]
+    sizes: [{ label: '30ml', price: 499 }],
   },
   {
     id: 'lha-sebum-control',
@@ -130,7 +142,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'exfoliator',
     concerns: ['acne', 'oiliness', 'pore-care'],
     ingredients: ['LHA'],
-    sizes: [{ label: '30ml', price: 449 }]
+    sizes: [{ label: '30ml', price: 449 }],
   },
   {
     id: 'bifida-exfoliating-pads',
@@ -145,7 +157,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'exfoliator',
     concerns: ['texture', 'barrier-repair'],
     ingredients: ['Bifida Ferment', 'AHA'],
-    sizes: [{ label: '60 Pads', price: 899 }]
+    sizes: [{ label: '60 Pads', price: 899 }],
   },
 
   // PHASE 3: HIGH-VOLUME DEEP HYDRATION
@@ -162,7 +174,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'toner',
     concerns: ['dryness', 'dehydration', 'plumping'],
     ingredients: ['Hyaluronic Acid (5 Weights)'],
-    sizes: [{ label: '200ml', price: 399 }]
+    sizes: [{ label: '200ml', price: 399 }],
   },
   {
     id: 'rice-toner',
@@ -177,7 +189,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'toner',
     concerns: ['dullness', 'barrier-repair', 'dryness'],
     ingredients: ['Rice Extract', 'Ceramides'],
-    sizes: [{ label: '150ml', price: 549 }]
+    sizes: [{ label: '150ml', price: 549 }],
   },
   {
     id: 'heartleaf-liquid',
@@ -192,7 +204,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'toner',
     concerns: ['redness', 'irritation', 'sensitivity'],
     ingredients: ['Heartleaf Extract'],
-    sizes: [{ label: '200ml', price: 499 }]
+    sizes: [{ label: '200ml', price: 499 }],
   },
 
   // PHASE 4: CELLULAR REPAIR & BRIGHTENING ESSENCES
@@ -209,7 +221,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'essence',
     concerns: ['glass-skin', 'dullness', 'texture'],
     ingredients: ['Galactomyces Ferment'],
-    sizes: [{ label: '100ml', price: 749 }]
+    sizes: [{ label: '100ml', price: 749 }],
   },
   {
     id: 'snail-essence',
@@ -224,7 +236,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'essence',
     concerns: ['scar-healing', 'repair', 'bounciness'],
     ingredients: ['Snail Secretion Filtrate 96%'],
-    sizes: [{ label: '100ml', price: 849 }]
+    sizes: [{ label: '100ml', price: 849 }],
   },
   {
     id: 'kombucha-essence',
@@ -239,7 +251,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'essence',
     concerns: ['barrier-support', 'microbiome', 'resilience'],
     ingredients: ['Kombucha', 'Probiotics'],
-    sizes: [{ label: '150ml', price: 699 }]
+    sizes: [{ label: '150ml', price: 699 }],
   },
 
   // PHASE 5: TARGETED ACTIVE SERUMS & AMPOULES
@@ -256,7 +268,10 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'serum',
     concerns: ['uneven', 'dullness', 'brightening'],
     ingredients: ['vitamin c'],
-    sizes: [{ label: '10ml', price: 249 }, { label: '30ml', price: 499 }]
+    sizes: [
+      { label: '10ml', price: 249 },
+      { label: '30ml', price: 499 },
+    ],
   },
   {
     id: 'niacinamide-drops',
@@ -271,7 +286,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'serum',
     concerns: ['pores', 'oil-control', 'dark-spots'],
     ingredients: ['Niacinamide 10%', 'Zinc PCA'],
-    sizes: [{ label: '30ml', price: 449 }]
+    sizes: [{ label: '30ml', price: 449 }],
   },
   {
     id: 'retinol',
@@ -286,7 +301,10 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'serum',
     concerns: ['aging', 'lines', 'texture', 'deep-wrinkles'],
     ingredients: ['Retinaldehyde', 'Retinol'],
-    sizes: [{ label: '30ml', price: 399 }, { label: '90ml', price: 899 }]
+    sizes: [
+      { label: '30ml', price: 399 },
+      { label: '90ml', price: 899 },
+    ],
   },
   {
     id: 'copper-peptide',
@@ -301,7 +319,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'serum',
     concerns: ['expression-lines', 'plumping', 'firming'],
     ingredients: ['Copper Tripeptide-1'],
-    sizes: [{ label: '30ml', price: 1199 }]
+    sizes: [{ label: '30ml', price: 1199 }],
   },
   {
     id: 'pdrn-booster',
@@ -316,7 +334,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'serum',
     concerns: ['sagging', 'cellular-repair', 'premium'],
     ingredients: ['PDRN (Salmon DNA)'],
-    sizes: [{ label: '30ml', price: 1499 }]
+    sizes: [{ label: '30ml', price: 1499 }],
   },
   {
     id: 'propolis-ampoule',
@@ -331,7 +349,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'serum',
     concerns: ['glass-skin', 'nutrition', 'glow'],
     ingredients: ['Propolis Extract 70%', 'Honey'],
-    sizes: [{ label: '30ml', price: 649 }]
+    sizes: [{ label: '30ml', price: 649 }],
   },
 
   // PHASE 6: SHEET MASKS & EXPRESS TREATMENTS
@@ -348,7 +366,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'mask',
     concerns: ['elasticity', 'instant-glow'],
     ingredients: ['Hydrolyzed Collagen'],
-    sizes: [{ label: '1 Mask', price: 199 }]
+    sizes: [{ label: '1 Mask', price: 199 }],
   },
   {
     id: 'eye-patches',
@@ -363,7 +381,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'mask',
     concerns: ['puffiness', 'eye-lines', 'dark-circles'],
     ingredients: ['Caffeine', 'Peptides'],
-    sizes: [{ label: '60 Patches', price: 749 }]
+    sizes: [{ label: '60 Patches', price: 749 }],
   },
 
   // PHASE 7: MOISTURE LOCKING & SUN BARRIERS
@@ -380,7 +398,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'moisturizer',
     concerns: ['barrier-repair', 'dryness', 'locking'],
     ingredients: ['5 Types Ceramides'],
-    sizes: [{ label: '50ml', price: 549 }]
+    sizes: [{ label: '50ml', price: 549 }],
   },
   {
     id: 'sorbet-moisturizer',
@@ -395,7 +413,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'moisturizer',
     concerns: ['oil-control', 'dehydration', 'lightweight'],
     ingredients: ['Glacier Water', 'Betaine'],
-    sizes: [{ label: '50ml', price: 499 }]
+    sizes: [{ label: '50ml', price: 499 }],
   },
   {
     id: 'sunscreen',
@@ -410,7 +428,10 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'moisturizer',
     concerns: ['sunscreen', 'protect', 'uv-protection', 'brightening'],
     ingredients: ['Rice Extract', 'Probiotics', 'uv filters'],
-    sizes: [{ label: '30ml', price: 329 }, { label: '50ml', price: 649 }]
+    sizes: [
+      { label: '30ml', price: 329 },
+      { label: '50ml', price: 649 },
+    ],
   },
   {
     id: 'sun-stick',
@@ -425,7 +446,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'moisturizer',
     concerns: ['reapplication', 'calming'],
     ingredients: ['Cica', 'Mugwort'],
-    sizes: [{ label: '20g', price: 599 }]
+    sizes: [{ label: '20g', price: 599 }],
   },
   {
     id: 'lip-mask',
@@ -440,7 +461,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'moisturizer',
     concerns: ['dry-lips', 'flaking'],
     ingredients: ['Ceramides', 'Shea Butter'],
-    sizes: [{ label: '20g', price: 299 }]
+    sizes: [{ label: '20g', price: 299 }],
   },
 
   // BODY CARE (STAYS SEPARATE)
@@ -457,8 +478,8 @@ const SAMPLE_PRODUCTS: Product[] = [
     category: 'body',
     concerns: ['body-lotion', 'dryness'],
     ingredients: ['ceramide'],
-    sizes: [{ label: '180ml', price: 349 }]
-  }
+    sizes: [{ label: '180ml', price: 349 }],
+  },
 ];
 
 /**
@@ -476,7 +497,7 @@ export const CATEGORIES = [
   { id: 'essence', name: 'Phase 4: Repair Essences', image: getImg('galacto-essence'), hint: 'skin essence' },
   { id: 'serum', name: 'Phase 5: Targeted Serums', image: getImg('niacinamide-drops'), hint: 'clinical serum' },
   { id: 'mask', name: 'Phase 6: Treatments', image: getImg('collagen-mask'), hint: 'sheet mask' },
-  { id: 'moisturizer', name: 'Phase 7: Moisture & Sun', image: getImg('ceramide-cream'), hint: 'barrier cream' }
+  { id: 'moisturizer', name: 'Phase 7: Moisture & Sun', image: getImg('ceramide-cream'), hint: 'barrier cream' },
 ];
 
 export const CONCERNS = [
@@ -487,5 +508,5 @@ export const CONCERNS = [
   { id: 'acne', name: 'Acne Control', image: getImg('lha-liquid'), hint: 'clear skin' },
   { id: 'texture', name: 'Texture Smoothing', image: getImg('pha-fluid'), hint: 'smooth skin' },
   { id: 'dryness', name: 'Deep Hydration', image: getImg('ha-toner'), hint: 'plump skin' },
-  { id: 'eye-care', name: 'Under-Eye Help', image: getImg('eye-patches'), hint: 'eye patches' }
+  { id: 'eye-care', name: 'Under-Eye Help', image: getImg('eye-patches'), hint: 'eye patches' },
 ];

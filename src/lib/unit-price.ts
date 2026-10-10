@@ -15,7 +15,10 @@ export function parseSize(label: string): ParsedSize | null {
 }
 
 /** Integer paise per reference amount (10 ml, 10 g or 1 item), or null when the size cannot be read. */
-export function unitPricePaise(pricePaise: number, sizeLabel: string): { paise: number; per: '10 ml' | '10 g' | 'item' } | null {
+export function unitPricePaise(
+  pricePaise: number,
+  sizeLabel: string
+): { paise: number; per: '10 ml' | '10 g' | 'item' } | null {
   const size = parseSize(sizeLabel);
   if (!size || !Number.isInteger(pricePaise) || pricePaise <= 0) return null;
   if (size.unit === 'item') return { paise: Math.round(pricePaise / size.quantity), per: 'item' };

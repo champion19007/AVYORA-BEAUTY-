@@ -33,10 +33,7 @@ export async function POST(request: Request) {
 
   const config = getRazorpayConfig();
   if (!config || !isDatabaseConfigured()) {
-    return NextResponse.json(
-      { error: 'Online payment is not available on this deployment.' },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: 'Online payment is not available on this deployment.' }, { status: 503 });
   }
 
   const body = await readBoundedJson(request, BODY_LIMITS.paymentCreate);
@@ -58,10 +55,7 @@ export async function POST(request: Request) {
   if (!limited.allowed && !(input.idempotencyKey && (await findByIdempotencyKey(String(input.idempotencyKey))))) {
     return limitResponse(limited);
   }
-  const created = await createOrder(
-    { ...input, paymentMethod: 'razorpay' },
-    session?.user?.id ?? null
-  );
+  const created = await createOrder({ ...input, paymentMethod: 'razorpay' }, session?.user?.id ?? null);
 
   if (!created.ok) {
     // 409 for a changed price: the request was fine, the quote it relied on is not.
@@ -134,9 +128,6 @@ export async function POST(request: Request) {
   } catch (err) {
     // Log the detail, return something generic: provider errors can echo config.
     reportError(err, { scope: 'razorpay.createOrder', correlationId: created.orderNumber });
-    return NextResponse.json(
-      { error: 'We could not start the payment. Please try again.' },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: 'We could not start the payment. Please try again.' }, { status: 502 });
   }
 }

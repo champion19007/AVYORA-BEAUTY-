@@ -85,10 +85,7 @@ export function ProductCard({
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-all duration-500 hover:-translate-y-1 hover:border-primary/40 hover:shadow-luxe-lg">
-      <Link
-        href={`/products/${product.slug}`}
-        className="relative aspect-[4/5] overflow-hidden bg-muted"
-      >
+      <Link href={`/products/${product.slug}`} className="relative aspect-[4/5] overflow-hidden bg-muted">
         <Image
           src={product.images[currentImage]}
           alt={product.name}
@@ -119,7 +116,9 @@ export function ProductCard({
 
         <div className="absolute left-4 top-4 z-10 flex flex-col gap-2">
           {IS_SAMPLE_CATALOGUE && (
-            <span className="rounded-full bg-background/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-foreground">Sample</span>
+            <span className="rounded-full bg-background/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-foreground">
+              Sample
+            </span>
           )}
           {product.isBestSeller && (
             <span className="rounded-full bg-foreground/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-background backdrop-blur-sm">
@@ -143,10 +142,7 @@ export function ProductCard({
           className="absolute right-4 top-4 z-10 rounded-full border border-border/60 bg-background/70 p-2 backdrop-blur-sm transition-all hover:bg-background"
         >
           <Heart
-            className={cn(
-              'h-4 w-4 transition-colors',
-              isWishlisted ? 'fill-primary text-primary' : 'text-foreground'
-            )}
+            className={cn('h-4 w-4 transition-colors', isWishlisted ? 'fill-primary text-primary' : 'text-foreground')}
           />
         </button>
       </Link>
@@ -157,9 +153,7 @@ export function ProductCard({
             {product.name}
           </Link>
         </h3>
-        <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-muted-foreground">
-          {product.tagline}
-        </p>
+        <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-muted-foreground">{product.tagline}</p>
 
         {/* Only genuine, published reviews are shown (re-audit A19); none means none. */}
         {reviews && reviews.count > 0 ? (
@@ -177,8 +171,19 @@ export function ProductCard({
           <p className="mt-4 text-xs text-muted-foreground">No reviews yet</p>
         )}
         {compare && (
-          <label className={cn('mt-3 flex w-fit items-center gap-2 text-xs', compare.disabled && !compare.selected && 'opacity-50')}>
-            <input type="checkbox" autoComplete="off" checked={compare.selected} disabled={compare.disabled && !compare.selected} onChange={compare.onToggle} />
+          <label
+            className={cn(
+              'mt-3 flex w-fit items-center gap-2 text-xs',
+              compare.disabled && !compare.selected && 'opacity-50'
+            )}
+          >
+            <input
+              type="checkbox"
+              autoComplete="off"
+              checked={compare.selected}
+              disabled={compare.disabled && !compare.selected}
+              onChange={compare.onToggle}
+            />
             Compare
           </label>
         )}
@@ -211,18 +216,15 @@ export function ProductCard({
             )}
           </div>
           {availability && availability.tone !== 'in' && (
-            <p
-              className={cn(
-                'mb-3 text-xs font-medium',
-                soldOut ? 'text-muted-foreground' : 'text-primary'
-              )}
-            >
+            <p className={cn('mb-3 text-xs font-medium', soldOut ? 'text-muted-foreground' : 'text-primary')}>
               {availability.label}
             </p>
           )}
           <Button
             className="w-full rounded-md bg-foreground py-6 text-xs font-semibold uppercase tracking-[0.2em] text-background transition-colors duration-300 hover:bg-primary hover:text-primary-foreground"
-            onClick={() => addToCart(product.id, selectedSize, 1, stock ? stock[`${product.id}::${selectedSize}`] ?? 0 : undefined)}
+            onClick={() =>
+              addToCart(product.id, selectedSize, 1, stock ? (stock[`${product.id}::${selectedSize}`] ?? 0) : undefined)
+            }
             disabled={soldOut}
           >
             {soldOut ? 'Sold out' : 'Add to Bag'}

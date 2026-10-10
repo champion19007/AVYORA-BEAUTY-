@@ -13,7 +13,15 @@
 import { gzipSync } from 'node:zlib';
 
 const base = (process.argv[2] ?? 'http://localhost:3000').replace(/\/$/, '');
-const PUBLIC = ['/', '/collections', '/products/retinol', '/routine-finder', '/journal', '/privacy', '/shipping-policy'];
+const PUBLIC = [
+  '/',
+  '/collections',
+  '/products/retinol',
+  '/routine-finder',
+  '/journal',
+  '/privacy',
+  '/shipping-policy',
+];
 const PRIVATE = ['/account', '/checkout', '/login', '/admin-login', '/track-order', '/api/wishlist'];
 
 const kb = (n) => `${(n / 1024).toFixed(1)} KB`;

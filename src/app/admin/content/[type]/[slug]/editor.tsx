@@ -59,7 +59,13 @@ export function ContentEditor({
           </label>
           <label className={labelClass}>
             Body
-            <Textarea name="body" defaultValue={text('body')} rows={16} required className="mt-1 font-mono text-[13px]" />
+            <Textarea
+              name="body"
+              defaultValue={text('body')}
+              rows={16}
+              required
+              className="mt-1 font-mono text-[13px]"
+            />
             <span className={hintClass}>
               Leave a blank line between paragraphs. Start a line with “## ” for a subheading.
             </span>

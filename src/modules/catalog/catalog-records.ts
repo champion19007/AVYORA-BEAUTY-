@@ -39,7 +39,11 @@ export type CatalogVariantRecord = {
 export function variantId(productId: string, sizeLabel: string): string {
   // Whitespace dropped first, so "30ml", "30 ml" and "30 ML" are one id and a
   // duplicate is caught rather than becoming a second SKU for the same size.
-  const size = sizeLabel.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9.]+/g, '-').replace(/^-+|-+$/g, '');
+  const size = sizeLabel
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9.]+/g, '-')
+    .replace(/^-+|-+$/g, '');
   return `${productId}-${size}`;
 }
 
@@ -81,10 +85,22 @@ export function catalogProblems(products: readonly Product[]): string[] {
       seen.add(v);
     }
   };
-  dupes('product id', ps.map((p) => p.id));
-  dupes('slug', ps.map((p) => p.slug));
-  dupes('variant id', variants.map((v) => v.id));
-  dupes('legacy stock key', variants.map((v) => v.legacyStockKey));
+  dupes(
+    'product id',
+    ps.map((p) => p.id)
+  );
+  dupes(
+    'slug',
+    ps.map((p) => p.slug)
+  );
+  dupes(
+    'variant id',
+    variants.map((v) => v.id)
+  );
+  dupes(
+    'legacy stock key',
+    variants.map((v) => v.legacyStockKey)
+  );
 
   for (const p of products) {
     if (p.sizes.length === 0) problems.push(`No sizes: ${p.id}`);

@@ -26,11 +26,13 @@ function sharedRedis(now: () => number) {
   const store = new MemoryStore(10_000, now);
   let broken = false;
   let calls = 0;
-  const wrap = <A extends unknown[], R>(fn: (...a: A) => Promise<R>) => async (...a: A) => {
-    calls += 1;
-    if (broken) throw new Error('ECONNREFUSED');
-    return fn(...a);
-  };
+  const wrap =
+    <A extends unknown[], R>(fn: (...a: A) => Promise<R>) =>
+    async (...a: A) => {
+      calls += 1;
+      if (broken) throw new Error('ECONNREFUSED');
+      return fn(...a);
+    };
   const layer: CacheStore = {
     name: 'fake-redis',
     get: wrap((k: string) => store.get(k)),
@@ -264,7 +266,11 @@ describe('redis over http', () => {
     await redis.set('k', 'v', 30);
     expect(await redis.incr('n')).toBe(4);
 
-    expect(sent).toEqual([['GET', 'k'], ['SET', 'k', 'v', 'EX', 30], ['INCR', 'n']]);
+    expect(sent).toEqual([
+      ['GET', 'k'],
+      ['SET', 'k', 'v', 'EX', 30],
+      ['INCR', 'n'],
+    ]);
   });
 
   it('throws on an error reply so the tier above treats it as a miss', async () => {

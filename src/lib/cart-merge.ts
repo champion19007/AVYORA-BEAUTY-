@@ -35,7 +35,11 @@ export type StockMap = Readonly<Partial<Record<string, number>>> | null;
 
 export const MAX_WISHLIST_ITEMS = 100;
 
-export function mergeCartLines(account: readonly CartLine[], guest: readonly CartLine[], stock: StockMap = null): MergeResult {
+export function mergeCartLines(
+  account: readonly CartLine[],
+  guest: readonly CartLine[],
+  stock: StockMap = null
+): MergeResult {
   const byKey = new Map<string, { productId: string; size: string; account: number; guest: number }>();
   const add = (l: CartLine, side: 'account' | 'guest') => {
     if (!Number.isInteger(l.quantity) || l.quantity <= 0) return;
@@ -57,17 +61,35 @@ export function mergeCartLines(account: readonly CartLine[], guest: readonly Car
       continue;
     }
     if (e.account > 0 && e.guest > 0 && e.account !== e.guest) {
-      adjustments.push({ productId: e.productId, size: e.size, from: Math.min(e.account, e.guest), to: wanted, reason: 'kept_larger' });
+      adjustments.push({
+        productId: e.productId,
+        size: e.size,
+        from: Math.min(e.account, e.guest),
+        to: wanted,
+        reason: 'kept_larger',
+      });
     }
     let quantity = wanted;
     if (quantity > MAX_QUANTITY_PER_SKU) {
-      adjustments.push({ productId: e.productId, size: e.size, from: quantity, to: MAX_QUANTITY_PER_SKU, reason: 'purchase_limit' });
+      adjustments.push({
+        productId: e.productId,
+        size: e.size,
+        from: quantity,
+        to: MAX_QUANTITY_PER_SKU,
+        reason: 'purchase_limit',
+      });
       quantity = MAX_QUANTITY_PER_SKU;
     }
     const available = stock?.[key];
     if (available !== undefined && quantity > available) {
       const to = Math.max(0, available);
-      adjustments.push({ productId: e.productId, size: e.size, from: quantity, to, reason: to === 0 ? 'sold_out' : 'stock' });
+      adjustments.push({
+        productId: e.productId,
+        size: e.size,
+        from: quantity,
+        to,
+        reason: to === 0 ? 'sold_out' : 'stock',
+      });
       quantity = to;
     }
     if (quantity > 0) lines.push({ productId: e.productId, size: e.size, quantity });

@@ -19,9 +19,7 @@ import { Button } from '@/components/ui/button';
 export function WishlistClient() {
   const { wishlist } = useApp();
 
-  const products = wishlist
-    .map((id) => getProductById(id))
-    .filter((p): p is NonNullable<typeof p> => Boolean(p));
+  const products = wishlist.map((id) => getProductById(id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-16">

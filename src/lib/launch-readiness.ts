@@ -23,7 +23,8 @@ export function storefrontSources(root: string): { file: string; text: string }[
       const rel = relative(root, full);
       if (SKIP.test(rel)) continue;
       if (statSync(full).isDirectory()) walk(full);
-      else if (/\.tsx?$/.test(name)) out.push({ file: rel.replace(/\\/g, '/'), text: stripComments(readFileSync(full, 'utf8')) });
+      else if (/\.tsx?$/.test(name))
+        out.push({ file: rel.replace(/\\/g, '/'), text: stripComments(readFileSync(full, 'utf8')) });
     }
   };
   for (const d of STOREFRONT_DIRS) walk(join(root, d));
@@ -31,9 +32,7 @@ export function storefrontSources(root: string): { file: string; text: string }[
 }
 
 export function storefrontProblems(root: string): (ContentProblem & { file: string })[] {
-  return storefrontSources(root).flatMap(({ file, text }) =>
-    findContentProblems(text).map((p) => ({ ...p, file }))
-  );
+  return storefrontSources(root).flatMap(({ file, text }) => findContentProblems(text).map((p) => ({ ...p, file })));
 }
 
 export function launchBlockers(root: string): string[] {
@@ -52,7 +51,9 @@ export function launchBlockers(root: string): string[] {
   for (const p of knowledgeProblems(knowledge)) blockers.push(`Knowledge: ${p}`);
   const notReady = Object.entries(TREATMENTS).flatMap(([id, t]) => {
     const r = treatmentReadiness(id, t.class, knowledge);
-    return r.ready ? [] : [`${id} (${r.reason === 'directions_pending' ? 'no approved directions' : 'formulation incomplete'})`];
+    return r.ready
+      ? []
+      : [`${id} (${r.reason === 'directions_pending' ? 'no approved directions' : 'formulation incomplete'})`];
   });
   if (notReady.length) blockers.push(`Treatments not ready to recommend: ${notReady.join(', ')}`);
 

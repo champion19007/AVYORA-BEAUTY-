@@ -111,14 +111,24 @@ export function computeRoutine(input: {
   };
   const inRelease = new Set(a.catalogue.products.map((p) => p.id));
   const products = input.products.filter((p) => inRelease.has(p.id));
-  const knowledge = { formulations: a.catalogue.formulations, evidence: a.evidence.sources, directions: a.catalogue.usageProfiles };
+  const knowledge = {
+    formulations: a.catalogue.formulations,
+    evidence: a.evidence.sources,
+    directions: a.catalogue.usageProfiles,
+  };
   const interactions = [...a.ingredients.interactions, ...INTERACTION_RULES];
   // Quiz answers are evidence too; photo findings are mapped onto the same groups so correlated evidence counts once.
   const observations = [...quizEvidence(profile), ...canonicalObservations(input.observations ?? [])];
 
-  const inference = inferConcerns(readParameterSet(release.manifest, a.parameters, { allowFixture: input.allowFixtureParameters === true }), observations, profile.priorities);
+  const inference = inferConcerns(
+    readParameterSet(release.manifest, a.parameters, { allowFixture: input.allowFixtureParameters === true }),
+    observations,
+    profile.priorities
+  );
   const rules = applyRules(a.rules.rules, ruleFields(profile));
-  const ownedItems = profile.ownedItems.map(({ role, ...item }) => (role && role !== 'other' ? { ...item, role } : item));
+  const ownedItems = profile.ownedItems.map(({ role, ...item }) =>
+    role && role !== 'other' ? { ...item, role } : item
+  );
 
   const selection = selectProducts({
     profile: {
@@ -141,7 +151,11 @@ export function computeRoutine(input: {
     treatments: a.catalogue.treatments,
     knowledge,
     interactions,
-    safety: { excludedClasses: rules.excludedClasses, maxTreatments: rules.maxTreatments, ruleIds: rules.applied.map((r) => r.ruleId) },
+    safety: {
+      excludedClasses: rules.excludedClasses,
+      maxTreatments: rules.maxTreatments,
+      ruleIds: rules.applied.map((r) => r.ruleId),
+    },
     offers: input.offers,
     excludeProductIds: input.excludeProductIds,
   });
@@ -161,7 +175,9 @@ export function computeRoutine(input: {
     kbRelease: release.manifest.releaseId,
     engineVersion: ROUTINE_ENGINE_V2,
     inferenceVersion: INFERENCE_VERSION,
-    modelVersions: [...new Set(observations.flatMap((o) => (o.source === 'photo' && o.modelVersion ? [o.modelVersion] : [])))].sort(),
+    modelVersions: [
+      ...new Set(observations.flatMap((o) => (o.source === 'photo' && o.modelVersion ? [o.modelVersion] : []))),
+    ].sort(),
     mode: rules.mode,
     status: plan.status,
     beliefs: inference.concerns.map((c) => ({
@@ -179,7 +195,14 @@ export function computeRoutine(input: {
       const id = s.source === 'owned' ? s.ownedItemId : s.productId;
       const scheduled = plan.days.some((d) => [...d.am, ...d.pm].some((x) => (x.productId ?? x.ownedItemId) === id));
       if (!scheduled) return [];
-      return [{ id, source: s.source, role: s.role, reasons: (s.source === 'owned' ? s.notes : s.reasons).map((r) => r.message) }];
+      return [
+        {
+          id,
+          source: s.source,
+          role: s.role,
+          reasons: (s.source === 'owned' ? s.notes : s.reasons).map((r) => r.message),
+        },
+      ];
     }),
     unfilled: [...selection.essentials, ...selection.treatments, ...selection.optional].flatMap((s) =>
       s.source === 'unfilled' ? [{ role: s.role, reasons: s.reasons.map((r) => r.message) }] : []
@@ -192,7 +215,11 @@ export function computeRoutine(input: {
     explanations: plan.explanations,
     ruleIds: rules.applied.map((r) => r.ruleId),
     excludedProductIds: [...(input.excludeProductIds ?? [])].sort(),
-    ownedNotScheduled: plan.ownedNotScheduled.map((o) => ({ ownedItemId: o.ownedItemId, label: o.label, reasons: [...new Set(o.reasons.map((r) => r.message))] })),
+    ownedNotScheduled: plan.ownedNotScheduled.map((o) => ({
+      ownedItemId: o.ownedItemId,
+      label: o.label,
+      reasons: [...new Set(o.reasons.map((r) => r.message))],
+    })),
     answersThatMattered: answersThatMattered(plan, selection, rules, a.rules.rules),
     answerAdapterVersion: ANSWER_ADAPTER_VERSION,
     unknownSafetyAnswers: selection.unknownSafetyAnswers,
@@ -210,18 +237,26 @@ function answersThatMattered(
 ): { answer: string; effects: string[] }[] {
   const out = new Map<string, Set<string>>();
   const add = (answer: string, effect: string) => out.set(answer, (out.get(answer) ?? new Set()).add(effect));
-  for (const e of plan.excluded) for (const r of e.reasons) if (ANSWER_FOR_CODE[r.code]) add(ANSWER_FOR_CODE[r.code], r.message);
-  for (const o of plan.ownedNotScheduled) for (const r of o.reasons) add(ANSWER_FOR_CODE[r.code] ?? 'ownedItems', `${o.label}: ${r.message}`);
+  for (const e of plan.excluded)
+    for (const r of e.reasons) if (ANSWER_FOR_CODE[r.code]) add(ANSWER_FOR_CODE[r.code], r.message);
+  for (const o of plan.ownedNotScheduled)
+    for (const r of o.reasons) add(ANSWER_FOR_CODE[r.code] ?? 'ownedItems', `${o.label}: ${r.message}`);
   for (const s of [...selection.essentials, ...selection.treatments]) {
-    if (s.source === 'unfilled') for (const r of s.reasons) if (ANSWER_FOR_CODE[r.code]) add(ANSWER_FOR_CODE[r.code], r.message);
+    if (s.source === 'unfilled')
+      for (const r of s.reasons) if (ANSWER_FOR_CODE[r.code]) add(ANSWER_FOR_CODE[r.code], r.message);
     if (s.source === 'owned') add('ownedItems', `${s.label} fills your ${s.role} step.`);
   }
   for (const applied of rules.applied) {
     const rule = allRules.find((r) => r.id === applied.ruleId);
     if (rule) for (const f of fieldsOf(rule.when)) add(f, `Rule ${rule.id} applied.`);
   }
-  if (selection.unknownSafetyAnswers.length && plan.excluded.some((e) => e.reasons.some((r) => r.code === 'safety_answer_unknown'))) {
+  if (
+    selection.unknownSafetyAnswers.length &&
+    plan.excluded.some((e) => e.reasons.some((r) => r.code === 'safety_answer_unknown'))
+  ) {
     add(selection.unknownSafetyAnswers.join(', '), 'Unanswered safety questions kept elective treatments out.');
   }
-  return [...out].map(([answer, effects]) => ({ answer, effects: [...effects].sort() })).sort((a, b) => a.answer.localeCompare(b.answer));
+  return [...out]
+    .map(([answer, effects]) => ({ answer, effects: [...effects].sort() }))
+    .sort((a, b) => a.answer.localeCompare(b.answer));
 }

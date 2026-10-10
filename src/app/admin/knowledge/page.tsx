@@ -25,8 +25,9 @@ export default async function KnowledgePage() {
       <header>
         <h1 className="text-3xl font-medium tracking-tight">Knowledge</h1>
         <p className="mt-1 max-w-3xl text-[15px] text-muted-foreground">
-          Rules, directions, formulations, interactions and explanation templates are reviewed in the repository (every change is a reviewable diff). Here you
-          validate them, publish an immutable release, roll back, or revoke one. {isOwner ? '' : 'Only the owner can publish, roll back or revoke.'}
+          Rules, directions, formulations, interactions and explanation templates are reviewed in the repository (every
+          change is a reviewable diff). Here you validate them, publish an immutable release, roll back, or revoke one.{' '}
+          {isOwner ? '' : 'Only the owner can publish, roll back or revoke.'}
         </p>
       </header>
 
@@ -36,8 +37,11 @@ export default async function KnowledgePage() {
         </h2>
         {validation.ok ? (
           <p className="mt-2 text-[15px]">
-            Valid. It compiles to release <code className="rounded bg-muted px-1.5 py-0.5 text-sm">{validation.release.manifest.releaseId}</code>
-            {state?.activeId === validation.release.manifest.releaseId ? ', which is the active release.' : ', which is not active yet.'}
+            Valid. It compiles to release{' '}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-sm">{validation.release.manifest.releaseId}</code>
+            {state?.activeId === validation.release.manifest.releaseId
+              ? ', which is the active release.'
+              : ', which is not active yet.'}
           </p>
         ) : (
           <div className="mt-2" role="alert">
@@ -52,7 +56,9 @@ export default async function KnowledgePage() {
           </div>
         )}
         <details className="mt-4 text-sm">
-          <summary className="cursor-pointer">{validation.awaitingReview.length} records awaiting review (not published)</summary>
+          <summary className="cursor-pointer">
+            {validation.awaitingReview.length} records awaiting review (not published)
+          </summary>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
             {validation.awaitingReview.map((r) => (
               <li key={r}>{r}</li>
@@ -69,17 +75,29 @@ export default async function KnowledgePage() {
             Releases
           </h2>
           {state.releases.length === 0 ? (
-            <p className="mt-2 text-muted-foreground">No release has been stored yet. The storefront shows a session-only preview until one is published.</p>
+            <p className="mt-2 text-muted-foreground">
+              No release has been stored yet. The storefront shows a session-only preview until one is published.
+            </p>
           ) : (
             <div className="mt-3 overflow-x-auto rounded-[18px] border border-border bg-card">
               <table className="w-full text-left text-sm">
                 <thead className="text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th scope="col" className="px-4 py-3">Release</th>
-                    <th scope="col" className="px-4 py-3">Status</th>
-                    <th scope="col" className="px-4 py-3">Stored</th>
-                    <th scope="col" className="px-4 py-3">Published</th>
-                    <th scope="col" className="px-4 py-3">Revoked</th>
+                    <th scope="col" className="px-4 py-3">
+                      Release
+                    </th>
+                    <th scope="col" className="px-4 py-3">
+                      Status
+                    </th>
+                    <th scope="col" className="px-4 py-3">
+                      Stored
+                    </th>
+                    <th scope="col" className="px-4 py-3">
+                      Published
+                    </th>
+                    <th scope="col" className="px-4 py-3">
+                      Revoked
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -87,8 +105,14 @@ export default async function KnowledgePage() {
                     <tr key={r.id} className="border-t border-border align-top">
                       <td className="px-4 py-3 font-mono text-xs">
                         {r.id}
-                        {r.id === state.activeId && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 font-sans text-primary-foreground">active</span>}
-                        {r.id === state.previousId && <span className="ml-2 rounded-full border border-border px-2 py-0.5 font-sans">previous</span>}
+                        {r.id === state.activeId && (
+                          <span className="ml-2 rounded-full bg-primary px-2 py-0.5 font-sans text-primary-foreground">
+                            active
+                          </span>
+                        )}
+                        {r.id === state.previousId && (
+                          <span className="ml-2 rounded-full border border-border px-2 py-0.5 font-sans">previous</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">{r.status}</td>
                       <td className="px-4 py-3">
@@ -106,7 +130,9 @@ export default async function KnowledgePage() {
             <KnowledgeForms
               canPublish={validation.ok}
               hasPrevious={Boolean(state.previousId)}
-              revocable={state.releases.filter((r) => r.status !== 'revoked' && r.id !== state.activeId).map((r) => r.id)}
+              revocable={state.releases
+                .filter((r) => r.status !== 'revoked' && r.id !== state.activeId)
+                .map((r) => r.id)}
             />
           )}
         </section>

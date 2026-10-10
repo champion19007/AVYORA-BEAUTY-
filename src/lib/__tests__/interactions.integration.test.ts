@@ -23,9 +23,7 @@ const db = drizzlePglite(client, { schema: { ingredients, ingredientInteractions
 
 vi.mock('@/db', () => ({ db, isDatabaseConfigured: () => true }));
 
-const { evaluateRoutine, resolveIngredients, hasPhotosensitiser } = await import(
-  '../interactions'
-);
+const { evaluateRoutine, resolveIngredients, hasPhotosensitiser } = await import('../interactions');
 
 const item = (label: string, ingredientIds: string[], prescribed = false) => ({
   label,
@@ -39,38 +37,67 @@ beforeAll(async () => {
 
   await db.insert(ingredients).values([
     {
-      id: 'tretinoin', inciName: 'Tretinoin', commonName: 'Tretinoin',
+      id: 'tretinoin',
+      inciName: 'Tretinoin',
+      commonName: 'Tretinoin',
       synonyms: ['all-trans retinoic acid'],
-      prescriptionOnly: true, pregnancyCaution: true, photosensitising: true,
+      prescriptionOnly: true,
+      pregnancyCaution: true,
+      photosensitising: true,
     },
     {
-      id: 'adapalene', inciName: 'Adapalene', commonName: 'Adapalene',
-      synonyms: [], prescriptionOnly: false, pregnancyCaution: true, photosensitising: false,
+      id: 'adapalene',
+      inciName: 'Adapalene',
+      commonName: 'Adapalene',
+      synonyms: [],
+      prescriptionOnly: false,
+      pregnancyCaution: true,
+      photosensitising: false,
     },
     {
-      id: 'benzoyl-peroxide', inciName: 'Benzoyl Peroxide', commonName: 'Benzoyl peroxide',
-      synonyms: ['bpo'], prescriptionOnly: false, pregnancyCaution: false, photosensitising: false,
+      id: 'benzoyl-peroxide',
+      inciName: 'Benzoyl Peroxide',
+      commonName: 'Benzoyl peroxide',
+      synonyms: ['bpo'],
+      prescriptionOnly: false,
+      pregnancyCaution: false,
+      photosensitising: false,
     },
     {
-      id: 'glycolic-acid', inciName: 'Glycolic Acid', commonName: 'Glycolic acid',
-      synonyms: ['aha'], prescriptionOnly: false, pregnancyCaution: false, photosensitising: true,
+      id: 'glycolic-acid',
+      inciName: 'Glycolic Acid',
+      commonName: 'Glycolic acid',
+      synonyms: ['aha'],
+      prescriptionOnly: false,
+      pregnancyCaution: false,
+      photosensitising: true,
     },
     {
-      id: 'niacinamide', inciName: 'Niacinamide', commonName: 'Niacinamide',
-      synonyms: ['vitamin b3'], prescriptionOnly: false, pregnancyCaution: false,
+      id: 'niacinamide',
+      inciName: 'Niacinamide',
+      commonName: 'Niacinamide',
+      synonyms: ['vitamin b3'],
+      prescriptionOnly: false,
+      pregnancyCaution: false,
       photosensitising: false,
     },
   ]);
 
   await db.insert(ingredientInteractions).values([
     {
-      id: 'i1', ingredientA: 'benzoyl-peroxide', ingredientB: 'tretinoin', tier: 2,
+      id: 'i1',
+      ingredientA: 'benzoyl-peroxide',
+      ingredientB: 'tretinoin',
+      tier: 2,
       summary: 'Benzoyl peroxide oxidises tretinoin.',
       advice: 'Use them at different times of day.',
       citation: 'Martin B et al. Br J Dermatol. 1998;139 Suppl 52:8-11.',
     },
     {
-      id: 'i2', ingredientA: 'glycolic-acid', ingredientB: 'tretinoin', tier: 3,
+      id: 'i2',
+      ingredientA: 'glycolic-acid',
+      ingredientB: 'tretinoin',
+      tier: 3,
       summary: 'Additive irritation.',
       advice: 'Alternate nights.',
       citation: null,
@@ -100,10 +127,7 @@ describe('interaction engine', () => {
      * Adapalene is photostable and is sold co-formulated with benzoyl
      * peroxide; a "retinoid" rule would warn against a prescribed product.
      */
-    const found = await evaluateRoutine([
-      item('Adapalene gel', ['adapalene']),
-      item('BP wash', ['benzoyl-peroxide']),
-    ]);
+    const found = await evaluateRoutine([item('Adapalene gel', ['adapalene']), item('BP wash', ['benzoyl-peroxide'])]);
 
     expect(found.filter((f) => f.tier >= 2 && f.title.includes('Benzoyl'))).toHaveLength(0);
   });
@@ -158,10 +182,7 @@ describe('interaction engine', () => {
   it('catches a conflict with something about to be added to the basket', async () => {
     // The case that makes this useful at the moment of purchase rather than
     // as an audit afterwards.
-    const found = await evaluateRoutine(
-      [item('Tretinoin', ['tretinoin'], true)],
-      ['benzoyl-peroxide']
-    );
+    const found = await evaluateRoutine([item('Tretinoin', ['tretinoin'], true)], ['benzoyl-peroxide']);
 
     expect(found.some((f) => f.tier === 2 && f.title.includes('Benzoyl'))).toBe(true);
   });
@@ -189,7 +210,10 @@ describe('interaction engine', () => {
       { label: 'Night serum', ingredientIds: [], prescribed: false, unresolvedLabels: ['PDRN (Salmon DNA)'] },
     ]);
     expect(findings).toEqual([
-      expect.objectContaining({ title: 'Some ingredients could not be checked', detail: expect.stringContaining('PDRN (Salmon DNA)') }),
+      expect.objectContaining({
+        title: 'Some ingredients could not be checked',
+        detail: expect.stringContaining('PDRN (Salmon DNA)'),
+      }),
     ]);
   });
 

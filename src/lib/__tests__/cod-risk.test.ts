@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  REJECT_AT,
-  combineSignals,
-  normalisePhone,
-  scoreAddress,
-  scoreBasket,
-  type RiskSignal,
-} from '@/lib/cod-risk';
+import { REJECT_AT, combineSignals, normalisePhone, scoreAddress, scoreBasket, type RiskSignal } from '@/lib/cod-risk';
 
 /**
  * The signals that need no database.
@@ -33,9 +26,7 @@ describe('address scoring', () => {
   });
 
   it('flags an address with no number anywhere in it', () => {
-    const codes = scoreAddress({ ...REAL, line1: 'Sunrise Residency', line2: null }).map(
-      (s) => s.code
-    );
+    const codes = scoreAddress({ ...REAL, line1: 'Sunrise Residency', line2: null }).map((s) => s.code);
     expect(codes).toContain('address_incomplete');
   });
 
@@ -52,9 +43,7 @@ describe('address scoring', () => {
   it('does not flag a real name containing a doubled letter', () => {
     // Two of a letter is normal in a name. Only a run of five is not.
     for (const fullName of ['Aabid Khan', 'Neelam Iyer', 'Sreeja Menon']) {
-      expect(scoreAddress({ ...REAL, fullName }).map((s) => s.code)).not.toContain(
-        'address_junk'
-      );
+      expect(scoreAddress({ ...REAL, fullName }).map((s) => s.code)).not.toContain('address_junk');
     }
   });
 

@@ -30,6 +30,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Formatting
+        # Prettier owns layout (.prettierrc.json); run `npm run format` to fix.
+        run: npm run format:check
+
       - name: Tests (with coverage thresholds, see vitest.config.ts)
         run: npm run test:coverage
 

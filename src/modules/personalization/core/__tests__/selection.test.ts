@@ -6,16 +6,33 @@ import { EVIDENCE_SOURCES, FORMULATIONS } from '@/data/formulations';
 import { catalogRecords } from '@/modules/catalog/catalog-records';
 import { INTERACTION_RULES } from '@/modules/ingredients/interaction-rules';
 import type { Formulation, Knowledge } from '@/modules/ingredients/formulations';
-import { DEFAULT_WEIGHTS, normaliseWeights, selectProducts, type Offer, type SelectionInput, type SelectionProfile, type Slot } from '../selection';
+import {
+  DEFAULT_WEIGHTS,
+  normaliseWeights,
+  selectProducts,
+  type Offer,
+  type SelectionInput,
+  type SelectionProfile,
+  type Slot,
+} from '../selection';
 
 const { variants } = catalogRecords(PRODUCTS);
 
 /** Every SKU on sale at its catalogue price with 10 in stock, unless a test says otherwise. */
 const OFFERS: Record<string, Offer> = Object.fromEntries(
-  PRODUCTS.flatMap((p) => p.sizes.map((s) => [variants.find((v) => v.productId === p.id && v.sizeLabel === s.label)!.id, { pricePaise: s.price * 100, stock: 10 }]))
+  PRODUCTS.flatMap((p) =>
+    p.sizes.map((s) => [
+      variants.find((v) => v.productId === p.id && v.sizeLabel === s.label)!.id,
+      { pricePaise: s.price * 100, stock: 10 },
+    ])
+  )
 );
 
-const REAL_KNOWLEDGE: Knowledge = { formulations: FORMULATIONS, evidence: EVIDENCE_SOURCES, directions: APPROVED_DIRECTIONS };
+const REAL_KNOWLEDGE: Knowledge = {
+  formulations: FORMULATIONS,
+  evidence: EVIDENCE_SOURCES,
+  directions: APPROVED_DIRECTIONS,
+};
 
 /*
  * SYNTHETIC TEST KNOWLEDGE, NOT REAL FORMULATIONS. Complete ingredient lists
@@ -38,18 +55,45 @@ const full = (productId: string, labels: [string, string | null, number?][]): Fo
 });
 const TEST_KNOWLEDGE: Knowledge = {
   formulations: [
-    full('face-wash', [['Aqua', 'water'], ['Niacinamide', 'niacinamide']]),
-    full('centella-cleansing-balm', [['Aqua', 'water'], ['Glycerin', 'glycerin']]),
-    full('ceramide-cream', [['Aqua', 'water'], ['Ceramide NP', 'ceramides']]),
-    full('sorbet-moisturizer', [['Aqua', 'water'], ['Sodium Hyaluronate', 'hyaluronic-acid']]),
-    full('sunscreen', [['Aqua', 'water'], ['Zinc Oxide', 'zinc-oxide']]),
-    full('niacinamide-drops', [['Aqua', 'water'], ['Niacinamide', 'niacinamide', 5]]),
+    full('face-wash', [
+      ['Aqua', 'water'],
+      ['Niacinamide', 'niacinamide'],
+    ]),
+    full('centella-cleansing-balm', [
+      ['Aqua', 'water'],
+      ['Glycerin', 'glycerin'],
+    ]),
+    full('ceramide-cream', [
+      ['Aqua', 'water'],
+      ['Ceramide NP', 'ceramides'],
+    ]),
+    full('sorbet-moisturizer', [
+      ['Aqua', 'water'],
+      ['Sodium Hyaluronate', 'hyaluronic-acid'],
+    ]),
+    full('sunscreen', [
+      ['Aqua', 'water'],
+      ['Zinc Oxide', 'zinc-oxide'],
+    ]),
+    full('niacinamide-drops', [
+      ['Aqua', 'water'],
+      ['Niacinamide', 'niacinamide', 5],
+    ]),
   ],
-  evidence: [{ id: 'test', title: 'Test only', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' }],
+  evidence: [
+    { id: 'test', title: 'Test only', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' },
+  ],
   directions: {
     'niacinamide-drops': {
-      session: 'pm', frequency: 'TEST', text: 'TEST', reviewedBy: 'TEST', reviewedAt: '2026-01-01', source: 'test',
-      formulationVersion: 1, maxWeeklyUses: 7, evidenceIds: ['test'],
+      session: 'pm',
+      frequency: 'TEST',
+      text: 'TEST',
+      reviewedBy: 'TEST',
+      reviewedAt: '2026-01-01',
+      source: 'test',
+      formulationVersion: 1,
+      maxWeeklyUses: 7,
+      evidenceIds: ['test'],
     },
   },
 };
@@ -69,7 +113,9 @@ const PROFILE: SelectionProfile = {
   ownedItems: [],
 };
 
-const input = (over: Omit<Partial<SelectionInput>, 'profile'> & { profile?: Partial<SelectionProfile> } = {}): SelectionInput => ({
+const input = (
+  over: Omit<Partial<SelectionInput>, 'profile'> & { profile?: Partial<SelectionProfile> } = {}
+): SelectionInput => ({
   products: PRODUCTS,
   variants,
   roles: ROUTINE_ROLES,
@@ -98,7 +144,12 @@ describe('the essential routine', () => {
 
   it('chooses the cheapest available size of a product', () => {
     const protect = selectProducts(input()).essentials.find((s) => s.role === 'protect');
-    expect(protect).toMatchObject({ source: 'catalogue', productId: 'sunscreen', skuId: 'sunscreen-30ml', pricePaise: 32_900 });
+    expect(protect).toMatchObject({
+      source: 'catalogue',
+      productId: 'sunscreen',
+      skuId: 'sunscreen-30ml',
+      pricePaise: 32_900,
+    });
   });
 
   it('returns product, SKU and rule ids with every inclusion and exclusion', () => {
@@ -111,9 +162,16 @@ describe('the essential routine', () => {
 describe('stock', () => {
   it('a sold-out or uncounted SKU is never selected, and the slot says why', () => {
     for (const stock of [0, null]) {
-      const offers = { ...OFFERS, 'sunscreen-30ml': { pricePaise: 32_900, stock }, 'sunscreen-50ml': { pricePaise: 64_900, stock } };
+      const offers = {
+        ...OFFERS,
+        'sunscreen-30ml': { pricePaise: 32_900, stock },
+        'sunscreen-50ml': { pricePaise: 64_900, stock },
+      };
       const r = selectProducts(input({ offers }));
-      expect(r.essentials.find((s) => s.role === 'protect')).toMatchObject({ source: 'unfilled', reasons: [{ code: 'no_eligible_product' }] });
+      expect(r.essentials.find((s) => s.role === 'protect')).toMatchObject({
+        source: 'unfilled',
+        reasons: [{ code: 'no_eligible_product' }],
+      });
       expect(reasonsFor(r, 'sunscreen')).toEqual(['unavailable']);
       expect(r.status).toBe('partial');
     }
@@ -121,7 +179,9 @@ describe('stock', () => {
 
   it('falls back to another in-stock size', () => {
     const offers = { ...OFFERS, 'sunscreen-30ml': { pricePaise: 32_900, stock: 0 } };
-    expect(selectProducts(input({ offers })).essentials.find((s) => s.role === 'protect')).toMatchObject({ skuId: 'sunscreen-50ml' });
+    expect(selectProducts(input({ offers })).essentials.find((s) => s.role === 'protect')).toMatchObject({
+      skuId: 'sunscreen-50ml',
+    });
   });
 });
 
@@ -161,12 +221,19 @@ describe('owned products', () => {
 
   it('are used first, so nothing is bought for that step', () => {
     const r = selectProducts(input({ profile: { ownedItems: [owned('moisturise')] } }));
-    expect(r.essentials.find((s) => s.role === 'moisturise')).toMatchObject({ source: 'owned', ownedItemId: 'owned-moisturise' });
-    expect(r.purchases.some((p) => p.productId === 'ceramide-cream' || p.productId === 'sorbet-moisturizer')).toBe(false);
+    expect(r.essentials.find((s) => s.role === 'moisturise')).toMatchObject({
+      source: 'owned',
+      ownedItemId: 'owned-moisturise',
+    });
+    expect(r.purchases.some((p) => p.productId === 'ceramide-cream' || p.productId === 'sorbet-moisturizer')).toBe(
+      false
+    );
   });
 
   it('with a zero budget, an owned-products-only routine is complete', () => {
-    const r = selectProducts(input({ profile: { budgetPaise: 0, ownedItems: [owned('cleanse'), owned('moisturise'), owned('protect')] } }));
+    const r = selectProducts(
+      input({ profile: { budgetPaise: 0, ownedItems: [owned('cleanse'), owned('moisturise'), owned('protect')] } })
+    );
     expect(r).toMatchObject({ status: 'complete', purchases: [], newSpendPaise: 0 });
   });
 
@@ -174,14 +241,23 @@ describe('owned products', () => {
     const r = selectProducts(
       input({
         knowledge: TEST_KNOWLEDGE,
-        profile: { allergyHistory: 'yes', allergyIngredientIds: ['ceramides'], ownedItems: [owned('moisturise', { ingredientIds: ['ceramides'] })] },
+        profile: {
+          allergyHistory: 'yes',
+          allergyIngredientIds: ['ceramides'],
+          ownedItems: [owned('moisturise', { ingredientIds: ['ceramides'] })],
+        },
       })
     );
-    expect(r.essentials.find((s) => s.role === 'moisturise')).toMatchObject({ source: 'catalogue', productId: 'sorbet-moisturizer' });
+    expect(r.essentials.find((s) => s.role === 'moisturise')).toMatchObject({
+      source: 'catalogue',
+      productId: 'sorbet-moisturizer',
+    });
   });
 
   it('an owned product with unknown ingredients is kept, with a note, and blocks actives', () => {
-    const r = selectProducts(input({ knowledge: TEST_KNOWLEDGE, profile: { ownedItems: [owned('moisturise', { coverage: 'unknown' })] } }));
+    const r = selectProducts(
+      input({ knowledge: TEST_KNOWLEDGE, profile: { ownedItems: [owned('moisturise', { coverage: 'unknown' })] } })
+    );
     const slot = r.essentials.find((s) => s.role === 'moisturise');
     expect(slot).toMatchObject({ source: 'owned', notes: [{ code: 'owned_ingredients_unverified' }] });
     expect(reasonsFor(r, 'niacinamide-drops')).toContain('owned_compatibility_unverified');
@@ -189,9 +265,15 @@ describe('owned products', () => {
 
   it('a product with an established conflict with an owned product is excluded', () => {
     // TEST-ONLY interaction rule, not a real one.
-    const interactions = [{ a: 'niacinamide', b: 'tretinoin', tier: 2 as const, summary: 'test', advice: 'test', citation: 'test' }];
+    const interactions = [
+      { a: 'niacinamide', b: 'tretinoin', tier: 2 as const, summary: 'test', advice: 'test', citation: 'test' },
+    ];
     const r = selectProducts(
-      input({ knowledge: TEST_KNOWLEDGE, interactions, profile: { ownedItems: [{ ...owned('protect'), role: undefined, ingredientIds: ['tretinoin'] }] } })
+      input({
+        knowledge: TEST_KNOWLEDGE,
+        interactions,
+        profile: { ownedItems: [{ ...owned('protect'), role: undefined, ingredientIds: ['tretinoin'] }] },
+      })
     );
     expect(reasonsFor(r, 'face-wash')).toContain('conflicts_with_owned');
     expect(reasonsFor(r, 'niacinamide-drops')).toContain('conflicts_with_owned');
@@ -206,14 +288,18 @@ describe('allergies', () => {
   });
 
   it('with complete formulations, products containing the allergen are excluded and others chosen', () => {
-    const r = selectProducts(input({ knowledge: TEST_KNOWLEDGE, profile: { allergyHistory: 'yes', allergyIngredientIds: ['niacinamide'] } }));
+    const r = selectProducts(
+      input({ knowledge: TEST_KNOWLEDGE, profile: { allergyHistory: 'yes', allergyIngredientIds: ['niacinamide'] } })
+    );
     expect(reasonsFor(r, 'face-wash')).toContain('allergen_present');
     expect(r.essentials.find((s) => s.role === 'cleanse')).toMatchObject({ productId: 'centella-cleansing-balm' });
     expect(reasonsFor(r, 'niacinamide-drops')).toContain('allergen_present');
   });
 
   it('an allergy without named ingredients cannot be checked: nothing is recommended', () => {
-    const r = selectProducts(input({ knowledge: TEST_KNOWLEDGE, profile: { allergyHistory: 'yes', allergyIngredientIds: [] } }));
+    const r = selectProducts(
+      input({ knowledge: TEST_KNOWLEDGE, profile: { allergyHistory: 'yes', allergyIngredientIds: [] } })
+    );
     expect(r.status).toBe('no_match');
     expect(reasonsFor(r, 'sunscreen')).toContain('allergens_not_specified');
   });
@@ -222,18 +308,29 @@ describe('allergies', () => {
 describe('treatments', () => {
   it('today, with no approved directions, no treatment is selected and the slot says so', () => {
     const r = selectProducts(input());
-    expect(r.treatments).toEqual([{ role: 'treatment', source: 'unfilled', reasons: [expect.objectContaining({ code: 'no_eligible_treatment' })] }]);
+    expect(r.treatments).toEqual([
+      { role: 'treatment', source: 'unfilled', reasons: [expect.objectContaining({ code: 'no_eligible_treatment' })] },
+    ]);
     expect(reasonsFor(r, 'retinol')).toContain('directions_pending');
   });
 
   it('a treatment with directions but an incomplete formulation is excluded', () => {
-    const partial: Knowledge = { ...TEST_KNOWLEDGE, formulations: TEST_KNOWLEDGE.formulations.map((f) => (f.productId === 'niacinamide-drops' ? { ...f, coverage: 'partial' as const } : f)) };
-    expect(reasonsFor(selectProducts(input({ knowledge: partial })), 'niacinamide-drops')).toContain('formulation_incomplete');
+    const partial: Knowledge = {
+      ...TEST_KNOWLEDGE,
+      formulations: TEST_KNOWLEDGE.formulations.map((f) =>
+        f.productId === 'niacinamide-drops' ? { ...f, coverage: 'partial' as const } : f
+      ),
+    };
+    expect(reasonsFor(selectProducts(input({ knowledge: partial })), 'niacinamide-drops')).toContain(
+      'formulation_incomplete'
+    );
   });
 
   it('a ready, safe treatment matching a priority is selected, in its approved session', () => {
     const r = selectProducts(input({ knowledge: TEST_KNOWLEDGE }));
-    expect(r.treatments).toEqual([expect.objectContaining({ source: 'catalogue', productId: 'niacinamide-drops', session: ['pm'] })]);
+    expect(r.treatments).toEqual([
+      expect.objectContaining({ source: 'catalogue', productId: 'niacinamide-drops', session: ['pm'] }),
+    ]);
   });
 
   it('unknown safety answers keep treatments out but not essentials', () => {
@@ -245,21 +342,39 @@ describe('treatments', () => {
 
   it('no ranking weight can overpower a hard exclusion', () => {
     const r = selectProducts(
-      input({ knowledge: TEST_KNOWLEDGE, profile: { pregnancy: 'yes', priorities: ['aging', 'lines'] }, weights: { concernFit: 1000, tolerance: 0, affordability: 0, ownedCompatibility: 0 } })
+      input({
+        knowledge: TEST_KNOWLEDGE,
+        profile: { pregnancy: 'yes', priorities: ['aging', 'lines'] },
+        weights: { concernFit: 1000, tolerance: 0, affordability: 0, ownedCompatibility: 0 },
+      })
     );
     expect(catalogueIds(r.treatments)).not.toContain('retinol');
     expect(reasonsFor(r, 'retinol')).toContain('pregnancy_or_nursing');
   });
 
   it('approved rule exclusions and a treatment limit of 0 are honoured', () => {
-    const ruled = selectProducts(input({ knowledge: TEST_KNOWLEDGE, safety: { excludedClasses: ['niacinamide'], maxTreatments: null, ruleIds: ['rule-x'] } }));
-    expect(ruled.excluded.find((e) => e.productId === 'niacinamide-drops')?.reasons).toContainEqual(expect.objectContaining({ code: 'excluded_by_rule', ruleId: 'rule-x' }));
-    const none = selectProducts(input({ knowledge: TEST_KNOWLEDGE, safety: { excludedClasses: [], maxTreatments: 0, ruleIds: [] } }));
+    const ruled = selectProducts(
+      input({
+        knowledge: TEST_KNOWLEDGE,
+        safety: { excludedClasses: ['niacinamide'], maxTreatments: null, ruleIds: ['rule-x'] },
+      })
+    );
+    expect(ruled.excluded.find((e) => e.productId === 'niacinamide-drops')?.reasons).toContainEqual(
+      expect.objectContaining({ code: 'excluded_by_rule', ruleId: 'rule-x' })
+    );
+    const none = selectProducts(
+      input({ knowledge: TEST_KNOWLEDGE, safety: { excludedClasses: [], maxTreatments: 0, ruleIds: [] } })
+    );
     expect(catalogueIds(none.treatments)).toEqual([]);
   });
 
   it('a prescribed treatment keeps elective actives out', () => {
-    expect(reasonsFor(selectProducts(input({ knowledge: TEST_KNOWLEDGE, profile: { prescribedTreatment: 'yes' } })), 'niacinamide-drops')).toContain('prescribed_treatment');
+    expect(
+      reasonsFor(
+        selectProducts(input({ knowledge: TEST_KNOWLEDGE, profile: { prescribedTreatment: 'yes' } })),
+        'niacinamide-drops'
+      )
+    ).toContain('prescribed_treatment');
   });
 
   it('respects the step limit per session', () => {
@@ -284,7 +399,10 @@ describe('substitution', () => {
 
   it('honestly reports no substitute when none qualifies', () => {
     const r = selectProducts(input({ excludeProductIds: ['ceramide-cream', 'sorbet-moisturizer'] }));
-    expect(r.essentials.find((s) => s.role === 'moisturise')).toMatchObject({ source: 'unfilled', reasons: [{ code: 'no_eligible_product' }] });
+    expect(r.essentials.find((s) => s.role === 'moisturise')).toMatchObject({
+      source: 'unfilled',
+      reasons: [{ code: 'no_eligible_product' }],
+    });
   });
 
   it('an unavailable alternative is never offered as a substitute', () => {
@@ -305,13 +423,19 @@ describe('ranking', () => {
 
   it('is deterministic, whatever the order of products, variants or owned items', () => {
     const a = selectProducts(input({ knowledge: TEST_KNOWLEDGE }));
-    const b = selectProducts(input({ knowledge: TEST_KNOWLEDGE, products: [...PRODUCTS].reverse(), variants: [...variants].reverse() }));
+    const b = selectProducts(
+      input({ knowledge: TEST_KNOWLEDGE, products: [...PRODUCTS].reverse(), variants: [...variants].reverse() })
+    );
     expect(JSON.stringify(b)).toBe(JSON.stringify(a));
   });
 
   it('priorities change which eligible product ranks first', () => {
-    const dry = selectProducts(input({ profile: { priorities: ['dryness'] } })).essentials.find((s) => s.role === 'moisturise');
-    const oily = selectProducts(input({ profile: { priorities: ['oil-control'] } })).essentials.find((s) => s.role === 'moisturise');
+    const dry = selectProducts(input({ profile: { priorities: ['dryness'] } })).essentials.find(
+      (s) => s.role === 'moisturise'
+    );
+    const oily = selectProducts(input({ profile: { priorities: ['oil-control'] } })).essentials.find(
+      (s) => s.role === 'moisturise'
+    );
     expect(dry).toMatchObject({ productId: 'ceramide-cream' });
     expect(oily).toMatchObject({ productId: 'sorbet-moisturizer' });
   });

@@ -67,12 +67,8 @@ async function fetchConditions(region: Region): Promise<Reading | null> {
      * cost the UV reading that the sun-protection advice depends on.
      */
     const [weather, air] = await Promise.allSettled([
-      fetch(weatherUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).then((r) =>
-        r.ok ? r.json() : null
-      ),
-      fetch(airUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).then((r) =>
-        r.ok ? r.json() : null
-      ),
+      fetch(weatherUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).then((r) => (r.ok ? r.json() : null)),
+      fetch(airUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).then((r) => (r.ok ? r.json() : null)),
     ]);
 
     const w = weather.status === 'fulfilled' ? weather.value : null;
@@ -104,9 +100,7 @@ function round(value: unknown): number | null {
  * advice is a nicety, and a customer must never see a page fail because a
  * forecast did not arrive.
  */
-export async function conditionsForPincode(
-  postalCode: string | null | undefined
-): Promise<Conditions | null> {
+export async function conditionsForPincode(postalCode: string | null | undefined): Promise<Conditions | null> {
   if (!isDatabaseConfigured()) return null;
 
   const region = regionForPincode(postalCode);

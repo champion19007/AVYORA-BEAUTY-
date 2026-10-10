@@ -18,7 +18,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: Request) {
   const config = getCashfreeConfig();
-  if (!config || !isDatabaseConfigured()) return NextResponse.json({ error: 'Webhook not configured.' }, { status: 503 });
+  if (!config || !isDatabaseConfigured())
+    return NextResponse.json({ error: 'Webhook not configured.' }, { status: 503 });
 
   const read = await readBoundedText(request, BODY_LIMITS.paymentWebhook);
   if (!read.ok) return read.response;
@@ -29,7 +30,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 });
   }
 
-  let event: { type?: string; event_time?: string; data?: { order?: { order_id?: string }; payment?: { cf_payment_id?: string | number; payment_amount?: number; payment_status?: string } } };
+  let event: {
+    type?: string;
+    event_time?: string;
+    data?: {
+      order?: { order_id?: string };
+      payment?: { cf_payment_id?: string | number; payment_amount?: number; payment_status?: string };
+    };
+  };
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -42,7 +50,11 @@ export async function POST(request: Request) {
   const amount = typeof payment?.payment_amount === 'number' ? toPaise(payment.payment_amount) : null;
   const status = normaliseStatus(payment?.payment_status);
   const signal: PaymentSignal | null =
-    status === 'success' && amount !== null ? { type: 'captured', amount } : status === 'failed' ? { type: 'failed' } : null;
+    status === 'success' && amount !== null
+      ? { type: 'captured', amount }
+      : status === 'failed'
+        ? { type: 'failed' }
+        : null;
 
   const result = await recordProviderEvent({
     provider: 'cashfree',
@@ -58,8 +70,12 @@ export async function POST(request: Request) {
 
   if (result.status === 'unknown_order') {
     const at = event.event_time ? Date.parse(event.event_time) / 1000 : null;
-    if (shouldRetryUnknownOrder(at && Number.isFinite(at) ? at : null)) return NextResponse.json({ error: 'Order not found yet.' }, { status: 503 });
-    reportError(new Error('Cashfree event for an order that does not exist'), { scope: 'webhook.cashfree.unknown_order', correlationId: orderRef });
+    if (shouldRetryUnknownOrder(at && Number.isFinite(at) ? at : null))
+      return NextResponse.json({ error: 'Order not found yet.' }, { status: 503 });
+    reportError(new Error('Cashfree event for an order that does not exist'), {
+      scope: 'webhook.cashfree.unknown_order',
+      correlationId: orderRef,
+    });
     return NextResponse.json({ ok: true, ignored: 'unknown_order' });
   }
   return NextResponse.json({ ok: true, duplicate: result.status === 'duplicate' });

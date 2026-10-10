@@ -118,10 +118,7 @@ const googleId = env('AUTH_GOOGLE_ID');
 const googleSecret = env('AUTH_GOOGLE_SECRET');
 
 if (!googleId || !googleSecret) {
-  warn(
-    'AUTH_GOOGLE_ID/SECRET',
-    'not set — Google sign-in is hidden and customers cannot create accounts'
-  );
+  warn('AUTH_GOOGLE_ID/SECRET', 'not set — Google sign-in is hidden and customers cannot create accounts');
 } else {
   if (!googleId.endsWith('.apps.googleusercontent.com')) {
     fail('AUTH_GOOGLE_ID', 'does not look like a Google client id');
@@ -195,7 +192,10 @@ if (cashfreeId && cashfreeSecret) {
 if (razorpayId && razorpaySecret) {
   pass('RAZORPAY_KEY_ID', razorpayId.startsWith('rzp_live_') ? 'LIVE mode' : 'test mode');
   if (!env('RAZORPAY_WEBHOOK_SECRET')) {
-    fail('RAZORPAY_WEBHOOK_SECRET', 'not set while Razorpay is enabled; an order whose tab closed mid-payment is never marked paid');
+    fail(
+      'RAZORPAY_WEBHOOK_SECRET',
+      'not set while Razorpay is enabled; an order whose tab closed mid-payment is never marked paid'
+    );
   }
 }
 
@@ -219,24 +219,45 @@ const emailLive = gmailLive || resendLive;
 if (!emailLive) warn('GMAIL_USER', 'not set (nor Resend) — no email codes, and no order emails');
 
 // --- SMS codes (sign-in and guest checkout) --------------------------------
-const twilioLive = ['TWILIO_ACCOUNT_SID', 'TWILIO_API_KEY_SID', 'TWILIO_API_KEY_SECRET', 'TWILIO_VERIFY_SERVICE_SID'].every((k) => env(k));
-const twilioPartial = !twilioLive && ['TWILIO_ACCOUNT_SID', 'TWILIO_API_KEY_SID', 'TWILIO_API_KEY_SECRET', 'TWILIO_VERIFY_SERVICE_SID'].some((k) => env(k));
+const twilioLive = [
+  'TWILIO_ACCOUNT_SID',
+  'TWILIO_API_KEY_SID',
+  'TWILIO_API_KEY_SECRET',
+  'TWILIO_VERIFY_SERVICE_SID',
+].every((k) => env(k));
+const twilioPartial =
+  !twilioLive &&
+  ['TWILIO_ACCOUNT_SID', 'TWILIO_API_KEY_SID', 'TWILIO_API_KEY_SECRET', 'TWILIO_VERIFY_SERVICE_SID'].some((k) =>
+    env(k)
+  );
 const msg91Key = env('MSG91_AUTH_KEY');
 const msg91Template = env('MSG91_OTP_TEMPLATE_ID');
 
 if (twilioPartial) fail('TWILIO_*', 'some Twilio Verify variables are set but not all four, so SMS codes are off');
-if (msg91Key && !msg91Template) fail('MSG91_OTP_TEMPLATE_ID', 'is required when MSG91_AUTH_KEY is set (DLT-approved template)');
+if (msg91Key && !msg91Template)
+  fail('MSG91_OTP_TEMPLATE_ID', 'is required when MSG91_AUTH_KEY is set (DLT-approved template)');
 const smsLive = twilioLive || Boolean(env('FAST2SMS_API_KEY')) || Boolean(msg91Key && msg91Template);
-if (twilioLive) pass('TWILIO_VERIFY_SERVICE_SID', 'SMS codes through Twilio Verify; guests verify their number at checkout');
+if (twilioLive)
+  pass('TWILIO_VERIFY_SERVICE_SID', 'SMS codes through Twilio Verify; guests verify their number at checkout');
 else if (smsLive) pass('SMS codes', 'through Fast2SMS or MSG91; guests verify their number at checkout');
-else warn('TWILIO_VERIFY_SERVICE_SID', 'not set (nor Fast2SMS/MSG91) — no mobile sign-in, and guests are not asked to verify their number');
+else
+  warn(
+    'TWILIO_VERIFY_SERVICE_SID',
+    'not set (nor Fast2SMS/MSG91) — no mobile sign-in, and guests are not asked to verify their number'
+  );
 
 // --- Order alerts to the shop ----------------------------------------------
 if (!env('OWNER_EMAIL')) warn('OWNER_EMAIL', 'not set — you get no email when an order is placed');
 const whatsappLive = ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_TO'].every((k) => env(k));
 if (whatsappLive) {
-  pass('WHATSAPP_TOKEN', env('WHATSAPP_TEMPLATE') ? `alerts through template ${env('WHATSAPP_TEMPLATE')}` : 'alerts as plain text (only within 24 hours of your last message)');
-  if (!/^\d{11,15}$/.test(env('WHATSAPP_TO'))) fail('WHATSAPP_TO', 'must be the full number with country code and no +, e.g. 91XXXXXXXXXX');
+  pass(
+    'WHATSAPP_TOKEN',
+    env('WHATSAPP_TEMPLATE')
+      ? `alerts through template ${env('WHATSAPP_TEMPLATE')}`
+      : 'alerts as plain text (only within 24 hours of your last message)'
+  );
+  if (!/^\d{11,15}$/.test(env('WHATSAPP_TO')))
+    fail('WHATSAPP_TO', 'must be the full number with country code and no +, e.g. 91XXXXXXXXXX');
 } else {
   warn('WHATSAPP_TOKEN', 'not set (with WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_TO) — no WhatsApp order alerts');
 }

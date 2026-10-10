@@ -87,9 +87,7 @@ export class InMemoryCatalogSearch implements CatalogSearch {
       fields: {
         name: tokenize(p.name),
         ingredients: tokenize(p.ingredients.join(' ')),
-        concerns: tokenize(
-          p.concerns.map((c) => `${c} ${concernNames[c] ?? ''}`).join(' ')
-        ),
+        concerns: tokenize(p.concerns.map((c) => `${c} ${concernNames[c] ?? ''}`).join(' ')),
         category: tokenize(p.category),
         tagline: tokenize(p.tagline),
         description: tokenize(p.description),

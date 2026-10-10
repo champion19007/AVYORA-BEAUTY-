@@ -42,14 +42,18 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const [prices, stock, reviews] = await Promise.all([
     displayPrices(),
     catalogueStock(),
-    isDatabaseConfigured() ? reviewAggregates(db).catch(() => ({})) : Promise.resolve({} as Awaited<ReturnType<typeof reviewAggregates>>),
+    isDatabaseConfigured()
+      ? reviewAggregates(db).catch(() => ({}))
+      : Promise.resolve({} as Awaited<ReturnType<typeof reviewAggregates>>),
   ]);
 
   if (chosen.length < 2) {
     return (
       <main className="container mx-auto max-w-3xl py-20">
         <h1 className="text-4xl font-medium tracking-tight">Compare products</h1>
-        <p className="mt-4 text-[15px] text-muted-foreground">Choose two or three products in the shop to compare them here.</p>
+        <p className="mt-4 text-[15px] text-muted-foreground">
+          Choose two or three products in the shop to compare them here.
+        </p>
         <Link href="/collections" className="mt-6 inline-block underline">
           Go to the shop
         </Link>
@@ -58,7 +62,11 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   }
 
   const units = new Set(
-    chosen.flatMap((p) => p.sizes.map((s) => unitPricePaise(prices[`${p.id}::${s.label}`]?.price ?? s.price * 100, s.label)?.per ?? 'unknown'))
+    chosen.flatMap((p) =>
+      p.sizes.map(
+        (s) => unitPricePaise(prices[`${p.id}::${s.label}`]?.price ?? s.price * 100, s.label)?.per ?? 'unknown'
+      )
+    )
   );
   const rows: { label: string; cell: (p: Product) => React.ReactNode }[] = [
     { label: 'Routine step', cell: (p) => STEP[ROUTINE_ROLES[p.id] ?? 'none'] },
@@ -73,8 +81,16 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
             return (
               <li key={s.label}>
                 {s.label}: <span className="font-medium">{formatPaise(price)}</span>
-                {unit && <span className="text-muted-foreground"> ({formatPaise(unit.paise)} per {unit.per})</span>}
-                <span className={avail.tone === 'out' ? ' text-destructive' : ' text-muted-foreground'}> · {avail.label}</span>
+                {unit && (
+                  <span className="text-muted-foreground">
+                    {' '}
+                    ({formatPaise(unit.paise)} per {unit.per})
+                  </span>
+                )}
+                <span className={avail.tone === 'out' ? ' text-destructive' : ' text-muted-foreground'}>
+                  {' '}
+                  · {avail.label}
+                </span>
               </li>
             );
           })}
@@ -97,39 +113,57 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       cell: (p) => (
         <span>
           {p.ingredients.join(', ') || '—'}
-          <span className="block text-xs text-muted-foreground">Highlights from the product listing, not a full list.</span>
+          <span className="block text-xs text-muted-foreground">
+            Highlights from the product listing, not a full list.
+          </span>
         </span>
       ),
     },
     {
       label: 'Usage directions',
       cell: (p) =>
-        APPROVED_DIRECTIONS[p.id] ? <span>{APPROVED_DIRECTIONS[p.id].frequency}</span> : <span className="text-muted-foreground">Pending review; follow the pack</span>,
+        APPROVED_DIRECTIONS[p.id] ? (
+          <span>{APPROVED_DIRECTIONS[p.id].frequency}</span>
+        ) : (
+          <span className="text-muted-foreground">Pending review; follow the pack</span>
+        ),
     },
     {
       label: 'Reviews',
       cell: (p) => {
         const r = (reviews as Record<string, { count: number; average: number }>)[p.id];
-        return r ? `${r.average} out of 5 from ${r.count} verified ${r.count === 1 ? 'purchase' : 'purchases'}` : <span className="text-muted-foreground">No reviews yet</span>;
+        return r ? (
+          `${r.average} out of 5 from ${r.count} verified ${r.count === 1 ? 'purchase' : 'purchases'}`
+        ) : (
+          <span className="text-muted-foreground">No reviews yet</span>
+        );
       },
     },
   ];
 
   return (
     <main className="container mx-auto py-16">
-      <Link href={`/collections?compare=${chosen.map((p) => p.id).join(',')}`} className="text-sm text-muted-foreground underline">
+      <Link
+        href={`/collections?compare=${chosen.map((p) => p.id).join(',')}`}
+        className="text-sm text-muted-foreground underline"
+      >
         Back to the shop
       </Link>
       <h1 className="mt-4 text-4xl font-medium tracking-tight">Compare products</h1>
       {units.size > 1 && (
-        <p className="mt-3 text-sm text-muted-foreground">These products are sold in different units, so unit prices are only comparable within the same unit.</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          These products are sold in different units, so unit prices are only comparable within the same unit.
+        </p>
       )}
       <div className="mt-10 overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-left text-[15px]">
           <caption className="sr-only">Comparison of {chosen.map((p) => p.name).join(', ')}</caption>
           <thead>
             <tr>
-              <th scope="col" className="w-48 p-3 align-bottom text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              <th
+                scope="col"
+                className="w-48 p-3 align-bottom text-xs uppercase tracking-[0.14em] text-muted-foreground"
+              >
                 Product
               </th>
               {chosen.map((p) => (

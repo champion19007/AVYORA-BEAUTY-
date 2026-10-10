@@ -49,8 +49,15 @@ describe('order fulfilment transitions', () => {
 
   // Cash on delivery stays `pending` until the courier collects: once released from the risk hold it may be packed.
   it('lets a released cash-on-delivery order be packed, and holds an unreleased one', async () => {
-    expect(await allowedNextStatuses({ status: 'pending', paymentProvider: 'cod', fraudStatus: 'approved' })).toEqual(['fulfilled', 'cancelled']);
-    expect(await allowedNextStatuses({ status: 'pending', paymentProvider: 'cod', fraudStatus: 'review' })).toEqual(['cancelled']);
-    expect(await allowedNextStatuses({ status: 'pending', paymentProvider: 'razorpay', fraudStatus: 'approved' })).toEqual(['cancelled']);
+    expect(await allowedNextStatuses({ status: 'pending', paymentProvider: 'cod', fraudStatus: 'approved' })).toEqual([
+      'fulfilled',
+      'cancelled',
+    ]);
+    expect(await allowedNextStatuses({ status: 'pending', paymentProvider: 'cod', fraudStatus: 'review' })).toEqual([
+      'cancelled',
+    ]);
+    expect(
+      await allowedNextStatuses({ status: 'pending', paymentProvider: 'razorpay', fraudStatus: 'approved' })
+    ).toEqual(['cancelled']);
   });
 });

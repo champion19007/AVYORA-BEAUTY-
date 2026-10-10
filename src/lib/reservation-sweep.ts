@@ -101,10 +101,7 @@ export async function sweepAbandonedReservations(
       const restored = await restoreOrderStock(order.id);
       if (restored) {
         released += 1;
-        await db
-          .update(orders)
-          .set({ status: 'cancelled', updatedAt: new Date() })
-          .where(eq(orders.id, order.id));
+        await db.update(orders).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(orders.id, order.id));
       }
     } catch (err) {
       // One bad order must not stop the sweep for the rest.

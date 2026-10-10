@@ -22,12 +22,14 @@ export type AcceptedType = (typeof ACCEPTED_TYPES)[number];
 /** The real type from the file's first bytes; the declared type and extension are not trusted. */
 export function sniffImageType(bytes: Uint8Array): AcceptedType | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((b, i) => bytes[i] === b)) return 'image/png';
+  if (bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((b, i) => bytes[i] === b))
+    return 'image/png';
   if (
     bytes.length >= 12 &&
     String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' &&
     String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
-  ) return 'image/webp';
+  )
+    return 'image/webp';
   return null;
 }
 
@@ -80,7 +82,10 @@ export function qualityIssues(q: CaptureQuality): QualityIssue[] {
 }
 
 /** Luminance statistics of RGBA pixel data (from a downscaled canvas or a decoded buffer). */
-export function luminanceStats(rgba: Uint8ClampedArray | Uint8Array, channels = 4): { brightness: number; contrast: number } {
+export function luminanceStats(
+  rgba: Uint8ClampedArray | Uint8Array,
+  channels = 4
+): { brightness: number; contrast: number } {
   let sum = 0;
   let sumSq = 0;
   const n = Math.floor(rgba.length / channels);

@@ -86,10 +86,7 @@ describe('stock restoration', () => {
     await releaseStock(lines);
 
     expect(await stockNow()).toBe(10);
-    const [wash] = await db
-      .select()
-      .from(inventory)
-      .where(eq(inventory.productId, 'face-wash'));
+    const [wash] = await db.select().from(inventory).where(eq(inventory.productId, 'face-wash'));
     expect(wash!.quantity).toBe(4);
   });
 
@@ -98,10 +95,7 @@ describe('stock restoration', () => {
     // would turn a cancellation into free stock.
     await releaseStock([{ productId: 'never-counted', size: '30ml', quantity: 5 }]);
 
-    const rows = await db
-      .select()
-      .from(inventory)
-      .where(eq(inventory.productId, 'never-counted'));
+    const rows = await db.select().from(inventory).where(eq(inventory.productId, 'never-counted'));
 
     expect(rows).toHaveLength(0);
   });
