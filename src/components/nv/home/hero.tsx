@@ -30,11 +30,12 @@ import { Eyebrow } from '@/components/nv/primitives';
  * centre at 1280×800, 1440×900 and 1920×1080), with the top-right (copy and
  * CTA) and lower-left (headline) areas calm enough for white text.
  */
-// AI-generated still lifes (Gamma), no labels or people, until approved campaign photography exists.
+// Placeholder stock (Unsplash License, Zulfugar Karimov) until approved campaign photography exists.
+// `src` is the landscape crop for desktop; `mobileSrc` a portrait crop of the same photo, centred on the face.
 const HERO_IMAGE: { src: string; mobileSrc: string; alt: string } | null = {
-  src: '/images/home/hero.jpg',
-  mobileSrc: '/images/home/hero-mobile.jpg',
-  alt: 'Amber dropper bottles and a frosted pump bottle on warm sandstone with sage and eucalyptus',
+  src: 'https://images.unsplash.com/photo-1786520995825-2d3dd480bf6a?auto=format&fit=crop&crop=faces%2Cedges&w=2400&h=1350&q=80',
+  mobileSrc: 'https://images.unsplash.com/photo-1786520995825-2d3dd480bf6a?auto=format&fit=crop&crop=faces%2Cedges&w=1080&h=1920&q=80',
+  alt: 'A woman with her eyes closed in warm evening sunlight',
 };
 
 /** Art direction: one <picture>, so the browser downloads only the crop for its width. */
@@ -65,7 +66,7 @@ export function Hero() {
           */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(0,0,0,0.6),transparent_60%),linear-gradient(to_top,rgba(0,0,0,0.55),transparent_50%)]"
+            className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(0,0,0,0.38),transparent_55%),linear-gradient(to_top,rgba(0,0,0,0.5),transparent_45%)]"
           />
         </>
       ) : (
