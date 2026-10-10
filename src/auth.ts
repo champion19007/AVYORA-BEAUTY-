@@ -5,6 +5,8 @@ import { cookies } from 'next/headers';
 import { getDatabase } from '@/db';
 import { users, accounts, sessions, verificationTokens } from '@/db/schema';
 import { ANONYMOUS_COOKIE, mergeCarts } from '@/lib/cart-server';
+import { reportError } from '@/lib/observability';
+import { secureAccountLinkedToGoogle } from '@/lib/customer-accounts';
 
 /**
  * Customer authentication.
@@ -56,7 +58,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         Google({
           clientId: process.env.AUTH_GOOGLE_ID!,
           clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-          allowDangerousEmailAccountLinking: false,
+          /*
+           * Someone who already has an account (password, email code) and
+           * then chooses "Continue with Google" with the same email is signed
+           * into that account instead of being refused or given a duplicate.
+           * Safe only because the signIn callback admits Google identities
+           * whose email Google has verified, and linkAccount below drops any
+           * password that was never proven to belong to the inbox owner.
+           */
+          allowDangerousEmailAccountLinking: true,
+          // Lower-cased so it matches emails stored by the other sign-in methods.
+          profile(p) {
+            return { id: p.sub, name: p.name, email: p.email?.toLowerCase(), image: p.picture };
+          },
         }),
       ]
     : [],
@@ -67,6 +81,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 
   callbacks: {
+    /** Google identities link to existing accounts by email, so the email must be one Google has verified. */
+    signIn({ account, profile }) {
+      if (account?.provider === 'google') return profile?.email_verified === true;
+      return true;
+    },
+
     /**
      * Build the session object explicitly.
      *
@@ -95,6 +115,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 
   events: {
+    /** Google was just linked to an account by email: see secureAccountLinkedToGoogle. */
+    async linkAccount({ user, account }) {
+      if (account.provider === 'google' && user.id && databaseConfigured) await secureAccountLinkedToGoogle(user.id);
+    },
+
     /**
      * Fold the visitor's anonymous cart into their account cart.
      *
@@ -114,7 +139,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const anonymousId = (await cookies()).get(ANONYMOUS_COOKIE)?.value;
         if (anonymousId) await mergeCarts(user.id, anonymousId);
       } catch (err) {
-        console.error('cart merge on sign-in failed (ignored)', err);
+        // Ignored: the customer is signed in either way; the bag just is not merged.
+        reportError(err, { scope: 'auth.cartMerge' });
       }
     },
   },

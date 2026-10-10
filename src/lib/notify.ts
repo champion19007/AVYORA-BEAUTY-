@@ -1,3 +1,4 @@
+import nodemailer from 'nodemailer';
 import { reportError } from '@/lib/observability';
 
 /**
@@ -17,12 +18,48 @@ import { reportError } from '@/lib/observability';
 
 export type DeliveryResult = { ok: true } | { ok: false; error: string };
 
+// Shown to the customer as-is, so they say what to do, not what broke.
+const EMAIL_FAILED: DeliveryResult = { ok: false, error: 'We could not send that email. Please try again.' };
+const SMS_FAILED: DeliveryResult = { ok: false, error: 'We could not send that code. Please try again.' };
+const WHATSAPP_FAILED: DeliveryResult = { ok: false, error: 'WhatsApp message not sent.' };
+
 /* -------------------------------------------------------------------------- */
-/* Email — Resend                                                              */
+/* Email — Gmail SMTP, or Resend                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Gmail with an app password: the zero-setup option for the MVP, no domain
+ * verification needed. Google caps a personal account at about 500 messages a
+ * day, so move to Resend (or SES) before real volume; the call sites do not
+ * change. When both are configured Gmail wins, because setting it is a
+ * deliberate choice.
+ */
+const gmailConfigured = () => Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+
 export function emailDeliveryConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+  return gmailConfigured() || Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+}
+
+async function sendViaGmail(to: string, subject: string, text: string): Promise<DeliveryResult> {
+  const user = process.env.GMAIL_USER!;
+  try {
+    const transport = nodemailer.createTransport({
+      service: 'gmail',
+      // Google shows app passwords in groups of four; the spaces are not part of it.
+      auth: { user, pass: process.env.GMAIL_APP_PASSWORD!.replace(/\s/g, '') },
+      // A hanging server must not hang the sign-in form.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 10_000,
+    });
+    // Always the signed-in account: Gmail rewrites any other sender, and EMAIL_FROM belongs to Resend.
+    await transport.sendMail({ from: `Avyora <${user}>`, to, subject, text });
+    return { ok: true };
+  } catch (err) {
+    // Never the recipient address: this goes to an error tracker.
+    reportError(err, { scope: 'notify.email.gmail' });
+    return EMAIL_FAILED;
+  }
 }
 
 /**
@@ -40,6 +77,7 @@ export async function sendEmail(
   if (!emailDeliveryConfigured()) {
     return { ok: false, error: 'Email delivery is not configured on this deployment.' };
   }
+  if (gmailConfigured()) return sendViaGmail(to, subject, text);
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -60,22 +98,128 @@ export async function sendEmail(
         // Never the recipient address: this goes to an error tracker.
         extra: { status: response.status, detail: detail.slice(0, 200) },
       });
-      return { ok: false, error: 'We could not send that email. Please try again.' };
+      return EMAIL_FAILED;
     }
 
     return { ok: true };
   } catch (err) {
     reportError(err, { scope: 'notify.email' });
-    return { ok: false, error: 'We could not send that email. Please try again.' };
+    return EMAIL_FAILED;
   }
 }
 
 /* -------------------------------------------------------------------------- */
-/* SMS — MSG91                                                                 */
+/* Twilio Verify — SMS codes                                                    */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Twilio, authenticated with an API key (revocable on its own) rather than the
+ * account's auth token. Verify sends SMS codes from Twilio's pre-registered
+ * senders, so it needs no Twilio number and no DLT registration for India; it
+ * also generates and checks the code itself, which is why SMS codes go through
+ * `sendSmsCode` / `checkSmsCode` (lib/sms-code.ts) rather than our own code
+ * table when it is on. Trial accounts can only reach verified numbers.
+ */
+const twilioConfigured = () =>
+  Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_API_KEY_SID && process.env.TWILIO_API_KEY_SECRET);
+
+export const twilioVerifyConfigured = () => twilioConfigured() && Boolean(process.env.TWILIO_VERIFY_SERVICE_SID);
+
+/** E.164 for an Indian mobile number typed any of the usual ways. */
+const indianE164 = (phone: string) => `+91${phone.replace(/\D/g, '').slice(-10)}`;
+
+async function twilioPost(url: string, form: Record<string, string>) {
+  const auth = Buffer.from(`${process.env.TWILIO_API_KEY_SID}:${process.env.TWILIO_API_KEY_SECRET}`).toString('base64');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(form),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const body = (await response.json().catch(() => ({}))) as { status?: string; code?: number; message?: string };
+  return { status: response.status, body };
+}
+
+const verifyUrl = (path: string) =>
+  `https://verify.twilio.com/v2/Services/${process.env.TWILIO_VERIFY_SERVICE_SID}/${path}`;
+
+export async function startTwilioVerification(phone: string): Promise<DeliveryResult> {
+  try {
+    const { status, body } = await twilioPost(verifyUrl('Verifications'), { To: indianE164(phone), Channel: 'sms' });
+    if (status >= 300) {
+      reportError(new Error(`Twilio Verify refused send: ${body.code} ${body.message}`), {
+        scope: 'notify.sms.twilio',
+        extra: { status, code: body.code },
+      });
+      // 60203: Twilio's own cap on sends to one number.
+      if (body.code === 60203) return { ok: false, error: 'Too many codes sent to this number. Try again later.' };
+      return SMS_FAILED;
+    }
+    return { ok: true };
+  } catch (err) {
+    reportError(err, { scope: 'notify.sms.twilio' });
+    return SMS_FAILED;
+  }
+}
+
+export type TwilioCheck = 'approved' | 'invalid' | 'expired' | 'too_many_attempts';
+
+export async function checkTwilioVerification(phone: string, code: string): Promise<TwilioCheck> {
+  try {
+    const { status, body } = await twilioPost(verifyUrl('VerificationCheck'), { To: indianE164(phone), Code: code });
+    if (status === 200) return body.status === 'approved' ? 'approved' : 'invalid';
+    // 404: no pending verification (expired or already used). 60202: too many wrong codes.
+    if (status === 404) return 'expired';
+    if (body.code === 60202 || status === 429) return 'too_many_attempts';
+    reportError(new Error(`Twilio Verify check failed: ${body.code} ${body.message}`), {
+      scope: 'notify.sms.twilio',
+      extra: { status },
+    });
+    return 'invalid';
+  } catch (err) {
+    reportError(err, { scope: 'notify.sms.twilio' });
+    return 'invalid';
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* SMS — Fast2SMS, or MSG91                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fast2SMS's OTP route sends a fixed "Your OTP is …" message from a shared
+ * sender, which is what lets it skip DLT registration. Good for the MVP; move
+ * to a DLT-registered sender (MSG91 below) for a branded message at scale.
+ */
+const fast2smsConfigured = () => Boolean(process.env.FAST2SMS_API_KEY);
+
 export function smsDeliveryConfigured(): boolean {
-  return Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID);
+  return twilioVerifyConfigured() || fast2smsConfigured() || Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID);
+}
+
+/** `phone` is the 10-digit number `phoneSchema` produces. */
+async function sendViaFast2Sms(phone: string, code: string): Promise<DeliveryResult> {
+  try {
+    const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+      method: 'POST',
+      headers: { authorization: process.env.FAST2SMS_API_KEY!, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ route: 'otp', variables_values: code, numbers: phone.replace(/^\+91/, '') }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = (await response.json().catch(() => ({}))) as { return?: boolean; message?: unknown };
+    // Like MSG91, a refusal can arrive with a 200; `return` is the real answer.
+    if (!response.ok || body.return !== true) {
+      reportError(new Error(`Fast2SMS rejected send: ${JSON.stringify(body.message ?? response.status)}`), {
+        scope: 'notify.sms.fast2sms',
+        extra: { status: response.status },
+      });
+      return SMS_FAILED;
+    }
+    return { ok: true };
+  } catch (err) {
+    reportError(err, { scope: 'notify.sms.fast2sms' });
+    return SMS_FAILED;
+  }
 }
 
 /**
@@ -94,6 +238,7 @@ export async function sendOtpSms(phone: string, code: string): Promise<DeliveryR
   if (!smsDeliveryConfigured()) {
     return { ok: false, error: 'SMS delivery is not configured on this deployment.' };
   }
+  if (fast2smsConfigured()) return sendViaFast2Sms(phone, code);
 
   // MSG91 expects the country code without a plus.
   const mobile = phone.startsWith('+') ? phone.slice(1) : `91${phone}`;
@@ -122,13 +267,13 @@ export async function sendOtpSms(phone: string, code: string): Promise<DeliveryR
         scope: 'notify.sms',
         extra: { status: response.status },
       });
-      return { ok: false, error: 'We could not send that code. Please try again.' };
+      return SMS_FAILED;
     }
 
     return { ok: true };
   } catch (err) {
     reportError(err, { scope: 'notify.sms' });
-    return { ok: false, error: 'We could not send that code. Please try again.' };
+    return SMS_FAILED;
   }
 }
 
@@ -137,11 +282,7 @@ export async function sendOtpSms(phone: string, code: string): Promise<DeliveryR
 /* -------------------------------------------------------------------------- */
 
 export function whatsappConfigured(): boolean {
-  return Boolean(
-    process.env.WHATSAPP_TOKEN &&
-      process.env.WHATSAPP_PHONE_NUMBER_ID &&
-      process.env.WHATSAPP_TO
-  );
+  return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_TO);
 }
 
 /**
@@ -204,13 +345,13 @@ export async function sendWhatsApp(text: string): Promise<DeliveryResult> {
         scope: 'notify.whatsapp',
         extra: { status: response.status, detail: detail.slice(0, 200) },
       });
-      return { ok: false, error: 'WhatsApp message not sent.' };
+      return WHATSAPP_FAILED;
     }
 
     return { ok: true };
   } catch (err) {
     reportError(err, { scope: 'notify.whatsapp' });
-    return { ok: false, error: 'WhatsApp message not sent.' };
+    return WHATSAPP_FAILED;
   }
 }
 

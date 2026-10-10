@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio",
@@ -60,7 +61,7 @@
     "next": "^15.5.24",
     "next-auth": "^5.0.0-beta.32",
     "next-themes": "^0.3.0",
-    "patch-package": "^8.0.0",
+    "nodemailer": "^10.1.0",
     "postgres": "^3.4.9",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -68,21 +69,29 @@
     "react-hook-form": "^7.54.2",
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@vitest/coverage-v8": "^4.1.11",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.23.12",
     "typescript": "^5",
     "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "nodemailer": "$nodemailer",
+    "next": {
+      "postcss": "^8.5.26"
+    }
   }
 }

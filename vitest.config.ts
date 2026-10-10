@@ -26,6 +26,28 @@ export default defineConfig({
      * workers finished in the same wall-clock time (about 46s) without it.
      */
     maxWorkers: 4,
+    /**
+     * `npm run test:coverage`. Measures the logic that can break money,
+     * stock and sign-in: lib, modules, infrastructure, server actions and API
+     * routes. React components are left out; they render data this logic
+     * produces and are checked in the browser. CI fails if coverage drops
+     * below the thresholds, which sit just under what the suite reaches today.
+     */
+    coverage: {
+      provider: 'v8',
+      include: [
+        'src/lib/**/*.ts',
+        'src/modules/**/*.ts',
+        'src/infrastructure/**/*.ts',
+        'src/app/**/actions.ts',
+        'src/app/api/**/*.ts',
+      ],
+      exclude: ['**/__tests__/**', '**/*.test.ts', 'src/test/**'],
+      reporter: ['text-summary', 'json-summary'],
+      // Measured 10 Oct 2026: statements 69.6, branches 60.6, functions 74.5, lines 72.1.
+      // Raise these as tests are added; never lower them to make a change pass.
+      thresholds: { statements: 68, branches: 58, functions: 72, lines: 70 },
+    },
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },

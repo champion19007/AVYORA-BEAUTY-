@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
+import { reportError } from '@/lib/observability';
 import {
   addressSchema,
   createAddress,
@@ -92,7 +93,7 @@ export async function saveAddress(
       await createAddress(userId, parsed.data);
     }
   } catch (err) {
-    console.error('address save failed', err);
+    reportError(err, { scope: 'addresses.save' });
     return { error: 'We could not save that address. Please try again.', values };
   }
 

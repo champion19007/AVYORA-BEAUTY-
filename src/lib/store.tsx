@@ -54,6 +54,8 @@ interface User {
 interface AppContextType {
   /** The bag's lines, each with its product for display. */
   cart: CartEntry[];
+  /** False until the saved bag has been read; an empty `cart` before then means "not loaded", not "empty". */
+  cartReady: boolean;
   /**
    * Adds `quantity` of exactly this SKU. `available`, when the caller knows the
    * stock, caps the total. Returns what was actually added and why not more.
@@ -87,6 +89,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     linesRef.current = lines;
   }, [lines]);
   const cartHydrated = useRef(false);
+  const [cartReady, setCartReady] = useState(false);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -147,6 +150,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
        lazy initial state without breaking hydration. */
     setLines(savedLines);
     cartHydrated.current = true;
+    setCartReady(true);
     const savedOwner = readStorage(OWNER_KEY);
     ownerRef.current = savedOwner && savedOwner !== 'guest' ? savedOwner : null;
     if (savedWishlist) setWishlist(savedWishlist);
@@ -397,6 +401,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider
       value={{
         cart,
+        cartReady,
         addToCart,
         removeFromCart,
         clearCart,

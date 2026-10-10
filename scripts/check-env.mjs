@@ -177,52 +177,68 @@ if (authSecret && sessionSecret && authSecret === sessionSecret) {
 }
 
 // --- Payments --------------------------------------------------------------
+const cashfreeId = env('CASHFREE_APP_ID');
+const cashfreeSecret = env('CASHFREE_SECRET_KEY');
+const cashfreeEnv = env('CASHFREE_ENV') || 'sandbox';
 const razorpayId = env('RAZORPAY_KEY_ID');
 const razorpaySecret = env('RAZORPAY_KEY_SECRET');
 
-if (!razorpayId || !razorpaySecret) {
-  warn('RAZORPAY_KEY_ID/SECRET', 'not set — checkout offers cash on delivery only');
-} else {
-  pass('RAZORPAY_KEY_ID', razorpayId.startsWith('rzp_live_') ? 'LIVE mode' : 'test mode');
-
-  if (PRODUCTION && razorpayId.startsWith('rzp_test_')) {
-    warn('RAZORPAY_KEY_ID', 'is a test key in a production check — real payments will not be taken');
+if (cashfreeId && cashfreeSecret) {
+  pass('CASHFREE_APP_ID', `${cashfreeEnv} mode`);
+  if (PRODUCTION && cashfreeEnv !== 'production') {
+    warn('CASHFREE_ENV', `is "${cashfreeEnv}" in a production check — real payments will not be taken`);
   }
+} else if (cashfreeId || cashfreeSecret) {
+  fail('CASHFREE_APP_ID/SECRET_KEY', 'only one of the pair is set, so online payment is off');
+}
 
+if (razorpayId && razorpaySecret) {
+  pass('RAZORPAY_KEY_ID', razorpayId.startsWith('rzp_live_') ? 'LIVE mode' : 'test mode');
   if (!env('RAZORPAY_WEBHOOK_SECRET')) {
-    fail(
-      'RAZORPAY_WEBHOOK_SECRET',
-      'not set while payments are enabled. The webhook is the authoritative record of payment — without it, an order whose browser tab closed mid-payment is never marked paid'
-    );
-  } else {
-    pass('RAZORPAY_WEBHOOK_SECRET');
+    fail('RAZORPAY_WEBHOOK_SECRET', 'not set while Razorpay is enabled; an order whose tab closed mid-payment is never marked paid');
   }
 }
 
-// --- Sign-in code delivery -------------------------------------------------
+if (!(cashfreeId && cashfreeSecret) && !(razorpayId && razorpaySecret)) {
+  warn('CASHFREE_APP_ID/SECRET_KEY', 'not set — checkout offers cash on delivery only');
+}
+
+// --- Email: codes and order emails ----------------------------------------
+const gmailUser = env('GMAIL_USER');
+const gmailPassword = env('GMAIL_APP_PASSWORD');
 const resend = env('RESEND_API_KEY');
 const emailFrom = env('EMAIL_FROM');
+const gmailLive = Boolean(gmailUser && gmailPassword);
+const resendLive = Boolean(resend && emailFrom);
 
-if (resend && !emailFrom) {
-  fail('EMAIL_FROM', 'is required when RESEND_API_KEY is set, or no email can be sent');
-} else if (resend && emailFrom) {
-  pass('RESEND_API_KEY', 'email codes enabled');
-} else {
-  warn('RESEND_API_KEY', 'not set — the "email me a code" sign-in option is hidden');
-}
+if (gmailUser && !gmailPassword) fail('GMAIL_APP_PASSWORD', 'is required when GMAIL_USER is set');
+else if (gmailLive) pass('GMAIL_USER', 'email codes and order emails through Gmail');
+if (resend && !emailFrom) fail('EMAIL_FROM', 'is required when RESEND_API_KEY is set, or no email can be sent');
+else if (resendLive && !gmailLive) pass('RESEND_API_KEY', 'email codes and order emails through Resend');
+const emailLive = gmailLive || resendLive;
+if (!emailLive) warn('GMAIL_USER', 'not set (nor Resend) — no email codes, and no order emails');
 
+// --- SMS codes (sign-in and guest checkout) --------------------------------
+const twilioLive = ['TWILIO_ACCOUNT_SID', 'TWILIO_API_KEY_SID', 'TWILIO_API_KEY_SECRET', 'TWILIO_VERIFY_SERVICE_SID'].every((k) => env(k));
+const twilioPartial = !twilioLive && ['TWILIO_ACCOUNT_SID', 'TWILIO_API_KEY_SID', 'TWILIO_API_KEY_SECRET', 'TWILIO_VERIFY_SERVICE_SID'].some((k) => env(k));
 const msg91Key = env('MSG91_AUTH_KEY');
 const msg91Template = env('MSG91_OTP_TEMPLATE_ID');
 
-if (msg91Key && !msg91Template) {
-  fail(
-    'MSG91_OTP_TEMPLATE_ID',
-    'is required when MSG91_AUTH_KEY is set. Indian carriers drop SMS without a DLT-approved template'
-  );
-} else if (msg91Key && msg91Template) {
-  pass('MSG91_AUTH_KEY', 'SMS codes enabled');
+if (twilioPartial) fail('TWILIO_*', 'some Twilio Verify variables are set but not all four, so SMS codes are off');
+if (msg91Key && !msg91Template) fail('MSG91_OTP_TEMPLATE_ID', 'is required when MSG91_AUTH_KEY is set (DLT-approved template)');
+const smsLive = twilioLive || Boolean(env('FAST2SMS_API_KEY')) || Boolean(msg91Key && msg91Template);
+if (twilioLive) pass('TWILIO_VERIFY_SERVICE_SID', 'SMS codes through Twilio Verify; guests verify their number at checkout');
+else if (smsLive) pass('SMS codes', 'through Fast2SMS or MSG91; guests verify their number at checkout');
+else warn('TWILIO_VERIFY_SERVICE_SID', 'not set (nor Fast2SMS/MSG91) — no mobile sign-in, and guests are not asked to verify their number');
+
+// --- Order alerts to the shop ----------------------------------------------
+if (!env('OWNER_EMAIL')) warn('OWNER_EMAIL', 'not set — you get no email when an order is placed');
+const whatsappLive = ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_TO'].every((k) => env(k));
+if (whatsappLive) {
+  pass('WHATSAPP_TOKEN', env('WHATSAPP_TEMPLATE') ? `alerts through template ${env('WHATSAPP_TEMPLATE')}` : 'alerts as plain text (only within 24 hours of your last message)');
+  if (!/^\d{11,15}$/.test(env('WHATSAPP_TO'))) fail('WHATSAPP_TO', 'must be the full number with country code and no +, e.g. 91XXXXXXXXXX');
 } else {
-  warn('MSG91_AUTH_KEY', 'not set — the "use mobile number" sign-in option is hidden');
+  warn('WHATSAPP_TOKEN', 'not set (with WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_TO) — no WhatsApp order alerts');
 }
 
 // --- Demo allowlist --------------------------------------------------------
@@ -232,9 +248,6 @@ const demo = env('DEMO_IDENTIFIERS')
   .filter(Boolean);
 
 if (demo.length > 0) {
-  const emailLive = Boolean(resend && emailFrom);
-  const smsLive = Boolean(msg91Key && msg91Template);
-
   if (emailLive && smsLive) {
     warn(
       'DEMO_IDENTIFIERS',

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { SUPPORT_EMAIL } from '@/data/business-info';
+import { SupportForm } from '@/components/nv/home/support-form';
 
 export const metadata: Metadata = {
   title: 'Contact Us',
@@ -11,6 +12,12 @@ export default function Page() {
   return (
     <>
       <h1>Contact Us</h1>
+
+      <h2>Send us a message</h2>
+      {/* The form is designed for a dark surface (it lived on the landing page's photo band). */}
+      <div className="not-prose my-6 rounded-nv-card bg-nv-ink p-6 sm:p-10">
+        <SupportForm />
+      </div>
 
       <h2>Customer support</h2>
       <p>

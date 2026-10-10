@@ -16,6 +16,35 @@ import dynamic from 'next/dynamic';
 
 const AssistantPanel = dynamic(() => import('@/components/assistant/assistant-panel').then((m) => m.AssistantPanel), { ssr: false });
 import type { RoutineSession, SessionState } from './routine-session';
+import { NewsletterForm } from '@/components/nv/shell/newsletter-form';
+import { isRoutineGated, isRoutineUnlocked, rememberRoutineUnlocked } from './routine-unlock';
+
+function useRoutineUnlock() {
+  // Results only render in the browser (after the quiz or a saved-routine fetch), so storage is readable here.
+  const [unlocked, setUnlocked] = useState(() => isRoutineUnlocked());
+  const unlock = () => {
+    setUnlocked(true);
+    rememberRoutineUnlocked();
+  };
+  return { unlocked, unlock };
+}
+
+function UnlockOverlay({ onUnlock }: { onUnlock: () => void }) {
+  return (
+    <div className="absolute inset-0 z-20 flex items-start justify-center px-4 pt-16 sm:pt-24">
+      <div role="dialog" aria-modal="false" aria-labelledby="unlock-heading" className="w-full max-w-[560px] rounded-[18px] bg-nv-ink p-8 text-white shadow-2xl sm:p-10">
+        <p className="text-xs uppercase tracking-[0.2em] text-white/60">Private beta</p>
+        <h2 id="unlock-heading" className="mt-3 font-headline text-3xl font-normal leading-tight">
+          Your custom 7-day routine is ready.
+        </h2>
+        <p className="mt-3 text-white/75">Enter your email to unlock your map and claim 20% off our private beta launch.</p>
+        <div className="mt-8">
+          <NewsletterForm heading={null} large buttonLabel="Unlock my routine" placeholder="Enter your email address" onSubscribed={onUnlock} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const PRODUCT = new Map(PRODUCTS.map((p) => [p.id, p]));
 const SKU = new Map(catalogRecords(PRODUCTS).variants.map((v) => [v.id, v]));
@@ -78,6 +107,7 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
   const busy = state.phase === 'computing';
   const saving = state.save.status === 'saving';
   const pricesStale = state.pricesExpireAt !== null && now > state.pricesExpireAt;
+  const { unlocked, unlock } = useRoutineUnlock();
 
   if (!result) {
     return (
@@ -113,6 +143,7 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
   // An invalid plan breaks a hard rule: nothing in it is offered as a routine, saved or added to the bag.
   const invalid = result.status === 'invalid';
   const actionable = !noMatch && !invalid;
+  const gated = isRoutineGated(actionable, unlocked);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
@@ -159,7 +190,14 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
         )}
       </div>
 
-      <div className={cn('mt-10 grid grid-cols-[1fr_22rem] gap-12', busy && 'opacity-60')} aria-busy={busy}>
+      <div className="relative">
+      {gated && <UnlockOverlay onUnlock={unlock} />}
+      <div
+        className={cn('mt-10 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_22rem]', busy && 'opacity-60', gated && 'pointer-events-none select-none blur-md')}
+        aria-busy={busy}
+        aria-hidden={gated || undefined}
+        inert={gated || undefined}
+      >
         <div className="min-w-0 space-y-14">
           {invalid ? (
             <InvalidPlan result={result} onEdit={onEdit} />
@@ -200,6 +238,7 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
             </Button>
           </div>
         </aside>
+      </div>
       </div>
     </div>
   );

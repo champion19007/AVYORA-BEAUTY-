@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { redact, isMonitoringConfigured, logEvent, reportError, scrubDeep } from '../observability';
+import { redact, isMonitoringConfigured, logEvent, logWarn, reportError, scrubDeep } from '../observability';
 
 /**
  * Logs are the classic place personal data leaks: retained longer than the
@@ -126,5 +126,26 @@ describe('complete error envelopes (synthetic personal data)', () => {
     };
     const out = JSON.stringify(scrubDeep(event));
     for (const leak of ['synthetic-person@example.test', 'SYNTHETIC_SECRET', 'x@y.z', 'session=abc']) expect(out).not.toContain(leak);
+  });
+});
+
+describe('log levels', () => {
+  it('writes info to stdout and warnings to stderr as one JSON line each', () => {
+    const info = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      logEvent('orders', 'placed', { orderNumber: 'AVY-1' });
+      logWarn('webhook.razorpay.unknown_order', 'asking for retry', { razorpayOrderId: 'order_1' });
+
+      expect(JSON.parse(info.mock.calls[0]![0] as string)).toMatchObject({ level: 'info', scope: 'orders', message: 'placed' });
+      expect(JSON.parse(warn.mock.calls[0]![0] as string)).toMatchObject({
+        level: 'warn',
+        scope: 'webhook.razorpay.unknown_order',
+        extra: { razorpayOrderId: 'order_1' },
+      });
+    } finally {
+      info.mockRestore();
+      warn.mockRestore();
+    }
   });
 });

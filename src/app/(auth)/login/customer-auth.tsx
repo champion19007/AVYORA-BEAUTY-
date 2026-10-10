@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { LogoDark } from '@/components/logo';
 import { GoogleSignInButton } from '@/components/account-menu';
 import type { AccountMethods } from '@/lib/customer-accounts';
+import { authErrorMessage } from './auth-errors';
 import {
   lookupAccount,
   passwordSignIn,
@@ -75,6 +76,9 @@ export function CustomerAuth({
   const callbackUrl =
     requested.startsWith('/') && !requested.startsWith('//') ? requested : '/account';
 
+  // Auth.js returns here with ?error=… when a Google sign-in is refused.
+  const authError = authErrorMessage(searchParams.get('error'));
+
   const [step, setStep] = useState<Step>(mode === 'signup' ? 'signup' : 'email');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -101,6 +105,11 @@ export function CustomerAuth({
         </CardHeader>
 
         <CardContent>
+          {authError && (
+            <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+              {authError}
+            </p>
+          )}
           {step === 'email' && (
             <EmailStep
               passwordsEnabled={passwordsEnabled}
