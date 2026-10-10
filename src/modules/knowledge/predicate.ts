@@ -67,7 +67,8 @@ export function predicateProblems(input: unknown, where: string): string[] {
     }
     const domain = 'field' in p ? (PROFILE_FIELDS[p.field] as readonly string[]) : null;
     if (p.op === 'eq' && !domain!.includes(p.value)) problems.push(`${where}: ${p.field} can never be "${p.value}"`);
-    if (p.op === 'in') for (const v of p.values) if (!domain!.includes(v)) problems.push(`${where}: ${p.field} can never be "${v}"`);
+    if (p.op === 'in')
+      for (const v of p.values) if (!domain!.includes(v)) problems.push(`${where}: ${p.field} can never be "${v}"`);
     if (p.op === 'all' || p.op === 'any') p.of.forEach((c) => walk(c, depth + 1));
     if (p.op === 'not') walk(p.of, depth + 1);
   };

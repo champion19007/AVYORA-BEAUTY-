@@ -66,8 +66,7 @@ export async function POST(request: Request) {
    * Should the header ever be missing, a hash of the signed body is the next
    * best identity: an identical body is an identical event.
    */
-  const providerEventId =
-    request.headers.get('x-razorpay-event-id') ?? `body:${await sha256Hex(rawBody)}`;
+  const providerEventId = request.headers.get('x-razorpay-event-id') ?? `body:${await sha256Hex(rawBody)}`;
 
   const result = await recordProviderEvent({
     provider: 'razorpay',
@@ -126,9 +125,7 @@ function signalFor(eventName: string, payment: any): PaymentSignal | null {
     case 'refund.processed':
       // Only a full refund moves the order. A partial one is recorded on the
       // event for the owner, and the order stays paid.
-      return typeof amount === 'number' && Number(payment?.amount_refunded) >= amount
-        ? { type: 'refunded' }
-        : null;
+      return typeof amount === 'number' && Number(payment?.amount_refunded) >= amount ? { type: 'refunded' } : null;
     default:
       return null;
   }

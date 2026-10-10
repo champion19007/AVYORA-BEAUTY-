@@ -35,9 +35,7 @@ export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 90;
  * produces a session that writes correctly and is then never read.
  */
 export function sessionCookieName(): string {
-  return process.env.NODE_ENV === 'production'
-    ? '__Secure-authjs.session-token'
-    : 'authjs.session-token';
+  return process.env.NODE_ENV === 'production' ? '__Secure-authjs.session-token' : 'authjs.session-token';
 }
 
 /**
@@ -84,7 +82,10 @@ export async function destroyCustomerSession(): Promise<void> {
   const token = jar.get(name)?.value;
 
   if (token) {
-    await db.delete(sessions).where(eq(sessions.sessionToken, token)).catch(() => {});
+    await db
+      .delete(sessions)
+      .where(eq(sessions.sessionToken, token))
+      .catch(() => {});
   }
 
   jar.set(name, '', { path: '/', maxAge: 0 });

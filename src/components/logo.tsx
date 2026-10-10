@@ -52,11 +52,7 @@ function Placeholder({ className }: { className?: string }) {
 /** The header brand mark, and the link home. */
 export function Logo({ className }: { className?: string }) {
   return (
-    <Link
-      href="/"
-      aria-label="Avyora — home"
-      className={cn('group flex items-center', className)}
-    >
+    <Link href="/" aria-label="Avyora — home" className={cn('group flex items-center', className)}>
       <Placeholder className={cn(PLACEHOLDER_SIZE, 'shrink-0')} />
     </Link>
   );

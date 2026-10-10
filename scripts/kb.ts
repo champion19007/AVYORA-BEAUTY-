@@ -102,7 +102,9 @@ async function main() {
       await withDb(async (db) => report(await revokeRelease(db, rest[0], actor, flag('reason') ?? '')));
       return;
     default:
-      console.error('Usage: npm run kb -- build|status|publish --confirm|rollback --reason "…"|revoke <id> --reason "…"');
+      console.error(
+        'Usage: npm run kb -- build|status|publish --confirm|rollback --reason "…"|revoke <id> --reason "…"'
+      );
       process.exitCode = 1;
   }
 }

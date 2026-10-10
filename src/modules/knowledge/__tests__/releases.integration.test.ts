@@ -22,7 +22,17 @@ const compiled = (fixture: boolean, extraEvidence?: string): CompiledRelease => 
   // A second, distinct production release for rollback tests: the same
   // knowledge plus one test evidence record (this test database only).
   if (extraEvidence) {
-    input.evidence = [...input.evidence, { id: extraEvidence, title: 'Test only', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' }];
+    input.evidence = [
+      ...input.evidence,
+      {
+        id: extraEvidence,
+        title: 'Test only',
+        url: null,
+        sourceType: 'label',
+        retrievedAt: '2026-01-01',
+        limitations: 'Test',
+      },
+    ];
   }
   const r = compileRelease(input, { fixture });
   if (!r.ok) throw new Error(r.errors.join('\n'));
@@ -45,7 +55,8 @@ afterAll(async () => {
 describe('knowledge releases', () => {
   it('stores releases idempotently, verified', async () => {
     expect(A.manifest.releaseId).not.toBe(B.manifest.releaseId);
-    for (const r of [A, B, FIXTURE]) expect(await storeRelease(ctx.db as never, r, owner)).toEqual({ ok: true, releaseId: r.manifest.releaseId });
+    for (const r of [A, B, FIXTURE])
+      expect(await storeRelease(ctx.db as never, r, owner)).toEqual({ ok: true, releaseId: r.manifest.releaseId });
     expect(await storeRelease(ctx.db as never, A, owner)).toMatchObject({ ok: true });
     expect(await ctx.db.select().from(schema.kbReleases)).toHaveLength(3);
   });
@@ -56,7 +67,10 @@ describe('knowledge releases', () => {
   });
 
   it('never activates a development fixture', async () => {
-    expect(await activateRelease(ctx.db as never, FIXTURE.manifest.releaseId, owner)).toMatchObject({ ok: false, error: expect.stringMatching(/development fixture/) });
+    expect(await activateRelease(ctx.db as never, FIXTURE.manifest.releaseId, owner)).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/development fixture/),
+    });
     // Nor can the pointer be set directly.
     await expect(
       q(`INSERT INTO kb_active_release (release_id, activated_by) VALUES ($1, 'x')`, [FIXTURE.manifest.releaseId])
@@ -71,21 +85,38 @@ describe('knowledge releases', () => {
     expect(await active()).toMatchObject({ releaseId: B.manifest.releaseId, previousReleaseId: A.manifest.releaseId });
     const loaded = await loadActiveRelease(ctx.db as never);
     expect(loaded?.manifest.releaseId).toBe(B.manifest.releaseId);
-    expect((loaded?.artifacts.evidence as { sources: { id: string }[] }).sources.map((s) => s.id)).toContain('test-evidence-b');
+    expect((loaded?.artifacts.evidence as { sources: { id: string }[] }).sources.map((s) => s.id)).toContain(
+      'test-evidence-b'
+    );
   });
 
   it('rolls back to the previous release', async () => {
-    expect(await rollbackRelease(ctx.db as never, owner, 'test rollback')).toMatchObject({ ok: true, releaseId: A.manifest.releaseId });
+    expect(await rollbackRelease(ctx.db as never, owner, 'test rollback')).toMatchObject({
+      ok: true,
+      releaseId: A.manifest.releaseId,
+    });
     expect(await active()).toMatchObject({ releaseId: A.manifest.releaseId, previousReleaseId: B.manifest.releaseId });
   });
 
   it('will not revoke the active release; revokes another, which can then never be activated', async () => {
-    expect(await revokeRelease(ctx.db as never, A.manifest.releaseId, owner, 'test')).toMatchObject({ ok: false, error: expect.stringMatching(/active/) });
-    await expect(q(`UPDATE kb_releases SET status = 'revoked', revoked_at = now(), revoked_reason = 'x' WHERE id = $1`, [A.manifest.releaseId])).rejects.toThrow(/is active/);
+    expect(await revokeRelease(ctx.db as never, A.manifest.releaseId, owner, 'test')).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/active/),
+    });
+    await expect(
+      q(`UPDATE kb_releases SET status = 'revoked', revoked_at = now(), revoked_reason = 'x' WHERE id = $1`, [
+        A.manifest.releaseId,
+      ])
+    ).rejects.toThrow(/is active/);
 
-    expect(await revokeRelease(ctx.db as never, B.manifest.releaseId, owner, 'found a problem')).toMatchObject({ ok: true });
+    expect(await revokeRelease(ctx.db as never, B.manifest.releaseId, owner, 'found a problem')).toMatchObject({
+      ok: true,
+    });
     expect(await releaseUsable(ctx.db as never, B.manifest.releaseId)).toBe(false);
-    expect(await activateRelease(ctx.db as never, B.manifest.releaseId, owner)).toMatchObject({ ok: false, error: expect.stringMatching(/revoked/) });
+    expect(await activateRelease(ctx.db as never, B.manifest.releaseId, owner)).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/revoked/),
+    });
     expect(await rollbackRelease(ctx.db as never, owner, 'x')).toMatchObject({ ok: false });
     expect(await revokeRelease(ctx.db as never, A.manifest.releaseId, owner, '')).toMatchObject({ ok: false });
   });
@@ -94,14 +125,18 @@ describe('knowledge releases', () => {
     const id = A.manifest.releaseId;
     await expect(q(`UPDATE kb_releases SET artifacts = '{}' WHERE id = $1`, [id])).rejects.toThrow(/immutable/);
     await expect(q(`UPDATE kb_releases SET checksum = 'x' WHERE id = $1`, [id])).rejects.toThrow(/immutable/);
-    await expect(q(`UPDATE kb_releases SET status = 'stored' WHERE id = $1`, [id])).rejects.toThrow(/cannot go from published to stored/);
+    await expect(q(`UPDATE kb_releases SET status = 'stored' WHERE id = $1`, [id])).rejects.toThrow(
+      /cannot go from published to stored/
+    );
     await expect(q(`DELETE FROM kb_releases WHERE id = $1`, [B.manifest.releaseId])).rejects.toThrow(/never deleted/);
   });
 
   it('refuses to load or activate a release whose stored bytes were altered', async () => {
     const id = A.manifest.releaseId;
     await ctx.client.exec(`ALTER TABLE kb_releases DISABLE TRIGGER kb_releases_immutable`);
-    await q(`UPDATE kb_releases SET artifacts = jsonb_set(artifacts, '{rules}', '"{\\"rules\\":[]} "') WHERE id = $1`, [id]);
+    await q(`UPDATE kb_releases SET artifacts = jsonb_set(artifacts, '{rules}', '"{\\"rules\\":[]} "') WHERE id = $1`, [
+      id,
+    ]);
     await ctx.client.exec(`ALTER TABLE kb_releases ENABLE TRIGGER kb_releases_immutable`);
     await expect(loadActiveRelease(ctx.db as never)).rejects.toThrow(/not intact/);
   });

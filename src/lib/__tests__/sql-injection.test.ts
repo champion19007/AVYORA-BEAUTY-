@@ -34,9 +34,7 @@ afterAll(async () => {
 });
 
 async function tableStillExists(): Promise<boolean> {
-  const result = await client.query(
-    "SELECT to_regclass('public.inventory') IS NOT NULL AS present"
-  );
+  const result = await client.query("SELECT to_regclass('public.inventory') IS NOT NULL AS present");
   return Boolean((result.rows[0] as { present: boolean }).present);
 }
 

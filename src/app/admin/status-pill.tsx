@@ -34,13 +34,7 @@ const FULFILMENT_LABEL: Record<string, string> = {
   paid: 'to fulfil',
 };
 
-export function StatusPill({
-  kind,
-  value,
-}: {
-  kind: 'payment' | 'fulfilment';
-  value: string;
-}) {
+export function StatusPill({ kind, value }: { kind: 'payment' | 'fulfilment'; value: string }) {
   const tone =
     kind === 'payment'
       ? (PAYMENT_TONE[value] ?? 'bg-muted text-muted-foreground border-border')

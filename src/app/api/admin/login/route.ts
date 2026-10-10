@@ -3,12 +3,7 @@ import { isSameOrigin } from '@/lib/security';
 import { limit, limitResponse } from '@/lib/rate-limit';
 import { trustedClientIp } from '@/lib/client-ip';
 import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
-import {
-  SESSION_COOKIE,
-  SESSION_MAX_AGE,
-  createSessionToken,
-  verifyPassword,
-} from '@/lib/auth';
+import { SESSION_COOKIE, SESSION_MAX_AGE, createSessionToken, verifyPassword } from '@/lib/auth';
 import { encodeSubject, findStaffCredential, staffCredentials } from '@/lib/staff-auth';
 
 /**
@@ -51,20 +46,14 @@ export async function POST(request: Request) {
   // unconfigured deployment is not distinguishable by response time.
   if (configured.length === 0 || !secret || secret.length < 32) {
     await verifyPassword(password, 'pbkdf2:210000:AAAA:AAAA');
-    return NextResponse.json(
-      { error: 'Staff access is not configured on this deployment.' },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: 'Staff access is not configured on this deployment.' }, { status: 503 });
   }
 
   const credential = findStaffCredential(username);
 
   // Always hash something, so a wrong username does not answer faster than a
   // wrong password and hand back a way to enumerate the two staff logins.
-  const passwordOk = await verifyPassword(
-    password,
-    credential?.passwordHash ?? 'pbkdf2:210000:AAAA:AAAA'
-  );
+  const passwordOk = await verifyPassword(password, credential?.passwordHash ?? 'pbkdf2:210000:AAAA:AAAA');
 
   if (!credential || !passwordOk) {
     // One generic message: revealing which half was wrong helps an attacker
@@ -72,10 +61,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
   }
 
-  const token = await createSessionToken(
-    encodeSubject(credential.role, credential.username),
-    secret
-  );
+  const token = await createSessionToken(encodeSubject(credential.role, credential.username), secret);
 
   // The client uses this to land on the right console.
   const response = NextResponse.json({ ok: true, role: credential.role });

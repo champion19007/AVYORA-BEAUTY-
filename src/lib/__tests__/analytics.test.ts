@@ -14,12 +14,7 @@ const day = (date: string, revenue: number): DailyPoint => ({ date, orders: 1, r
 
 describe('computeTrend', () => {
   it('reports growth between the two halves of the window', () => {
-    const points = [
-      day('2026-06-01', 100),
-      day('2026-06-02', 100),
-      day('2026-06-03', 200),
-      day('2026-06-04', 200),
-    ];
+    const points = [day('2026-06-01', 100), day('2026-06-02', 100), day('2026-06-03', 200), day('2026-06-04', 200)];
 
     const trend = computeTrend(points);
     expect(trend.priorAverage).toBe(100);

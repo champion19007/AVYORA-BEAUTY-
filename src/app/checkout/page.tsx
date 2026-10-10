@@ -25,7 +25,9 @@ export default async function CheckoutPage() {
     return (
       <main className="container mx-auto max-w-2xl py-24 text-center">
         <h1 className="text-4xl font-medium tracking-tight">Orders are not open yet</h1>
-        <p className="mt-4 text-[15px] text-muted-foreground">{SAMPLE_ORDER_MESSAGE} Your bag is kept on this device.</p>
+        <p className="mt-4 text-[15px] text-muted-foreground">
+          {SAMPLE_ORDER_MESSAGE} Your bag is kept on this device.
+        </p>
         <Link href="/collections" className="mt-8 inline-block underline">
           Back to the shop
         </Link>
@@ -37,9 +39,7 @@ export default async function CheckoutPage() {
   // Guests get the blank form; signed-in customers get their address book, so
   // an address saved once never has to be typed again.
   const savedAddresses =
-    session?.user?.id && isDatabaseConfigured()
-      ? await listAddresses(session.user.id).catch(() => [])
-      : [];
+    session?.user?.id && isDatabaseConfigured() ? await listAddresses(session.user.id).catch(() => []) : [];
 
   // Both fresh: these are the figures the customer agrees to. Stock is null
   // with no database, where there is nothing to check it against.

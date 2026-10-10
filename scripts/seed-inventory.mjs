@@ -32,12 +32,10 @@ if (!Number.isInteger(startingQuantity) || startingQuantity < 0) {
 // Parse ids and size labels straight out of the catalogue source rather than
 // importing TypeScript into a plain Node script.
 const source = readFileSync('src/data/mock-data.ts', 'utf8');
-const products = [...source.matchAll(/id: '([^']+)',[\s\S]*?sizes: \[([\s\S]*?)\]/g)].map(
-  ([, id, sizes]) => ({
-    id,
-    sizes: [...sizes.matchAll(/label: '([^']+)'/g)].map((m) => m[1]),
-  })
-);
+const products = [...source.matchAll(/id: '([^']+)',[\s\S]*?sizes: \[([\s\S]*?)\]/g)].map(([, id, sizes]) => ({
+  id,
+  sizes: [...sizes.matchAll(/label: '([^']+)'/g)].map((m) => m[1]),
+}));
 
 const sql = postgres(url, { max: 1 });
 let created = 0;
@@ -54,9 +52,7 @@ try {
       if (result.length > 0) created += 1;
     }
   }
-  console.log(
-    `Catalogue: ${products.length} products. Inventory rows created: ${created} (existing rows untouched).`
-  );
+  console.log(`Catalogue: ${products.length} products. Inventory rows created: ${created} (existing rows untouched).`);
 } catch (err) {
   console.error('Seeding failed:', err.message);
   process.exitCode = 1;

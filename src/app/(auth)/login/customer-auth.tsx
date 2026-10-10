@@ -4,13 +4,7 @@ import { useActionState, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Mail, Phone, ArrowLeft } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,16 +37,7 @@ import {
  * one is sending.
  */
 
-type Step =
-  | 'email'
-  | 'choose'
-  | 'password'
-  | 'signup'
-  | 'code'
-  | 'phone'
-  | 'phone-code'
-  | 'forgot'
-  | 'reset';
+type Step = 'email' | 'choose' | 'password' | 'signup' | 'code' | 'phone' | 'phone-code' | 'forgot' | 'reset';
 
 export function CustomerAuth({
   googleEnabled,
@@ -73,8 +58,7 @@ export function CustomerAuth({
   // Only same-site paths: an absolute URL here would let a crafted link bounce
   // a freshly authenticated customer onto an attacker's page.
   const requested = searchParams.get('callbackUrl') ?? '/account';
-  const callbackUrl =
-    requested.startsWith('/') && !requested.startsWith('//') ? requested : '/account';
+  const callbackUrl = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/account';
 
   // Auth.js returns here with ?error=… when a Google sign-in is refused.
   const authError = authErrorMessage(searchParams.get('error'));
@@ -160,12 +144,7 @@ export function CustomerAuth({
           )}
 
           {step === 'reset' && (
-            <ResetStep
-              email={email}
-              demoCode={demoCode}
-              onBack={() => setStep('forgot')}
-              next={callbackUrl}
-            />
+            <ResetStep email={email} demoCode={demoCode} onBack={() => setStep('forgot')} next={callbackUrl} />
           )}
 
           {step === 'signup' && (
@@ -386,9 +365,7 @@ function ChooseStep({
       {hasGoogle && (
         <>
           {(hasPassword || emailCodesEnabled) && <Divider />}
-          <p className="mb-3 text-center text-[13px] text-muted-foreground">
-            This account was created with Google.
-          </p>
+          <p className="mb-3 text-center text-[13px] text-muted-foreground">This account was created with Google.</p>
           <GoogleSignInButton enabled={googleEnabled} callbackUrl={callbackUrl} />
         </>
       )}
@@ -397,8 +374,7 @@ function ChooseStep({
           no code delivery configured. Say so rather than showing an empty card. */}
       {!hasPassword && !hasGoogle && !emailCodesEnabled && (
         <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
-          This account has no sign-in method available on this deployment.
-          Please contact us.
+          This account has no sign-in method available on this deployment. Please contact us.
         </p>
       )}
     </>
@@ -435,11 +411,7 @@ function PasswordStep({
           Password
         </Label>
         {resetEnabled && (
-          <button
-            type="button"
-            onClick={onForgot}
-            className="text-[12px] text-primary underline underline-offset-4"
-          >
+          <button type="button" onClick={onForgot} className="text-[12px] text-primary underline underline-offset-4">
             Forgot password?
           </button>
         )}
@@ -555,9 +527,7 @@ function SignUpStep({
       {/* Passwordless registration: proving you can read the inbox is the same
           proof a returning customer gives, so a new one should not be forced
           to invent a password they will forget. */}
-      {emailCodesEnabled && (
-        <CodeRequestButton email={emailValue} onSent={(code) => onCode(emailValue, code)} />
-      )}
+      {emailCodesEnabled && <CodeRequestButton email={emailValue} onSent={(code) => onCode(emailValue, code)} />}
 
       <GoogleSignInButton enabled={googleEnabled} callbackUrl={callbackUrl} />
 
@@ -593,8 +563,7 @@ function ForgotStep({
       <input type="hidden" name="email" value={email} />
 
       <p className="mb-5 text-[15px] leading-relaxed text-muted-foreground">
-        We will email a code to <span className="text-foreground">{email}</span>. Use it to set a
-        new password.
+        We will email a code to <span className="text-foreground">{email}</span>. Use it to set a new password.
       </p>
 
       {state.error && (
@@ -693,13 +662,7 @@ function ResetStep({
 }
 
 /** Phone number entry, before the code is sent. */
-function PhoneStep({
-  onSent,
-  onBack,
-}: {
-  onSent: (phone: string, demoCode?: string) => void;
-  onBack: () => void;
-}) {
+function PhoneStep({ onSent, onBack }: { onSent: (phone: string, demoCode?: string) => void; onBack: () => void }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(requestCode, {});
   const [value, setValue] = useState('');
 
@@ -761,14 +724,8 @@ function CodeStep({
   onBack: () => void;
   next: string;
 }) {
-  const [verifyState, verifyAction, verifying] = useActionState<ActionState, FormData>(
-    verifyCode,
-    {}
-  );
-  const [resendState, resendAction, resending] = useActionState<ActionState, FormData>(
-    requestCode,
-    {}
-  );
+  const [verifyState, verifyAction, verifying] = useActionState<ActionState, FormData>(verifyCode, {});
+  const [resendState, resendAction, resending] = useActionState<ActionState, FormData>(requestCode, {});
 
   // A resend supersedes the old code, so the displayed one must follow.
   const shownCode = resendState.demoCode ?? demoCode;
@@ -791,8 +748,8 @@ function CodeStep({
           <p className="text-[11px] uppercase tracking-[0.18em] text-primary">Demo mode</p>
           <p className="mt-1.5 font-mono text-2xl tracking-[0.3em]">{shownCode}</p>
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            Shown here because {channel === 'sms' ? 'SMS' : 'email'} delivery is not live yet.
-            Real customers receive it privately.
+            Shown here because {channel === 'sms' ? 'SMS' : 'email'} delivery is not live yet. Real customers receive it
+            privately.
           </p>
         </div>
       )}
@@ -814,9 +771,7 @@ function CodeStep({
           autoFocus
           className="mt-1.5 h-12 rounded-md text-center text-lg tracking-[0.4em]"
         />
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          Sent to {identifier}. It expires in 10 minutes.
-        </p>
+        <p className="mt-1.5 text-xs text-muted-foreground">Sent to {identifier}. It expires in 10 minutes.</p>
 
         {verifyState.error && (
           <p className="mt-2 text-xs text-destructive" role="alert">
@@ -866,13 +821,7 @@ function CodeStep({
  * password sign-up; nesting forms is invalid HTML and the browser would submit
  * the wrong one.
  */
-function CodeRequestButton({
-  email,
-  onSent,
-}: {
-  email: string;
-  onSent: (demoCode?: string) => void;
-}) {
+function CodeRequestButton({ email, onSent }: { email: string; onSent: (demoCode?: string) => void }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(requestCode, {});
 
   useEffect(() => {

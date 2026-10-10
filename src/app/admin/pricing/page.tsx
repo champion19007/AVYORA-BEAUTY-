@@ -45,9 +45,7 @@ export default async function AdminPricingPage() {
         price: (override?.price ?? size.price * 100) / 100,
         salePrice: override?.salePrice ? override.salePrice / 100 : null,
         offerLabel: override?.offerLabel ?? null,
-        offerEndsAt: override?.offerEndsAt
-          ? override.offerEndsAt.toISOString().slice(0, 10)
-          : null,
+        offerEndsAt: override?.offerEndsAt ? override.offerEndsAt.toISOString().slice(0, 10) : null,
         overridden: effective.overridden,
         // The version this form edits. 0 means no override exists yet.
         version: override?.version ?? 0,
@@ -61,8 +59,7 @@ export default async function AdminPricingPage() {
     <div>
       <h1 className="font-headline text-3xl font-normal tracking-tight">Pricing &amp; offers</h1>
       <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
-        Enter amounts in rupees. An offer price must be below the normal price, and leaving it
-        blank ends the offer.
+        Enter amounts in rupees. An offer price must be below the normal price, and leaving it blank ends the offer.
         {liveOffers > 0 && ` ${liveOffers} offer${liveOffers === 1 ? '' : 's'} running.`}
       </p>
 

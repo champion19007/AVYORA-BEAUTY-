@@ -70,12 +70,7 @@ export async function POST(request: Request) {
   const lines: ServerCartLine[] = Array.isArray(body.lines) ? body.lines : [];
 
   const clean = lines
-    .filter(
-      (l) =>
-        typeof l?.productId === 'string' &&
-        typeof l?.size === 'string' &&
-        Number.isInteger(l?.quantity)
-    )
+    .filter((l) => typeof l?.productId === 'string' && typeof l?.size === 'string' && Number.isInteger(l?.quantity))
     .map((l) => ({
       productId: l.productId.slice(0, 100),
       size: l.size.slice(0, 40),
@@ -90,7 +85,10 @@ export async function POST(request: Request) {
   // save is refused rather than written into the wrong account's cart.
   const expected = session?.user?.id ? accountKey(session.user.id) : null;
   if (body.accountKey !== undefined && body.accountKey !== expected) {
-    return NextResponse.json({ error: 'Account changed.', code: 'account_changed', accountKey: expected }, { status: 409 });
+    return NextResponse.json(
+      { error: 'Account changed.', code: 'account_changed', accountKey: expected },
+      { status: 409 }
+    );
   }
 
   const anon = await anonymousId();

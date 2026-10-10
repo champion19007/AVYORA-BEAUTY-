@@ -52,7 +52,13 @@ export function configuredProvider(name: string | null = 'cashfree'): PaymentPro
     return {
       listPayments: async (ref) => {
         const payments = await fetchCashfreePayments(ref, config);
-        return payments?.map((p) => ({ id: p.id, amount: p.amountPaise, status: p.status === 'success' ? 'captured' : p.status === 'pending' ? 'authorized' : p.status })) ?? null;
+        return (
+          payments?.map((p) => ({
+            id: p.id,
+            amount: p.amountPaise,
+            status: p.status === 'success' ? 'captured' : p.status === 'pending' ? 'authorized' : p.status,
+          })) ?? null
+        );
       },
     };
   }
@@ -64,7 +70,12 @@ export async function reconcileOrder(
   providerOverride?: PaymentProviderClient | null
 ): Promise<ReconciliationResult> {
   const [order] = await db
-    .select({ id: orders.id, reference: orders.paymentReference, total: orders.total, providerName: orders.paymentProvider })
+    .select({
+      id: orders.id,
+      reference: orders.paymentReference,
+      total: orders.total,
+      providerName: orders.paymentProvider,
+    })
     .from(orders)
     .where(eq(orders.id, orderId))
     .limit(1);

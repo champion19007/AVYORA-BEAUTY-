@@ -21,12 +21,9 @@ export const dynamic = 'force-dynamic';
 export default function TrackOrderPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-16">
-      <h1 className="font-headline text-4xl font-normal tracking-tight md:text-5xl">
-        Track your order
-      </h1>
+      <h1 className="font-headline text-4xl font-normal tracking-tight md:text-5xl">Track your order</h1>
       <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-muted-foreground">
-        Enter your order number and the email you ordered with. Both are on your
-        confirmation email.
+        Enter your order number and the email you ordered with. Both are on your confirmation email.
       </p>
 
       <div className="mt-10">

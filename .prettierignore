@@ -1,0 +1,15 @@
+# Generated or vendored: formatting them only adds noise.
+.next/
+node_modules/
+coverage/
+drizzle/
+public/
+package-lock.json
+analytics/
+docs/
+*.md
+.claude/
+.agents/
+skills-lock.json
+*.local
+.env*

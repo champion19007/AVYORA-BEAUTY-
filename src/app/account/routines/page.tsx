@@ -16,12 +16,25 @@ export const dynamic = 'force-dynamic';
 const STATE: Record<RoutineState, { label: string; detail: string; openable: boolean }> = {
   current: { label: 'Up to date', detail: 'Built on the current guidance.', openable: true },
   outdated: { label: 'Guidance updated', detail: 'Still valid; recalculate for a current routine.', openable: true },
-  revoked: { label: 'No longer valid', detail: 'The guidance it was built on was withdrawn. Open it to recalculate from your saved answers.', openable: true },
-  expired: { label: 'Expired', detail: 'Past its retention period. It is deleted at the next daily clean-up.', openable: false },
-  consent_withdrawn: { label: 'Permission withdrawn', detail: 'You withdrew permission to keep routines, so it is hidden and will be deleted when it expires.', openable: false },
+  revoked: {
+    label: 'No longer valid',
+    detail: 'The guidance it was built on was withdrawn. Open it to recalculate from your saved answers.',
+    openable: true,
+  },
+  expired: {
+    label: 'Expired',
+    detail: 'Past its retention period. It is deleted at the next daily clean-up.',
+    openable: false,
+  },
+  consent_withdrawn: {
+    label: 'Permission withdrawn',
+    detail: 'You withdrew permission to keep routines, so it is hidden and will be deleted when it expires.',
+    openable: false,
+  },
 };
 
-const date = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+const date = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
 /**
  * The account's saved routines with their real state, read server-side
@@ -36,9 +49,16 @@ export default async function SavedRoutinesPage() {
   // A routine saved as a guest before signing in belongs to this account now: claim it before listing.
   // Atomic and idempotent; the cookie itself is cleared by the next API request (a page cannot set cookies).
   const guestHash = hashGuestSecret((await cookies()).get(GUEST_OWNER_COOKIE)?.value);
-  if (guestHash && isDatabaseConfigured()) await claimGuestRecords(db, userId, guestHash).catch((err) => reportError(err, { scope: 'routines.claimOnAccountPage' }));
+  if (guestHash && isDatabaseConfigured())
+    await claimGuestRecords(db, userId, guestHash).catch((err) =>
+      reportError(err, { scope: 'routines.claimOnAccountPage' })
+    );
   const [routines, consent, photoConsent] = isDatabaseConfigured()
-    ? await Promise.all([routineHistory(db, owner), activeConsent(db, owner, 'routine_saving'), activeConsent(db, owner, 'photo_processing')])
+    ? await Promise.all([
+        routineHistory(db, owner),
+        activeConsent(db, owner, 'routine_saving'),
+        activeConsent(db, owner, 'photo_processing'),
+      ])
     : [[], null, null];
 
   return (
@@ -52,13 +72,17 @@ export default async function SavedRoutinesPage() {
       </nav>
       <h1 className="mt-3 text-5xl font-medium tracking-tight">Saved routines</h1>
       <p className="mt-4 max-w-2xl text-muted-foreground">
-        Routines you chose to save are kept for {ACCOUNT_RETENTION_DAYS} days. You can delete any of them, or withdraw permission to keep them at all.
+        Routines you chose to save are kept for {ACCOUNT_RETENTION_DAYS} days. You can delete any of them, or withdraw
+        permission to keep them at all.
       </p>
 
       {routines.length === 0 ? (
         <div className="mt-10 rounded-[18px] border border-border bg-card p-10 text-center">
           <p className="text-muted-foreground">You have no saved routines.</p>
-          <Link href="/routine-finder" className="mt-6 inline-flex h-[49px] items-center rounded-full bg-primary px-6 text-primary-foreground">
+          <Link
+            href="/routine-finder"
+            className="mt-6 inline-flex h-[49px] items-center rounded-full bg-primary px-6 text-primary-foreground"
+          >
             Find your routine
           </Link>
         </div>
@@ -67,18 +91,20 @@ export default async function SavedRoutinesPage() {
           {routines.map((r) => {
             const s = STATE[r.state];
             return (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-6 rounded-[18px] border border-border bg-card p-6">
+              <li
+                key={r.id}
+                className="flex flex-wrap items-center justify-between gap-6 rounded-[18px] border border-border bg-card p-6"
+              >
                 <div>
                   <p className="font-medium">Saved {date(r.createdAt)}</p>
                   <p className="mt-1 text-sm">
-                    <span className="font-medium">{s.label}.</span> <span className="text-muted-foreground">{s.detail}</span>
+                    <span className="font-medium">{s.label}.</span>{' '}
+                    <span className="text-muted-foreground">{s.detail}</span>
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">Kept until {date(r.expiresAt)}</p>
                 </div>
                 <RoutineActions id={r.id} openable={s.openable} />
-                {s.openable && r.kbRelease && (
-                  <WeeklyFeedback id={r.id} kbRelease={r.kbRelease} week={r.week} />
-                )}
+                {s.openable && r.kbRelease && <WeeklyFeedback id={r.id} kbRelease={r.kbRelease} week={r.week} />}
               </li>
             );
           })}
@@ -103,7 +129,8 @@ export default async function SavedRoutinesPage() {
             Permission to process photos
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Granted {date(photoConsent.grantedAt.toISOString())}. Withdrawing stops any pending photo check and deletes your stored photos at once.
+            Granted {date(photoConsent.grantedAt.toISOString())}. Withdrawing stops any pending photo check and deletes
+            your stored photos at once.
           </p>
           <WithdrawSaving purpose="photo_processing" />
         </section>

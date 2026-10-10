@@ -58,9 +58,7 @@ describe('withIdempotency', () => {
     const c = counter();
     const opts = { scope: 'test.op', key: 'k-race', payload: { amount: 100 } };
 
-    const results = await Promise.all(
-      Array.from({ length: 5 }, () => withIdempotency(opts, c.work))
-    );
+    const results = await Promise.all(Array.from({ length: 5 }, () => withIdempotency(opts, c.work)));
 
     expect(c.runs).toBe(1);
     expect(new Set(results.map((r) => JSON.stringify(r.result))).size).toBe(1);

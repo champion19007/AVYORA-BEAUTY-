@@ -92,9 +92,7 @@ describe('payment state machine', () => {
     });
 
     it('refuses a capture after a refund', () => {
-      expect(decide('refunded', { type: 'captured', amount: TOTAL }, held).outcome).toBe(
-        'rejected'
-      );
+      expect(decide('refunded', { type: 'captured', amount: TOTAL }, held).outcome).toBe('rejected');
     });
   });
 

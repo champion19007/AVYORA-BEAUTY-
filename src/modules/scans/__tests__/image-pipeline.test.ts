@@ -16,7 +16,9 @@ const solid = (w: number, h: number, value: number, format: 'jpeg' | 'png' = 'jp
 const halves = async (w: number, h: number) => {
   const raw = Buffer.alloc(w * h * 3);
   for (let y = 0; y < h; y++) for (let x = w / 2; x < w; x++) raw.fill(255, (y * w + x) * 3, (y * w + x) * 3 + 3);
-  return sharp(raw, { raw: { width: w, height: h, channels: 3 } }).jpeg().toBuffer();
+  return sharp(raw, { raw: { width: w, height: h, channels: 3 } })
+    .jpeg()
+    .toBuffer();
 };
 
 describe('file checks', () => {
@@ -63,11 +65,20 @@ describe('server re-encode', () => {
 
   it('rejects too large, wrong type, undecodable, too many pixels and too small', async () => {
     expect(await validateAndReencode(new Uint8Array(4 * 1024 * 1024 + 1))).toEqual({ ok: false, problem: 'too_large' });
-    expect(await validateAndReencode(new TextEncoder().encode('<svg/>'))).toEqual({ ok: false, problem: 'unsupported_type' });
+    expect(await validateAndReencode(new TextEncoder().encode('<svg/>'))).toEqual({
+      ok: false,
+      problem: 'unsupported_type',
+    });
     const truncated = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 1, 2, 3]);
     expect(await validateAndReencode(truncated)).toEqual({ ok: false, problem: 'undecodable' });
-    expect(await validateAndReencode(new Uint8Array(await solid(4100, 3000, 128)))).toEqual({ ok: false, problem: 'too_many_pixels' });
-    expect(await validateAndReencode(new Uint8Array(await solid(400, 300, 128)))).toEqual({ ok: false, problem: 'too_small' });
+    expect(await validateAndReencode(new Uint8Array(await solid(4100, 3000, 128)))).toEqual({
+      ok: false,
+      problem: 'too_many_pixels',
+    });
+    expect(await validateAndReencode(new Uint8Array(await solid(400, 300, 128)))).toEqual({
+      ok: false,
+      problem: 'too_small',
+    });
   });
 
   it('reports lighting from the decoded pixels', async () => {
@@ -86,7 +97,9 @@ describe('private storage', () => {
     expect(Array.from((await store.get(key))!)).toEqual([1, 2, 3]);
     await store.delete(key);
     expect(await store.get(key)).toBeNull();
-    await expect(store.put('../../etc/passwd', new Uint8Array([1]), 'image/jpeg')).rejects.toThrow('invalid private object key');
+    await expect(store.put('../../etc/passwd', new Uint8Array([1]), 'image/jpeg')).rejects.toThrow(
+      'invalid private object key'
+    );
     await expect(store.put('public/media/x.jpg', new Uint8Array([1]), 'image/jpeg')).rejects.toThrow();
   });
 
@@ -112,6 +125,9 @@ describe('upload size limits', () => {
     const VERCEL_FUNCTION_BODY_LIMIT = 4.5 * 1000 * 1000;
     expect(BODY_LIMITS.scanImage).toBe(MAX_UPLOAD_BYTES);
     expect(MAX_UPLOAD_BYTES).toBeLessThan(VERCEL_FUNCTION_BODY_LIMIT - 64 * 1024);
-    expect(await validateAndReencode(new Uint8Array(MAX_UPLOAD_BYTES + 1))).toEqual({ ok: false, problem: 'too_large' });
+    expect(await validateAndReencode(new Uint8Array(MAX_UPLOAD_BYTES + 1))).toEqual({
+      ok: false,
+      problem: 'too_large',
+    });
   });
 });

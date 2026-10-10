@@ -45,33 +45,54 @@ assign(['14', '15', '16'], { key: 'IN-PB', label: 'Punjab', latitude: 30.9, long
 assign(['17'], { key: 'IN-HP', label: 'Himachal Pradesh', latitude: 31.1, longitude: 77.17 });
 assign(['18', '19'], { key: 'IN-JK', label: 'Jammu & Kashmir', latitude: 33.78, longitude: 74.86 });
 assign(['20', '21', '22', '23', '24', '25', '26', '27', '28'], {
-  key: 'IN-UP', label: 'Uttar Pradesh', latitude: 26.85, longitude: 80.95,
+  key: 'IN-UP',
+  label: 'Uttar Pradesh',
+  latitude: 26.85,
+  longitude: 80.95,
 });
 assign(['30', '31', '32', '33', '34'], {
-  key: 'IN-RJ', label: 'Rajasthan', latitude: 26.91, longitude: 75.79,
+  key: 'IN-RJ',
+  label: 'Rajasthan',
+  latitude: 26.91,
+  longitude: 75.79,
 });
 assign(['36', '37', '38', '39'], { key: 'IN-GJ', label: 'Gujarat', latitude: 23.02, longitude: 72.57 });
 assign(['40', '41', '42', '43', '44'], {
-  key: 'IN-MH', label: 'Maharashtra', latitude: 19.08, longitude: 72.88,
+  key: 'IN-MH',
+  label: 'Maharashtra',
+  latitude: 19.08,
+  longitude: 72.88,
 });
 assign(['45', '46', '47', '48'], {
-  key: 'IN-MP', label: 'Madhya Pradesh', latitude: 23.26, longitude: 77.41,
+  key: 'IN-MP',
+  label: 'Madhya Pradesh',
+  latitude: 23.26,
+  longitude: 77.41,
 });
 assign(['49'], { key: 'IN-CG', label: 'Chhattisgarh', latitude: 21.25, longitude: 81.63 });
 assign(['50', '51', '52', '53'], { key: 'IN-TG', label: 'Telangana & Andhra', latitude: 17.39, longitude: 78.49 });
 assign(['56', '57', '58', '59'], { key: 'IN-KA', label: 'Karnataka', latitude: 12.97, longitude: 77.59 });
 assign(['60', '61', '62', '63', '64'], {
-  key: 'IN-TN', label: 'Tamil Nadu', latitude: 13.08, longitude: 80.27,
+  key: 'IN-TN',
+  label: 'Tamil Nadu',
+  latitude: 13.08,
+  longitude: 80.27,
 });
 assign(['67', '68', '69'], { key: 'IN-KL', label: 'Kerala', latitude: 9.93, longitude: 76.27 });
 assign(['70', '71', '72', '73', '74'], {
-  key: 'IN-WB', label: 'West Bengal', latitude: 22.57, longitude: 88.36,
+  key: 'IN-WB',
+  label: 'West Bengal',
+  latitude: 22.57,
+  longitude: 88.36,
 });
 assign(['75', '76', '77'], { key: 'IN-OD', label: 'Odisha', latitude: 20.3, longitude: 85.82 });
 assign(['78'], { key: 'IN-AS', label: 'Assam', latitude: 26.14, longitude: 91.74 });
 assign(['79'], { key: 'IN-NE', label: 'North East', latitude: 25.57, longitude: 91.88 });
 assign(['80', '81', '82', '83', '84', '85'], {
-  key: 'IN-BR', label: 'Bihar & Jharkhand', latitude: 25.59, longitude: 85.14,
+  key: 'IN-BR',
+  label: 'Bihar & Jharkhand',
+  latitude: 25.59,
+  longitude: 85.14,
 });
 
 /**
@@ -86,7 +107,10 @@ const BY_THREE: Record<string, Region> = {};
 
 {
   const uttarakhand: Region = {
-    key: 'IN-UK', label: 'Uttarakhand', latitude: 30.32, longitude: 78.03,
+    key: 'IN-UK',
+    label: 'Uttarakhand',
+    latitude: 30.32,
+    longitude: 78.03,
   };
   for (const prefix of ['246', '248', '249', '263']) BY_THREE[prefix] = uttarakhand;
 }

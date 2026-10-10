@@ -44,14 +44,11 @@ export function ConfirmStockForm({
         <input type="hidden" name="confirmed" value="yes" />
 
         <span className="text-[13px] leading-snug text-amber-700 dark:text-amber-400">
-          Set {productName} {size} to <strong>{quantity}</strong>, replacing {currentQuantity}?
-          The stockroom counted this.
+          Set {productName} {size} to <strong>{quantity}</strong>, replacing {currentQuantity}? The stockroom counted
+          this.
         </span>
 
-        <Button
-          type="submit"
-          className="h-9 rounded-md px-4 text-[11px] font-semibold uppercase tracking-[0.14em]"
-        >
+        <Button type="submit" className="h-9 rounded-md px-4 text-[11px] font-semibold uppercase tracking-[0.14em]">
           Yes, overwrite
         </Button>
         <Button

@@ -23,9 +23,25 @@ export async function POST(request: Request, { params }: Ctx) {
   if (!out.ok) return failureResponse(out);
   // Inference never runs on the request path. With no evaluated model this is always 'unavailable'.
   const queued = await requestScanInference(g.owner, id);
-  if (queued.ok) return privateJson({ scan: { id, status: 'queued', width: out.width, height: out.height, analysis: 'queued', photo: 'stored' } }, 201);
+  if (queued.ok)
+    return privateJson(
+      { scan: { id, status: 'queued', width: out.width, height: out.height, analysis: 'queued', photo: 'stored' } },
+      201
+    );
   // Nothing will process it, so it is not kept: deleted now, not at the next scheduled sweep (re-audit A06).
   const gone = await discardUnprocessedPhoto(db, privateStorage(), id);
   const analysis = queued.code === 'backlog_full' ? 'busy' : 'unavailable';
-  return privateJson({ scan: { id, status: 'failed', width: out.width, height: out.height, analysis, photo: gone ? 'deleted' : 'deletion_pending' } }, 201);
+  return privateJson(
+    {
+      scan: {
+        id,
+        status: 'failed',
+        width: out.width,
+        height: out.height,
+        analysis,
+        photo: gone ? 'deleted' : 'deletion_pending',
+      },
+    },
+    201
+  );
 }

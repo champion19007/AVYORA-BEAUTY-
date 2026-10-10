@@ -77,10 +77,7 @@ export async function createAddress(userId: string, input: AddressInput): Promis
     const isDefault = input.isDefault || !existing;
 
     if (isDefault) {
-      await tx
-        .update(addresses)
-        .set({ isDefault: false })
-        .where(eq(addresses.userId, userId));
+      await tx.update(addresses).set({ isDefault: false }).where(eq(addresses.userId, userId));
     }
 
     const [row] = await tx
@@ -105,11 +102,7 @@ export async function createAddress(userId: string, input: AddressInput): Promis
 }
 
 /** Updates an address in place. Returns null if it is not this user's. */
-export async function updateAddress(
-  userId: string,
-  id: string,
-  input: AddressInput
-): Promise<Address | null> {
+export async function updateAddress(userId: string, id: string, input: AddressInput): Promise<Address | null> {
   return db.transaction(async (tx) => {
     const [owned] = await tx
       .select({ id: addresses.id, isDefault: addresses.isDefault })

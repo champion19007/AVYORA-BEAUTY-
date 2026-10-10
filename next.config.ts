@@ -1,4 +1,4 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 import path from 'node:path';
 
@@ -54,9 +54,7 @@ const nextConfig: NextConfig = {
   compress: true,
 
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'images.unsplash.com', port: '', pathname: '/**' },
-    ],
+    remotePatterns: [{ protocol: 'https', hostname: 'images.unsplash.com', port: '', pathname: '/**' }],
     formats: ['image/avif', 'image/webp'],
     // Optimised images are immutable once generated; cache them hard so the
     // optimiser is not re-invoked per viewer under load.
@@ -68,9 +66,7 @@ const nextConfig: NextConfig = {
       {
         // Brand assets are content-stable and requested on every page.
         source: '/:file(og-image.jpg)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
-        ],
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
       },
       {
         source: '/:path*',

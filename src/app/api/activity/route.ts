@@ -37,8 +37,7 @@ export async function POST(request: Request) {
 
   try {
     const body = read.json as
-      | { name: EventName; path?: string; props?: Record<string, string | number | boolean | null> }
-      | undefined;
+      { name: EventName; path?: string; props?: Record<string, string | number | boolean | null> } | undefined;
     if (!body || !ALLOWED.has(body.name)) return new NextResponse(null, { status: 204 });
 
     const session = await auth().catch(() => null);

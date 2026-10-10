@@ -10,10 +10,7 @@ import { FREE_DELIVERY_LINE } from '@/lib/money';
  * received them: there is no promotion engine, gift fulfilment or bundle
  * pricing yet (audit #07). They return when that exists (prompt 29).
  */
-const MESSAGES = [
-  FREE_DELIVERY_LINE,
-  'Not sure where to start? Try the routine finder',
-];
+const MESSAGES = [FREE_DELIVERY_LINE, 'Not sure where to start? Try the routine finder'];
 
 export function AnnouncementBar() {
   const [index, setIndex] = useState(0);
@@ -27,13 +24,17 @@ export function AnnouncementBar() {
 
   return (
     <div className="bg-foreground text-background text-[10px] py-2 px-4 flex items-center justify-between font-semibold uppercase tracking-[0.2em] transition-colors duration-300">
-      <button onClick={() => setIndex((prev) => (prev - 1 + MESSAGES.length) % MESSAGES.length)} className="hover:opacity-70 transition-opacity">
+      <button
+        onClick={() => setIndex((prev) => (prev - 1 + MESSAGES.length) % MESSAGES.length)}
+        className="hover:opacity-70 transition-opacity"
+      >
         <ChevronLeft className="h-3 w-3" />
       </button>
-      <div className="text-center flex-1 transition-all duration-500 ease-in-out">
-        {MESSAGES[index]}
-      </div>
-      <button onClick={() => setIndex((prev) => (prev + 1) % MESSAGES.length)} className="hover:opacity-70 transition-opacity">
+      <div className="text-center flex-1 transition-all duration-500 ease-in-out">{MESSAGES[index]}</div>
+      <button
+        onClick={() => setIndex((prev) => (prev + 1) % MESSAGES.length)}
+        className="hover:opacity-70 transition-opacity"
+      >
         <ChevronRight className="h-3 w-3" />
       </button>
     </div>

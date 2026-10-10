@@ -39,9 +39,7 @@ export default async function AccountOrdersPage() {
 
       {orders.length === 0 ? (
         <div className="mt-10 rounded-xl border border-border p-10 text-center">
-          <p className="text-[15px] leading-relaxed text-muted-foreground">
-            You have not placed an order yet.
-          </p>
+          <p className="text-[15px] leading-relaxed text-muted-foreground">You have not placed an order yet.</p>
           <Link href="/collections">
             <Button className="mt-6 rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]">
               Start shopping
@@ -70,9 +68,7 @@ export default async function AccountOrdersPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-medium tabular-nums">{formatPaise(order.total)}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    {order.status}
-                  </p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">{order.status}</p>
                 </div>
               </div>
 

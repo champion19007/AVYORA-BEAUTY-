@@ -81,7 +81,11 @@ const overrideSchema = z.record(
     .object({
       limit: z.number().int().positive(),
       ipLimit: z.number().int().positive(),
-      windowSeconds: z.number().int().positive().max(31 * 86_400),
+      windowSeconds: z
+        .number()
+        .int()
+        .positive()
+        .max(31 * 86_400),
       onFailure: z.enum(['closed', 'open']),
     })
     .partial()
@@ -89,7 +93,9 @@ const overrideSchema = z.record(
 );
 
 /** Policies with any valid `RATE_LIMIT_OVERRIDES` applied. Invalid overrides are ignored and reported. */
-export function loadPolicies(raw: string | undefined = process.env.RATE_LIMIT_OVERRIDES): Record<PolicyName, LimitPolicy> {
+export function loadPolicies(
+  raw: string | undefined = process.env.RATE_LIMIT_OVERRIDES
+): Record<PolicyName, LimitPolicy> {
   const policies: Record<string, LimitPolicy> = { ...DEFAULT_POLICIES };
   if (!raw) return policies as Record<PolicyName, LimitPolicy>;
   try {
@@ -135,10 +141,15 @@ export function keyedHash(raw: string, secret = keySecret()): string {
 /** The stored key for a check, or null when the subject cannot be keyed (no trusted IP). */
 export function limiterKey(policy: PolicyName, subject: Subject, secret = keySecret()): string | null {
   const raw =
-    subject.kind === 'user' ? `u:${subject.id}`
-    : subject.kind === 'guest' ? `g:${subject.ownerHash}`
-    : subject.kind === 'identifier' ? `i:${normaliseIdentifier(subject.value)}`
-    : subject.address ? `ip:${subject.address}` : null;
+    subject.kind === 'user'
+      ? `u:${subject.id}`
+      : subject.kind === 'guest'
+        ? `g:${subject.ownerHash}`
+        : subject.kind === 'identifier'
+          ? `i:${normaliseIdentifier(subject.value)}`
+          : subject.address
+            ? `ip:${subject.address}`
+            : null;
   if (!raw) return null;
   return `${policy}:${keyedHash(raw, secret)}`;
 }
@@ -162,7 +173,9 @@ export async function limit(
     .map((c) => {
       const p = policies[c.policy];
       const key = limiterKey(c.policy, c.subject);
-      return key ? { key, max: c.subject.kind === 'ip' ? p.ipLimit : p.limit, window: p.windowSeconds, policy: p } : null;
+      return key
+        ? { key, max: c.subject.kind === 'ip' ? p.ipLimit : p.limit, window: p.windowSeconds, policy: p }
+        : null;
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)
     .sort((a, b) => a.key.localeCompare(b.key));
@@ -170,7 +183,9 @@ export async function limit(
 
   const failClosed = rows.some((r) => r.policy.onFailure === 'closed');
   const unavailable = (): LimitResult =>
-    failClosed ? { allowed: false, reason: 'unavailable', retryAfterSeconds: 30 } : { allowed: true, remaining: 0, retryAfterSeconds: 0 };
+    failClosed
+      ? { allowed: false, reason: 'unavailable', retryAfterSeconds: 30 }
+      : { allowed: true, remaining: 0, retryAfterSeconds: 0 };
 
   const executor = options.db ?? (isDatabaseConfigured() ? defaultDb : null);
   if (!executor) return unavailable();
@@ -180,7 +195,10 @@ export async function limit(
   try {
     const query = executor.execute(sql`
       INSERT INTO rate_limits (key, count, window_start, window_seconds)
-      VALUES ${sql.join(rows.map((r) => sql`(${r.key}, 1, now(), ${r.window})`), sql`, `)}
+      VALUES ${sql.join(
+        rows.map((r) => sql`(${r.key}, 1, now(), ${r.window})`),
+        sql`, `
+      )}
       ON CONFLICT (key) DO UPDATE SET
         count = CASE WHEN rate_limits.window_start <= now() - make_interval(secs => EXCLUDED.window_seconds)
                      THEN 1 ELSE rate_limits.count + 1 END,
@@ -194,7 +212,10 @@ export async function limit(
     });
     const raced = await Promise.race([query, timeout]);
     if (raced === 'timeout') {
-      reportError(new Error(`Rate limit query exceeded ${timeoutMs}ms`), { scope: 'rateLimit', extra: { timedOut: true } });
+      reportError(new Error(`Rate limit query exceeded ${timeoutMs}ms`), {
+        scope: 'rateLimit',
+        extra: { timedOut: true },
+      });
       return unavailable();
     }
     const result = (Array.isArray(raced) ? raced : (raced as { rows: unknown[] }).rows) as {
@@ -234,7 +255,10 @@ export function limitMessage(result: Extract<LimitResult, { allowed: false }>): 
 export function limitResponse(result: Extract<LimitResult, { allowed: false }>): Response {
   return new Response(
     JSON.stringify({
-      error: { code: result.reason === 'unavailable' ? 'limiter_unavailable' : 'rate_limited', message: limitMessage(result) },
+      error: {
+        code: result.reason === 'unavailable' ? 'limiter_unavailable' : 'rate_limited',
+        message: limitMessage(result),
+      },
       retryAfterSeconds: result.retryAfterSeconds,
     }),
     {

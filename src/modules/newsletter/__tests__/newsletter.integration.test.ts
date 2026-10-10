@@ -12,7 +12,11 @@ import {
 let ctx: Awaited<ReturnType<typeof createMigratedDb>>;
 const db = () => ctx.db as never;
 const row = async () =>
-  (await ctx.client.query<{ email: string; status: string; token_hash: string }>('SELECT email, status, token_hash FROM newsletter_subscribers')).rows;
+  (
+    await ctx.client.query<{ email: string; status: string; token_hash: string }>(
+      'SELECT email, status, token_hash FROM newsletter_subscribers'
+    )
+  ).rows;
 /** Sign up and issue a token, as the confirmation job would. Synthetic addresses only. */
 const signUp = async (email: string, now?: Date) => {
   const id = await requestSubscription(db(), email, now);
@@ -73,14 +77,20 @@ describe('confirmation delivery (outbox job)', () => {
   it('a rejected send throws so the queue retries; the retry delivers a working link', async () => {
     const id = (await requestSubscription(db(), 'retry@example.test'))!;
     const failing = vi.fn(async () => ({ ok: false as const, error: 'provider down' }));
-    await expect(newsletterConfirmHandler({ db: db(), send: failing, siteUrl: 'https://shop.test' })({ subscriberId: id })).rejects.toThrow(/retry/);
+    await expect(
+      newsletterConfirmHandler({ db: db(), send: failing, siteUrl: 'https://shop.test' })({ subscriberId: id })
+    ).rejects.toThrow(/retry/);
     let link = '';
     const working = vi.fn(async (_to: string, _s: string, text: string) => {
       link = /token=([\w-]+)/.exec(text)![1];
       return { ok: true as const };
     });
     await newsletterConfirmHandler({ db: db(), send: working, siteUrl: 'https://shop.test' })({ subscriberId: id });
-    expect(working).toHaveBeenCalledWith('retry@example.test', expect.any(String), expect.stringContaining('https://shop.test/newsletter?token='));
+    expect(working).toHaveBeenCalledWith(
+      'retry@example.test',
+      expect.any(String),
+      expect.stringContaining('https://shop.test/newsletter?token=')
+    );
     expect(await confirmSubscription(db(), link)).toBe(true);
   });
 

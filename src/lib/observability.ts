@@ -105,7 +105,8 @@ export function scrubDeep<T>(value: T, depth = 0): T {
   if (Array.isArray(value)) return value.map((v) => scrubDeep(v, depth + 1)) as T;
   if (typeof value === 'object') {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = isSensitiveKey(k) ? '[redacted]' : scrubDeep(v, depth + 1);
+    for (const [k, v] of Object.entries(value as Record<string, unknown>))
+      out[k] = isSensitiveKey(k) ? '[redacted]' : scrubDeep(v, depth + 1);
     return out as T;
   }
   return value;
@@ -137,9 +138,7 @@ export function redact(value: unknown, depth = 0): unknown {
   if (typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-      out[key] = SENSITIVE.some((s) => key.toLowerCase().includes(s))
-        ? '[redacted]'
-        : redact(val, depth + 1);
+      out[key] = SENSITIVE.some((s) => key.toLowerCase().includes(s)) ? '[redacted]' : redact(val, depth + 1);
     }
     return out;
   }
@@ -164,7 +163,10 @@ export function reportError(error: unknown, context: ErrorContext): void {
   try {
     // The whole envelope is scrubbed: messages and stacks can carry addresses, tokens and object keys.
     const safe = scrubbedError(error);
-    const normalised = error instanceof Error ? { name: safe.name, message: safe.message, stack: safe.stack } : { name: 'NonError', message: safe.message };
+    const normalised =
+      error instanceof Error
+        ? { name: safe.name, message: safe.message, stack: safe.stack }
+        : { name: 'NonError', message: safe.message };
 
     // Layer 1: always.
     console.error(

@@ -20,7 +20,8 @@ if (problems.length) {
 }
 
 const BREAK = '--> statement-breakpoint';
-const q = (v: string | number | null) => (v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
+const q = (v: string | number | null) =>
+  v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`;
 const { products, variants } = catalogRecords(PRODUCTS);
 const out: string[] = [];
 
@@ -45,7 +46,9 @@ if (!process.argv.includes('--rows')) {
     `ALTER TABLE "catalog_variants" ADD CONSTRAINT "catalog_variants_legacy_key_matches" ` +
       `CHECK ("legacy_stock_key" = "product_id" || '::' || "size_label");`
   );
-  out.push(`ALTER TABLE "catalog_variants" ADD CONSTRAINT "catalog_variants_volume_positive" CHECK ("volume_ml" IS NULL OR "volume_ml" > 0);`);
+  out.push(
+    `ALTER TABLE "catalog_variants" ADD CONSTRAINT "catalog_variants_volume_positive" CHECK ("volume_ml" IS NULL OR "volume_ml" > 0);`
+  );
 
   for (const t of TABLES) {
     out.push(

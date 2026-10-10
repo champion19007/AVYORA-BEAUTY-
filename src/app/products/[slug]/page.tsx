@@ -42,10 +42,7 @@ export function generateStaticParams() {
   return PRODUCTS.map((p) => ({ slug: p.slug }));
 }
 
-export async function generateMetadata(
-  { params }: Props,
-  parent: ResolvingMetadata
-): Promise<Metadata> {
+export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
   const { slug } = await params;
   const product = getProductBySlug(slug);
 
@@ -85,7 +82,6 @@ export default async function ProductPage({ params }: Props) {
     rating: reviews.average ?? undefined,
     reviewCount: reviews.count || undefined,
   };
-
 
   /*
    * Availability per size, keyed by label.

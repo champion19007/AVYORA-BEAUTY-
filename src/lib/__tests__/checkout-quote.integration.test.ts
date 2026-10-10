@@ -51,7 +51,10 @@ async function shownUnitPaise() {
 }
 
 async function stock() {
-  const [row] = await db.select().from(inventory).where(sql`${inventory.productId} = ${SKU.productId} and ${inventory.size} = ${SKU.size}`);
+  const [row] = await db
+    .select()
+    .from(inventory)
+    .where(sql`${inventory.productId} = ${SKU.productId} and ${inventory.size} = ${SKU.size}`);
   return row.quantity;
 }
 
@@ -70,7 +73,9 @@ afterAll(async () => {
   await client.close();
 });
 beforeEach(async () => {
-  await db.execute(sql`truncate product_pricing, orders, order_items, addresses, inventory, domain_events, audit_logs restart identity cascade`);
+  await db.execute(
+    sql`truncate product_pricing, orders, order_items, addresses, inventory, domain_events, audit_logs restart identity cascade`
+  );
   await db.insert(inventory).values({ ...SKU, quantity: 10 });
 });
 
@@ -85,7 +90,13 @@ describe('the audited case at checkout', () => {
     if (!result.ok) return;
 
     const [line] = await db.select().from(orderItems).where(eq(orderItems.orderId, result.orderId));
-    expect(line).toMatchObject({ size: '90ml', variantId: 'retinol-90ml', quantity: 3, unitPrice: unit, lineTotal: unit * 3 });
+    expect(line).toMatchObject({
+      size: '90ml',
+      variantId: 'retinol-90ml',
+      quantity: 3,
+      unitPrice: unit,
+      lineTotal: unit * 3,
+    });
     expect(line.unitPrice).not.toBe(retinal.price * 100);
     expect(await stock()).toBe(7);
   });
@@ -120,7 +131,10 @@ describe('price changes before submission', () => {
 
 describe('stock limits', () => {
   it('refuses more than is in stock, by name, and reserves nothing', async () => {
-    await db.update(inventory).set({ quantity: 2 }).where(sql`${inventory.productId} = ${SKU.productId}`);
+    await db
+      .update(inventory)
+      .set({ quantity: 2 })
+      .where(sql`${inventory.productId} = ${SKU.productId}`);
 
     const result = await createOrder({
       ...CHECKOUT,

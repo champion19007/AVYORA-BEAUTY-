@@ -4,19 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LogoDark } from '@/components/logo';
 import { useApp } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
-
 
 /**
  * Operator sign-in.
@@ -137,7 +130,9 @@ export function AdminLoginForm() {
       <CardContent>
         <form onSubmit={handleLogin} className="grid gap-6">
           <div className="grid gap-2">
-            <Label htmlFor="username" className="text-[10px] font-semibold uppercase tracking-widest">Username / Email</Label>
+            <Label htmlFor="username" className="text-[10px] font-semibold uppercase tracking-widest">
+              Username / Email
+            </Label>
             <Input
               id="username"
               placeholder="Username or email"
@@ -149,7 +144,9 @@ export function AdminLoginForm() {
           </div>
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-[10px] font-semibold uppercase tracking-widest">Password</Label>
+              <Label htmlFor="password" className="text-[10px] font-semibold uppercase tracking-widest">
+                Password
+              </Label>
               <Link
                 href="#"
                 className="text-[8px] font-bold uppercase tracking-widest underline opacity-60 hover:opacity-100"
@@ -157,21 +154,21 @@ export function AdminLoginForm() {
                 Forgot?
               </Link>
             </div>
-            <Input 
-              id="password" 
-              type="password" 
-              required 
+            <Input
+              id="password"
+              type="password"
+              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="rounded-md border border-border h-12 text-xs focus-visible:ring-0 focus-visible:border-primary"
             />
           </div>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={isLoading}
             className="w-full bg-foreground text-background hover:bg-primary hover:text-primary-foreground h-14 rounded-md font-semibold uppercase tracking-widest text-[10px] transition-all"
           >
-            {isLoading ? "Authenticating..." : "Login"}
+            {isLoading ? 'Authenticating...' : 'Login'}
           </Button>
         </form>
         <div className="mt-8 text-center">

@@ -9,8 +9,13 @@ import { answer, buildIndex, MAX_QUERY_CHARS, normalise, type ReleaseInput } fro
 
 const compiled = compileRelease(productionInput().input, { fixture: false });
 if (!compiled.ok) throw new Error(compiled.errors.join('\n'));
-const parse = (artifacts: Record<string, string>) => Object.fromEntries(Object.entries(artifacts).map(([k, v]) => [k, JSON.parse(v)]));
-const RELEASE: ReleaseInput = { published: true, manifest: compiled.release.manifest, artifacts: parse(compiled.release.artifacts) };
+const parse = (artifacts: Record<string, string>) =>
+  Object.fromEntries(Object.entries(artifacts).map(([k, v]) => [k, JSON.parse(v)]));
+const RELEASE: ReleaseInput = {
+  published: true,
+  manifest: compiled.release.manifest,
+  artifacts: parse(compiled.release.artifacts),
+};
 const index = buildIndex(RELEASE, PRODUCTS);
 
 /*
@@ -20,34 +25,91 @@ const index = buildIndex(RELEASE, PRODUCTS);
  */
 const withTestKnowledge = (opts: { evidenceIds?: string[] } = {}): ReleaseInput => {
   const a = structuredClone(RELEASE.artifacts) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  a.evidence.sources.push({ id: 'test-source', title: 'TEST source', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' });
+  a.evidence.sources.push({
+    id: 'test-source',
+    title: 'TEST source',
+    url: null,
+    sourceType: 'label',
+    retrievedAt: '2026-01-01',
+    limitations: 'Test',
+  });
   a.catalogue.usageProfiles['ceramide-cream'] = {
-    session: 'am_or_pm', frequency: 'TEST: twice a day', text: 'TEST DIRECTIONS, not real.', reviewedBy: 'TEST', reviewedAt: '2026-01-01',
-    source: 'test', formulationVersion: 1, maxWeeklyUses: 14, evidenceIds: opts.evidenceIds ?? ['test-source'],
+    session: 'am_or_pm',
+    frequency: 'TEST: twice a day',
+    text: 'TEST DIRECTIONS, not real.',
+    reviewedBy: 'TEST',
+    reviewedAt: '2026-01-01',
+    source: 'test',
+    formulationVersion: 1,
+    maxWeeklyUses: 14,
+    evidenceIds: opts.evidenceIds ?? ['test-source'],
   };
   const approved = { status: 'approved', reviewerId: 'TEST', reviewedAt: '2026-01-01', sourceIds: ['test-source'] };
   a.explanations.education = [
-    { id: 'edu-patch', questionAliases: ['how do I patch test'], answer: 'TEST ANSWER about patch testing.', scope: 'general', review: approved },
-    { id: 'edu-layer', questionAliases: ['what order do I layer products'], answer: 'TEST ANSWER about layering.', scope: 'general', review: approved },
-    { id: 'edu-layer-2', questionAliases: ['what order do I apply products'], answer: 'TEST ANSWER two.', scope: 'general', review: approved },
+    {
+      id: 'edu-patch',
+      questionAliases: ['how do I patch test'],
+      answer: 'TEST ANSWER about patch testing.',
+      scope: 'general',
+      review: approved,
+    },
+    {
+      id: 'edu-layer',
+      questionAliases: ['what order do I layer products'],
+      answer: 'TEST ANSWER about layering.',
+      scope: 'general',
+      review: approved,
+    },
+    {
+      id: 'edu-layer-2',
+      questionAliases: ['what order do I apply products'],
+      answer: 'TEST ANSWER two.',
+      scope: 'general',
+      review: approved,
+    },
   ];
   const niacinamide = a.ingredients.ingredients.find((i: { id: string }) => i.id === 'niacinamide');
-  niacinamide.cautions = { status: 'reviewed', prescriptionOnly: false, pregnancyCaution: false, photosensitising: false, review: approved };
+  niacinamide.cautions = {
+    status: 'reviewed',
+    prescriptionOnly: false,
+    pregnancyCaution: false,
+    photosensitising: false,
+    review: approved,
+  };
   return { ...RELEASE, artifacts: a };
 };
 
 const { variants } = catalogRecords(PRODUCTS);
 const OFFERS: Record<string, Offer> = Object.fromEntries(
-  PRODUCTS.flatMap((p) => p.sizes.map((s) => [variants.find((v) => v.productId === p.id && v.sizeLabel === s.label)!.id, { pricePaise: s.price * 100, stock: 10 }]))
+  PRODUCTS.flatMap((p) =>
+    p.sizes.map((s) => [
+      variants.find((v) => v.productId === p.id && v.sizeLabel === s.label)!.id,
+      { pricePaise: s.price * 100, stock: 10 },
+    ])
+  )
 );
 const routine = computeRoutine({
   release: RELEASE as never,
   products: PRODUCTS,
   offers: OFFERS,
   profile: {
-    schemaVersion: 2, ageBand: 'adult', skinType: 'dry', reactivity: 'low', pregnancy: 'unknown', nursing: 'no', currentlyIrritated: 'no',
-    allergyHistory: 'no', prescribedTreatment: 'no', priorities: ['dryness_reported'], budgetPaise: 500_000, maxDailySteps: 4,
-    experience: 'new', adherence: 'high', allergyIngredientIds: [], preferences: { eyeCare: false, bodyCare: false }, ownedItems: [],
+    schemaVersion: 2,
+    ageBand: 'adult',
+    skinType: 'dry',
+    reactivity: 'low',
+    pregnancy: 'unknown',
+    nursing: 'no',
+    currentlyIrritated: 'no',
+    allergyHistory: 'no',
+    prescribedTreatment: 'no',
+    priorities: ['dryness_reported'],
+    budgetPaise: 500_000,
+    maxDailySteps: 4,
+    experience: 'new',
+    adherence: 'high',
+    allergyIngredientIds: [],
+    preferences: { eyeCare: false, bodyCare: false },
+    ownedItems: [],
   },
 });
 const scheduledIds = new Set(routine.inclusions.map((i) => i.id));
@@ -58,7 +120,12 @@ describe('synonyms and ingredients', () => {
   it('shorthand and spelling variants resolve, and every answer carries the release', () => {
     for (const q of ['what is vit b3', 'What is nicotinamide?', 'tell me about NIACINAMIDE']) {
       const a = answer(index, q);
-      expect(a).toMatchObject({ kind: 'answer', topic: 'ingredient', personalized: false, release: { id: RELEASE.manifest.releaseId } });
+      expect(a).toMatchObject({
+        kind: 'answer',
+        topic: 'ingredient',
+        personalized: false,
+        release: { id: RELEASE.manifest.releaseId },
+      });
       expect(a.text[0]).toMatch(/^Niacinamide \(INCI name: Niacinamide\) is a form of vitamin B3/);
       expect(a.sources[0].id).toBe(RELEASE.manifest.releaseId);
     }
@@ -99,7 +166,11 @@ describe('ambiguity and clarification', () => {
   it('a bare product name asks what the customer wants to know', () => {
     const a = answer(index, nameOf('ceramide-cream'));
     expect(a).toMatchObject({ kind: 'clarify' });
-    expect(a.options!.map((o) => o.label)).toEqual(['How to use it', 'Why it is or is not in my routine', 'Price and stock']);
+    expect(a.options!.map((o) => o.label)).toEqual([
+      'How to use it',
+      'Why it is or is not in my routine',
+      'Price and stock',
+    ]);
   });
 
   it('two equally good education answers ask which', () => {
@@ -122,7 +193,10 @@ describe('approved content, missing content and missing sources', () => {
   });
 
   it('an entry whose sources are missing from the release is withheld', () => {
-    const a = answer(buildIndex(withTestKnowledge({ evidenceIds: ['no-such-source'] }), PRODUCTS), 'how do I use the ceramide cream');
+    const a = answer(
+      buildIndex(withTestKnowledge({ evidenceIds: ['no-such-source'] }), PRODUCTS),
+      'how do I use the ceramide cream'
+    );
     expect(a).toMatchObject({ kind: 'unsupported', sources: [] });
     expect(a.text[0]).toMatch(/sources are missing/);
   });
@@ -141,7 +215,11 @@ describe('approved content, missing content and missing sources', () => {
   });
 
   it('diagnoses and medicines are refused, even mixed into a product question', () => {
-    for (const q of ['do I have rosacea', 'can the ceramide cream cure eczema', 'what dosage of tretinoin should I take']) {
+    for (const q of [
+      'do I have rosacea',
+      'can the ceramide cream cure eczema',
+      'what dosage of tretinoin should I take',
+    ]) {
       expect(answer(index, q)).toMatchObject({ kind: 'unsupported', topic: 'safety' });
     }
   });
@@ -171,8 +249,13 @@ describe('personalised answers from the routine decision trace', () => {
 
   it('without a routine, or with a revoked one, personal questions are declined', () => {
     expect(answer(index, 'why is the sunscreen in my routine').text[0]).toMatch(/Build a routine first/);
-    expect(answer(index, 'why is the sunscreen in my routine', { result: null, validity: 'revoked' }).text[0]).toMatch(/withdrawn/);
-    const outdated = answer(index, `why is ${nameOf(anIncluded)} in my routine`, { result: routine, validity: 'outdated' });
+    expect(answer(index, 'why is the sunscreen in my routine', { result: null, validity: 'revoked' }).text[0]).toMatch(
+      /withdrawn/
+    );
+    const outdated = answer(index, `why is ${nameOf(anIncluded)} in my routine`, {
+      result: routine,
+      validity: 'outdated',
+    });
     expect(outdated.text.join(' ')).toMatch(/guidance has been updated/);
   });
 
@@ -198,7 +281,12 @@ describe('prices and orders go to authoritative services', () => {
 
 describe('hostile input and bounds', () => {
   it('markup and regex metacharacters are inert, and nothing echoes raw input', () => {
-    for (const q of ['<script>alert(1)</script> what is niacinamide', '((((((((', '.*+?^${}()|[]\\', '<img src=x onerror=alert(1)> toner']) {
+    for (const q of [
+      '<script>alert(1)</script> what is niacinamide',
+      '((((((((',
+      '.*+?^${}()|[]\\',
+      '<img src=x onerror=alert(1)> toner',
+    ]) {
       const a = answer(index, q);
       const out = JSON.stringify(a);
       expect(out).not.toMatch(/<|>|onerror|script/i);
@@ -213,7 +301,14 @@ describe('hostile input and bounds', () => {
   });
 
   it('retrieval latency over a mixed workload (reported)', () => {
-    const queries = ['what is vit b3', 'how do I use the toner', 'why is the sunscreen in my routine', 'how much is the spf', 'which laptop', 'what is vitamin c'];
+    const queries = [
+      'what is vit b3',
+      'how do I use the toner',
+      'why is the sunscreen in my routine',
+      'how much is the spf',
+      'which laptop',
+      'what is vitamin c',
+    ];
     const times: number[] = [];
     for (let i = 0; i < 2_000; i++) {
       const t = performance.now();

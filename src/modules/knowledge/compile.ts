@@ -50,7 +50,11 @@ export type CompileResult = { ok: true; release: CompiledRelease } | { ok: false
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(value, (_, v) =>
     v && typeof v === 'object' && !Array.isArray(v)
-      ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, (v as Record<string, unknown>)[k]]))
+      ? Object.fromEntries(
+          Object.keys(v)
+            .sort()
+            .map((k) => [k, (v as Record<string, unknown>)[k]])
+        )
       : v
   );
 }
@@ -82,10 +86,13 @@ function ruleProblems(rules: DecisionRule[], templateIds: Set<string>, evidenceI
     const where = `rule ${r.id} v${r.version}`;
     if (ids.has(r.id)) problems.push(`${where}: more than one version of this rule in one release`);
     ids.add(r.id);
-    problems.push(...reviewProblems(r.review, where, evidenceIds, r.severity === 'safety' ? 'Draft safety rule' : 'Draft rule'));
+    problems.push(
+      ...reviewProblems(r.review, where, evidenceIds, r.severity === 'safety' ? 'Draft safety rule' : 'Draft rule')
+    );
     const shape = predicateProblems(r.when, where);
     problems.push(...shape);
-    if (shape.length === 0 && !satisfiable(r.when)) problems.push(`${where}: condition can never be true (unreachable rule)`);
+    if (shape.length === 0 && !satisfiable(r.when))
+      problems.push(`${where}: condition can never be true (unreachable rule)`);
     if (r.effects.length === 0) problems.push(`${where}: no effect`);
     const self = effectsConflict(r.effects, []);
     if (self) problems.push(`${where}: contradictory effects (${self})`);
@@ -94,14 +101,20 @@ function ruleProblems(rules: DecisionRule[], templateIds: Set<string>, evidenceI
         problems.push(`${where}: maxTreatments must be 0-3`);
       }
     }
-    if (!templateIds.has(r.reasonTemplateId)) problems.push(`${where}: reason template ${r.reasonTemplateId} does not exist`);
+    if (!templateIds.has(r.reasonTemplateId))
+      problems.push(`${where}: reason template ${r.reasonTemplateId} does not exist`);
   }
   // Two rules that can apply to the same person must not demand different modes.
   for (let i = 0; i < rules.length; i++) {
     for (let j = i + 1; j < rules.length; j++) {
       const [a, b] = [rules[i], rules[j]];
       const conflict = effectsConflict(a.effects, b.effects);
-      if (conflict && predicateProblems(a.when, '').length === 0 && predicateProblems(b.when, '').length === 0 && overlaps(a.when, b.when)) {
+      if (
+        conflict &&
+        predicateProblems(a.when, '').length === 0 &&
+        predicateProblems(b.when, '').length === 0 &&
+        overlaps(a.when, b.when)
+      ) {
         problems.push(`rules ${a.id} and ${b.id} contradict: both can apply to one profile, with ${conflict}`);
       }
     }
@@ -125,7 +138,8 @@ function parameterProblems(params: BayesParameter[], fixture: boolean, evidenceI
       const key = `${g.evidenceGroup}:${g.observation}`;
       if (groups.has(key)) problems.push(`${where}: duplicate observation ${key}`);
       groups.add(key);
-      if (!inOpen(g.pGivenConcern) || !inOpen(g.pGivenNotConcern)) problems.push(`${where}: ${key} likelihoods must be strictly between 0 and 1`);
+      if (!inOpen(g.pGivenConcern) || !inOpen(g.pGivenNotConcern))
+        problems.push(`${where}: ${key} likelihoods must be strictly between 0 and 1`);
     }
     problems.push(...likelihoodGroupProblems(p).filter((x) => !x.includes('duplicate state')));
     if (p.validationStatus === 'synthetic_fixture' && !fixture) {
@@ -139,7 +153,8 @@ function parameterProblems(params: BayesParameter[], fixture: boolean, evidenceI
     }
     if (!p.provenance.note.trim()) problems.push(`${where}: provenance note is required`);
     const scope = p.calibrationScope;
-    if (!scope || scope.sources.length === 0) problems.push(`${where}: calibration scope must name at least one evidence source`);
+    if (!scope || scope.sources.length === 0)
+      problems.push(`${where}: calibration scope must name at least one evidence source`);
     else if (scope.sources.includes('photo') && scope.photoModelVersions.length === 0) {
       problems.push(`${where}: photo evidence in scope needs the photo model versions it was calibrated on`);
     }
@@ -155,8 +170,11 @@ export function compileRelease(input: KnowledgeInput, options: { fixture: boolea
   const ingredientIds = new Set(input.ingredients.map((i) => i.id));
 
   // Formulations, directions and evidence (existing checks), then restricted completeness.
-  errors.push(...knowledgeProblems({ formulations: input.formulations, evidence: input.evidence, directions: input.directions }));
-  for (const f of input.formulations) if (!productIds.has(f.productId)) errors.push(`formulation ${f.productId} v${f.version}: unknown product`);
+  errors.push(
+    ...knowledgeProblems({ formulations: input.formulations, evidence: input.evidence, directions: input.directions })
+  );
+  for (const f of input.formulations)
+    if (!productIds.has(f.productId)) errors.push(`formulation ${f.productId} v${f.version}: unknown product`);
   for (const productId of Object.keys(input.directions)) {
     const treatment = input.treatments[productId];
     if (!treatment) continue;
@@ -169,7 +187,8 @@ export function compileRelease(input: KnowledgeInput, options: { fixture: boolea
     errors.push(`alias "${c.alias}" is claimed by ${c.ids.join(' and ')}`);
   }
   for (const i of input.ingredients) {
-    if (i.cautionsReview.status === 'approved') errors.push(...reviewProblems(i.cautionsReview, `ingredient ${i.id} cautions`, evidenceIds, 'Draft'));
+    if (i.cautionsReview.status === 'approved')
+      errors.push(...reviewProblems(i.cautionsReview, `ingredient ${i.id} cautions`, evidenceIds, 'Draft'));
   }
   for (const r of input.interactions) {
     const where = `interaction ${r.a}/${r.b}`;
@@ -187,13 +206,15 @@ export function compileRelease(input: KnowledgeInput, options: { fixture: boolea
     const used = new Set([...t.text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]));
     for (const v of used) if (!t.variables.includes(v)) errors.push(`${where}: uses undeclared variable {${v}}`);
     for (const v of t.variables) {
-      if (!(TEMPLATE_VARIABLES as readonly string[]).includes(v)) errors.push(`${where}: variable ${v} is not permitted`);
+      if (!(TEMPLATE_VARIABLES as readonly string[]).includes(v))
+        errors.push(`${where}: variable ${v} is not permitted`);
     }
   }
   for (const a of input.education) {
     const where = `education answer ${a.id}`;
     errors.push(...reviewProblems(a.review, where, evidenceIds, 'Draft answer'));
-    if (a.questionAliases.length === 0 || !a.answer.trim()) errors.push(`${where}: needs question aliases and an answer`);
+    if (a.questionAliases.length === 0 || !a.answer.trim())
+      errors.push(`${where}: needs question aliases and an answer`);
   }
 
   if (errors.length) return { ok: false, errors };
@@ -205,7 +226,9 @@ export function compileRelease(input: KnowledgeInput, options: { fixture: boolea
       body: {
         products: byId(input.catalogue.products),
         variants: byId(input.catalogue.variants),
-        formulations: [...input.formulations].sort((a, b) => `${a.productId}@${a.version}`.localeCompare(`${b.productId}@${b.version}`)),
+        formulations: [...input.formulations].sort((a, b) =>
+          `${a.productId}@${a.version}`.localeCompare(`${b.productId}@${b.version}`)
+        ),
         usageProfiles: input.directions,
         treatments: input.treatments,
       },
@@ -213,14 +236,16 @@ export function compileRelease(input: KnowledgeInput, options: { fixture: boolea
     ingredients: {
       records: input.ingredients.length + input.interactions.length,
       body: {
-        ingredients: byId(input.ingredients).map(({ cautionsReview, prescriptionOnly, pregnancyCaution, photosensitising, ...identity }) => ({
-          ...identity,
-          // Unreviewed cautions are published as unknown, never as "no caution".
-          cautions:
-            cautionsReview.status === 'approved'
-              ? { status: 'reviewed', prescriptionOnly, pregnancyCaution, photosensitising, review: cautionsReview }
-              : { status: 'unreviewed' },
-        })),
+        ingredients: byId(input.ingredients).map(
+          ({ cautionsReview, prescriptionOnly, pregnancyCaution, photosensitising, ...identity }) => ({
+            ...identity,
+            // Unreviewed cautions are published as unknown, never as "no caution".
+            cautions:
+              cautionsReview.status === 'approved'
+                ? { status: 'reviewed', prescriptionOnly, pregnancyCaution, photosensitising, review: cautionsReview }
+                : { status: 'unreviewed' },
+          })
+        ),
         aliases: Object.fromEntries([...aliasMap.map].sort(([a], [b]) => a.localeCompare(b))),
         ambiguousAliases: Object.fromEntries([...aliasMap.ambiguous].sort(([a], [b]) => a.localeCompare(b))),
         interactions: [...input.interactions].sort((x, y) => `${x.a}/${x.b}`.localeCompare(`${y.a}/${y.b}`)),
@@ -235,9 +260,15 @@ export function compileRelease(input: KnowledgeInput, options: { fixture: boolea
     evidence: { records: input.evidence.length, body: { sources: byId(input.evidence) } },
   };
 
-  const artifacts = Object.fromEntries(ARTIFACT_NAMES.map((n) => [n, canonicalJson(data[n].body)])) as Record<ArtifactName, string>;
+  const artifacts = Object.fromEntries(ARTIFACT_NAMES.map((n) => [n, canonicalJson(data[n].body)])) as Record<
+    ArtifactName,
+    string
+  >;
   const entries = Object.fromEntries(
-    ARTIFACT_NAMES.map((n) => [n, { schemaVersion: KB_SCHEMA_VERSION, sha256: sha256(artifacts[n]), records: data[n].records }])
+    ARTIFACT_NAMES.map((n) => [
+      n,
+      { schemaVersion: KB_SCHEMA_VERSION, sha256: sha256(artifacts[n]), records: data[n].records },
+    ])
   ) as Manifest['artifacts'];
   const unsigned = { schemaVersion: KB_SCHEMA_VERSION, fixture: options.fixture, artifacts: entries };
   const releaseId = `kb_${sha256(canonicalJson(unsigned)).slice(0, 32)}`;
@@ -250,9 +281,11 @@ export function verifyRelease(release: CompiledRelease): string[] {
   for (const n of ARTIFACT_NAMES) {
     const text = release.artifacts[n];
     if (typeof text !== 'string') problems.push(`artifact ${n} is missing`);
-    else if (sha256(text) !== release.manifest.artifacts[n]?.sha256) problems.push(`artifact ${n} does not match its checksum`);
+    else if (sha256(text) !== release.manifest.artifacts[n]?.sha256)
+      problems.push(`artifact ${n} does not match its checksum`);
   }
   const { releaseId, ...unsigned } = release.manifest;
-  if (`kb_${sha256(canonicalJson(unsigned)).slice(0, 32)}` !== releaseId) problems.push('release id does not match the manifest');
+  if (`kb_${sha256(canonicalJson(unsigned)).slice(0, 32)}` !== releaseId)
+    problems.push('release id does not match the manifest');
   return problems;
 }

@@ -41,9 +41,7 @@ export type OrderNotificationInput = {
 
 /** Plain-text order lines, shared by all three messages. */
 function itemLines(input: OrderNotificationInput): string {
-  return input.items
-    .map((i) => `  ${i.quantity} x ${i.productName} (${i.size})`)
-    .join('\n');
+  return input.items.map((i) => `  ${i.quantity} x ${i.productName} (${i.size})`).join('\n');
 }
 
 function addressLines(input: OrderNotificationInput): string {
@@ -148,9 +146,7 @@ export type NotificationOutcome = {
  * The sends run in parallel: they are independent, and doing them in sequence
  * would add three provider round trips to the checkout response for no reason.
  */
-export async function notifyOrderPlaced(
-  input: OrderNotificationInput
-): Promise<NotificationOutcome> {
+export async function notifyOrderPlaced(input: OrderNotificationInput): Promise<NotificationOutcome> {
   const outcome: NotificationOutcome = {
     customerEmailAttempted: false,
     customerEmailed: false,

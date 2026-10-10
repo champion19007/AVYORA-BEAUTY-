@@ -43,10 +43,14 @@ beforeAll(async () => {
   // Legacy rows, as the application wrote them before 0014.
   await q(`INSERT INTO inventory (product_id, size, quantity) VALUES
     ('retinol', '30ml', 25), ('retinol', '90ml', 22), ('retired-serum', '15ml', 3)`);
-  await q(`INSERT INTO product_pricing (id, product_id, size, price, sale_price) VALUES ('p1', 'retinol', '90ml', 99900, NULL)`);
+  await q(
+    `INSERT INTO product_pricing (id, product_id, size, price, sale_price) VALUES ('p1', 'retinol', '90ml', 99900, NULL)`
+  );
   await q(`INSERT INTO carts (id) VALUES ('c1')`);
   await q(`INSERT INTO cart_items (cart_id, product_id, size, quantity) VALUES ('c1', 'retinol', '90ml', 3)`);
-  await q(`INSERT INTO orders (id, order_number, email, subtotal, total) VALUES ('o1', 'AVY-TEST01', 'a@b.test', 299700, 299700)`);
+  await q(
+    `INSERT INTO orders (id, order_number, email, subtotal, total) VALUES ('o1', 'AVY-TEST01', 'a@b.test', 299700, 299700)`
+  );
   await q(`INSERT INTO order_items (order_id, product_id, product_name, size, unit_price, quantity, line_total) VALUES
     ('o1', 'retinol', 'Retinol Night Serum (old name)', '90ml', 99900, 3, 299700),
     ('o1', 'retired-serum', 'A serum no longer sold', '15ml', 50000, 1, 50000)`);
@@ -84,7 +88,15 @@ describe('catalogue records', () => {
     const broken: Product[] = [
       base,
       { ...base, id: 'copy', slug: base.slug },
-      { ...base, id: 'free', slug: 'free', sizes: [{ label: '30ml', price: 0 }, { label: '30 ML', price: 10 }] },
+      {
+        ...base,
+        id: 'free',
+        slug: 'free',
+        sizes: [
+          { label: '30ml', price: 0 },
+          { label: '30 ML', price: 10 },
+        ],
+      },
     ];
     const problems = catalogProblems(broken);
     expect(problems).toContain(`Duplicate slug: ${base.slug}`);
@@ -138,9 +150,17 @@ describe('migration 0014 on legacy rows', () => {
   });
 
   it('leaves historical order names, sizes and charged prices untouched', async () => {
-    const { rows } = await q(`SELECT product_name, size, unit_price, quantity, line_total FROM order_items WHERE product_id = 'retinol'`);
+    const { rows } = await q(
+      `SELECT product_name, size, unit_price, quantity, line_total FROM order_items WHERE product_id = 'retinol'`
+    );
     expect(rows).toEqual([
-      { product_name: 'Retinol Night Serum (old name)', size: '90ml', unit_price: 99900, quantity: 3, line_total: 299700 },
+      {
+        product_name: 'Retinol Night Serum (old name)',
+        size: '90ml',
+        unit_price: 99900,
+        quantity: 3,
+        line_total: 299700,
+      },
     ]);
   });
 
@@ -161,9 +181,13 @@ describe('migration 0014 on legacy rows', () => {
   });
 
   it('enforces one stock row and one price row per SKU, and consistent keys', async () => {
-    await expect(q(`INSERT INTO catalog_products (id, slug, name, category) VALUES ('x', 'retinol', 'X', 'serum')`)).rejects.toThrow();
     await expect(
-      q(`INSERT INTO catalog_variants (id, product_id, legacy_stock_key, size_label) VALUES ('retinol-x', 'retinol', 'retinol::90ml', 'x')`)
+      q(`INSERT INTO catalog_products (id, slug, name, category) VALUES ('x', 'retinol', 'X', 'serum')`)
+    ).rejects.toThrow();
+    await expect(
+      q(
+        `INSERT INTO catalog_variants (id, product_id, legacy_stock_key, size_label) VALUES ('retinol-x', 'retinol', 'retinol::90ml', 'x')`
+      )
     ).rejects.toThrow();
     await expect(q(`DELETE FROM catalog_variants WHERE id = 'retinol-90ml'`)).rejects.toThrow();
   });

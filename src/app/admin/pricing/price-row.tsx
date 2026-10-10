@@ -119,9 +119,7 @@ export function PriceRow({
           {state.error}
         </p>
       )}
-      {state.saved && !state.error && (
-        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">Saved.</p>
-      )}
+      {state.saved && !state.error && <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">Saved.</p>}
     </form>
   );
 }

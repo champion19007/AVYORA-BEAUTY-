@@ -20,7 +20,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: 'Not configured.' }, { status: 503 });
-  if (request.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  if (request.headers.get('authorization') !== `Bearer ${secret}`)
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   if (!isDatabaseConfigured()) return NextResponse.json({ error: 'No database.' }, { status: 503 });
   const swept = await sweepScans(db, privateStorage());
   const health = await scanHealth(db);

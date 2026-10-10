@@ -7,12 +7,7 @@ import { getOrderDetail } from '@/lib/admin-data';
 import { formatPaise } from '@/lib/money';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '../../status-pill';
-import {
-  allowedNextStatuses,
-  resolveAttention,
-  resolveRiskHold,
-  updateOrderStatus,
-} from '../../actions';
+import { allowedNextStatuses, resolveAttention, resolveRiskHold, updateOrderStatus } from '../../actions';
 
 export const metadata: Metadata = { title: 'Order' };
 export const dynamic = 'force-dynamic';
@@ -25,11 +20,7 @@ export const dynamic = 'force-dynamic';
  * this page personal data, which is why the whole `/admin` tree is behind the
  * operator session and marked `noindex`.
  */
-export default async function AdminOrderPage({
-  params,
-}: {
-  params: Promise<{ orderNumber: string }>;
-}) {
+export default async function AdminOrderPage({ params }: { params: Promise<{ orderNumber: string }> }) {
   const { orderNumber } = await params;
 
   if (!isDatabaseConfigured()) notFound();
@@ -47,9 +38,7 @@ export default async function AdminOrderPage({
           ← Orders
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="font-headline text-3xl font-normal tracking-tight">
-            {order.orderNumber}
-          </h1>
+          <h1 className="font-headline text-3xl font-normal tracking-tight">{order.orderNumber}</h1>
           <StatusPill kind="payment" value={order.paymentStatus} />
           <StatusPill kind="fulfilment" value={order.status} />
         </div>
@@ -127,9 +116,7 @@ export default async function AdminOrderPage({
               <p className="mt-4 text-[15px] text-muted-foreground">No address on this order.</p>
             )}
 
-            <p className="mt-4 border-t border-border pt-4 text-[13px] text-muted-foreground">
-              {order.email}
-            </p>
+            <p className="mt-4 border-t border-border pt-4 text-[13px] text-muted-foreground">{order.email}</p>
           </section>
 
           {/*
@@ -151,13 +138,10 @@ export default async function AdminOrderPage({
           {order.attentionReason && (
             <section role="alert" className="rounded-xl border border-amber-500/50 bg-card p-6">
               <h2 className="font-headline text-xl font-normal tracking-tight">Needs your decision</h2>
-              <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-                {order.attentionReason}
-              </p>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{order.attentionReason}</p>
               <p className="mt-3 text-[13px] text-muted-foreground">
-                The stockroom cannot send this order until you clear this. Deal with it first —
-                refund from the Razorpay dashboard, or confirm with the customer — then say what you
-                did. The note is kept in the audit log.
+                The stockroom cannot send this order until you clear this. Deal with it first — refund from the Razorpay
+                dashboard, or confirm with the customer — then say what you did. The note is kept in the audit log.
               </p>
               <form action={resolveAttention} className="mt-4 flex flex-wrap items-end gap-2">
                 <input type="hidden" name="orderId" value={order.id} />
@@ -185,13 +169,11 @@ export default async function AdminOrderPage({
 
           {order.fraudStatus === 'review' && (
             <section className="rounded-xl border border-red-500/40 bg-card p-6">
-              <h2 className="font-headline text-xl font-normal tracking-tight">
-                Held by the risk check
-              </h2>
+              <h2 className="font-headline text-xl font-normal tracking-tight">Held by the risk check</h2>
 
               <p className="mt-2 text-[13px] text-muted-foreground">
-                Score {order.fraudScore ?? '—'} of 100. Nothing here is proof — decide with the
-                reasons in front of you, and when in doubt phone the customer.
+                Score {order.fraudScore ?? '—'} of 100. Nothing here is proof — decide with the reasons in front of you,
+                and when in doubt phone the customer.
               </p>
 
               <ul className="mt-4 space-y-2 text-[14px] leading-relaxed">
@@ -232,8 +214,8 @@ export default async function AdminOrderPage({
             </h2>
 
             <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-              Payment is set by the Razorpay webhook and cannot be changed here — it is the record
-              of what actually happened to the money.
+              Payment is set by the Razorpay webhook and cannot be changed here — it is the record of what actually
+              happened to the money.
             </p>
 
             {nextStatuses.length === 0 ? (

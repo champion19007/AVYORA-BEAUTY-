@@ -10,10 +10,29 @@ import { createMigratedDb } from '@/test/migrated-db';
  */
 const { client, db } = await createMigratedDb();
 vi.mock('@/db', () => ({ db, getDatabase: () => db, isDatabaseConfigured: () => true }));
-const { addressSchema, createAddress, deleteAddress, getDefaultAddress, listAddresses, setDefaultAddress, updateAddress } = await import('../addresses');
+const {
+  addressSchema,
+  createAddress,
+  deleteAddress,
+  getDefaultAddress,
+  listAddresses,
+  setDefaultAddress,
+  updateAddress,
+} = await import('../addresses');
 
 const input = (over: Record<string, unknown> = {}) =>
-  addressSchema.parse({ fullName: 'Test Person', phone: '9876543210', postalCode: '411001', line1: '1 Test Street', line2: '', landmark: '', city: 'Pune', state: 'Maharashtra', isDefault: false, ...over });
+  addressSchema.parse({
+    fullName: 'Test Person',
+    phone: '9876543210',
+    postalCode: '411001',
+    line1: '1 Test Street',
+    line2: '',
+    landmark: '',
+    city: 'Pune',
+    state: 'Maharashtra',
+    isDefault: false,
+    ...over,
+  });
 
 afterAll(async () => {
   await client.close();

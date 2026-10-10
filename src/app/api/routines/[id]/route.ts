@@ -14,7 +14,8 @@ const gone = () => new Response(null, { status: 204, headers: { 'Cache-Control':
 const notFound = () => apiError(404, 'not_found', 'That routine is not available.');
 
 async function gate(request: Request) {
-  if (!isDatabaseConfigured()) return { response: apiError(503, 'unavailable', 'Saved routines are unavailable right now.') };
+  if (!isDatabaseConfigured())
+    return { response: apiError(503, 'unavailable', 'Saved routines are unavailable right now.') };
   const owner = await resolveOwner();
   if (!owner) return { response: null };
   const limited = await limit([

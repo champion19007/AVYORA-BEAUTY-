@@ -31,11 +31,28 @@ export const HERO_IMAGE: PhotoSlot = {
 };
 
 export const PHOTO_SLOTS = {
-  about: { src: '/images/home/campaign-about.jpg', pos: 'object-top', alt: 'A woman with long blonde hair and glowing skin in golden sunlight' },
-  aboutCard: { src: '/images/home/campaign-about-card.jpg', pos: 'object-top', alt: '', scrim: 'bg-[linear-gradient(to_top,rgba(0,0,0,0.6),transparent_60%)]' },
+  about: {
+    src: '/images/home/campaign-about.jpg',
+    pos: 'object-top',
+    alt: 'A woman with long blonde hair and glowing skin in golden sunlight',
+  },
+  aboutCard: {
+    src: '/images/home/campaign-about-card.jpg',
+    pos: 'object-top',
+    alt: '',
+    scrim: 'bg-[linear-gradient(to_top,rgba(0,0,0,0.6),transparent_60%)]',
+  },
   vision: { src: '/images/home/campaign-vision.jpg', pos: 'object-right', alt: '', scrim: TEXT_ON_LEFT },
   services: { src: '/images/home/campaign-services.jpg', pos: 'object-right', alt: '', scrim: TEXT_ON_LEFT },
-  testimonial: { src: '/images/home/campaign-testimonial.jpg', pos: 'object-top', alt: 'A smiling woman with curly hair touching her cheek in the sun' },
-  imageBreak: { src: '/images/home/campaign-image-break.jpg', pos: 'object-[center_25%]', alt: 'A woman with a blonde bob in a white shirt under a blue sky' },
+  testimonial: {
+    src: '/images/home/campaign-testimonial.jpg',
+    pos: 'object-top',
+    alt: 'A smiling woman with curly hair touching her cheek in the sun',
+  },
+  imageBreak: {
+    src: '/images/home/campaign-image-break.jpg',
+    pos: 'object-[center_25%]',
+    alt: 'A woman with a blonde bob in a white shirt under a blue sky',
+  },
   consultation: { src: '/images/home/campaign-consultation.jpg', pos: 'object-right', alt: '', scrim: TEXT_ON_LEFT },
 } satisfies Record<string, PhotoSlot>;

@@ -49,10 +49,7 @@ function LinkColumn({ heading, links }: { heading: string; links: { name: string
       <ul className="space-y-3">
         {links.map((link) => (
           <li key={link.name}>
-            <Link
-              href={link.href}
-              className="text-sm text-muted-foreground transition-colors hover:text-primary"
-            >
+            <Link href={link.href} className="text-sm text-muted-foreground transition-colors hover:text-primary">
               {link.name}
             </Link>
           </li>

@@ -112,10 +112,7 @@ export async function pendingFor(consumer: string): Promise<DomainEvent[]> {
     .from(domainEvents)
     .leftJoin(
       eventDeliveries,
-      and(
-        eq(eventDeliveries.eventId, domainEvents.id),
-        eq(eventDeliveries.consumer, consumer)
-      )
+      and(eq(eventDeliveries.eventId, domainEvents.id), eq(eventDeliveries.consumer, consumer))
     )
     .where(
       and(
@@ -177,10 +174,7 @@ async function registrationFor(consumer: string): Promise<number> {
    */
   const start = head?.id ?? 0;
 
-  await db
-    .insert(consumerRegistrations)
-    .values({ consumer, startEventId: start })
-    .onConflictDoNothing();
+  await db.insert(consumerRegistrations).values({ consumer, startEventId: start }).onConflictDoNothing();
 
   return start;
 }
@@ -204,11 +198,7 @@ export async function markDelivered(consumer: string, eventId: number): Promise<
  * waits in the operations console for a person to fix the cause and replay
  * it. Retrying a permanently broken message forever just hides it.
  */
-export async function markFailed(
-  consumer: string,
-  eventId: number,
-  err: unknown
-): Promise<void> {
+export async function markFailed(consumer: string, eventId: number, err: unknown): Promise<void> {
   const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
 
   await db
@@ -262,10 +252,7 @@ export type DrainResult = { consumer: string; handled: number; failed: number };
  * a delivery row buys over a watermark: one poisonous event can no longer
  * block every event behind it, because there is no queue head to be stuck at.
  */
-export async function drain(
-  consumer: string,
-  handle: (event: DomainEvent) => Promise<void>
-): Promise<DrainResult> {
+export async function drain(consumer: string, handle: (event: DomainEvent) => Promise<void>): Promise<DrainResult> {
   if (!isDatabaseConfigured()) return { consumer, handled: 0, failed: 0 };
 
   let handled = 0;

@@ -41,10 +41,15 @@ describe('quotas', () => {
   });
 
   it('resets when the window has passed', async () => {
-    for (let i = 0; i <= POLICIES.otpResend.limit; i++) await run([{ policy: 'otpResend', subject: { kind: 'identifier', value: 'b@example.test' } }]);
-    expect((await run([{ policy: 'otpResend', subject: { kind: 'identifier', value: 'b@example.test' } }])).allowed).toBe(false);
+    for (let i = 0; i <= POLICIES.otpResend.limit; i++)
+      await run([{ policy: 'otpResend', subject: { kind: 'identifier', value: 'b@example.test' } }]);
+    expect(
+      (await run([{ policy: 'otpResend', subject: { kind: 'identifier', value: 'b@example.test' } }])).allowed
+    ).toBe(false);
     await ctx.client.exec(`UPDATE rate_limits SET window_start = now() - interval '61 seconds'`);
-    expect((await run([{ policy: 'otpResend', subject: { kind: 'identifier', value: 'b@example.test' } }])).allowed).toBe(true);
+    expect(
+      (await run([{ policy: 'otpResend', subject: { kind: 'identifier', value: 'b@example.test' } }])).allowed
+    ).toBe(true);
   });
 
   it('is atomic under concurrent requests: exactly the quota succeeds', async () => {
@@ -77,13 +82,15 @@ describe('shared networks and identities', () => {
 
   it('still stops one address trying many identities, at the higher IP limit', async () => {
     const results = [];
-    for (let i = 0; i < POLICIES.login.ipLimit + 2; i++) results.push(await run(login(`guess${i}@example.test`, '192.0.2.99')));
+    for (let i = 0; i < POLICIES.login.ipLimit + 2; i++)
+      results.push(await run(login(`guess${i}@example.test`, '192.0.2.99')));
     expect(results.filter((r) => r.allowed)).toHaveLength(POLICIES.login.ipLimit);
   });
 
   it('normalises identifiers, so case and spacing do not buy extra attempts', async () => {
     expect(normaliseIdentifier('  Mixed@Example.TEST ')).toBe('mixed@example.test');
-    for (let i = 0; i < POLICIES.login.limit; i++) await run(login(i % 2 ? 'E@Example.test' : ' e@example.test ', null));
+    for (let i = 0; i < POLICIES.login.limit; i++)
+      await run(login(i % 2 ? 'E@Example.test' : ' e@example.test ', null));
     expect((await run(login('e@example.TEST', null))).allowed).toBe(false);
   });
 
@@ -94,7 +101,9 @@ describe('shared networks and identities', () => {
 
   it('never stores a raw address or identifier', async () => {
     await run(login('private@example.test', '203.0.113.200'));
-    const keys = (await ctx.client.query<{ key: string }>('SELECT key FROM rate_limits')).rows.map((r) => r.key).join(' ');
+    const keys = (await ctx.client.query<{ key: string }>('SELECT key FROM rate_limits')).rows
+      .map((r) => r.key)
+      .join(' ');
     expect(keys).not.toContain('private@example.test');
     expect(keys).not.toContain('203.0.113.200');
     expect(limiterKey('login', { kind: 'ip', address: '203.0.113.200' })).toMatch(/^login:[A-Za-z0-9_-]{32}$/);
@@ -102,21 +111,33 @@ describe('shared networks and identities', () => {
 });
 
 describe('limiter failure', () => {
-  const failing = { execute: async () => { throw new Error('connection refused'); } };
+  const failing = {
+    execute: async () => {
+      throw new Error('connection refused');
+    },
+  };
   const hanging = { execute: () => new Promise(() => {}) };
 
   it('refuses costly or credential work (closed) when the counter is unreachable', async () => {
-    expect(await limit(login('g@example.test'), { db: failing as never })).toMatchObject({ allowed: false, reason: 'unavailable' });
+    expect(await limit(login('g@example.test'), { db: failing as never })).toMatchObject({
+      allowed: false,
+      reason: 'unavailable',
+    });
   });
 
   it('refuses when the counter hangs, after the timeout', async () => {
     const started = Date.now();
-    expect(await limit(login('h@example.test'), { db: hanging as never, timeoutMs: 50 })).toMatchObject({ allowed: false, reason: 'unavailable' });
+    expect(await limit(login('h@example.test'), { db: hanging as never, timeoutMs: 50 })).toMatchObject({
+      allowed: false,
+      reason: 'unavailable',
+    });
     expect(Date.now() - started).toBeLessThan(1_000);
   });
 
   it('lets cheap cached reads through (open) when the counter is unreachable', async () => {
-    const r = await limit([{ policy: 'catalogBatch', subject: { kind: 'ip', address: '203.0.113.1' } }], { db: failing as never });
+    const r = await limit([{ policy: 'catalogBatch', subject: { kind: 'ip', address: '203.0.113.1' } }], {
+      db: failing as never,
+    });
     expect(r.allowed).toBe(true);
   });
 

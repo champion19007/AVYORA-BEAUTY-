@@ -116,10 +116,7 @@ describe('event delivery', () => {
     });
 
     expect(handled).toEqual(['o1']);
-    const [after] = await db
-      .select()
-      .from(eventDeliveries)
-      .where(eq(eventDeliveries.eventId, dead.eventId));
+    const [after] = await db.select().from(eventDeliveries).where(eq(eventDeliveries.eventId, dead.eventId));
     expect(after.status).toBe('done');
   });
 

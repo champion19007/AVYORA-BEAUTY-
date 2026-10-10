@@ -95,14 +95,22 @@ describe('isMonitoringConfigured', () => {
 
 // Re-audit A05: the complete envelope is scrubbed, not only `extra`.
 describe('complete error envelopes (synthetic personal data)', () => {
-  const SECRET = 'synthetic-person@example.test /newsletter?token=SYNTHETIC_SECRET private/scans/1111-2222.jpg 9876543210';
+  const SECRET =
+    'synthetic-person@example.test /newsletter?token=SYNTHETIC_SECRET private/scans/1111-2222.jpg 9876543210';
 
   it('stdout carries no email, token, private object path or phone, in the message or the stack', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       reportError(new Error(SECRET), { scope: 'test', extra: { answers: { pregnancy: 'yes' } } });
       const line = String(spy.mock.calls[0][0]);
-      for (const leak of ['synthetic-person@example.test', 'SYNTHETIC_SECRET', 'private/scans/1111', '9876543210', 'pregnancy']) expect(line).not.toContain(leak);
+      for (const leak of [
+        'synthetic-person@example.test',
+        'SYNTHETIC_SECRET',
+        'private/scans/1111',
+        '9876543210',
+        'pregnancy',
+      ])
+        expect(line).not.toContain(leak);
       expect(JSON.parse(line).error.stack).toContain('[email]');
     } finally {
       spy.mockRestore();
@@ -125,7 +133,8 @@ describe('complete error envelopes (synthetic personal data)', () => {
       request: { url: `https://shop.test/newsletter?token=SYNTHETIC_SECRET`, cookies: 'session=abc' },
     };
     const out = JSON.stringify(scrubDeep(event));
-    for (const leak of ['synthetic-person@example.test', 'SYNTHETIC_SECRET', 'x@y.z', 'session=abc']) expect(out).not.toContain(leak);
+    for (const leak of ['synthetic-person@example.test', 'SYNTHETIC_SECRET', 'x@y.z', 'session=abc'])
+      expect(out).not.toContain(leak);
   });
 });
 
@@ -137,7 +146,11 @@ describe('log levels', () => {
       logEvent('orders', 'placed', { orderNumber: 'AVY-1' });
       logWarn('webhook.razorpay.unknown_order', 'asking for retry', { razorpayOrderId: 'order_1' });
 
-      expect(JSON.parse(info.mock.calls[0]![0] as string)).toMatchObject({ level: 'info', scope: 'orders', message: 'placed' });
+      expect(JSON.parse(info.mock.calls[0]![0] as string)).toMatchObject({
+        level: 'info',
+        scope: 'orders',
+        message: 'placed',
+      });
       expect(JSON.parse(warn.mock.calls[0]![0] as string)).toMatchObject({
         level: 'warn',
         scope: 'webhook.razorpay.unknown_order',

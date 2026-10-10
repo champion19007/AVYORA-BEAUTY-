@@ -25,9 +25,7 @@ describe('SigV4', () => {
       credentials,
       now,
     });
-    expect(signatureOf(headers.authorization)).toBe(
-      'f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41'
-    );
+    expect(signatureOf(headers.authorization)).toBe('f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41');
     expect(headers.authorization).toContain('SignedHeaders=host;range;x-amz-content-sha256;x-amz-date');
   });
 
@@ -42,9 +40,7 @@ describe('SigV4', () => {
       now,
     });
     expect(sha256Hex(body)).toBe('44ce7dd67c959e0d3524ffac1771dfbba87d2b6b4b4e99e42034a8b803f8b072');
-    expect(signatureOf(headers.authorization)).toBe(
-      '98ad721746da40c64f1a55b78f14c238d841ea1380cd77a1b5971af0ece108bd'
-    );
+    expect(signatureOf(headers.authorization)).toBe('98ad721746da40c64f1a55b78f14c238d841ea1380cd77a1b5971af0ece108bd');
   });
 
   it('matches the AWS pre-signed URL example', () => {
@@ -55,8 +51,6 @@ describe('SigV4', () => {
       credentials,
       now,
     });
-    expect(url).toContain(
-      'X-Amz-Signature=aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404'
-    );
+    expect(url).toContain('X-Amz-Signature=aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404');
   });
 });

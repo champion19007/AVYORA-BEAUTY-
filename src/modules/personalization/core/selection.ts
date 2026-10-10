@@ -65,9 +65,19 @@ export type SelectionProfile = {
 /** Authoritative per-SKU offer from the server: price in paise and counted stock (null = not counted, not sellable). */
 export type Offer = { pricePaise: number; stock: number | null };
 
-export type SelectionWeights = { concernFit: number; tolerance: number; affordability: number; ownedCompatibility: number };
+export type SelectionWeights = {
+  concernFit: number;
+  tolerance: number;
+  affordability: number;
+  ownedCompatibility: number;
+};
 /** Proposed starting weights from the specification; require evaluation against expert-approved examples. */
-export const DEFAULT_WEIGHTS: SelectionWeights = { concernFit: 0.5, tolerance: 0.25, affordability: 0.15, ownedCompatibility: 0.1 };
+export const DEFAULT_WEIGHTS: SelectionWeights = {
+  concernFit: 0.5,
+  tolerance: 0.25,
+  affordability: 0.15,
+  ownedCompatibility: 0.1,
+};
 
 export type SelectionInput = {
   profile: SelectionProfile;
@@ -152,7 +162,11 @@ export function possibleIngredients(product: Product, knowledge: Knowledge): { i
   return { ids: possibleIds(resolveLabels(product.ingredients)), complete: false };
 }
 
-export function conflictTier(a: readonly string[], b: readonly string[], rules: readonly InteractionRule[]): number | null {
+export function conflictTier(
+  a: readonly string[],
+  b: readonly string[],
+  rules: readonly InteractionRule[]
+): number | null {
   let worst: number | null = null;
   for (const rule of rules) {
     const hit = (a.includes(rule.a) && b.includes(rule.b)) || (a.includes(rule.b) && b.includes(rule.a));
@@ -182,7 +196,8 @@ function exclusions(product: Product, input: SelectionInput, unknown: string[]):
   const reasons: Reason[] = [];
 
   if (role === 'none') return [r('not_in_face_routine', 'builtin:role', 'Not part of a face routine.')];
-  if (input.excludeProductIds?.includes(product.id)) reasons.push(r('removed_by_customer', 'builtin:substitution', 'You removed this product.'));
+  if (input.excludeProductIds?.includes(product.id))
+    reasons.push(r('removed_by_customer', 'builtin:substitution', 'You removed this product.'));
 
   // Ingredient-based checks shared with owned products (eligibility.ts): allergy, actives, prescription.
   reasons.push(
@@ -197,7 +212,9 @@ function exclusions(product: Product, input: SelectionInput, unknown: string[]):
   const mine = possibleIngredients(product, knowledge);
   for (const item of p.ownedItems) {
     if (conflictTier(mine.ids, item.ingredientIds, input.interactions) === 2) {
-      reasons.push(r('conflicts_with_owned', 'builtin:interaction', `It has an established conflict with ${item.label}.`));
+      reasons.push(
+        r('conflicts_with_owned', 'builtin:interaction', `It has an established conflict with ${item.label}.`)
+      );
     }
   }
 
@@ -206,26 +223,59 @@ function exclusions(product: Product, input: SelectionInput, unknown: string[]):
     if (!t) {
       reasons.push(r('not_classified', 'builtin:treatment', 'Not classified as a treatment.'));
     } else {
-      if (p.currentlyIrritated === 'yes' && t.electiveIrritating) reasons.push(r('irritated', 'builtin:irritation', 'Left out while your skin is irritated.'));
-      if ((p.reactivity === 'very_high') && t.electiveIrritating) reasons.push(r('very_reactive', 'builtin:reactivity', 'Left out because your skin is very reactive.'));
+      if (p.currentlyIrritated === 'yes' && t.electiveIrritating)
+        reasons.push(r('irritated', 'builtin:irritation', 'Left out while your skin is irritated.'));
+      if (p.reactivity === 'very_high' && t.electiveIrritating)
+        reasons.push(r('very_reactive', 'builtin:reactivity', 'Left out because your skin is very reactive.'));
       if (t.class === 'retinoid' && (p.pregnancy !== 'no' || p.nursing !== 'no')) {
-        reasons.push(r('pregnancy_or_nursing', 'builtin:retinoid-pregnancy', 'Not included unless you have told us you are not pregnant or breastfeeding.'));
+        reasons.push(
+          r(
+            'pregnancy_or_nursing',
+            'builtin:retinoid-pregnancy',
+            'Not included unless you have told us you are not pregnant or breastfeeding.'
+          )
+        );
       }
-      if (t.class === 'retinoid' && p.ageBand !== 'adult') reasons.push(r('age', 'builtin:retinoid-age', 'Not included under 18, or when age is not given.'));
+      if (t.class === 'retinoid' && p.ageBand !== 'adult')
+        reasons.push(r('age', 'builtin:retinoid-age', 'Not included under 18, or when age is not given.'));
       if (p.prescribedTreatment === 'yes' || p.ownedItems.some((o) => o.prescribed)) {
-        reasons.push(r('prescribed_treatment', 'builtin:prescription', 'You use a prescribed treatment; we do not add or combine actives with it.'));
+        reasons.push(
+          r(
+            'prescribed_treatment',
+            'builtin:prescription',
+            'You use a prescribed treatment; we do not add or combine actives with it.'
+          )
+        );
       }
       if (unknown.length > 0) {
-        reasons.push(r('safety_answer_unknown', 'builtin:unknown-blocks-elective', 'Some safety questions are unanswered, so an elective treatment cannot be recommended.'));
+        reasons.push(
+          r(
+            'safety_answer_unknown',
+            'builtin:unknown-blocks-elective',
+            'Some safety questions are unanswered, so an elective treatment cannot be recommended.'
+          )
+        );
       }
       for (const cls of input.safety.excludedClasses) {
         if (cls === t.class || (cls === 'elective_irritating' && t.electiveIrritating)) {
-          reasons.push(r('excluded_by_rule', input.safety.ruleIds.join(',') || 'release:rules', 'Excluded by an approved safety rule for your answers.'));
+          reasons.push(
+            r(
+              'excluded_by_rule',
+              input.safety.ruleIds.join(',') || 'release:rules',
+              'Excluded by an approved safety rule for your answers.'
+            )
+          );
         }
       }
       // Actives beside products whose ingredients are not fully known cannot be checked.
       if (p.ownedItems.some((o) => o.coverage !== 'known')) {
-        reasons.push(r('owned_compatibility_unverified', 'builtin:interaction', 'Some of your current products have unknown ingredients, so an active cannot be checked against them.'));
+        reasons.push(
+          r(
+            'owned_compatibility_unverified',
+            'builtin:interaction',
+            'Some of your current products have unknown ingredients, so an active cannot be checked against them.'
+          )
+        );
       }
       const ready = treatmentReadiness(product.id, t.class, knowledge);
       if (!ready.ready) {
@@ -243,7 +293,13 @@ function exclusions(product: Product, input: SelectionInput, unknown: string[]):
 
 /* -------------------------------------------------------------- ranking -- */
 
-function score(product: Product, pricePaise: number, cheapestInRole: number, input: SelectionInput, weights: SelectionWeights): number {
+function score(
+  product: Product,
+  pricePaise: number,
+  cheapestInRole: number,
+  input: SelectionInput,
+  weights: SelectionWeights
+): number {
   const p = input.profile;
   const n = p.priorities.length;
   const ranks = product.concerns.map((c) => p.priorities.indexOf(c)).filter((i) => i >= 0);
@@ -258,7 +314,8 @@ function score(product: Product, pricePaise: number, cheapestInRole: number, inp
   const mine = possibleIngredients(product, input.knowledge).ids;
   let ownedCompatibility = 1;
   if (p.ownedItems.some((o) => o.coverage !== 'known')) ownedCompatibility -= 0.5;
-  if (p.ownedItems.some((o) => conflictTier(mine, o.ingredientIds, input.interactions) !== null)) ownedCompatibility -= 0.5;
+  if (p.ownedItems.some((o) => conflictTier(mine, o.ingredientIds, input.interactions) !== null))
+    ownedCompatibility -= 0.5;
 
   const total =
     weights.concernFit * concernFit +
@@ -274,7 +331,8 @@ function score(product: Product, pricePaise: number, cheapestInRole: number, inp
 export function selectProducts(input: SelectionInput): SelectionResult {
   const weights = normaliseWeights(input.weights);
   const p = input.profile;
-  if (!Number.isInteger(p.budgetPaise) || p.budgetPaise < 0) throw new Error('budgetPaise must be a non-negative integer');
+  if (!Number.isInteger(p.budgetPaise) || p.budgetPaise < 0)
+    throw new Error('budgetPaise must be a non-negative integer');
   const unknown = unknownSafetyAnswers(p);
 
   const excluded: SelectionResult['excluded'] = [];
@@ -292,17 +350,29 @@ export function selectProducts(input: SelectionInput): SelectionResult {
       .filter((v) => v.productId === product.id)
       .flatMap((v) => {
         const offer = input.offers[v.id];
-        return offer && offer.stock !== null && offer.stock > 0 && Number.isInteger(offer.pricePaise) && offer.pricePaise > 0
+        return offer &&
+          offer.stock !== null &&
+          offer.stock > 0 &&
+          Number.isInteger(offer.pricePaise) &&
+          offer.pricePaise > 0
           ? [{ skuId: v.id, pricePaise: offer.pricePaise }]
           : [];
       });
     if (skus.length === 0) {
-      excluded.push({ productId: product.id, reasons: [r('unavailable', 'builtin:stock', 'Not in stock in any size.')] });
+      excluded.push({
+        productId: product.id,
+        reasons: [r('unavailable', 'builtin:stock', 'Not in stock in any size.')],
+      });
       continue;
     }
     // The cheapest available size: a routine buys one, the smallest outlay.
     const cheapest = [...skus].sort((a, b) => a.pricePaise - b.pricePaise || a.skuId.localeCompare(b.skuId))[0];
-    candidates.push({ product, skuId: cheapest.skuId, pricePaise: cheapest.pricePaise, role: input.roles[product.id]! });
+    candidates.push({
+      product,
+      skuId: cheapest.skuId,
+      pricePaise: cheapest.pricePaise,
+      role: input.roles[product.id]!,
+    });
   }
 
   const ranked = (role: RoutineRole) => {
@@ -325,7 +395,11 @@ export function selectProducts(input: SelectionInput): SelectionResult {
 
   /* Essentials: the customer's own eligible products first, then the best feasible purchase set. */
   const essentialSlots = new Map<EssentialRole, Slot>();
-  const sessionsFor: Record<EssentialRole, ('am' | 'pm')[]> = { cleanse: ['am', 'pm'], moisturise: ['am', 'pm'], protect: ['am'] };
+  const sessionsFor: Record<EssentialRole, ('am' | 'pm')[]> = {
+    cleanse: ['am', 'pm'],
+    moisturise: ['am', 'pm'],
+    protect: ['am'],
+  };
   const ownedNotScheduled: SelectionResult['ownedNotScheduled'] = [];
   const ownedFor = new Map<EssentialRole, OwnedItem>();
   for (const o of [...p.ownedItems].sort((a, b) => a.id.localeCompare(b.id))) {
@@ -345,12 +419,28 @@ export function selectProducts(input: SelectionInput): SelectionResult {
     const notes =
       owned.coverage === 'known'
         ? []
-        : [r('owned_ingredients_unverified', 'builtin:owned', `We do not know everything in ${owned.label}; keep using it only if it suits you.`)];
-    essentialSlots.set(role, { role, source: 'owned', ownedItemId: owned.id, label: owned.label, session: sessionsFor[role], notes });
+        : [
+            r(
+              'owned_ingredients_unverified',
+              'builtin:owned',
+              `We do not know everything in ${owned.label}; keep using it only if it suits you.`
+            ),
+          ];
+    essentialSlots.set(role, {
+      role,
+      source: 'owned',
+      ownedItemId: owned.id,
+      label: owned.label,
+      session: sessionsFor[role],
+      notes,
+    });
   }
 
   const toBuy = ESSENTIAL_ROLES.filter((role) => !ownedFor.has(role));
-  const core = feasibleCore(toBuy.map((role) => ranked(role).slice(0, CORE_CANDIDATES_PER_ROLE)), remaining);
+  const core = feasibleCore(
+    toBuy.map((role) => ranked(role).slice(0, CORE_CANDIDATES_PER_ROLE)),
+    remaining
+  );
   toBuy.forEach((role, i) => {
     const pick = core[i];
     if (pick) {
@@ -363,7 +453,13 @@ export function selectProducts(input: SelectionInput): SelectionResult {
         pricePaise: pick.pricePaise,
         score: pick.score,
         session: sessionsFor[role],
-        reasons: [r('essential', 'builtin:essential-core', `Your ${role === 'protect' ? 'sunscreen' : role === 'cleanse' ? 'cleanser' : 'moisturiser'}.`)],
+        reasons: [
+          r(
+            'essential',
+            'builtin:essential-core',
+            `Your ${role === 'protect' ? 'sunscreen' : role === 'cleanse' ? 'cleanser' : 'moisturiser'}.`
+          ),
+        ],
       });
     } else {
       const eligible = ranked(role);
@@ -372,8 +468,20 @@ export function selectProducts(input: SelectionInput): SelectionResult {
         source: 'unfilled',
         reasons:
           eligible.length === 0
-            ? [r('no_eligible_product', 'builtin:essential-core', 'No product we sell passes the checks for this step.')]
-            : [r('over_budget', 'builtin:budget', 'No combination of suitable essentials fits your budget with this step included.')],
+            ? [
+                r(
+                  'no_eligible_product',
+                  'builtin:essential-core',
+                  'No product we sell passes the checks for this step.'
+                ),
+              ]
+            : [
+                r(
+                  'over_budget',
+                  'builtin:budget',
+                  'No combination of suitable essentials fits your budget with this step included.'
+                ),
+              ],
       });
     }
   });
@@ -405,7 +513,13 @@ export function selectProducts(input: SelectionInput): SelectionResult {
     treatments.push({
       role: 'treatment',
       source: 'unfilled',
-      reasons: [r('no_eligible_treatment', 'builtin:treatment', 'No treatment can be recommended for you yet; see the reasons for each product.')],
+      reasons: [
+        r(
+          'no_eligible_treatment',
+          'builtin:treatment',
+          'No treatment can be recommended for you yet; see the reasons for each product.'
+        ),
+      ],
     });
   }
 
@@ -455,8 +569,18 @@ export const CORE_CANDIDATES_PER_ROLE = 10;
  * highest total score, the lowest total price and SKU ids, so the result
  * never depends on purchase order (audit A12).
  */
-export function feasibleCore<C extends { skuId: string; pricePaise: number; score: number }>(options: C[][], budget: number): (C | null)[] {
-  let best: { picks: (C | null)[]; filled: number; coverage: string; score: number; price: number; key: string } | null = null;
+export function feasibleCore<C extends { skuId: string; pricePaise: number; score: number }>(
+  options: C[][],
+  budget: number
+): (C | null)[] {
+  let best: {
+    picks: (C | null)[];
+    filled: number;
+    coverage: string;
+    score: number;
+    price: number;
+    key: string;
+  } | null = null;
   const walk = (i: number, picks: (C | null)[], price: number) => {
     if (price > budget) return;
     if (i === options.length) {
@@ -471,11 +595,15 @@ export function feasibleCore<C extends { skuId: string; pricePaise: number; scor
         key: chosen.map((c) => c.skuId).join('|'),
       };
       const better = (b: typeof cand) =>
-        cand.filled !== b.filled ? cand.filled > b.filled
-        : cand.coverage !== b.coverage ? cand.coverage > b.coverage
-        : cand.score !== b.score ? cand.score > b.score
-        : cand.price !== b.price ? cand.price < b.price
-        : cand.key < b.key;
+        cand.filled !== b.filled
+          ? cand.filled > b.filled
+          : cand.coverage !== b.coverage
+            ? cand.coverage > b.coverage
+            : cand.score !== b.score
+              ? cand.score > b.score
+              : cand.price !== b.price
+                ? cand.price < b.price
+                : cand.key < b.key;
       if (!best || better(best)) {
         best = cand;
       }

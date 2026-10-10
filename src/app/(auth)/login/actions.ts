@@ -20,13 +20,7 @@ import { createCustomerSession } from '@/lib/customer-session';
 import { isDemoIdentifier } from '@/lib/demo-access';
 import { issueOtp, verifyOtp } from '@/lib/otp';
 import { checkSmsCode, sendSmsCode } from '@/lib/sms-code';
-import {
-  emailDeliveryConfigured,
-  otpEmailBody,
-  resetEmailBody,
-  sendEmail,
-  smsDeliveryConfigured,
-} from '@/lib/notify';
+import { emailDeliveryConfigured, otpEmailBody, resetEmailBody, sendEmail, smsDeliveryConfigured } from '@/lib/notify';
 
 /**
  * Customer sign-in actions: password, email code, and phone code.
@@ -174,9 +168,7 @@ export async function requestCode(_prev: ActionState, formData: FormData): Promi
   const channel = formData.get('channel') === 'sms' ? 'sms' : 'email';
 
   const parsed =
-    channel === 'sms'
-      ? phoneSchema.safeParse(formData.get('phone'))
-      : emailSchema.safeParse(formData.get('email'));
+    channel === 'sms' ? phoneSchema.safeParse(formData.get('phone')) : emailSchema.safeParse(formData.get('email'));
 
   if (!parsed.success) return { error: parsed.error.issues[0]!.message };
   const identifier = parsed.data;
@@ -222,9 +214,7 @@ export async function verifyCode(_prev: ActionState, formData: FormData): Promis
   const channel = formData.get('channel') === 'sms' ? 'sms' : 'email';
 
   const parsed =
-    channel === 'sms'
-      ? phoneSchema.safeParse(formData.get('phone'))
-      : emailSchema.safeParse(formData.get('email'));
+    channel === 'sms' ? phoneSchema.safeParse(formData.get('phone')) : emailSchema.safeParse(formData.get('email'));
 
   if (!parsed.success) return { error: parsed.error.issues[0]!.message };
 
@@ -247,10 +237,7 @@ export async function verifyCode(_prev: ActionState, formData: FormData): Promis
     return { error: message, sent: true };
   }
 
-  const userId =
-    channel === 'sms'
-      ? await findOrCreateByPhone(parsed.data)
-      : await findOrCreateByEmail(parsed.data);
+  const userId = channel === 'sms' ? await findOrCreateByPhone(parsed.data) : await findOrCreateByEmail(parsed.data);
 
   await createCustomerSession(userId);
   return { done: true };
@@ -272,10 +259,7 @@ export async function verifyCode(_prev: ActionState, formData: FormData): Promis
  * email delivery is not configured. There is no honest alternative: a reset
  * that does not verify the inbox is a way to take over accounts.
  */
-export async function requestPasswordReset(
-  _prev: ActionState,
-  formData: FormData
-): Promise<ActionState> {
+export async function requestPasswordReset(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!isDatabaseConfigured()) return UNAVAILABLE;
 
   const parsed = emailSchema.safeParse(formData.get('email'));
@@ -311,10 +295,7 @@ export async function requestPasswordReset(
 }
 
 /** Checks the reset code and sets the new password. */
-export async function resetPassword(
-  _prev: ActionState,
-  formData: FormData
-): Promise<ActionState> {
+export async function resetPassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!isDatabaseConfigured()) return UNAVAILABLE;
 
   const email = emailSchema.safeParse(formData.get('email'));

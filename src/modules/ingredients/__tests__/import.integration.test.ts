@@ -32,20 +32,38 @@ const fixtureFormulation: Formulation = {
   fullInci: 'Aqua, Niacinamide',
   ingredients: [
     { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
-    { position: 2, inciLabel: 'Niacinamide', ingredientId: 'niacinamide', concentration: { known: true, value: 5, unit: 'percent_w_w' } },
+    {
+      position: 2,
+      inciLabel: 'Niacinamide',
+      ingredientId: 'niacinamide',
+      concentration: { known: true, value: 5, unit: 'percent_w_w' },
+    },
   ],
   sourceId: 'fixture',
   reviewedBy: 'fixture',
   reviewedAt: '2026-01-01',
 };
 const fixtureEvidence = [
-  { id: 'fixture', title: 'Fixture', url: null, sourceType: 'label' as const, retrievedAt: '2026-01-01', limitations: 'Test only' },
+  {
+    id: 'fixture',
+    title: 'Fixture',
+    url: null,
+    sourceType: 'label' as const,
+    retrievedAt: '2026-01-01',
+    limitations: 'Test only',
+  },
 ];
 
 describe('importing knowledge', () => {
   it('writes the dictionary, the alias map and the interaction rules; no formulations exist to write', async () => {
     const result = await importKnowledge(ctx.db as never, REAL);
-    expect(result).toMatchObject({ ok: true, ingredients: INGREDIENTS.length, rules: INTERACTION_RULES.length, formulations: 0, usageProfiles: 0 });
+    expect(result).toMatchObject({
+      ok: true,
+      ingredients: INGREDIENTS.length,
+      rules: INTERACTION_RULES.length,
+      formulations: 0,
+      usageProfiles: 0,
+    });
 
     const [retinal] = await ctx.db.select().from(schema.ingredients).where(eq(schema.ingredients.id, 'retinal'));
     expect(retinal).toMatchObject({ inciName: 'Retinal', class: 'retinoid' });
@@ -65,7 +83,11 @@ describe('importing knowledge', () => {
   });
 
   it('stores a verified formulation with its positions and explicit concentration status', async () => {
-    const result = await importKnowledge(ctx.db as never, { ...REAL, formulations: [fixtureFormulation], evidence: fixtureEvidence });
+    const result = await importKnowledge(ctx.db as never, {
+      ...REAL,
+      formulations: [fixtureFormulation],
+      evidence: fixtureEvidence,
+    });
     expect(result).toMatchObject({ ok: true, formulations: 1 });
     const rows = await ctx.db
       .select()
@@ -82,7 +104,10 @@ describe('importing knowledge', () => {
     const bad: KnowledgeInput = {
       ...REAL,
       ingredients: [...INGREDIENTS, { ...INGREDIENTS[0], id: 'tretinoin-copy' }],
-      rules: [...INTERACTION_RULES, { a: 'retinol', b: 'nonexistent', tier: 2, summary: 's', advice: 'a', citation: null }],
+      rules: [
+        ...INTERACTION_RULES,
+        { a: 'retinol', b: 'nonexistent', tier: 2, summary: 's', advice: 'a', citation: null },
+      ],
       formulations: [{ ...fixtureFormulation, version: 2, sourceId: 'missing' }],
       evidence: fixtureEvidence,
     };
@@ -103,18 +128,28 @@ describe('database constraints', () => {
   const q = (text: string) => ctx.client.query(text);
 
   it('rejects a known concentration without a valid unit, or above 100%', async () => {
-    await expect(q(`INSERT INTO formulation_ingredients (formulation_id, position, inci_label, concentration_known, concentration, unit)
-      VALUES ('niacinamide-drops@v1', 9, 'X', true, 5, 'percent')`)).rejects.toThrow(/formulation_ingredients_concentration/);
-    await expect(q(`INSERT INTO formulation_ingredients (formulation_id, position, inci_label, concentration_known, concentration, unit)
-      VALUES ('niacinamide-drops@v1', 9, 'X', true, 150, 'percent_w_w')`)).rejects.toThrow(/formulation_ingredients_concentration/);
-    await expect(q(`INSERT INTO formulation_ingredients (formulation_id, position, inci_label, concentration_known, concentration, unit)
-      VALUES ('niacinamide-drops@v1', 9, 'X', false, 5, NULL)`)).rejects.toThrow(/formulation_ingredients_concentration/);
+    await expect(
+      q(`INSERT INTO formulation_ingredients (formulation_id, position, inci_label, concentration_known, concentration, unit)
+      VALUES ('niacinamide-drops@v1', 9, 'X', true, 5, 'percent')`)
+    ).rejects.toThrow(/formulation_ingredients_concentration/);
+    await expect(
+      q(`INSERT INTO formulation_ingredients (formulation_id, position, inci_label, concentration_known, concentration, unit)
+      VALUES ('niacinamide-drops@v1', 9, 'X', true, 150, 'percent_w_w')`)
+    ).rejects.toThrow(/formulation_ingredients_concentration/);
+    await expect(
+      q(`INSERT INTO formulation_ingredients (formulation_id, position, inci_label, concentration_known, concentration, unit)
+      VALUES ('niacinamide-drops@v1', 9, 'X', false, 5, NULL)`)
+    ).rejects.toThrow(/formulation_ingredients_concentration/);
   });
 
   it('rejects complete coverage without an INCI list, and an alias with two meanings', async () => {
-    await expect(q(`INSERT INTO formulations (id, product_id, version, coverage, full_inci, source_id, reviewed_by, reviewed_at)
-      VALUES ('retinol@v1', 'retinol', 1, 'complete', NULL, 'fixture', 'x', 'x')`)).rejects.toThrow(/formulations_complete_has_inci/);
-    await expect(q(`INSERT INTO ingredient_aliases (alias, ingredient_id, ambiguous_candidates)
-      VALUES ('both', 'retinol', '["retinal"]')`)).rejects.toThrow(/ingredient_aliases_one_meaning/);
+    await expect(
+      q(`INSERT INTO formulations (id, product_id, version, coverage, full_inci, source_id, reviewed_by, reviewed_at)
+      VALUES ('retinol@v1', 'retinol', 1, 'complete', NULL, 'fixture', 'x', 'x')`)
+    ).rejects.toThrow(/formulations_complete_has_inci/);
+    await expect(
+      q(`INSERT INTO ingredient_aliases (alias, ingredient_id, ambiguous_candidates)
+      VALUES ('both', 'retinol', '["retinal"]')`)
+    ).rejects.toThrow(/ingredient_aliases_one_meaning/);
   });
 });

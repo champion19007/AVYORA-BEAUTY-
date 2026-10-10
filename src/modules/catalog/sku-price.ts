@@ -50,11 +50,7 @@ function offerActive(row: PricingRow, now: Date): boolean {
  * Applies an owner override, if there is one, to a catalogue price.
  * `cataloguePrice` is the fallback, so a SKU with no override is unchanged.
  */
-export function resolvePrice(
-  cataloguePrice: number,
-  row: PricingRow | undefined,
-  now = new Date()
-): EffectivePrice {
+export function resolvePrice(cataloguePrice: number, row: PricingRow | undefined, now = new Date()): EffectivePrice {
   if (!row) {
     return { price: cataloguePrice, wasPrice: null, offerLabel: null, overridden: false };
   }

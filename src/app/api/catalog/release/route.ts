@@ -37,7 +37,10 @@ export async function GET() {
   if (active) {
     const body: ReleaseResponse = { published: true, manifest: active.manifest, artifacts: active.artifacts };
     return NextResponse.json(body, {
-      headers: { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300', ETag: `"${active.manifest.releaseId}"` },
+      headers: {
+        'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300',
+        ETag: `"${active.manifest.releaseId}"`,
+      },
     });
   }
   return NextResponse.json(unpublishedRelease(), { headers: { 'Cache-Control': 'public, max-age=0, s-maxage=60' } });

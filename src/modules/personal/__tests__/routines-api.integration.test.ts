@@ -39,7 +39,10 @@ vi.mock('@/modules/personalization/service/offers', () => ({ currentOffers: asyn
 const { variants } = catalogRecords(PRODUCTS);
 const PRICES: Record<string, Offer> = Object.fromEntries(
   PRODUCTS.flatMap((p) =>
-    p.sizes.map((s) => [variants.find((v) => v.productId === p.id && v.sizeLabel === s.label)!.id, { pricePaise: s.price * 100, stock: 10 }])
+    p.sizes.map((s) => [
+      variants.find((v) => v.productId === p.id && v.sizeLabel === s.label)!.id,
+      { pricePaise: s.price * 100, stock: 10 },
+    ])
   )
 );
 
@@ -55,7 +58,17 @@ const { grantConsent } = await import('../personal-records');
 const release = (extraEvidence?: string) => {
   const input = productionInput().input;
   if (extraEvidence) {
-    input.evidence = [...input.evidence, { id: extraEvidence, title: 'Test only', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Test' }];
+    input.evidence = [
+      ...input.evidence,
+      {
+        id: extraEvidence,
+        title: 'Test only',
+        url: null,
+        sourceType: 'label',
+        retrievedAt: '2026-01-01',
+        limitations: 'Test',
+      },
+    ];
   }
   const r = compileRelease(input, { fixture: false });
   if (!r.ok) throw new Error(r.errors.join('\n'));
@@ -101,8 +114,10 @@ const params = (id: string) => ({ params: Promise.resolve({ id }) });
 const save = (b: unknown = body(), key = 'key-00000001') => routes.POST(request('POST', { body: b, key }));
 const get = (id: string) => byId.GET(request('GET'), params(id));
 const json = async (r: Response) => r.json() as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-const allowSaving = () => consent.POST(request('POST', { body: { purpose: 'routine_saving', policyVersion: 'test-1' } }));
-const count = async (table: string) => Number((await client.query<{ n: number }>(`select count(*)::int as n from ${table}`)).rows[0].n);
+const allowSaving = () =>
+  consent.POST(request('POST', { body: { purpose: 'routine_saving', policyVersion: 'test-1' } }));
+const count = async (table: string) =>
+  Number((await client.query<{ n: number }>(`select count(*)::int as n from ${table}`)).rows[0].n);
 
 afterAll(async () => {
   await client.close();
@@ -135,10 +150,20 @@ describe('creating a routine', () => {
     expect(res.headers.get('cache-control')).toContain('no-store');
     const { routine } = await json(res);
     expect(routine).toMatchObject({ validity: 'current', kbRelease: R1.manifest.releaseId });
-    expect(routine.result).toMatchObject({ schemaVersion: 2, engineVersion: 'select-plan-2026-10-10', inferenceVersion: 'bayes-logodds-1', modelVersions: [] });
+    expect(routine.result).toMatchObject({
+      schemaVersion: 2,
+      engineVersion: 'select-plan-2026-10-10',
+      inferenceVersion: 'bayes-logodds-1',
+      modelVersions: [],
+    });
     expect(routine.result.days).toHaveLength(7);
     const [row] = await db.select().from(schema.routineResults);
-    expect(row).toMatchObject({ engineVersion: 'select-plan-2026-10-10', inferenceVersion: 'bayes-logodds-1', kbRelease: R1.manifest.releaseId, userId: null });
+    expect(row).toMatchObject({
+      engineVersion: 'select-plan-2026-10-10',
+      inferenceVersion: 'bayes-logodds-1',
+      kbRelease: R1.manifest.releaseId,
+      userId: null,
+    });
     expect(row.anonymousOwnerHash).toBe(hashGuestSecret(cookieJar[GUEST_OWNER_COOKIE]));
     // Guest retention: 30 days.
     expect(row.expiresAt!.getTime() - row.createdAt.getTime()).toBe(30 * 86_400_000);
@@ -193,7 +218,10 @@ describe('creating a routine', () => {
     await allowSaving();
     const res = await save(body({ kbRelease: R2.manifest.releaseId }));
     expect(res.status).toBe(409);
-    expect((await json(res)).error).toMatchObject({ code: 'stale_release', details: { activeRelease: R1.manifest.releaseId } });
+    expect((await json(res)).error).toMatchObject({
+      code: 'stale_release',
+      details: { activeRelease: R1.manifest.releaseId },
+    });
     await db.delete(schema.kbActiveRelease);
     expect((await save(body(), 'key-00000002')).status).toBe(503);
   });
@@ -203,7 +231,10 @@ describe('creating a routine', () => {
     await allowSaving();
     const res = await save(body({ profile: { ...PROFILE, budgetPaise: 0 } }));
     expect(res.status).toBe(422);
-    expect((await json(res)).error).toMatchObject({ code: 'no_valid_plan', details: { result: { status: 'no_match' } } });
+    expect((await json(res)).error).toMatchObject({
+      code: 'no_valid_plan',
+      details: { result: { status: 'no_match' } },
+    });
     expect(await count('routine_results')).toBe(0);
   });
 
@@ -211,8 +242,15 @@ describe('creating a routine', () => {
     sessionUser = 'user-a';
     await allowSaving();
     expect((await routes.POST(request('POST', { body: body() }))).status).toBe(400);
-    expect((await routes.POST(request('POST', { body: body(), key: 'key-00000001', origin: 'https://evil.example' }))).status).toBe(403);
-    const huge = body({ profile: { ...PROFILE, ownedItems: [{ id: 'x', label: 'x'.repeat(20_000), ingredientIds: [], coverage: 'unknown', prescribed: false }] } });
+    expect(
+      (await routes.POST(request('POST', { body: body(), key: 'key-00000001', origin: 'https://evil.example' }))).status
+    ).toBe(403);
+    const huge = body({
+      profile: {
+        ...PROFILE,
+        ownedItems: [{ id: 'x', label: 'x'.repeat(20_000), ingredientIds: [], coverage: 'unknown', prescribed: false }],
+      },
+    });
     expect((await save(huge)).status).toBe(413);
   });
 
@@ -303,12 +341,18 @@ describe('retrieval after reload, deletion, consent and expiry', () => {
     const saved = (await json(await save())).routine;
     const again = (await json(await get(saved.id))).routine;
     expect(again).toEqual(saved);
-    const fromResult = saved.result.days.flatMap((d: any) => // eslint-disable-line @typescript-eslint/no-explicit-any
-      (['am', 'pm'] as const).flatMap((session) => d[session].map((s: any) => ({ day: d.day, session, position: s.position, productId: s.productId ?? null }))) // eslint-disable-line @typescript-eslint/no-explicit-any
+    /* eslint-disable @typescript-eslint/no-explicit-any -- untyped JSON from the API under test */
+    const fromResult = saved.result.days.flatMap((d: any) =>
+      (['am', 'pm'] as const).flatMap((session) =>
+        d[session].map((s: any) => ({ day: d.day, session, position: s.position, productId: s.productId ?? null }))
+      )
     );
-    expect(again.schedule.map((s: any) => ({ day: s.day, session: s.session, position: s.position, productId: s.productId }))).toEqual( // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(
+      again.schedule.map((s: any) => ({ day: s.day, session: s.session, position: s.position, productId: s.productId }))
+    ).toEqual(
       [...fromResult].sort((a, b) => a.day - b.day || a.session.localeCompare(b.session) || a.position - b.position)
     );
+    /* eslint-enable @typescript-eslint/no-explicit-any */
     expect(again.schedule.length).toBeGreaterThan(0);
   });
 
@@ -337,8 +381,12 @@ describe('retrieval after reload, deletion, consent and expiry', () => {
     sessionUser = 'user-a';
     await allowSaving();
     const { routine } = await json(await save());
-    await client.query(`update routine_results set created_at = now() - interval '200 days', expires_at = now() - interval '1 day'`);
-    await client.query(`update skin_profiles set created_at = now() - interval '200 days', expires_at = now() - interval '1 day'`);
+    await client.query(
+      `update routine_results set created_at = now() - interval '200 days', expires_at = now() - interval '1 day'`
+    );
+    await client.query(
+      `update skin_profiles set created_at = now() - interval '200 days', expires_at = now() - interval '1 day'`
+    );
     expect((await get(routine.id)).status).toBe(404);
     expect(await purgeExpiredRoutines(db)).toBe(1);
     expect(await count('skin_profiles')).toBe(0);
@@ -352,7 +400,10 @@ describe('retrieval after reload, deletion, consent and expiry', () => {
     await allowSaving();
     const { routine } = await json(await save(body({ kbRelease: R2.manifest.releaseId })));
     await activateRelease(db, R1.manifest.releaseId, staff);
-    expect((await json(await get(routine.id))).routine).toMatchObject({ validity: 'outdated', result: { kbRelease: R2.manifest.releaseId } });
+    expect((await json(await get(routine.id))).routine).toMatchObject({
+      validity: 'outdated',
+      result: { kbRelease: R2.manifest.releaseId },
+    });
     expect((await revokeRelease(db, R2.manifest.releaseId, staff, 'test revocation')).ok).toBe(true);
     expect((await json(await get(routine.id))).routine).toMatchObject({ validity: 'revoked', result: null });
     expect(await count('routine_results')).toBe(1);
@@ -365,12 +416,16 @@ describe('routine history for the account page', () => {
     sessionUser = 'user-a';
     await allowSaving();
     const a = (await json(await save(body(), 'key-hist-0001'))).routine.id;
-    const b = (await json(await save(body({ profile: { ...PROFILE, budgetPaise: 400_000 } }), 'key-hist-0002'))).routine.id;
+    const b = (await json(await save(body({ profile: { ...PROFILE, budgetPaise: 400_000 } }), 'key-hist-0002'))).routine
+      .id;
     const owner = { kind: 'user' as const, userId: 'user-a' };
     expect((await routineHistory(db, owner)).map((r) => r.state)).toEqual(['current', 'current']);
 
     // Expire one: it stays listed, as expired, and cannot be opened.
-    await client.query(`update routine_results set created_at = now() - interval '200 days', expires_at = now() - interval '1 day' where id = $1`, [a]);
+    await client.query(
+      `update routine_results set created_at = now() - interval '200 days', expires_at = now() - interval '1 day' where id = $1`,
+      [a]
+    );
     const states = Object.fromEntries((await routineHistory(db, owner)).map((r) => [r.id, r.state]));
     expect(states).toEqual({ [a]: 'expired', [b]: 'current' });
     expect((await get(a)).status).toBe(404);
@@ -386,7 +441,14 @@ describe('feedback', () => {
   const fb = (id: string, over: Record<string, unknown> = {}) =>
     feedback.POST(
       request('POST', {
-        body: { week: 1, adherence: 'most_days', tolerability: 'comfortable', reportedChange: 'unsure', kbRelease: R1.manifest.releaseId, ...over },
+        body: {
+          week: 1,
+          adherence: 'most_days',
+          tolerability: 'comfortable',
+          reportedChange: 'unsure',
+          kbRelease: R1.manifest.releaseId,
+          ...over,
+        },
       }),
       params(id)
     );
@@ -410,7 +472,12 @@ describe('feedback', () => {
 describe('scan observations', () => {
   type Who = { userId?: string; hash?: string };
   const scan = async (who: Who, over: Partial<typeof schema.scanSessions.$inferInsert> = {}) => {
-    const c = await grantConsent(db, who.userId ? { kind: 'user', userId: who.userId } : { kind: 'guest', ownerHash: who.hash! }, 'photo_processing', 'test-1');
+    const c = await grantConsent(
+      db,
+      who.userId ? { kind: 'user', userId: who.userId } : { kind: 'guest', ownerHash: who.hash! },
+      'photo_processing',
+      'test-1'
+    );
     const [row] = await db
       .insert(schema.scanSessions)
       .values({
@@ -422,7 +489,15 @@ describe('scan observations', () => {
         modelVersion: 'test-model-1',
         result: {
           observations: [
-            { schemaVersion: 1, concern: 'dryness_reported', state: 'high', source: 'vision', evidenceGroup: 'test-group', quality: 'accepted', modelVersion: 'test-model-1' },
+            {
+              schemaVersion: 1,
+              concern: 'dryness_reported',
+              state: 'high',
+              source: 'vision',
+              evidenceGroup: 'test-group',
+              quality: 'accepted',
+              modelVersion: 'test-model-1',
+            },
           ],
         },
         expiresAt: new Date(Date.now() + 86_400_000),
@@ -452,7 +527,14 @@ describe('scan observations', () => {
       expect((await json(res)).error.code).toBe('scan_unavailable');
     };
     await refused((await scan({ userId: 'user-b' })).id);
-    await refused((await scan({ userId: 'user-a' }, { createdAt: new Date(Date.now() - 3 * 86_400_000), expiresAt: new Date(Date.now() - 60_000) })).id);
+    await refused(
+      (
+        await scan(
+          { userId: 'user-a' },
+          { createdAt: new Date(Date.now() - 3 * 86_400_000), expiresAt: new Date(Date.now() - 60_000) }
+        )
+      ).id
+    );
     await refused((await scan({ userId: 'user-a' }, { status: 'processing', result: null })).id);
     await refused(crypto.randomUUID());
     // Last: withdrawing photo consent revokes every scan under it.
@@ -475,7 +557,10 @@ describe('guest to account', () => {
     expect(cookieJar[GUEST_OWNER_COOKIE]).toBeUndefined();
     const [row] = await db.select().from(schema.routineResults);
     expect(row).toMatchObject({ userId: 'user-a', anonymousOwnerHash: null });
-    expect((await db.select().from(schema.skinProfiles))[0]).toMatchObject({ userId: 'user-a', anonymousOwnerHash: null });
+    expect((await db.select().from(schema.skinProfiles))[0]).toMatchObject({
+      userId: 'user-a',
+      anonymousOwnerHash: null,
+    });
     // The guest grant is withdrawn; the account holds an active grant the records point at.
     const grants = await db.select().from(schema.consentRecords);
     expect(grants.find((g) => g.anonymousOwnerHash === guestHash)?.withdrawnAt).not.toBeNull();
@@ -495,7 +580,12 @@ describe('guest to account', () => {
     const guestHash = hashGuestSecret(cookieJar[GUEST_OWNER_COOKIE])!;
     await save();
     expect((await claimGuestRecords(db, 'user-a', guestHash)).moved).toBe(2);
-    expect(await db.select().from(schema.consentRecords).where(sql`withdrawn_at is null`)).toHaveLength(1);
+    expect(
+      await db
+        .select()
+        .from(schema.consentRecords)
+        .where(sql`withdrawn_at is null`)
+    ).toHaveLength(1);
   });
 
   it('a failing claim moves nothing', async () => {
@@ -505,6 +595,11 @@ describe('guest to account', () => {
     await expect(claimGuestRecords(db, 'no-such-user', guestHash)).rejects.toThrow();
     const [row] = await db.select().from(schema.routineResults);
     expect(row).toMatchObject({ userId: null, anonymousOwnerHash: guestHash });
-    expect(await db.select().from(schema.consentRecords).where(sql`withdrawn_at is null`)).toHaveLength(1);
+    expect(
+      await db
+        .select()
+        .from(schema.consentRecords)
+        .where(sql`withdrawn_at is null`)
+    ).toHaveLength(1);
   });
 });

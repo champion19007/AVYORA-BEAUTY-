@@ -19,7 +19,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const [url, outDir] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const widths = (process.argv.find((a) => a.startsWith('--widths='))?.slice(9) ?? '1280,1440,1920').split(',').map(Number);
+const widths = (process.argv.find((a) => a.startsWith('--widths='))?.slice(9) ?? '1280,1440,1920')
+  .split(',')
+  .map(Number);
 const HEIGHTS = { 1280: 800, 1440: 900, 1920: 1080 };
 if (!url || !outDir) {
   console.error('usage: node scripts/capture-reference.mjs <url> <outDir> [--widths=1280,1440,1920]');
@@ -36,7 +38,19 @@ const exe = BROWSERS.find((b) => existsSync(b));
 if (!exe) throw new Error('No Edge or Chrome found');
 const port = 9300 + Math.floor(Math.random() * 500);
 const profile = mkdtempSync(join(tmpdir(), 'ref-capture-'));
-const browser = spawn(exe, [`--remote-debugging-port=${port}`, '--headless=new', `--user-data-dir=${profile}`, '--no-first-run', '--hide-scrollbars', '--force-device-scale-factor=1', 'about:blank'], { stdio: 'ignore' });
+const browser = spawn(
+  exe,
+  [
+    `--remote-debugging-port=${port}`,
+    '--headless=new',
+    `--user-data-dir=${profile}`,
+    '--no-first-run',
+    '--hide-scrollbars',
+    '--force-device-scale-factor=1',
+    'about:blank',
+  ],
+  { stdio: 'ignore' }
+);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Always take the browser down with us, including on errors (Windows needs the whole process tree).
 const killBrowser = () => {
@@ -85,7 +99,10 @@ const send = (method, params = {}, timeoutMs = 20_000) =>
       pending.delete(id);
       reject(new Error(`${method} timed out`));
     }, timeoutMs);
-    pending.set(id, { resolve: (v) => (clearTimeout(timer), resolve(v)), reject: (e) => (clearTimeout(timer), reject(e)) });
+    pending.set(id, {
+      resolve: (v) => (clearTimeout(timer), resolve(v)),
+      reject: (e) => (clearTimeout(timer), reject(e)),
+    });
     ws.send(JSON.stringify({ id, method, params }));
   });
 /** Navigation can stall on a slow asset; retry once with a longer allowance. */
@@ -97,14 +114,22 @@ const navigate = async (target) => {
   }
 };
 const evaluate = async (fn, arg) => {
-  const r = await send('Runtime.evaluate', { expression: `(${fn})(${JSON.stringify(arg ?? null)})`, returnByValue: true, awaitPromise: true });
+  const r = await send('Runtime.evaluate', {
+    expression: `(${fn})(${JSON.stringify(arg ?? null)})`,
+    returnByValue: true,
+    awaitPromise: true,
+  });
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? 'evaluate failed');
   return r.result.value;
 };
 const skipped = [];
 const shot = async (file, opts = {}) => {
   try {
-    const { data } = await send('Page.captureScreenshot', { format: file.endsWith('.jpg') ? 'jpeg' : 'png', quality: file.endsWith('.jpg') ? 80 : undefined, ...opts });
+    const { data } = await send('Page.captureScreenshot', {
+      format: file.endsWith('.jpg') ? 'jpeg' : 'png',
+      quality: file.endsWith('.jpg') ? 80 : undefined,
+      ...opts,
+    });
     writeFileSync(file, Buffer.from(data, 'base64'));
   } catch (err) {
     skipped.push(`${file}: ${err.message}`);
@@ -118,7 +143,12 @@ const MEASURE = () => {
   const px = (v) => Math.round(parseFloat(v) * 100) / 100;
   const box = (el) => {
     const r = el.getBoundingClientRect();
-    return { x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), w: Math.round(r.width), h: Math.round(r.height) };
+    return {
+      x: Math.round(r.left + scrollX),
+      y: Math.round(r.top + scrollY),
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+    };
   };
   const visible = (el) => {
     const r = el.getBoundingClientRect();
@@ -144,14 +174,21 @@ const MEASURE = () => {
 
   // Sections: top-level full-width Framer layers; a container taller than three viewports
   // (the page's "Main") is replaced by its own full-width children.
-  const fullWidth = (el) => visible(el) && el.getBoundingClientRect().width >= innerWidth * 0.98 && el.getBoundingClientRect().height > 60;
+  const fullWidth = (el) =>
+    visible(el) && el.getBoundingClientRect().width >= innerWidth * 0.98 && el.getBoundingClientRect().height > 60;
   const named = [...document.querySelectorAll('[data-framer-name]')].filter(fullWidth);
   let tops = named.filter((e) => !named.some((o) => o !== e && o.contains(e)));
   for (let i = 0; i < 3; i++) {
     tops = tops.flatMap((e) => {
       if (e.getBoundingClientRect().height <= innerHeight * 3) return [e];
       // Inner sections may be capped at a max width, so half the viewport is enough here.
-      const kids = [...e.querySelectorAll('[data-framer-name]')].filter((k) => k !== e && visible(k) && k.getBoundingClientRect().width >= innerWidth * 0.5 && k.getBoundingClientRect().height > 60);
+      const kids = [...e.querySelectorAll('[data-framer-name]')].filter(
+        (k) =>
+          k !== e &&
+          visible(k) &&
+          k.getBoundingClientRect().width >= innerWidth * 0.5 &&
+          k.getBoundingClientRect().height > 60
+      );
       const direct = kids.filter((k) => !kids.some((o) => o !== k && o.contains(k)));
       return direct.length > 1 ? direct : [e];
     });
@@ -159,7 +196,9 @@ const MEASURE = () => {
   // Pages without Framer layer names (Avyora): the top-level sections inside <main>.
   if (tops.length === 0) {
     const main = document.querySelector('main') ?? document.body;
-    tops = [...main.querySelectorAll('section, header, footer')].filter((e) => visible(e) && e.getBoundingClientRect().height > 60 && !e.parentElement.closest('section'));
+    tops = [...main.querySelectorAll('section, header, footer')].filter(
+      (e) => visible(e) && e.getBoundingClientRect().height > 60 && !e.parentElement.closest('section')
+    );
     const footer = document.querySelector('footer');
     if (footer && !tops.includes(footer)) tops.push(footer);
   }
@@ -169,7 +208,11 @@ const MEASURE = () => {
       const cs = getComputedStyle(el);
       const heading = el.querySelector('h1,h2,h3');
       return {
-        name: el.getAttribute('data-framer-name') || el.id || el.getAttribute('aria-labelledby') || el.tagName.toLowerCase(),
+        name:
+          el.getAttribute('data-framer-name') ||
+          el.id ||
+          el.getAttribute('aria-labelledby') ||
+          el.tagName.toLowerCase(),
         heading: heading ? text(heading) : null,
         box: box(el),
         background: cs.backgroundColor,
@@ -185,7 +228,9 @@ const MEASURE = () => {
   for (const el of document.querySelectorAll('h1,h2,h3,h4,h5,h6,p,a,button,span,li,label')) {
     if (!visible(el) || ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
     const t = typo(el);
-    const key = [t.fontFamily, t.fontSize, t.fontWeight, t.lineHeight, t.letterSpacing, t.color, t.textTransform].join('|');
+    const key = [t.fontFamily, t.fontSize, t.fontWeight, t.lineHeight, t.letterSpacing, t.color, t.textTransform].join(
+      '|'
+    );
     if (!seen.has(key)) seen.set(key, { ...t, count: 1 });
     else seen.get(key).count++;
   }
@@ -227,10 +272,22 @@ const MEASURE = () => {
 
   // Rounded containers (cards).
   const cards = [...document.querySelectorAll('div')]
-    .filter((el) => visible(el) && getComputedStyle(el).borderRadius !== '0px' && el.getBoundingClientRect().width > 150 && el.getBoundingClientRect().height > 100)
+    .filter(
+      (el) =>
+        visible(el) &&
+        getComputedStyle(el).borderRadius !== '0px' &&
+        el.getBoundingClientRect().width > 150 &&
+        el.getBoundingClientRect().height > 100
+    )
     .map((el) => {
       const cs = getComputedStyle(el);
-      return { name: el.getAttribute('data-framer-name'), box: box(el), radius: cs.borderRadius, background: cs.backgroundColor, text: text(el).slice(0, 40) };
+      return {
+        name: el.getAttribute('data-framer-name'),
+        box: box(el),
+        radius: cs.borderRadius,
+        background: cs.backgroundColor,
+        text: text(el).slice(0, 40),
+      };
     })
     .slice(0, 80);
 
@@ -238,14 +295,28 @@ const MEASURE = () => {
   for (const el of document.querySelectorAll('body *')) {
     if (!visible(el)) continue;
     const cs = getComputedStyle(el);
-    for (const c of [cs.color, cs.backgroundColor, cs.borderTopColor]) if (c && c !== 'rgba(0, 0, 0, 0)') colours[c] = (colours[c] ?? 0) + 1;
+    for (const c of [cs.color, cs.backgroundColor, cs.borderTopColor])
+      if (c && c !== 'rgba(0, 0, 0, 0)') colours[c] = (colours[c] ?? 0) + 1;
   }
 
-  const fonts = [...document.fonts].map((f) => ({ family: f.family, weight: f.weight, style: f.style, status: f.status }));
-  const fontFiles = performance.getEntriesByType('resource').filter((e) => /\.(woff2?|ttf|otf)(\?|$)/.test(e.name) || e.initiatorType === 'css' && /font/.test(e.name)).map((e) => e.name);
+  const fonts = [...document.fonts].map((f) => ({
+    family: f.family,
+    weight: f.weight,
+    style: f.style,
+    status: f.status,
+  }));
+  const fontFiles = performance
+    .getEntriesByType('resource')
+    .filter((e) => /\.(woff2?|ttf|otf)(\?|$)/.test(e.name) || (e.initiatorType === 'css' && /font/.test(e.name)))
+    .map((e) => e.name);
 
   return {
-    viewport: { width: innerWidth, height: innerHeight, contentWidth: document.documentElement.clientWidth, pageHeight: document.documentElement.scrollHeight },
+    viewport: {
+      width: innerWidth,
+      height: innerHeight,
+      contentWidth: document.documentElement.clientWidth,
+      pageHeight: document.documentElement.scrollHeight,
+    },
     title: document.title,
     bodyBackground: getComputedStyle(document.body).backgroundColor,
     sections,
@@ -253,14 +324,18 @@ const MEASURE = () => {
     buttons,
     images,
     cards,
-    colours: Object.entries(colours).sort((a, b) => b[1] - a[1]).slice(0, 30),
+    colours: Object.entries(colours)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30),
     fonts,
     fontFiles,
   };
 };
 
 const ANIMATIONS = () => {
-  const describe = (el) => (el.getAttribute('data-framer-name') || el.tagName.toLowerCase()) + (el.innerText ? `: ${el.innerText.replace(/\s+/g, ' ').trim().slice(0, 30)}` : '');
+  const describe = (el) =>
+    (el.getAttribute('data-framer-name') || el.tagName.toLowerCase()) +
+    (el.innerText ? `: ${el.innerText.replace(/\s+/g, ' ').trim().slice(0, 30)}` : '');
   const running = document.getAnimations().map((a) => {
     const t = a.effect?.getTiming?.() ?? {};
     return {
@@ -274,12 +349,14 @@ const ANIMATIONS = () => {
       playState: a.playState,
     };
   });
-  const appear = [...document.querySelectorAll('[data-framer-appear-id], [style*="opacity: 0"], [style*="opacity:0"]')].slice(0, 40).map((el) => ({
-    target: describe(el),
-    opacity: getComputedStyle(el).opacity,
-    transform: getComputedStyle(el).transform,
-    willChange: getComputedStyle(el).willChange,
-  }));
+  const appear = [...document.querySelectorAll('[data-framer-appear-id], [style*="opacity: 0"], [style*="opacity:0"]')]
+    .slice(0, 40)
+    .map((el) => ({
+      target: describe(el),
+      opacity: getComputedStyle(el).opacity,
+      transform: getComputedStyle(el).transform,
+      willChange: getComputedStyle(el).willChange,
+    }));
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   return { reducedMotion: reduced, running, appearElements: appear };
 };
@@ -288,7 +365,13 @@ const ANIMATIONS = () => {
 
 await send('Page.enable');
 await send('Runtime.enable');
-const report = { url, capturedAt: new Date().toISOString(), browser: version.Browser, userAgent: version['User-Agent'], widths: {} };
+const report = {
+  url,
+  capturedAt: new Date().toISOString(),
+  browser: version.Browser,
+  userAgent: version['User-Agent'],
+  widths: {},
+};
 
 for (const width of widths) {
   const height = HEIGHTS[width] ?? Math.round(width * 0.5625);
@@ -308,30 +391,69 @@ for (const width of widths) {
   const menu = await evaluate(() => {
     const cands = [...document.querySelectorAll('a,button,[role=button],div,p')].filter((el) => {
       const r = el.getBoundingClientRect();
-      return r.top < 120 && r.width < 200 && r.height < 80 && /menu/i.test(el.innerText || el.getAttribute('aria-label') || el.getAttribute('data-framer-name') || '');
+      return (
+        r.top < 120 &&
+        r.width < 200 &&
+        r.height < 80 &&
+        /menu/i.test(el.innerText || el.getAttribute('aria-label') || el.getAttribute('data-framer-name') || '')
+      );
     });
     const el = cands.sort((a, b) => a.getBoundingClientRect().width - b.getBoundingClientRect().width)[0];
     if (!el) return null;
     const r = el.getBoundingClientRect();
-    return { text: (el.innerText || el.getAttribute('aria-label') || el.getAttribute('data-framer-name') || '').trim(), x: r.left + r.width / 2, y: r.top + r.height / 2, box: { x: r.left, y: r.top, w: r.width, h: r.height } };
+    return {
+      text: (el.innerText || el.getAttribute('aria-label') || el.getAttribute('data-framer-name') || '').trim(),
+      x: r.left + r.width / 2,
+      y: r.top + r.height / 2,
+      box: { x: r.left, y: r.top, w: r.width, h: r.height },
+    };
   });
   let menuOpen = null;
   let menuBehaviour = null;
   if (menu) {
-    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: menu.x, y: menu.y, button: 'left', clickCount: 1 });
-    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: menu.x, y: menu.y, button: 'left', clickCount: 1 });
+    await send('Input.dispatchMouseEvent', {
+      type: 'mousePressed',
+      x: menu.x,
+      y: menu.y,
+      button: 'left',
+      clickCount: 1,
+    });
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      x: menu.x,
+      y: menu.y,
+      button: 'left',
+      clickCount: 1,
+    });
     await sleep(1500);
     await shot(join(dir, '03-menu-open.png'));
     menuOpen = await evaluate(() => {
       const links = [...document.querySelectorAll('a,p,span')].filter((el) => {
         const r = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
-        return r.width > 0 && r.top >= 60 && r.bottom <= innerHeight && parseFloat(cs.fontSize) >= 32 && cs.visibility !== 'hidden' && el.innerText.trim() && [...el.childNodes].some((n) => n.nodeType === 3);
+        return (
+          r.width > 0 &&
+          r.top >= 60 &&
+          r.bottom <= innerHeight &&
+          parseFloat(cs.fontSize) >= 32 &&
+          cs.visibility !== 'hidden' &&
+          el.innerText.trim() &&
+          [...el.childNodes].some((n) => n.nodeType === 3)
+        );
       });
       return links.slice(0, 20).map((el) => {
         const r = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
-        return { text: el.innerText.trim().slice(0, 40), box: { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }, fontSize: cs.fontSize, fontWeight: cs.fontWeight, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, color: cs.color, fontFamily: cs.fontFamily };
+        return {
+          text: el.innerText.trim().slice(0, 40),
+          box: { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) },
+          fontSize: cs.fontSize,
+          fontWeight: cs.fontWeight,
+          lineHeight: cs.lineHeight,
+          letterSpacing: cs.letterSpacing,
+          color: cs.color,
+          fontFamily: cs.fontFamily,
+        };
       });
     });
     // Behaviour while open: does the page scroll under the menu? Then Escape:
@@ -345,9 +467,17 @@ for (const width of widths) {
     await sleep(1200);
     const afterEscape = await evaluate(() => ({
       dialogMounted: Boolean(document.querySelector('[role=dialog]')),
-      focused: document.activeElement?.getAttribute('aria-label') || document.activeElement?.innerText?.trim().slice(0, 30) || document.activeElement?.tagName,
+      focused:
+        document.activeElement?.getAttribute('aria-label') ||
+        document.activeElement?.innerText?.trim().slice(0, 30) ||
+        document.activeElement?.tagName,
     }));
-    menuBehaviour = { scrolledWhileOpen: afterWheel !== beforeWheel, scrollBefore: beforeWheel, scrollAfter: afterWheel, ...afterEscape };
+    menuBehaviour = {
+      scrolledWhileOpen: afterWheel !== beforeWheel,
+      scrollBefore: beforeWheel,
+      scrollAfter: afterWheel,
+      ...afterEscape,
+    };
     await navigate(url);
     await sleep(4000);
   }
@@ -369,7 +499,9 @@ for (const width of widths) {
   // screenshots (clipped captures came out blank with scroll-revealed content).
   for (const [i, s] of m.sections.entries()) {
     if (s.box.h < 100 || s.box.y < 0) continue;
-    const name = `section-${String(i + 1).padStart(2, '0')}-${String(s.name).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+    const name = `section-${String(i + 1).padStart(2, '0')}-${String(s.name)
+      .replace(/[^a-z0-9]+/gi, '-')
+      .toLowerCase()}`;
     for (let part = 0; part * height < s.box.h && part < 3; part++) {
       await evaluate((yy) => window.scrollTo({ top: yy, behavior: 'instant' }), s.box.y + part * height);
       await sleep(1300);
@@ -383,18 +515,46 @@ for (const width of widths) {
   const cta = m.buttons.find((b) => b.text && b.box.y < height && parseFloat(b.radius) >= 20);
   let hover = null;
   if (cta) {
-    const before = await evaluate((t) => { const el = [...document.querySelectorAll('a,button')].find((e) => e.innerText.trim().startsWith(t)); const cs = getComputedStyle(el); return { background: cs.backgroundColor, color: cs.color, transform: cs.transform }; }, cta.text.slice(0, 12));
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cta.box.x + cta.box.w / 2, y: cta.box.y + cta.box.h / 2 });
+    const before = await evaluate(
+      (t) => {
+        const el = [...document.querySelectorAll('a,button')].find((e) => e.innerText.trim().startsWith(t));
+        const cs = getComputedStyle(el);
+        return { background: cs.backgroundColor, color: cs.color, transform: cs.transform };
+      },
+      cta.text.slice(0, 12)
+    );
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: cta.box.x + cta.box.w / 2,
+      y: cta.box.y + cta.box.h / 2,
+    });
     await sleep(600);
-    const after = await evaluate((t) => { const el = [...document.querySelectorAll('a,button')].find((e) => e.innerText.trim().startsWith(t)); const cs = getComputedStyle(el); return { background: cs.backgroundColor, color: cs.color, transform: cs.transform }; }, cta.text.slice(0, 12));
-    await shot(join(dir, '02-hero-cta-hover.png'), { clip: { x: Math.max(0, cta.box.x - 40), y: Math.max(0, cta.box.y - 40), width: cta.box.w + 80, height: cta.box.h + 80, scale: 1 } });
+    const after = await evaluate(
+      (t) => {
+        const el = [...document.querySelectorAll('a,button')].find((e) => e.innerText.trim().startsWith(t));
+        const cs = getComputedStyle(el);
+        return { background: cs.backgroundColor, color: cs.color, transform: cs.transform };
+      },
+      cta.text.slice(0, 12)
+    );
+    await shot(join(dir, '02-hero-cta-hover.png'), {
+      clip: {
+        x: Math.max(0, cta.box.x - 40),
+        y: Math.max(0, cta.box.y - 40),
+        width: cta.box.w + 80,
+        height: cta.box.h + 80,
+        scale: 1,
+      },
+    });
     hover = { cta: cta.text, before, after };
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: height - 5 });
   }
 
   // FAQ: click each question in the section whose heading mentions questions or FAQ.
   const faq = await evaluate(() => {
-    const heading = [...document.querySelectorAll('h1,h2,h3,p')].find((h) => /faq|question/i.test(h.innerText) && parseFloat(getComputedStyle(h).fontSize) >= 32);
+    const heading = [...document.querySelectorAll('h1,h2,h3,p')].find(
+      (h) => /faq|question/i.test(h.innerText) && parseFloat(getComputedStyle(h).fontSize) >= 32
+    );
     if (!heading) return null;
     let section = heading;
     while (section.parentElement && section.getBoundingClientRect().height < 400) section = section.parentElement;
@@ -408,34 +568,68 @@ for (const width of widths) {
     await shot(join(dir, '04-faq-closed.png'));
     const questions = await evaluate(() =>
       [...document.querySelectorAll('*')]
-        .filter((el) => el.children.length === 0 && /\?$/.test((el.innerText || '').trim()) && !(el.innerText || '').includes('\n') && el.getBoundingClientRect().height > 0)
+        .filter(
+          (el) =>
+            el.children.length === 0 &&
+            /\?$/.test((el.innerText || '').trim()) &&
+            !(el.innerText || '').includes('\n') &&
+            el.getBoundingClientRect().height > 0
+        )
         .map((el) => el.innerText.trim())
     );
     for (const [i, q] of questions.entries()) {
       // Bring the row to mid-screen, then click the row's right edge (its plus control).
       const pos = await evaluate((t) => {
-        const el = [...document.querySelectorAll('*')].find((e) => e.children.length === 0 && (e.innerText || '').trim() === t);
+        const el = [...document.querySelectorAll('*')].find(
+          (e) => e.children.length === 0 && (e.innerText || '').trim() === t
+        );
         if (!el) return null;
         el.scrollIntoView({ block: 'center', behavior: 'instant' });
         let row = el;
         while (row.parentElement && row.getBoundingClientRect().width < innerWidth * 0.4) row = row.parentElement;
         const r = row.getBoundingClientRect();
-        return { x: r.right - 40, y: el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2, rowHeight: Math.round(r.height) };
+        return {
+          x: r.right - 40,
+          y: el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2,
+          rowHeight: Math.round(r.height),
+        };
       }, q);
       if (!pos) continue;
       await sleep(500);
       const before = await evaluate(() => document.documentElement.scrollHeight);
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pos.x, y: pos.y });
-      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: pos.x, y: pos.y, button: 'left', clickCount: 1 });
-      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: pos.x, y: pos.y, button: 'left', clickCount: 1 });
+      await send('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        x: pos.x,
+        y: pos.y,
+        button: 'left',
+        clickCount: 1,
+      });
+      await send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x: pos.x,
+        y: pos.y,
+        button: 'left',
+        clickCount: 1,
+      });
       await sleep(1000);
       const after = await evaluate((t) => {
-        const el = [...document.querySelectorAll('*')].find((e) => e.children.length === 0 && (e.innerText || '').trim() === t);
+        const el = [...document.querySelectorAll('*')].find(
+          (e) => e.children.length === 0 && (e.innerText || '').trim() === t
+        );
         let row = el;
         while (row.parentElement && row.getBoundingClientRect().width < innerWidth * 0.4) row = row.parentElement;
-        return { pageHeight: document.documentElement.scrollHeight, rowHeight: Math.round(row.getBoundingClientRect().height) };
+        return {
+          pageHeight: document.documentElement.scrollHeight,
+          rowHeight: Math.round(row.getBoundingClientRect().height),
+        };
       }, q);
-      faqItems.push({ question: q, rowHeightClosed: pos.rowHeight, rowHeightAfterClick: after.rowHeight, pageGrewBy: after.pageHeight - before });
+      faqItems.push({
+        question: q,
+        rowHeightClosed: pos.rowHeight,
+        rowHeightAfterClick: after.rowHeight,
+        pageGrewBy: after.pageHeight - before,
+      });
       if (i === 0) await shot(join(dir, '05-faq-first-expanded.png'));
     }
     await shot(join(dir, '06-faq-all-clicked.png'));
@@ -448,12 +642,35 @@ for (const width of widths) {
   const reduced = await evaluate(ANIMATIONS);
   await shot(join(dir, '07-hero-reduced-motion.png'));
 
-  report.widths[width] = { skippedScreenshots: [...skipped], viewport: m.viewport, measurements: m, animations: { onLoad: early, settled, reducedMotion: reduced }, hover, menu: menu && { trigger: menu, links: menuOpen, behaviour: menuBehaviour }, faq: faq && { ...faq, items: faqItems } };
+  report.widths[width] = {
+    skippedScreenshots: [...skipped],
+    viewport: m.viewport,
+    measurements: m,
+    animations: { onLoad: early, settled, reducedMotion: reduced },
+    hover,
+    menu: menu && { trigger: menu, links: menuOpen, behaviour: menuBehaviour },
+    faq: faq && { ...faq, items: faqItems },
+  };
   writeFileSync(join(dir, 'measurements.json'), JSON.stringify(report.widths[width], null, 2));
-  console.log(`w${width}: page ${m.viewport.pageHeight}px, ${m.sections.length} sections, ${step} scroll frames, menu ${menu ? 'opened' : 'not found'}, faq ${faqItems.length} items`);
+  console.log(
+    `w${width}: page ${m.viewport.pageHeight}px, ${m.sections.length} sections, ${step} scroll frames, menu ${menu ? 'opened' : 'not found'}, faq ${faqItems.length} items`
+  );
 }
 
-writeFileSync(join(outDir, 'capture.json'), JSON.stringify({ url: report.url, capturedAt: report.capturedAt, browser: report.browser, userAgent: report.userAgent, widths: Object.fromEntries(Object.entries(report.widths).map(([w, r]) => [w, r.viewport])) }, null, 2));
+writeFileSync(
+  join(outDir, 'capture.json'),
+  JSON.stringify(
+    {
+      url: report.url,
+      capturedAt: report.capturedAt,
+      browser: report.browser,
+      userAgent: report.userAgent,
+      widths: Object.fromEntries(Object.entries(report.widths).map(([w, r]) => [w, r.viewport])),
+    },
+    null,
+    2
+  )
+);
 ws.close();
 // On Windows, killing the parent leaves Edge's child processes running; kill the whole tree.
 if (process.platform === 'win32') spawn('taskkill', ['/PID', String(browser.pid), '/T', '/F'], { stdio: 'ignore' });

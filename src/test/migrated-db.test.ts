@@ -38,18 +38,9 @@ describe('migrated test database', () => {
   it('includes the payment states the state machine uses', async () => {
     const { client, db } = await createMigratedDb();
 
-    const values = await db.execute<{ v: string }>(
-      sql`select unnest(enum_range(null::payment_status))::text as v`
-    );
+    const values = await db.execute<{ v: string }>(sql`select unnest(enum_range(null::payment_status))::text as v`);
 
-    expect(values.rows.map((r) => r.v)).toEqual([
-      'unpaid',
-      'pending',
-      'authorized',
-      'paid',
-      'failed',
-      'refunded',
-    ]);
+    expect(values.rows.map((r) => r.v)).toEqual(['unpaid', 'pending', 'authorized', 'paid', 'failed', 'refunded']);
 
     await client.close();
   }, 60_000);
