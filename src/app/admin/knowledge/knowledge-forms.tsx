@@ -16,7 +16,15 @@ function Result({ state }: { state: KnowledgeActionState }) {
 const input = 'h-10 rounded-full border border-border bg-background px-4 text-sm';
 
 /** Owner-only knowledge actions, each with an explicit confirmation field. */
-export function KnowledgeForms({ canPublish, hasPrevious, revocable }: { canPublish: boolean; hasPrevious: boolean; revocable: string[] }) {
+export function KnowledgeForms({
+  canPublish,
+  hasPrevious,
+  revocable,
+}: {
+  canPublish: boolean;
+  hasPrevious: boolean;
+  revocable: string[];
+}) {
   const [publishState, publish, publishing] = useActionState(publishKnowledge, {});
   const [rollbackState, rollback, rollingBack] = useActionState(rollbackKnowledgeAction, {});
   const [revokeState, revoke, revoking] = useActionState(revokeKnowledgeAction, {});
@@ -24,7 +32,9 @@ export function KnowledgeForms({ canPublish, hasPrevious, revocable }: { canPubl
     <div className="mt-6 grid grid-cols-3 gap-4">
       <form action={publish} className="rounded-[18px] border border-border bg-card p-5">
         <h3 className="font-medium">Publish</h3>
-        <p className="mt-1 text-sm text-muted-foreground">Stores the validated release and makes it active. Saved routines on older releases are marked outdated.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Stores the validated release and makes it active. Saved routines on older releases are marked outdated.
+        </p>
         <label className="mt-3 block text-sm">
           Type PUBLISH to confirm
           <input name="confirm" autoComplete="off" className={`${input} mt-1 w-full`} />
@@ -51,7 +61,9 @@ export function KnowledgeForms({ canPublish, hasPrevious, revocable }: { canPubl
 
       <form action={revoke} className="rounded-[18px] border border-border bg-card p-5">
         <h3 className="font-medium">Revoke</h3>
-        <p className="mt-1 text-sm text-muted-foreground">Permanently withdraws a release that is not active. Routines built on it stop being shown as recommendations.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Permanently withdraws a release that is not active. Routines built on it stop being shown as recommendations.
+        </p>
         <label className="mt-3 block text-sm">
           Release
           <select name="releaseId" className={`${input} mt-1 w-full`} disabled={revocable.length === 0}>
@@ -66,7 +78,12 @@ export function KnowledgeForms({ canPublish, hasPrevious, revocable }: { canPubl
           Reason
           <input name="reason" required className={`${input} mt-1 w-full`} />
         </label>
-        <Button type="submit" variant="destructive" className="mt-3 rounded-full" disabled={revocable.length === 0 || revoking}>
+        <Button
+          type="submit"
+          variant="destructive"
+          className="mt-3 rounded-full"
+          disabled={revocable.length === 0 || revoking}
+        >
           {revoking ? 'Revoking…' : 'Revoke'}
         </Button>
         <Result state={revokeState} />

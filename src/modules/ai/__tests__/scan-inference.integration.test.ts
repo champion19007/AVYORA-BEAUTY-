@@ -21,11 +21,32 @@ const store = localPrivateStorage(mkdtempSync(path.join(tmpdir(), 'infer-store-'
 /** Whether any private object for this scan remains (uploads use per-request staged keys). */
 const stored = async (id: string) => (await store.list()).some((o) => o.key.startsWith(`private/scans/${id}`));
 const MODEL = 'test-model-1';
-const valid = { observations: [{ schemaVersion: 1, concern: 'shine_appearance', state: 'medium', source: 'vision', evidenceGroup: 'shine', quality: 'accepted', modelVersion: MODEL }] };
-const model = (analyze: (img: Uint8Array, signal: AbortSignal) => Promise<unknown>) => ({ modelVersion: MODEL, analyze: vi.fn(analyze) });
-const handler = (analyzer: ReturnType<typeof model> | null) => skinAnalysisJobHandler({ analyzer: () => analyzer, storage: () => store });
+const valid = {
+  observations: [
+    {
+      schemaVersion: 1,
+      concern: 'shine_appearance',
+      state: 'medium',
+      source: 'vision',
+      evidenceGroup: 'shine',
+      quality: 'accepted',
+      modelVersion: MODEL,
+    },
+  ],
+};
+const model = (analyze: (img: Uint8Array, signal: AbortSignal) => Promise<unknown>) => ({
+  modelVersion: MODEL,
+  analyze: vi.fn(analyze),
+});
+const handler = (analyzer: ReturnType<typeof model> | null) =>
+  skinAnalysisJobHandler({ analyzer: () => analyzer, storage: () => store });
 const statusOf = async (id: string) =>
-  (await client.query<{ status: string; object_key: string | null; result: unknown }>('SELECT status, object_key, result FROM scan_sessions WHERE id = $1', [id])).rows[0];
+  (
+    await client.query<{ status: string; object_key: string | null; result: unknown }>(
+      'SELECT status, object_key, result FROM scan_sessions WHERE id = $1',
+      [id]
+    )
+  ).rows[0];
 
 beforeAll(async () => {
   await client.exec(`INSERT INTO users (id, email) VALUES ('u-alice', 'a@example.test')`);
@@ -35,7 +56,9 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await db.execute(sql`truncate jobs restart identity`);
-  await client.exec(`DELETE FROM scan_attempts; DELETE FROM scan_admissions; DELETE FROM scan_sessions; DELETE FROM consent_records;`);
+  await client.exec(
+    `DELETE FROM scan_attempts; DELETE FROM scan_admissions; DELETE FROM scan_sessions; DELETE FROM consent_records;`
+  );
 });
 
 /** A scan with an uploaded photo, as the upload route leaves it. */
@@ -43,7 +66,11 @@ async function uploaded() {
   await grantConsent(db as never, alice, 'photo_processing', 'p1');
   const created = await createHostedScan(db as never, alice, null);
   if (!created.ok) throw new Error(created.code);
-  const jpeg = new Uint8Array(await sharp({ create: { width: 640, height: 480, channels: 3, background: { r: 120, g: 110, b: 100 } } }).jpeg().toBuffer());
+  const jpeg = new Uint8Array(
+    await sharp({ create: { width: 640, height: 480, channels: 3, background: { r: 120, g: 110, b: 100 } } })
+      .jpeg()
+      .toBuffer()
+  );
   await uploadScanImage(db as never, store, alice, created.id, jpeg);
   return created.id;
 }
@@ -77,10 +104,19 @@ describe('scan inference lifecycle (with a test model)', () => {
   });
 
   it('discards invalid model output instead of storing it', async () => {
-    for (const bad of [{ score: Math.random() }, { observations: [{ ...valid.observations[0], modelVersion: 'other' }] }]) {
-      await client.exec('DELETE FROM scan_attempts; DELETE FROM scan_admissions; DELETE FROM scan_sessions; DELETE FROM consent_records;');
+    for (const bad of [
+      { score: Math.random() },
+      { observations: [{ ...valid.observations[0], modelVersion: 'other' }] },
+    ]) {
+      await client.exec(
+        'DELETE FROM scan_attempts; DELETE FROM scan_admissions; DELETE FROM scan_sessions; DELETE FROM consent_records;'
+      );
       const id = await uploaded();
-      await requestScanInference(alice, id, model(async () => bad));
+      await requestScanInference(
+        alice,
+        id,
+        model(async () => bad)
+      );
       await expect(handler(model(async () => bad))({ scanSessionId: id })).rejects.toBeInstanceOf(PermanentJobError);
       expect(await statusOf(id)).toMatchObject({ status: 'failed', result: null, object_key: null });
     }
@@ -104,7 +140,9 @@ describe('scan inference lifecycle (with a test model)', () => {
     let aborted = false;
     const m = model((_img, signal) => new Promise(() => signal.addEventListener('abort', () => (aborted = true))));
     await requestScanInference(alice, id, m);
-    const run = skinAnalysisJobHandler({ analyzer: () => m, storage: () => store, timeoutMs: 50 })({ scanSessionId: id });
+    const run = skinAnalysisJobHandler({ analyzer: () => m, storage: () => store, timeoutMs: 50 })({
+      scanSessionId: id,
+    });
     await expect(run).rejects.toThrow('inference timed out');
     expect(aborted).toBe(true);
     expect((await statusOf(id)).status).toBe('queued');
@@ -119,7 +157,9 @@ describe('scan inference lifecycle (with a test model)', () => {
     expect(m.analyze).not.toHaveBeenCalled();
 
     // Withdrawn during inference: the result is discarded and the photo deleted.
-    await client.exec('DELETE FROM scan_attempts; DELETE FROM scan_admissions; DELETE FROM scan_sessions; DELETE FROM consent_records;');
+    await client.exec(
+      'DELETE FROM scan_attempts; DELETE FROM scan_admissions; DELETE FROM scan_sessions; DELETE FROM consent_records;'
+    );
     const id2 = await uploaded();
     const late = model(async () => {
       await withdrawConsent(db as never, alice, 'photo_processing');
@@ -138,6 +178,12 @@ describe('scan inference lifecycle (with a test model)', () => {
        SELECT 'u-alice', consent_id, 'queued', 'hosted', now() + interval '1 day' FROM scan_sessions, generate_series(1, $1) LIMIT $1`,
       [MAX_PENDING_SCANS]
     );
-    expect(await requestScanInference(alice, id, model(async () => valid))).toEqual({ ok: false, code: 'backlog_full' });
+    expect(
+      await requestScanInference(
+        alice,
+        id,
+        model(async () => valid)
+      )
+    ).toEqual({ ok: false, code: 'backlog_full' });
   });
 });

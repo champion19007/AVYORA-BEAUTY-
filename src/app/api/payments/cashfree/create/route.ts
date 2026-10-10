@@ -33,7 +33,8 @@ export async function POST(request: Request) {
 
   const body = await readBoundedJson(request, BODY_LIMITS.paymentCreate);
   if (!body.ok) return body.response;
-  if (!body.json || typeof body.json !== 'object') return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
+  if (!body.json || typeof body.json !== 'object')
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   const input = body.json as CheckoutInput;
 
   const session = await auth().catch(() => null);
@@ -49,7 +50,10 @@ export async function POST(request: Request) {
 
   const created = await createOrder({ ...input, paymentMethod: 'cashfree' }, session?.user?.id ?? null);
   if (!created.ok) {
-    return NextResponse.json({ error: created.error, code: created.code }, { status: created.code === 'price_changed' ? 409 : 400 });
+    return NextResponse.json(
+      { error: created.error, code: created.code },
+      { status: created.code === 'price_changed' ? 409 : 400 }
+    );
   }
 
   try {
@@ -69,7 +73,9 @@ export async function POST(request: Request) {
             amountPaise: created.totalPaise,
             customer: {
               // An opaque id: no email or phone in identifiers.
-              id: session?.user?.id ? `u_${session.user.id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40)}` : `g_${created.orderNumber}`,
+              id: session?.user?.id
+                ? `u_${session.user.id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40)}`
+                : `g_${created.orderNumber}`,
               email: input.email,
               phone: input.address.phone,
               name: input.address.fullName,
@@ -80,7 +86,10 @@ export async function POST(request: Request) {
           },
           config
         );
-        await tx.update(orders).set({ paymentReference: cf.order_id, updatedAt: new Date() }).where(eq(orders.id, created.orderId));
+        await tx
+          .update(orders)
+          .set({ paymentReference: cf.order_id, updatedAt: new Date() })
+          .where(eq(orders.id, created.orderId));
         await applyPaymentSignalInTx(tx, created.orderId, { type: 'session_opened' });
         await scheduleReconciliation(created.orderId, tx);
         return { paymentSessionId: cf.payment_session_id, cashfreeOrderId: cf.order_id };

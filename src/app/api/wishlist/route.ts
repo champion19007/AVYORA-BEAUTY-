@@ -37,7 +37,10 @@ export async function POST(request: Request) {
   const body = read.json as { productIds?: unknown; accountKey?: unknown } | undefined;
   // Same guard as the bag: never write one account's list into another's.
   if (body?.accountKey !== undefined && body.accountKey !== accountKey(userId)) {
-    return NextResponse.json({ error: 'Account changed.', code: 'account_changed', accountKey: accountKey(userId) }, { status: 409 });
+    return NextResponse.json(
+      { error: 'Account changed.', code: 'account_changed', accountKey: accountKey(userId) },
+      { status: 409 }
+    );
   }
   const productIds = body?.productIds;
   if (!Array.isArray(productIds)) {

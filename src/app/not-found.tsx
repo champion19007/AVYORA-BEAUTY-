@@ -19,10 +19,7 @@ export default function NotFound() {
           </Button>
         </Link>
         <Link href="/collections">
-          <Button
-            variant="outline"
-            className="rounded-md px-10 py-6 text-xs font-semibold uppercase tracking-[0.2em]"
-          >
+          <Button variant="outline" className="rounded-md px-10 py-6 text-xs font-semibold uppercase tracking-[0.2em]">
             Browse products
           </Button>
         </Link>

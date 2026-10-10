@@ -12,12 +12,17 @@ export type KnowledgeActionState = { ok?: boolean; message?: string };
 async function actor() {
   const session = await getStaffSession();
   if (!session) return { error: 'Your staff session has ended. Sign in again.' } as const;
-  const limited = await limit([{ policy: 'staffPublish', subject: { kind: 'identifier', value: `staff:${session.username}` } }]);
+  const limited = await limit([
+    { policy: 'staffPublish', subject: { kind: 'identifier', value: `staff:${session.username}` } },
+  ]);
   if (!limited.allowed) return { error: 'Too many changes in a short time. Wait a minute and try again.' } as const;
   return { actor: { id: session.username, role: session.role } } as const;
 }
 
-const done = (r: { ok: true; releaseId: string } | { ok: false; error: string }, verb: string): KnowledgeActionState => {
+const done = (
+  r: { ok: true; releaseId: string } | { ok: false; error: string },
+  verb: string
+): KnowledgeActionState => {
   revalidatePath('/admin/knowledge');
   return r.ok ? { ok: true, message: `${verb} ${r.releaseId}.` } : { ok: false, message: r.error };
 };
@@ -29,14 +34,23 @@ export async function publishKnowledge(_prev: KnowledgeActionState, formData: Fo
   return done(await publishRepositoryRelease(db, a.actor), 'Published and activated');
 }
 
-export async function rollbackKnowledgeAction(_prev: KnowledgeActionState, formData: FormData): Promise<KnowledgeActionState> {
+export async function rollbackKnowledgeAction(
+  _prev: KnowledgeActionState,
+  formData: FormData
+): Promise<KnowledgeActionState> {
   const a = await actor();
   if ('error' in a) return { ok: false, message: a.error };
   return done(await rollbackKnowledge(db, a.actor, String(formData.get('reason') ?? '')), 'Rolled back to');
 }
 
-export async function revokeKnowledgeAction(_prev: KnowledgeActionState, formData: FormData): Promise<KnowledgeActionState> {
+export async function revokeKnowledgeAction(
+  _prev: KnowledgeActionState,
+  formData: FormData
+): Promise<KnowledgeActionState> {
   const a = await actor();
   if ('error' in a) return { ok: false, message: a.error };
-  return done(await revokeKnowledge(db, a.actor, String(formData.get('releaseId') ?? ''), String(formData.get('reason') ?? '')), 'Revoked');
+  return done(
+    await revokeKnowledge(db, a.actor, String(formData.get('releaseId') ?? ''), String(formData.get('reason') ?? '')),
+    'Revoked'
+  );
 }

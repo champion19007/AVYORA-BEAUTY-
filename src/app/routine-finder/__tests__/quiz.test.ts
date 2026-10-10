@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { activeQuestions, budgetProblem, isAnswered, QUESTIONS, toProfile, UNLISTED_ALLERGEN, type Answers } from '../quiz';
+import {
+  activeQuestions,
+  budgetProblem,
+  isAnswered,
+  QUESTIONS,
+  toProfile,
+  UNLISTED_ALLERGEN,
+  type Answers,
+} from '../quiz';
 
 const REQUIRED: Answers = { experience: 'new', adherence: 'medium', maxDailySteps: 3, budgetRupees: 1500 };
 
@@ -50,7 +58,14 @@ describe('answers to SkinProfileV2', () => {
     });
     expect(r.ok && r.profile.ownedItems).toEqual([
       { id: 'o1', label: 'My cleanser', ingredientIds: [], coverage: 'unknown', prescribed: false, role: 'cleanse' },
-      { id: 'o3', label: 'Cream from my doctor', ingredientIds: [], coverage: 'unknown', prescribed: true, role: 'other' },
+      {
+        id: 'o3',
+        label: 'Cream from my doctor',
+        ingredientIds: [],
+        coverage: 'unknown',
+        prescribed: true,
+        role: 'other',
+      },
     ]);
   });
 });
@@ -64,7 +79,16 @@ describe('questions', () => {
 
   it('every safety question can be skipped; the required ones cannot', () => {
     const skippable = QUESTIONS.filter((q) => q.kind === 'single' && q.skippable).map((q) => q.id);
-    expect(skippable).toEqual(['skinType', 'reactivity', 'currentlyIrritated', 'ageBand', 'pregnancy', 'nursing', 'allergyHistory', 'prescribedTreatment']);
+    expect(skippable).toEqual([
+      'skinType',
+      'reactivity',
+      'currentlyIrritated',
+      'ageBand',
+      'pregnancy',
+      'nursing',
+      'allergyHistory',
+      'prescribedTreatment',
+    ]);
   });
 
   it('validates the budget as whole rupees from 0 to 10,000', () => {

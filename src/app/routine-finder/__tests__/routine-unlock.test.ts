@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { UNLOCK_KEY, isRoutineGated, isRoutineUnlocked, rememberRoutineUnlocked, routineGateEnabled } from '../routine-unlock';
+import {
+  UNLOCK_KEY,
+  isRoutineGated,
+  isRoutineUnlocked,
+  rememberRoutineUnlocked,
+  routineGateEnabled,
+} from '../routine-unlock';
 
 function fakeStorage() {
   const data = new Map<string, string>();

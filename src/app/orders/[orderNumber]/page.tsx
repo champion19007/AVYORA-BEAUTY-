@@ -43,24 +43,16 @@ export default async function OrderPage({
     return (
       <div className="container mx-auto max-w-lg px-4 py-24 text-center">
         <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h1 className="mt-6 font-headline text-2xl font-normal tracking-tight">
-          This order is private
-        </h1>
+        <h1 className="mt-6 font-headline text-2xl font-normal tracking-tight">This order is private</h1>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          Open it from the link in your confirmation email, or sign in with the account used to
-          place it.
+          Open it from the link in your confirmation email, or sign in with the account used to place it.
         </p>
         <div className="mt-8 flex justify-center gap-3">
           <Link href="/login">
-            <Button className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]">
-              Sign in
-            </Button>
+            <Button className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]">Sign in</Button>
           </Link>
           <Link href="/track-order">
-            <Button
-              variant="outline"
-              className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]"
-            >
+            <Button variant="outline" className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]">
               Track an order
             </Button>
           </Link>
@@ -75,12 +67,10 @@ export default async function OrderPage({
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <div className="text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-        <h1 className="mt-6 font-headline text-4xl font-normal tracking-tight md:text-5xl">
-          Thank you
-        </h1>
+        <h1 className="mt-6 font-headline text-4xl font-normal tracking-tight md:text-5xl">Thank you</h1>
         <p className="mt-4 text-muted-foreground">
-          Your order <span className="font-medium text-foreground">{order.orderNumber}</span> is
-          confirmed. We have sent the details to {order.email}.
+          Your order <span className="font-medium text-foreground">{order.orderNumber}</span> is confirmed. We have sent
+          the details to {order.email}.
         </p>
       </div>
 
@@ -113,9 +103,7 @@ export default async function OrderPage({
           </div>
           <div className="flex justify-between">
             <dt className="text-muted-foreground">Delivery</dt>
-            <dd className="tabular-nums">
-              {order.shipping === 0 ? 'Free' : formatPaise(order.shipping)}
-            </dd>
+            <dd className="tabular-nums">{order.shipping === 0 ? 'Free' : formatPaise(order.shipping)}</dd>
           </div>
           <div className="flex justify-between border-t border-border pt-3 text-base font-medium">
             <dt>Total</dt>
@@ -147,18 +135,12 @@ export default async function OrderPage({
       <div className="mt-10 flex flex-wrap justify-center gap-4">
         {/* Carries the access token through, so a guest keeps their access. */}
         <Link href={t ? `/orders/${orderNumber}/invoice?t=${encodeURIComponent(t)}` : `/orders/${orderNumber}/invoice`}>
-          <Button
-            variant="outline"
-            className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]"
-          >
+          <Button variant="outline" className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]">
             Tax invoice
           </Button>
         </Link>
         <Link href="/collections">
-          <Button
-            variant="outline"
-            className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]"
-          >
+          <Button variant="outline" className="rounded-md px-8 py-6 text-xs font-semibold uppercase tracking-[0.2em]">
             Continue shopping
           </Button>
         </Link>

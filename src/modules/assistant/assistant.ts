@@ -47,7 +47,15 @@ type IngredientEntry = {
   common: string;
   aliases: string[];
   class: string;
-  cautions: { status: 'reviewed'; prescriptionOnly: boolean; pregnancyCaution: boolean; photosensitising: boolean; review: { sourceIds?: string[] } } | { status: 'unreviewed' };
+  cautions:
+    | {
+        status: 'reviewed';
+        prescriptionOnly: boolean;
+        pregnancyCaution: boolean;
+        photosensitising: boolean;
+        review: { sourceIds?: string[] };
+      }
+    | { status: 'unreviewed' };
 };
 
 export type ReleaseInput = {
@@ -78,7 +86,11 @@ const SYNONYMS: [RegExp, string][] = [
   [/\bmrp\b|\bcost\b|\bcosts\b|\bpriced\b|\brs\b|₹/g, ' price '],
   [/\bparcel\b|\bshipment\b|\bdelivery\b|\bdelivered\b|\bshipped\b/g, 'order'],
 ];
-const STOP = new Set('a an the is are do does i my me for of to in on it and or with what how why when which can should this that you your be use using about tell there'.split(' '));
+const STOP = new Set(
+  'a an the is are do does i my me for of to in on it and or with what how why when which can should this that you your be use using about tell there'.split(
+    ' '
+  )
+);
 
 /** Lowercased, NFKC, bounded, synonyms applied; punctuation collapsed. */
 export function normalise(query: string): string {
@@ -87,7 +99,11 @@ export function normalise(query: string): string {
   for (const [re, to] of SYNONYMS) q = q.replace(re, to);
   return q.replace(/[.]/g, ' ').replace(/\s+/g, ' ').trim();
 }
-const tokens = (text: string) => text.split(' ').filter((t) => t && !STOP.has(t)).slice(0, MAX_TOKENS);
+const tokens = (text: string) =>
+  text
+    .split(' ')
+    .filter((t) => t && !STOP.has(t))
+    .slice(0, MAX_TOKENS);
 const has = (q: string, ...cues: string[]) => cues.some((c) => new RegExp(`\\b${c}\\b`).test(q));
 
 /* ----------------------------------------------------------- index -- */
@@ -97,7 +113,11 @@ export type KnowledgeIndex = ReturnType<typeof buildIndex>;
 export function buildIndex(release: ReleaseInput, products: readonly Product[]) {
   const a = release.artifacts as {
     catalogue: { products: { id: string }[]; usageProfiles: Record<string, ProductDirections> };
-    ingredients: { ingredients: IngredientEntry[]; aliases: Record<string, string>; ambiguousAliases: Record<string, string[]> };
+    ingredients: {
+      ingredients: IngredientEntry[];
+      aliases: Record<string, string>;
+      ambiguousAliases: Record<string, string[]>;
+    };
     explanations: { education: EducationAnswer[] };
     evidence: { sources: EvidenceSource[] };
   };
@@ -105,7 +125,9 @@ export function buildIndex(release: ReleaseInput, products: readonly Product[]) 
   const catalogue = products.filter((p) => inRelease.has(p.id));
 
   // Product name tokens weighted by rarity, so "toner" (two products) is weak and "bifida" strong.
-  const productTokens = new Map(catalogue.map((p) => [p.id, new Set(tokens(normalise(p.name)).filter((t) => !/^\d/.test(t)))]));
+  const productTokens = new Map(
+    catalogue.map((p) => [p.id, new Set(tokens(normalise(p.name)).filter((t) => !/^\d/.test(t)))])
+  );
   const df = new Map<string, number>();
   for (const set of productTokens.values()) for (const t of set) df.set(t, (df.get(t) ?? 0) + 1);
   const idf = (t: string) => Math.log((catalogue.length + 1) / (df.get(t) ?? catalogue.length + 1));
@@ -148,10 +170,14 @@ function matchProducts(index: KnowledgeIndex, q: string): string[] {
 }
 
 /** Longest ingredient name or ambiguous alias appearing in the question. */
-function matchIngredient(index: KnowledgeIndex, q: string): { id: string } | { ambiguous: string; candidates: string[] } | null {
+function matchIngredient(
+  index: KnowledgeIndex,
+  q: string
+): { id: string } | { ambiguous: string; candidates: string[] } | null {
   let found: { name: string; id?: string; candidates?: string[] } | null = null;
   const consider = (name: string, hit: { id?: string; candidates?: string[] }) => {
-    if (new RegExp(`(^| )${name.replace(/[-]/g, '\\-')}( |$)`).test(q) && (!found || name.length > found.name.length)) found = { name, ...hit };
+    if (new RegExp(`(^| )${name.replace(/[-]/g, '\\-')}( |$)`).test(q) && (!found || name.length > found.name.length))
+      found = { name, ...hit };
   };
   for (const [name, id] of index.ingredientNames) consider(name, { id });
   for (const [name, candidates] of index.ambiguous) consider(name, { candidates });
@@ -164,10 +190,13 @@ function matchEducation(index: KnowledgeIndex, q: string): EducationAnswer[] {
   const qt = new Set(tokens(q));
   const scored = index.education
     .map((e) => {
-      const best = Math.max(0, ...e.questionAliases.map((alias) => {
-        const at = tokens(normalise(alias));
-        return at.length ? at.filter((t) => qt.has(t)).length / at.length : 0;
-      }));
+      const best = Math.max(
+        0,
+        ...e.questionAliases.map((alias) => {
+          const at = tokens(normalise(alias));
+          return at.length ? at.filter((t) => qt.has(t)).length / at.length : 0;
+        })
+      );
       return { e, best };
     })
     .filter((x) => x.best >= 0.6)
@@ -202,12 +231,46 @@ const CLASS_LABEL: Record<string, string> = {
 export function answer(index: KnowledgeIndex, query: string, routine: RoutineContext | null = null): Answer {
   const base = { release: index.release, sources: [] as Source[], personalized: false };
   const q = normalise(query);
-  const releaseSource: Source = { id: index.release.id, title: `Avyora knowledge release ${index.release.id}${index.release.published ? '' : ' (preview, not yet published)'}`, url: null };
+  const releaseSource: Source = {
+    id: index.release.id,
+    title: `Avyora knowledge release ${index.release.id}${index.release.published ? '' : ' (preview, not yet published)'}`,
+    url: null,
+  };
 
-  if (!q) return { ...base, kind: 'clarify', topic: 'help', text: ['What would you like to know? You can ask about an ingredient, how to use a product, your routine, prices or an order.'], options: SUPPORTED };
+  if (!q)
+    return {
+      ...base,
+      kind: 'clarify',
+      topic: 'help',
+      text: [
+        'What would you like to know? You can ask about an ingredient, how to use a product, your routine, prices or an order.',
+      ],
+      options: SUPPORTED,
+    };
 
   // Diagnoses and medical treatment are out of scope, whatever else is asked.
-  if (has(q, 'diagnose', 'diagnosis', 'do i have', 'rosacea', 'eczema', 'psoriasis', 'dermatitis', 'infection', 'infected', 'cure', 'prescribe', 'prescription', 'dosage', 'medicine', 'medication', 'antibiotic', 'steroid')) {
+  if (
+    has(
+      q,
+      'diagnose',
+      'diagnosis',
+      'do i have',
+      'rosacea',
+      'eczema',
+      'psoriasis',
+      'dermatitis',
+      'infection',
+      'infected',
+      'cure',
+      'prescribe',
+      'prescription',
+      'dosage',
+      'medicine',
+      'medication',
+      'antibiotic',
+      'steroid'
+    )
+  ) {
     return {
       ...base,
       kind: 'unsupported',
@@ -226,7 +289,9 @@ export function answer(index: KnowledgeIndex, query: string, routine: RoutineCon
       kind: 'action',
       topic: 'order',
       action: { type: 'order' },
-      text: ['To check an order, enter its order number and the email you ordered with. Signed in? Your orders are also in your account.'],
+      text: [
+        'To check an order, enter its order number and the email you ordered with. Signed in? Your orders are also in your account.',
+      ],
     };
   }
 
@@ -240,7 +305,13 @@ export function answer(index: KnowledgeIndex, query: string, routine: RoutineCon
   const wantsWhat = has(q, 'what', 'explain', 'tell', 'about', 'means', 'mean');
   // A clarification option restates the intent with the product's name; it never echoes the question.
   const followUp = (name: string) =>
-    wantsPrice ? `How much is ${name}?` : wantsDirections ? `How do I use ${name}?` : wantsWhy || wantsWhyNot ? `Why is ${name} in my routine?` : name;
+    wantsPrice
+      ? `How much is ${name}?`
+      : wantsDirections
+        ? `How do I use ${name}?`
+        : wantsWhy || wantsWhyNot
+          ? `Why is ${name} in my routine?`
+          : name;
 
   if (ingredient && 'ambiguous' in ingredient && (!products.length || wantsWhat)) {
     const named = ingredient.candidates.filter((c) => index.ingredients.has(c));
@@ -249,7 +320,10 @@ export function answer(index: KnowledgeIndex, query: string, routine: RoutineCon
       kind: 'clarify',
       topic: 'ingredient',
       text: [`"${ingredient.ambiguous}" can mean more than one ingredient. Which one do you mean?`],
-      options: named.map((id) => ({ label: index.ingredients.get(id)!.common, query: `What is ${index.ingredients.get(id)!.common}?` })),
+      options: named.map((id) => ({
+        label: index.ingredients.get(id)!.common,
+        query: `What is ${index.ingredients.get(id)!.common}?`,
+      })),
       sources: [releaseSource],
     };
   }
@@ -265,7 +339,9 @@ export function answer(index: KnowledgeIndex, query: string, routine: RoutineCon
       kind: 'clarify',
       topic: 'help',
       text: ['Which product do you mean?'],
-      options: products.slice(0, 6).map((id) => ({ label: index.products.get(id)!.name, query: followUp(index.products.get(id)!.name) })),
+      options: products
+        .slice(0, 6)
+        .map((id) => ({ label: index.products.get(id)!.name, query: followUp(index.products.get(id)!.name) })),
     };
   }
   const productId = products[0];
@@ -273,18 +349,40 @@ export function answer(index: KnowledgeIndex, query: string, routine: RoutineCon
   if ((wantsWhy || wantsWhyNot || (wantsSchedule && !productId && !ingredient)) && !wantsPrice) {
     return personal(index, routine, productId, q, wantsWhyNot);
   }
-  if (productId && wantsPrice) return { ...base, kind: 'action', topic: 'price', action: { type: 'price', productId }, text: [`Checking the current price and stock of ${index.products.get(productId)!.name}…`] };
+  if (productId && wantsPrice)
+    return {
+      ...base,
+      kind: 'action',
+      topic: 'price',
+      action: { type: 'price', productId },
+      text: [`Checking the current price and stock of ${index.products.get(productId)!.name}…`],
+    };
   if (productId && wantsDirections) return directions(index, productId, releaseSource);
-  if (ingredient && 'id' in ingredient && (wantsWhat || !productId)) return ingredientAnswer(index, ingredient.id, releaseSource);
+  if (ingredient && 'id' in ingredient && (wantsWhat || !productId))
+    return ingredientAnswer(index, ingredient.id, releaseSource);
 
   const edu = matchEducation(index, q);
   if (edu.length > 1) {
-    return { ...base, kind: 'clarify', topic: 'education', text: ['Did you mean one of these?'], options: edu.slice(0, 4).map((e) => ({ label: e.questionAliases[0], query: e.questionAliases[0] })) };
+    return {
+      ...base,
+      kind: 'clarify',
+      topic: 'education',
+      text: ['Did you mean one of these?'],
+      options: edu.slice(0, 4).map((e) => ({ label: e.questionAliases[0], query: e.questionAliases[0] })),
+    };
   }
   if (edu.length === 1) {
-    const sources = (edu[0].review.status === 'approved' ? edu[0].review.sourceIds : []).map((id) => index.evidence.get(id));
+    const sources = (edu[0].review.status === 'approved' ? edu[0].review.sourceIds : []).map((id) =>
+      index.evidence.get(id)
+    );
     if (sources.some((s) => !s)) return missingSources(index, 'education');
-    return { ...base, kind: 'answer', topic: 'education', text: [edu[0].answer], sources: sources.map((s) => ({ id: s!.id, title: s!.title, url: s!.url })) };
+    return {
+      ...base,
+      kind: 'answer',
+      topic: 'education',
+      text: [edu[0].answer],
+      sources: sources.map((s) => ({ id: s!.id, title: s!.title, url: s!.url })),
+    };
   }
 
   if (productId) {
@@ -329,7 +427,9 @@ function ingredientAnswer(index: KnowledgeIndex, id: string, releaseSource: Sour
       if (s) sources.push({ id: s.id, title: s.title, url: s.url });
     }
   } else {
-    text.push('Its cautions have not been reviewed yet, so we do not state any here. This is not a statement that it has none.');
+    text.push(
+      'Its cautions have not been reviewed yet, so we do not state any here. This is not a statement that it has none.'
+    );
   }
   text.push('This is general information about the ingredient, not a recommendation for you.');
   return { kind: 'answer', topic: 'ingredient', personalized: false, text, sources, release: index.release };
@@ -345,7 +445,9 @@ function directions(index: KnowledgeIndex, productId: string, releaseSource: Sou
       personalized: false,
       release: index.release,
       sources: [releaseSource],
-      text: [`Our reviewed directions for ${name} are not published yet, so we will not give our own. Please follow the directions on the pack.`],
+      text: [
+        `Our reviewed directions for ${name} are not published yet, so we will not give our own. Please follow the directions on the pack.`,
+      ],
       options: SUPPORTED,
     };
   }
@@ -356,7 +458,11 @@ function directions(index: KnowledgeIndex, productId: string, releaseSource: Sou
     topic: 'directions',
     personalized: false,
     release: index.release,
-    text: [`${name}: ${d.frequency}.`, d.text, `Session: ${d.session === 'am' ? 'morning' : d.session === 'pm' ? 'evening' : 'morning or evening'}.`],
+    text: [
+      `${name}: ${d.frequency}.`,
+      d.text,
+      `Session: ${d.session === 'am' ? 'morning' : d.session === 'pm' ? 'evening' : 'morning or evening'}.`,
+    ],
     sources: [releaseSource, ...sources.map((s) => ({ id: s!.id, title: s!.title, url: s!.url }))],
   };
 }
@@ -368,28 +474,51 @@ function missingSources(index: KnowledgeIndex, topic: Topic): Answer {
     personalized: false,
     release: index.release,
     sources: [],
-    text: ['We have an entry for this, but its sources are missing from the current knowledge release, so we will not show it.'],
+    text: [
+      'We have an entry for this, but its sources are missing from the current knowledge release, so we will not show it.',
+    ],
     options: SUPPORTED,
   };
 }
 
 /** Answers grounded only in the customer's routine snapshot (its decision trace). */
-function personal(index: KnowledgeIndex, ctx: RoutineContext | null, productId: string | undefined, q: string, whyNot: boolean): Answer {
-  const base = { kind: 'answer' as const, topic: 'routine' as const, personalized: true, release: index.release, sources: [] as Source[] };
+function personal(
+  index: KnowledgeIndex,
+  ctx: RoutineContext | null,
+  productId: string | undefined,
+  q: string,
+  whyNot: boolean
+): Answer {
+  const base = {
+    kind: 'answer' as const,
+    topic: 'routine' as const,
+    personalized: true,
+    release: index.release,
+    sources: [] as Source[],
+  };
   if (!ctx?.result) {
     return {
       ...base,
       kind: 'unsupported',
       personalized: false,
-      text: [ctx?.validity === 'revoked' ? 'Your saved routine was built on guidance that has since been withdrawn, so we cannot explain it. Recalculate it first.' : 'Build a routine first, then ask about it here.'],
+      text: [
+        ctx?.validity === 'revoked'
+          ? 'Your saved routine was built on guidance that has since been withdrawn, so we cannot explain it. Recalculate it first.'
+          : 'Build a routine first, then ask about it here.',
+      ],
       options: [{ label: 'Open the routine finder', query: 'routine finder' }],
     };
   }
   const r = ctx.result;
   const notes: string[] = [];
-  if (ctx.validity === 'outdated') notes.push('Note: our guidance has been updated since this routine was saved; recalculate for a current answer.');
+  if (ctx.validity === 'outdated')
+    notes.push('Note: our guidance has been updated since this routine was saved; recalculate for a current answer.');
   if (r.kbRelease !== index.release.id) notes.push(`This routine was built on knowledge release ${r.kbRelease}.`);
-  const routineSource: Source = { id: `routine:${r.kbRelease}`, title: `Your routine's decision record (engine ${r.engineVersion}, release ${r.kbRelease})`, url: null };
+  const routineSource: Source = {
+    id: `routine:${r.kbRelease}`,
+    title: `Your routine's decision record (engine ${r.engineVersion}, release ${r.kbRelease})`,
+    url: null,
+  };
 
   if (!productId) {
     const day = DAYS.findIndex((d) => q.includes(d));
@@ -397,7 +526,9 @@ function personal(index: KnowledgeIndex, ctx: RoutineContext | null, productId: 
     if (day >= 0 || session) {
       const days = day >= 0 ? [r.days[day]] : r.days.slice(0, 1);
       const text = days.flatMap((d) =>
-        (session ? [session] : (['am', 'pm'] as const)).map((s: 'am' | 'pm') => `${DAYS[d.day - 1][0].toUpperCase()}${DAYS[d.day - 1].slice(1)} ${s === 'am' ? 'morning' : 'evening'}: ${d[s].map((x) => `${x.position}. ${x.label}`).join(', ') || 'nothing scheduled'}.`
+        (session ? [session] : (['am', 'pm'] as const)).map(
+          (s: 'am' | 'pm') =>
+            `${DAYS[d.day - 1][0].toUpperCase()}${DAYS[d.day - 1].slice(1)} ${s === 'am' ? 'morning' : 'evening'}: ${d[s].map((x) => `${x.position}. ${x.label}`).join(', ') || 'nothing scheduled'}.`
         )
       );
       return { ...base, text: [...text, ...notes], sources: [routineSource] };
@@ -410,15 +541,31 @@ function personal(index: KnowledgeIndex, ctx: RoutineContext | null, productId: 
   const excluded = r.exclusions.find((e) => e.productId === productId);
   const when = r.schedule.filter((line) => line.startsWith(name));
   if (included && !whyNot) {
-    return { ...base, text: [`${name} is in your routine.`, ...included.reasons, ...when, ...notes], sources: [routineSource] };
+    return {
+      ...base,
+      text: [`${name} is in your routine.`, ...included.reasons, ...when, ...notes],
+      sources: [routineSource],
+    };
   }
   if (excluded) {
-    return { ...base, text: [`${name} was left out of your routine:`, ...excluded.messages, ...notes], sources: [routineSource] };
+    return {
+      ...base,
+      text: [`${name} was left out of your routine:`, ...excluded.messages, ...notes],
+      sources: [routineSource],
+    };
   }
-  if (included) return { ...base, text: [`${name} is in your routine, not left out.`, ...included.reasons, ...when, ...notes], sources: [routineSource] };
+  if (included)
+    return {
+      ...base,
+      text: [`${name} is in your routine, not left out.`, ...included.reasons, ...when, ...notes],
+      sources: [routineSource],
+    };
   return {
     ...base,
-    text: [`${name} is not in your routine. It was not needed for any step, or another product ranked higher for your answers and budget.`, ...notes],
+    text: [
+      `${name} is not in your routine. It was not needed for any step, or another product ranked higher for your answers and budget.`,
+      ...notes,
+    ],
     sources: [routineSource],
   };
 }

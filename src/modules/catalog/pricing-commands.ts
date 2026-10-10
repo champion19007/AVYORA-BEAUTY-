@@ -44,10 +44,7 @@ export const setPrice = defineCommand({
   authorize: (actor) => actor.role === 'owner',
 
   async run(input, actor, tx) {
-    const sku = and(
-      eq(productPricing.productId, input.productId),
-      eq(productPricing.size, input.size)
-    );
+    const sku = and(eq(productPricing.productId, input.productId), eq(productPricing.size, input.size));
 
     const [current] = await tx.select().from(productPricing).where(sku).for('update').limit(1);
 

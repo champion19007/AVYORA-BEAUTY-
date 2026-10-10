@@ -11,28 +11,60 @@ const { revalidateContent, revalidateProduct } = await import('../storefront-cac
 
 describe('private cache isolation', () => {
   it.each([
-    '/account', '/account/orders', '/checkout', '/orders/AVY-ABC123', '/orders/AVY-ABC123/invoice',
-    '/login', '/signup', '/track-order', '/admin', '/admin/pricing', '/admin-login', '/manager/stock',
-    '/api/cart', '/api/wishlist', '/api/account/deliver-to', '/api/auth/session', '/api/payments/razorpay/create',
+    '/account',
+    '/account/orders',
+    '/checkout',
+    '/orders/AVY-ABC123',
+    '/orders/AVY-ABC123/invoice',
+    '/login',
+    '/signup',
+    '/track-order',
+    '/admin',
+    '/admin/pricing',
+    '/admin-login',
+    '/manager/stock',
+    '/api/cart',
+    '/api/wishlist',
+    '/api/account/deliver-to',
+    '/api/auth/session',
+    '/api/payments/razorpay/create',
   ])('%s is never stored by a shared cache', (path) => {
     expect(isPrivatePath(path)).toBe(true);
   });
 
-  it.each(['/', '/collections', '/products/retinol', '/journal', '/journal/some-article', '/privacy', '/routine-finder', '/api/catalog/availability', '/accounting'])(
-    '%s stays cacheable',
-    (path) => {
-      expect(isPrivatePath(path)).toBe(false);
-    }
-  );
+  it.each([
+    '/',
+    '/collections',
+    '/products/retinol',
+    '/journal',
+    '/journal/some-article',
+    '/privacy',
+    '/routine-finder',
+    '/api/catalog/availability',
+    '/accounting',
+  ])('%s stays cacheable', (path) => {
+    expect(isPrivatePath(path)).toBe(false);
+  });
 
   // Re-audit A20: private, token and internal pages are never indexed; public pages are.
-  it.each(['/account', '/orders/AVY-ABC123', '/orders/AVY-ABC123/invoice', '/track-order', '/checkout', '/newsletter', '/scan', '/wishlist', '/design-system', '/admin'])(
-    '%s is noindex',
-    (path) => expect(isNoIndexPath(path)).toBe(true)
+  it.each([
+    '/account',
+    '/orders/AVY-ABC123',
+    '/orders/AVY-ABC123/invoice',
+    '/track-order',
+    '/checkout',
+    '/newsletter',
+    '/scan',
+    '/wishlist',
+    '/design-system',
+    '/admin',
+  ])('%s is noindex', (path) => expect(isNoIndexPath(path)).toBe(true));
+  it.each(['/', '/collections', '/products/retinol', '/journal/some-article', '/routine-finder', '/privacy'])(
+    '%s may be indexed',
+    (path) => {
+      expect(isNoIndexPath(path)).toBe(false);
+    }
   );
-  it.each(['/', '/collections', '/products/retinol', '/journal/some-article', '/routine-finder', '/privacy'])('%s may be indexed', (path) => {
-    expect(isNoIndexPath(path)).toBe(false);
-  });
 
   it('uses a header no shared cache may store', () => {
     expect(PRIVATE_CACHE_CONTROL).toMatch(/private/);
@@ -60,7 +92,8 @@ describe('publication invalidates the public pages that show it', () => {
 });
 
 describe('vision libraries load only on entering a scan', () => {
-  const VISION = /['"](@tensorflow\/[^'"]+|@mediapipe\/[^'"]+|onnxruntime-web|@huggingface\/transformers|face-api\.js|opencv\.js)['"]/;
+  const VISION =
+    /['"](@tensorflow\/[^'"]+|@mediapipe\/[^'"]+|onnxruntime-web|@huggingface\/transformers|face-api\.js|opencv\.js)['"]/;
 
   const files = (dir: string): string[] =>
     readdirSync(dir).flatMap((n) => {

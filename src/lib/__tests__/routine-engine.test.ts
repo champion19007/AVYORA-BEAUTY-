@@ -44,10 +44,16 @@ const SYNTHETIC: Record<string, ProductDirections> = Object.fromEntries(
  * concentration known. Fixture data only; it describes no real product.
  */
 const TEST_ACTIVE: Record<string, string> = {
-  retinoid: 'Retinal', vitamin_c: 'Ascorbic Acid', exfoliant: 'Glycolic Acid', niacinamide: 'Niacinamide',
+  retinoid: 'Retinal',
+  vitamin_c: 'Ascorbic Acid',
+  exfoliant: 'Glycolic Acid',
+  niacinamide: 'Niacinamide',
 };
 const ACTIVE_ID: Record<string, string> = {
-  Retinal: 'retinal', 'Ascorbic Acid': 'ascorbic-acid', 'Glycolic Acid': 'glycolic-acid', Niacinamide: 'niacinamide',
+  Retinal: 'retinal',
+  'Ascorbic Acid': 'ascorbic-acid',
+  'Glycolic Acid': 'glycolic-acid',
+  Niacinamide: 'niacinamide',
 };
 const syntheticFormulation = (productId: string, active: string, over: Partial<Formulation> = {}): Formulation => ({
   productId,
@@ -57,7 +63,12 @@ const syntheticFormulation = (productId: string, active: string, over: Partial<F
   ingredients: [
     { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
     { position: 2, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
-    { position: 3, inciLabel: active, ingredientId: ACTIVE_ID[active], concentration: { known: true, value: 1, unit: 'percent_w_w' } },
+    {
+      position: 3,
+      inciLabel: active,
+      ingredientId: ACTIVE_ID[active],
+      concentration: { known: true, value: 1, unit: 'percent_w_w' },
+    },
   ],
   sourceId: 'test-evidence',
   reviewedBy: 'test fixture',
@@ -68,7 +79,14 @@ const SYNTHETIC_FORMULATIONS: Formulation[] = Object.entries(TREATMENTS)
   .filter(([, t]) => TEST_ACTIVE[t.class])
   .map(([id, t]) => syntheticFormulation(id, TEST_ACTIVE[t.class]));
 const SYNTHETIC_EVIDENCE: EvidenceSource[] = [
-  { id: 'test-evidence', title: 'Test fixture', url: null, sourceType: 'label', retrievedAt: '2026-01-01', limitations: 'Not real' },
+  {
+    id: 'test-evidence',
+    title: 'Test fixture',
+    url: null,
+    sourceType: 'label',
+    retrievedAt: '2026-01-01',
+    limitations: 'Not real',
+  },
 ];
 const approved = (answers: object, formulations: Formulation[] = SYNTHETIC_FORMULATIONS) =>
   getRecommendation(answers, { directions: SYNTHETIC, formulations, evidence: SYNTHETIC_EVIDENCE });
@@ -108,7 +126,15 @@ function matrix(overrides: object = {}) {
     for (const experience of ['none', 'beginner', 'basic', 'regular', 'experienced'])
       for (const reactivity of ['rarely', 'sometimes', 'easily', 'very_high'])
         for (const concern of CONCERNS)
-          out.push({ ...base, skinType, experience, reactivity, concern, secondaryConcerns: ['Texture', 'Dark Spots'], ...overrides });
+          out.push({
+            ...base,
+            skinType,
+            experience,
+            reactivity,
+            concern,
+            secondaryConcerns: ['Texture', 'Dark Spots'],
+            ...overrides,
+          });
   return out;
 }
 
@@ -140,7 +166,9 @@ describe('irritated skin', () => {
 
   it('uses a cleanser without an exfoliating acid in its highlights', () => {
     const r = approved({ ...base, currentCondition: 'irritated' });
-    const cleansers = core(r).filter((s) => s.category === 'cleanse').map((s) => s.productId);
+    const cleansers = core(r)
+      .filter((s) => s.category === 'cleanse')
+      .map((s) => s.productId);
     expect(cleansers.every((id) => id === 'centella-cleansing-balm')).toBe(true);
   });
 });
@@ -303,23 +331,39 @@ describe('formulation coverage', () => {
   it.each<[string, Formulation | null]>([
     ['no formulation at all', null],
     ['partial coverage', syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', { coverage: 'partial' })],
-    ['unknown coverage', syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', { coverage: 'unknown', ingredients: [], fullInci: null })],
-    ['the active concentration unknown', syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', {
-      ingredients: [
-        { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
-        { position: 2, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
-        { position: 3, inciLabel: 'Ascorbic Acid', ingredientId: 'ascorbic-acid', concentration: { known: false } },
-      ],
-    })],
-    ['the active not identified', syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', {
-      ingredients: [
-        { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
-        { position: 2, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
-        { position: 3, inciLabel: 'Ascorbic Acid', ingredientId: null, concentration: { known: false } },
-      ],
-    })],
+    [
+      'unknown coverage',
+      syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', {
+        coverage: 'unknown',
+        ingredients: [],
+        fullInci: null,
+      }),
+    ],
+    [
+      'the active concentration unknown',
+      syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', {
+        ingredients: [
+          { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
+          { position: 2, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
+          { position: 3, inciLabel: 'Ascorbic Acid', ingredientId: 'ascorbic-acid', concentration: { known: false } },
+        ],
+      }),
+    ],
+    [
+      'the active not identified',
+      syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', {
+        ingredients: [
+          { position: 1, inciLabel: 'Aqua', ingredientId: 'water', concentration: { known: false } },
+          { position: 2, inciLabel: 'Glycerin', ingredientId: 'glycerin', concentration: { known: false } },
+          { position: 3, inciLabel: 'Ascorbic Acid', ingredientId: null, concentration: { known: false } },
+        ],
+      }),
+    ],
     ['an ambiguous label ("Vitamin C") in the INCI', syntheticFormulation('vitamin-c-serum', 'Vitamin C')],
-    ['a different version than the directions were approved for', syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', { version: 2 })],
+    [
+      'a different version than the directions were approved for',
+      syntheticFormulation('vitamin-c-serum', 'Ascorbic Acid', { version: 2 }),
+    ],
   ])('keeps the treatment out with %s, and says why', (_, f) => {
     const r = withVitC(f);
     expect(has(r, 'vitamin-c-serum')).toBe(false);

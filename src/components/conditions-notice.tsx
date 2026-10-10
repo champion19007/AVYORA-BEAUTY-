@@ -38,9 +38,7 @@ export async function ConditionsNotice({ postalCode }: { postalCode: string | nu
             <NoteIcon note={note} />
             <div>
               <p className="text-[14px] font-medium leading-snug">{note.title}</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                {note.detail}
-              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{note.detail}</p>
             </div>
           </li>
         ))}
@@ -52,8 +50,7 @@ export async function ConditionsNotice({ postalCode }: { postalCode: string | nu
           region, so they describe the weather where the order is going, not the
           air the customer is actually sitting in.
         */}
-        Based on outdoor conditions across{' '}
-        {conditions?.region.label ?? 'your region'}
+        Based on outdoor conditions across {conditions?.region.label ?? 'your region'}
         {conditions?.stale ? ', last updated over an hour ago' : ''}. Indoors will differ.
       </p>
     </section>

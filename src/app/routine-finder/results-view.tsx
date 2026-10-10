@@ -14,7 +14,9 @@ import { formatPaise } from '@/lib/money';
 import { PRIORITY_LABELS } from './quiz';
 import dynamic from 'next/dynamic';
 
-const AssistantPanel = dynamic(() => import('@/components/assistant/assistant-panel').then((m) => m.AssistantPanel), { ssr: false });
+const AssistantPanel = dynamic(() => import('@/components/assistant/assistant-panel').then((m) => m.AssistantPanel), {
+  ssr: false,
+});
 import type { RoutineSession, SessionState } from './routine-session';
 import { NewsletterForm } from '@/components/nv/shell/newsletter-form';
 import { isRoutineGated, isRoutineUnlocked, rememberRoutineUnlocked } from './routine-unlock';
@@ -32,14 +34,27 @@ function useRoutineUnlock() {
 function UnlockOverlay({ onUnlock }: { onUnlock: () => void }) {
   return (
     <div className="absolute inset-0 z-20 flex items-start justify-center px-4 pt-16 sm:pt-24">
-      <div role="dialog" aria-modal="false" aria-labelledby="unlock-heading" className="w-full max-w-[560px] rounded-[18px] bg-nv-ink p-8 text-white shadow-2xl sm:p-10">
+      <div
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="unlock-heading"
+        className="w-full max-w-[560px] rounded-[18px] bg-nv-ink p-8 text-white shadow-2xl sm:p-10"
+      >
         <p className="text-xs uppercase tracking-[0.2em] text-white/60">Private beta</p>
         <h2 id="unlock-heading" className="mt-3 font-headline text-3xl font-normal leading-tight">
           Your custom 7-day routine is ready.
         </h2>
-        <p className="mt-3 text-white/75">Enter your email to unlock your map and claim 20% off our private beta launch.</p>
+        <p className="mt-3 text-white/75">
+          Enter your email to unlock your map and claim 20% off our private beta launch.
+        </p>
         <div className="mt-8">
-          <NewsletterForm heading={null} large buttonLabel="Unlock my routine" placeholder="Enter your email address" onSubscribed={onUnlock} />
+          <NewsletterForm
+            heading={null}
+            large
+            buttonLabel="Unlock my routine"
+            placeholder="Enter your email address"
+            onSubscribed={onUnlock}
+          />
         </div>
       </div>
     </div>
@@ -49,7 +64,13 @@ function UnlockOverlay({ onUnlock }: { onUnlock: () => void }) {
 const PRODUCT = new Map(PRODUCTS.map((p) => [p.id, p]));
 const SKU = new Map(catalogRecords(PRODUCTS).variants.map((v) => [v.id, v]));
 const DAY = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const ROLE: Record<string, string> = { cleanse: 'Cleanse', moisturise: 'Moisturise', protect: 'Protect', treatment: 'Treatment', optional: 'Optional' };
+const ROLE: Record<string, string> = {
+  cleanse: 'Cleanse',
+  moisturise: 'Moisturise',
+  protect: 'Protect',
+  treatment: 'Treatment',
+  optional: 'Optional',
+};
 const UNKNOWN_ANSWER: Record<string, string> = {
   pregnancy: 'pregnancy',
   nursing: 'breastfeeding',
@@ -82,7 +103,9 @@ function useNow(intervalMs: number) {
 function linesOf(result: RoutineSnapshot, quote: SessionState['quote']) {
   const current = new Map((quote ?? []).map((q) => [q.skuId, q]));
   const seen = new Map<string, Slot>();
-  for (const d of result.days) for (const s of [...d.am, ...d.pm]) seen.set(s.productId ?? s.ownedItemId!, seen.get(s.productId ?? s.ownedItemId!) ?? s);
+  for (const d of result.days)
+    for (const s of [...d.am, ...d.pm])
+      seen.set(s.productId ?? s.ownedItemId!, seen.get(s.productId ?? s.ownedItemId!) ?? s);
   const price = new Map(result.purchaseList.map((p) => [p.productId, p]));
   const why = new Map(result.inclusions.map((i) => [i.id, i.reasons]));
   const lines: Line[] = [...seen].map(([key, slot]) => ({
@@ -90,7 +113,9 @@ function linesOf(result: RoutineSnapshot, quote: SessionState['quote']) {
     slot,
     skuId: price.get(key)?.skuId ?? slot.skuId,
     // A saved routine shows today's price, not the one it was saved with.
-    pricePaise: quote ? (current.get(price.get(key)?.skuId ?? '')?.currentPaise ?? undefined) : price.get(key)?.pricePaise,
+    pricePaise: quote
+      ? (current.get(price.get(key)?.skuId ?? '')?.currentPaise ?? undefined)
+      : price.get(key)?.pricePaise,
     unavailable: quote ? current.get(price.get(key)?.skuId ?? '')?.available === false : false,
     reasons: why.get(key) ?? [],
   }));
@@ -101,7 +126,17 @@ function linesOf(result: RoutineSnapshot, quote: SessionState['quote']) {
   };
 }
 
-export function ResultsView({ state, session, onEdit, onRestart }: { state: SessionState; session: RoutineSession; onEdit: () => void; onRestart: () => void }) {
+export function ResultsView({
+  state,
+  session,
+  onEdit,
+  onRestart,
+}: {
+  state: SessionState;
+  session: RoutineSession;
+  onEdit: () => void;
+  onRestart: () => void;
+}) {
   const now = useNow(5_000);
   const { result, profile } = state;
   const busy = state.phase === 'computing';
@@ -151,10 +186,18 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Your routine</p>
           <h1 className="mt-3 font-headline text-5xl font-normal leading-tight tracking-tight">
-            {invalid ? 'We cannot offer this routine' : noMatch ? 'Nothing fits yet' : result.status === 'partial' ? 'A partial routine' : 'Your weekly routine'}
+            {invalid
+              ? 'We cannot offer this routine'
+              : noMatch
+                ? 'Nothing fits yet'
+                : result.status === 'partial'
+                  ? 'A partial routine'
+                  : 'Your weekly routine'}
           </h1>
           {profile && profile.priorities.length > 0 && (
-            <p className="mt-3 text-muted-foreground">For {profile.priorities.map((p) => PRIORITY_LABELS[p].toLowerCase()).join(', ')}</p>
+            <p className="mt-3 text-muted-foreground">
+              For {profile.priorities.map((p) => PRIORITY_LABELS[p].toLowerCase()).join(', ')}
+            </p>
           )}
         </div>
         <SaveBadge state={state} />
@@ -171,82 +214,183 @@ export function ResultsView({ state, session, onEdit, onRestart }: { state: Sess
           <Notice>This is a preview for this visit only. Saving opens once our routine guidance is published.</Notice>
         )}
         {state.saved?.validity === 'outdated' && (
-          <Notice tone="warn" action={<Button size="sm" variant="outline" className="rounded-full" onClick={() => session.compute(state.saved!.profile, state.excluded)}>Recalculate</Button>}>
-            Our guidance has been updated since you saved this routine. It is shown as saved; recalculate for a current routine.
+          <Notice
+            tone="warn"
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => session.compute(state.saved!.profile, state.excluded)}
+              >
+                Recalculate
+              </Button>
+            }
+          >
+            Our guidance has been updated since you saved this routine. It is shown as saved; recalculate for a current
+            routine.
           </Notice>
         )}
-        {state.saved && <Notice>Saved routine, kept until {new Date(state.saved.expiresAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}.</Notice>}
+        {state.saved && (
+          <Notice>
+            Saved routine, kept until{' '}
+            {new Date(state.saved.expiresAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}.
+          </Notice>
+        )}
         {pricesStale && !busy && (
-          <Notice tone="warn" action={<Button size="sm" variant="outline" className="gap-2 rounded-full" onClick={() => session.refresh()}><RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />Refresh prices</Button>}>
+          <Notice
+            tone="warn"
+            action={
+              <Button size="sm" variant="outline" className="gap-2 rounded-full" onClick={() => session.refresh()}>
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                Refresh prices
+              </Button>
+            }
+          >
             Prices may have changed since this routine was calculated.
           </Notice>
         )}
-        {state.pricesChangedOnSave && <Notice tone="warn">Prices changed while saving; the totals below are the current ones.</Notice>}
-        {state.quote && <QuoteChanges quote={state.quote} onRecalculate={() => state.saved && session.compute(state.saved.profile, state.excluded)} />}
+        {state.pricesChangedOnSave && (
+          <Notice tone="warn">Prices changed while saving; the totals below are the current ones.</Notice>
+        )}
+        {state.quote && (
+          <QuoteChanges
+            quote={state.quote}
+            onRecalculate={() => state.saved && session.compute(state.saved.profile, state.excluded)}
+          />
+        )}
         {state.scanId && state.save.status !== 'saved' && (
-          <Notice action={<Button size="sm" variant="ghost" className="rounded-full" onClick={() => session.useScan(null)}>Leave it out</Button>}>
-            Your photo check is attached. This preview uses your answers only; its findings are added when you save, and they cannot override safety answers.
+          <Notice
+            action={
+              <Button size="sm" variant="ghost" className="rounded-full" onClick={() => session.useScan(null)}>
+                Leave it out
+              </Button>
+            }
+          >
+            Your photo check is attached. This preview uses your answers only; its findings are added when you save, and
+            they cannot override safety answers.
           </Notice>
         )}
       </div>
 
       <div className="relative">
-      {gated && <UnlockOverlay onUnlock={unlock} />}
-      <div
-        className={cn('mt-10 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_22rem]', busy && 'opacity-60', gated && 'pointer-events-none select-none blur-md')}
-        aria-busy={busy}
-        aria-hidden={gated || undefined}
-        inert={gated || undefined}
-      >
-        <div className="min-w-0 space-y-14">
-          {invalid ? (
-            <InvalidPlan result={result} onEdit={onEdit} />
-          ) : noMatch ? (
-            <NoMatch result={result} onEdit={onEdit} />
-          ) : (
-            <>
-              <WeekTable result={result} />
-              <ProductGroup title="Essentials" lines={essential} result={result} stock={state.stock} session={session} disabled={busy || saving} />
-              {owned.length > 0 && <ProductGroup title="Already yours" lines={owned} result={result} session={session} stock={state.stock} disabled />}
-              {optional.length > 0 && (
-                <ProductGroup title="Optional additions" note="Not needed for the routine to work." lines={optional} result={result} stock={state.stock} session={session} disabled={busy || saving} />
-              )}
-            </>
+        {gated && <UnlockOverlay onUnlock={unlock} />}
+        <div
+          className={cn(
+            'mt-10 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_22rem]',
+            busy && 'opacity-60',
+            gated && 'pointer-events-none select-none blur-md'
           )}
-          <OwnedNotScheduled result={result} />
-          <NotIncluded result={result} />
-          <AnswersThatMattered result={result} />
-          <Uncertainty result={result} />
-          <AssistantPanel routine={{ result, validity: state.saved?.validity ?? (state.save.status === 'saved' ? 'current' : 'session') }} />
-        </div>
-
-        <aside className="space-y-6">
-          {actionable && <Totals result={result} essential={essential} optional={optional} stock={state.stock} />}
-          <BudgetForm key={result.budgetPaise} budgetPaise={result.budgetPaise} disabled={busy || saving} onSubmit={(p) => session.setBudget(p)} />
-          {state.excluded.length > 0 && (
-            <Button variant="outline" className="w-full gap-2 rounded-full" disabled={busy || saving} onClick={() => session.undoSwaps()}>
-              <RotateCcw className="h-4 w-4" aria-hidden="true" /> Undo swaps ({state.excluded.length})
-            </Button>
-          )}
-          {actionable && <SavePanel state={state} session={session} stale={pricesStale} />}
-          <div className="flex flex-col gap-2">
-            <Button variant="ghost" className="rounded-full" onClick={onEdit}>
-              Edit answers
-            </Button>
-            <Button variant="ghost" className="rounded-full" onClick={onRestart}>
-              Start over
-            </Button>
+          aria-busy={busy}
+          aria-hidden={gated || undefined}
+          inert={gated || undefined}
+        >
+          <div className="min-w-0 space-y-14">
+            {invalid ? (
+              <InvalidPlan result={result} onEdit={onEdit} />
+            ) : noMatch ? (
+              <NoMatch result={result} onEdit={onEdit} />
+            ) : (
+              <>
+                <WeekTable result={result} />
+                <ProductGroup
+                  title="Essentials"
+                  lines={essential}
+                  result={result}
+                  stock={state.stock}
+                  session={session}
+                  disabled={busy || saving}
+                />
+                {owned.length > 0 && (
+                  <ProductGroup
+                    title="Already yours"
+                    lines={owned}
+                    result={result}
+                    session={session}
+                    stock={state.stock}
+                    disabled
+                  />
+                )}
+                {optional.length > 0 && (
+                  <ProductGroup
+                    title="Optional additions"
+                    note="Not needed for the routine to work."
+                    lines={optional}
+                    result={result}
+                    stock={state.stock}
+                    session={session}
+                    disabled={busy || saving}
+                  />
+                )}
+              </>
+            )}
+            <OwnedNotScheduled result={result} />
+            <NotIncluded result={result} />
+            <AnswersThatMattered result={result} />
+            <Uncertainty result={result} />
+            <AssistantPanel
+              routine={{
+                result,
+                validity: state.saved?.validity ?? (state.save.status === 'saved' ? 'current' : 'session'),
+              }}
+            />
           </div>
-        </aside>
-      </div>
+
+          <aside className="space-y-6">
+            {actionable && <Totals result={result} essential={essential} optional={optional} stock={state.stock} />}
+            <BudgetForm
+              key={result.budgetPaise}
+              budgetPaise={result.budgetPaise}
+              disabled={busy || saving}
+              onSubmit={(p) => session.setBudget(p)}
+            />
+            {state.excluded.length > 0 && (
+              <Button
+                variant="outline"
+                className="w-full gap-2 rounded-full"
+                disabled={busy || saving}
+                onClick={() => session.undoSwaps()}
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden="true" /> Undo swaps ({state.excluded.length})
+              </Button>
+            )}
+            {actionable && <SavePanel state={state} session={session} stale={pricesStale} />}
+            <div className="flex flex-col gap-2">
+              <Button variant="ghost" className="rounded-full" onClick={onEdit}>
+                Edit answers
+              </Button>
+              <Button variant="ghost" className="rounded-full" onClick={onRestart}>
+                Start over
+              </Button>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
 }
 
-function Notice({ children, tone, icon, action, role }: { children: React.ReactNode; tone?: 'warn'; icon?: React.ReactNode; action?: React.ReactNode; role?: string }) {
+function Notice({
+  children,
+  tone,
+  icon,
+  action,
+  role,
+}: {
+  children: React.ReactNode;
+  tone?: 'warn';
+  icon?: React.ReactNode;
+  action?: React.ReactNode;
+  role?: string;
+}) {
   return (
-    <div role={role} className={cn('flex items-center gap-3 rounded-2xl px-5 py-3 text-sm', tone === 'warn' ? 'bg-primary/10' : 'bg-muted')}>
+    <div
+      role={role}
+      className={cn(
+        'flex items-center gap-3 rounded-2xl px-5 py-3 text-sm',
+        tone === 'warn' ? 'bg-primary/10' : 'bg-muted'
+      )}
+    >
       {icon ?? (tone === 'warn' && <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />)}
       <span className="flex-1">{children}</span>
       {action}
@@ -256,9 +400,15 @@ function Notice({ children, tone, icon, action, role }: { children: React.ReactN
 
 function SaveBadge({ state }: { state: SessionState }) {
   const s = state.save;
-  const text = s.status === 'saved' ? 'Saved to your routines' : s.status === 'saving' ? 'Saving…' : 'Not saved: this visit only';
+  const text =
+    s.status === 'saved' ? 'Saved to your routines' : s.status === 'saving' ? 'Saving…' : 'Not saved: this visit only';
   return (
-    <p className={cn('rounded-full border px-4 py-2 text-sm', s.status === 'saved' ? 'border-foreground' : 'border-border text-muted-foreground')}>
+    <p
+      className={cn(
+        'rounded-full border px-4 py-2 text-sm',
+        s.status === 'saved' ? 'border-foreground' : 'border-border text-muted-foreground'
+      )}
+    >
       {s.status === 'saved' && <Check className="mr-2 inline h-4 w-4" aria-hidden="true" />}
       {text}
     </p>
@@ -272,7 +422,10 @@ function WeekTable({ result }: { result: RoutineSnapshot }) {
     ) : (
       <ol className="space-y-1">
         {slots.map((s) => (
-          <li key={s.position} className={cn(s.role === 'treatment' && 'font-medium', s.optional && 'text-muted-foreground')}>
+          <li
+            key={s.position}
+            className={cn(s.role === 'treatment' && 'font-medium', s.optional && 'text-muted-foreground')}
+          >
             <span className="sr-only">Step {s.position}: </span>
             {s.label}
             {s.optional && <span className="text-xs"> (optional)</span>}
@@ -295,15 +448,23 @@ function WeekTable({ result }: { result: RoutineSnapshot }) {
           <caption className="sr-only">Morning and evening steps for each day, in order</caption>
           <thead className="bg-muted/50 text-xs uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
-              <th scope="col" className="w-36 px-4 py-3">Day</th>
-              <th scope="col" className="px-4 py-3">Morning</th>
-              <th scope="col" className="px-4 py-3">Evening</th>
+              <th scope="col" className="w-36 px-4 py-3">
+                Day
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Morning
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Evening
+              </th>
             </tr>
           </thead>
           <tbody>
             {result.days.map((d) => (
               <tr key={d.day} className="border-t border-border align-top">
-                <th scope="row" className="px-4 py-3 font-medium">{DAY[d.day]}</th>
+                <th scope="row" className="px-4 py-3 font-medium">
+                  {DAY[d.day]}
+                </th>
                 <td className="px-4 py-3">{cell(d.am)}</td>
                 <td className="px-4 py-3">{cell(d.pm)}</td>
               </tr>
@@ -315,7 +476,23 @@ function WeekTable({ result }: { result: RoutineSnapshot }) {
   );
 }
 
-function ProductGroup({ title, note, lines, result, session, disabled, stock }: { title: string; note?: string; lines: Line[]; result: RoutineSnapshot; session: RoutineSession; disabled: boolean; stock: SessionState['stock'] }) {
+function ProductGroup({
+  title,
+  note,
+  lines,
+  result,
+  session,
+  disabled,
+  stock,
+}: {
+  title: string;
+  note?: string;
+  lines: Line[];
+  result: RoutineSnapshot;
+  session: RoutineSession;
+  disabled: boolean;
+  stock: SessionState['stock'];
+}) {
   const { addToCart, cart } = useApp();
   const inBag = (productId: string, size: string) => cart.some((c) => c.productId === productId && c.size === size);
   if (lines.length === 0) return null;
@@ -327,7 +504,8 @@ function ProductGroup({ title, note, lines, result, session, disabled, stock }: 
         {lines.map((l) => {
           const product = l.slot.productId ? PRODUCT.get(l.slot.productId) : undefined;
           const sku = l.skuId ? SKU.get(l.skuId) : undefined;
-          const used = (k: 'am' | 'pm') => result.days.some((d) => d[k].some((s) => (s.productId ?? s.ownedItemId) === l.key));
+          const used = (k: 'am' | 'pm') =>
+            result.days.some((d) => d[k].some((s) => (s.productId ?? s.ownedItemId) === l.key));
           const sessions = [used('am') && 'Morning', used('pm') && 'Evening'].filter(Boolean);
           return (
             <li key={l.key} className="grid grid-cols-[1fr_auto] gap-6 p-6">
@@ -336,7 +514,13 @@ function ProductGroup({ title, note, lines, result, session, disabled, stock }: 
                   {ROLE[l.slot.role] ?? l.slot.role} · {sessions.join(' and ')}
                 </p>
                 <h3 className="mt-1 text-lg font-medium">
-                  {product ? <Link href={`/products/${product.slug}`} className="hover:underline">{product.name}</Link> : l.slot.label}
+                  {product ? (
+                    <Link href={`/products/${product.slug}`} className="hover:underline">
+                      {product.name}
+                    </Link>
+                  ) : (
+                    l.slot.label
+                  )}
                 </h3>
                 {sku && <p className="text-sm text-muted-foreground">{sku.sizeLabel}</p>}
                 {l.reasons.length > 0 && (
@@ -354,7 +538,9 @@ function ProductGroup({ title, note, lines, result, session, disabled, stock }: 
                   ) : l.slot.source === 'owned' ? (
                     'Use as you do now.'
                   ) : (
-                    <span className="text-muted-foreground">Our reviewed directions are not published yet; follow the directions on the pack.</span>
+                    <span className="text-muted-foreground">
+                      Our reviewed directions are not published yet; follow the directions on the pack.
+                    </span>
                   )}
                 </p>
               </div>
@@ -369,12 +555,23 @@ function ProductGroup({ title, note, lines, result, session, disabled, stock }: 
                     disabled={inBag(product.id, sku.sizeLabel) || l.unavailable}
                     onClick={() => addToCart(product.id, sku.sizeLabel, 1, stockCap(stock, sku.id))}
                   >
-                    {inBag(product.id, sku.sizeLabel) ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <ShoppingBag className="h-3.5 w-3.5" aria-hidden="true" />}
+                    {inBag(product.id, sku.sizeLabel) ? (
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <ShoppingBag className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
                     {l.unavailable ? 'Unavailable now' : inBag(product.id, sku.sizeLabel) ? 'In bag' : 'Add to bag'}
                     <span className="sr-only"> {product.name}</span>
                   </Button>
-                  <Button size="sm" variant="ghost" className="gap-2 rounded-full" disabled={disabled} onClick={() => session.swap(product.id)}>
-                    <Shuffle className="h-3.5 w-3.5" aria-hidden="true" /> Swap<span className="sr-only"> {product.name} for another product</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-2 rounded-full"
+                    disabled={disabled}
+                    onClick={() => session.swap(product.id)}
+                  >
+                    <Shuffle className="h-3.5 w-3.5" aria-hidden="true" /> Swap
+                    <span className="sr-only"> {product.name} for another product</span>
                   </Button>
                 </div>
               )}
@@ -386,13 +583,26 @@ function ProductGroup({ title, note, lines, result, session, disabled, stock }: 
   );
 }
 
-function Totals({ result, essential, optional, stock }: { result: RoutineSnapshot; essential: Line[]; optional: Line[]; stock: SessionState['stock'] }) {
+function Totals({
+  result,
+  essential,
+  optional,
+  stock,
+}: {
+  result: RoutineSnapshot;
+  essential: Line[];
+  optional: Line[];
+  stock: SessionState['stock'];
+}) {
   const { addToCart, cart } = useApp();
   const sum = (ls: Line[]) => ls.reduce((n, l) => n + (l.pricePaise ?? 0), 0);
   const toBuy = essential.filter((l) => l.pricePaise !== undefined && !l.unavailable);
   const missing = toBuy
     .map((l) => SKU.get(l.skuId!))
-    .filter((sku): sku is NonNullable<typeof sku> => Boolean(sku) && !cart.some((c) => c.productId === sku!.productId && c.size === sku!.sizeLabel));
+    .filter(
+      (sku): sku is NonNullable<typeof sku> =>
+        Boolean(sku) && !cart.some((c) => c.productId === sku!.productId && c.size === sku!.sizeLabel)
+    );
   return (
     <section className="rounded-3xl bg-muted/60 p-6" aria-labelledby="totals-heading">
       <h2 id="totals-heading" className="text-sm uppercase tracking-[0.18em] text-muted-foreground">
@@ -401,21 +611,29 @@ function Totals({ result, essential, optional, stock }: { result: RoutineSnapsho
       <dl className="mt-4 space-y-2 text-sm">
         <div className="flex justify-between">
           <dt>Essentials</dt>
-          <dd><Price amount={rupees(sum(essential))} size="sm" /></dd>
+          <dd>
+            <Price amount={rupees(sum(essential))} size="sm" />
+          </dd>
         </div>
         {optional.length > 0 && (
           <div className="flex justify-between text-muted-foreground">
             <dt>Optional additions</dt>
-            <dd><Price amount={rupees(sum(optional))} size="sm" /></dd>
+            <dd>
+              <Price amount={rupees(sum(optional))} size="sm" />
+            </dd>
           </div>
         )}
         <div className="flex justify-between border-t border-border pt-2 font-medium">
           <dt>Total new spend</dt>
-          <dd><Price amount={rupees(sum(essential) + sum(optional))} size="base" /></dd>
+          <dd>
+            <Price amount={rupees(sum(essential) + sum(optional))} size="base" />
+          </dd>
         </div>
         <div className="flex justify-between text-muted-foreground">
           <dt>Your budget</dt>
-          <dd><Price amount={rupees(result.budgetPaise)} size="sm" /></dd>
+          <dd>
+            <Price amount={rupees(result.budgetPaise)} size="sm" />
+          </dd>
         </div>
       </dl>
       <p className="mt-3 text-xs text-muted-foreground">Prices are confirmed again at checkout.</p>
@@ -435,10 +653,19 @@ function Totals({ result, essential, optional, stock }: { result: RoutineSnapsho
   );
 }
 
-function BudgetForm({ budgetPaise, disabled, onSubmit }: { budgetPaise: number; disabled: boolean; onSubmit: (paise: number) => void }) {
+function BudgetForm({
+  budgetPaise,
+  disabled,
+  onSubmit,
+}: {
+  budgetPaise: number;
+  disabled: boolean;
+  onSubmit: (paise: number) => void;
+}) {
   const [value, setValue] = useState(String(budgetPaise / 100));
   const n = Number(value);
-  const problem = value === '' || !Number.isInteger(n) || n < 0 || n > 10_000 ? 'Enter whole rupees from 0 to 10,000.' : null;
+  const problem =
+    value === '' || !Number.isInteger(n) || n < 0 || n > 10_000 ? 'Enter whole rupees from 0 to 10,000.' : null;
   return (
     <form
       className="rounded-3xl border border-border p-6"
@@ -486,7 +713,8 @@ function SavePanel({ state, session, stale }: { state: SessionState; session: Ro
         Save this routine
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Saving stores your answers and this routine so you can return to it: 30 days without an account, 180 days with one. You can delete it at any time.
+        Saving stores your answers and this routine so you can return to it: 30 days without an account, 180 days with
+        one. You can delete it at any time.
       </p>
       {s.status === 'failed' && (
         <p role="alert" className="mt-3 rounded-2xl bg-primary/10 px-4 py-3 text-sm">
@@ -521,7 +749,9 @@ function NoMatch({ result, onEdit }: { result: RoutineSnapshot; onEdit: () => vo
           ))}
         </ul>
       )}
-      <p className="mt-4 text-[15px]">You can change your budget, add products you already use, or edit your answers.</p>
+      <p className="mt-4 text-[15px]">
+        You can change your budget, add products you already use, or edit your answers.
+      </p>
       <Button variant="outline" className="mt-6 rounded-full" onClick={onEdit}>
         Edit answers
       </Button>
@@ -574,11 +804,15 @@ function Uncertainty({ result }: { result: RoutineSnapshot }) {
         {result.beliefs.every((b) => b.basis === 'reported') && (
           <li>Your priorities come from your answers alone; we have not estimated anything from them.</li>
         )}
-        {unknown.length > 0 && <li>You left these unanswered or unsure, so we kept active treatments out: {unknown.join(', ')}.</li>}
+        {unknown.length > 0 && (
+          <li>You left these unanswered or unsure, so we kept active treatments out: {unknown.join(', ')}.</li>
+        )}
         {result.problems.map((p) => (
           <li key={p}>{p}</li>
         ))}
-        {result.missingKnowledge.length > 0 && <li>Some products are held back until their full formulation and directions have been reviewed.</li>}
+        {result.missingKnowledge.length > 0 && (
+          <li>Some products are held back until their full formulation and directions have been reviewed.</li>
+        )}
       </ul>
       {result.missingKnowledge.length > 0 && (
         <details className="mt-3 text-sm">
@@ -599,7 +833,8 @@ function SavedRevoked({ onRecalculate }: { onRecalculate: () => void }) {
     <div role="alert">
       <h1 className="font-headline text-3xl font-normal">This saved routine is no longer valid</h1>
       <p className="mt-4 text-muted-foreground">
-        The guidance it was built on has been withdrawn, so we will not show it as a recommendation. You can recalculate from your saved answers.
+        The guidance it was built on has been withdrawn, so we will not show it as a recommendation. You can recalculate
+        from your saved answers.
       </p>
       <Button className="mt-8 rounded-full" onClick={onRecalculate}>
         Recalculate
@@ -612,7 +847,10 @@ function InvalidPlan({ result, onEdit }: { result: RoutineSnapshot; onEdit: () =
   return (
     <section role="alert" className="rounded-[18px] border border-destructive/40 p-8">
       <h2 className="text-2xl font-medium">These answers lead to a plan that breaks a safety rule</h2>
-      <p className="mt-3 text-[15px] text-muted-foreground">Nothing here can be saved or bought as a routine. Change your answers or the products you listed, and we will check again.</p>
+      <p className="mt-3 text-[15px] text-muted-foreground">
+        Nothing here can be saved or bought as a routine. Change your answers or the products you listed, and we will
+        check again.
+      </p>
       <ul className="mt-5 list-disc space-y-1 pl-5 text-[15px]">
         {result.problems.map((p) => (
           <li key={p}>{p}</li>
@@ -630,8 +868,13 @@ function OwnedNotScheduled({ result }: { result: RoutineSnapshot }) {
   if (items.length === 0) return null;
   return (
     <section aria-labelledby="owned-out-heading">
-      <h2 id="owned-out-heading" className="text-xl font-medium">Your products we did not schedule</h2>
-      <p className="mt-2 text-sm text-muted-foreground">The same ingredient checks apply to what you own as to what we sell. This is not a judgement of the product, only of what we can verify.</p>
+      <h2 id="owned-out-heading" className="text-xl font-medium">
+        Your products we did not schedule
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        The same ingredient checks apply to what you own as to what we sell. This is not a judgement of the product,
+        only of what we can verify.
+      </p>
       <ul className="mt-4 space-y-3">
         {items.map((o) => (
           <li key={o.ownedItemId} className="rounded-2xl border border-border p-4 text-[15px]">
@@ -674,7 +917,9 @@ function AnswersThatMattered({ result }: { result: RoutineSnapshot }) {
   if (items.length === 0) return null;
   return (
     <section aria-labelledby="mattered-heading">
-      <h2 id="mattered-heading" className="text-xl font-medium">What shaped this routine</h2>
+      <h2 id="mattered-heading" className="text-xl font-medium">
+        What shaped this routine
+      </h2>
       <dl className="mt-4 space-y-3 text-[15px]">
         {items.map((a) => (
           <div key={a.answer}>
@@ -688,7 +933,13 @@ function AnswersThatMattered({ result }: { result: RoutineSnapshot }) {
 }
 
 /** A saved routine's purchases against today's quote: every change is shown, nothing is silently swapped. */
-function QuoteChanges({ quote, onRecalculate }: { quote: NonNullable<SessionState['quote']>; onRecalculate: () => void }) {
+function QuoteChanges({
+  quote,
+  onRecalculate,
+}: {
+  quote: NonNullable<SessionState['quote']>;
+  onRecalculate: () => void;
+}) {
   const changed = quote.filter((q) => q.currentPaise !== null && q.currentPaise !== q.savedPaise);
   const unavailable = quote.filter((q) => !q.available);
   if (changed.length === 0 && unavailable.length === 0) {

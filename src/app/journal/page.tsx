@@ -20,9 +20,7 @@ export default async function JournalPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-12 md:py-20">
       <span className="eyebrow">Journal</span>
-      <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
-        Notes from the lab bench
-      </h1>
+      <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">Notes from the lab bench</h1>
 
       {articles.length === 0 ? (
         <p className="mt-10 text-base leading-relaxed text-muted-foreground">

@@ -22,12 +22,8 @@ export function TrackForm() {
 
     return (
       <div>
-        <p className="text-[13px] uppercase tracking-[0.16em] text-muted-foreground">
-          Order {found.orderNumber}
-        </p>
-        <h2 className="mt-2 font-headline text-3xl font-normal tracking-tight">
-          {found.progress.label}
-        </h2>
+        <p className="text-[13px] uppercase tracking-[0.16em] text-muted-foreground">Order {found.orderNumber}</p>
+        <h2 className="mt-2 font-headline text-3xl font-normal tracking-tight">{found.progress.label}</h2>
         <p className="mt-1 text-[15px] text-muted-foreground">
           Placed {found.placedOn}
           {found.destination ? ` · to ${found.destination}` : ''}
@@ -68,13 +64,7 @@ export function TrackForm() {
         <Label htmlFor="email" className="text-[13px] font-medium">
           Email used for the order
         </Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          required
-          className="mt-1.5 h-12 rounded-md"
-        />
+        <Input id="email" name="email" type="email" required className="mt-1.5 h-12 rounded-md" />
       </div>
 
       {state.error && (
@@ -99,11 +89,10 @@ export function TrackForm() {
  * step. Mapping back keeps a second copy of the step list out of this file —
  * two lists would eventually disagree.
  */
-function statusFromLabel(progress: TrackState['found'] extends undefined ? never : NonNullable<TrackState['found']>['progress']): string {
+function statusFromLabel(
+  progress: TrackState['found'] extends undefined ? never : NonNullable<TrackState['found']>['progress']
+): string {
   if (progress.stopped) return progress.label === 'Refunded' ? 'refunded' : 'cancelled';
 
-  return (
-    ['paid', 'fulfilled', 'shipped', 'out_for_delivery', 'delivered'][progress.currentIndex] ??
-    'paid'
-  );
+  return ['paid', 'fulfilled', 'shipped', 'out_for_delivery', 'delivered'][progress.currentIndex] ?? 'paid';
 }

@@ -43,7 +43,10 @@ export function AssistantPanel({ routine, className }: { routine?: RoutineContex
 
   const ask = (q: string) => {
     if (!index || !q.trim()) return;
-    setTurns((t) => [...t.slice(-19), { id: Date.now(), question: q.slice(0, MAX_QUERY_CHARS), answer: answer(index, q, routine ?? null) }]);
+    setTurns((t) => [
+      ...t.slice(-19),
+      { id: Date.now(), question: q.slice(0, MAX_QUERY_CHARS), answer: answer(index, q, routine ?? null) },
+    ]);
     setQuestion('');
   };
 
@@ -52,18 +55,27 @@ export function AssistantPanel({ routine, className }: { routine?: RoutineContex
   }, [turns.length]);
 
   return (
-    <section aria-labelledby={`${inputId}-heading`} className={cn('flex flex-col rounded-3xl border border-border bg-card', className)}>
+    <section
+      aria-labelledby={`${inputId}-heading`}
+      className={cn('flex flex-col rounded-3xl border border-border bg-card', className)}
+    >
       <header className="border-b border-border px-6 py-5">
         <h2 id={`${inputId}-heading`} className="text-lg font-medium">
           Ask about ingredients, products{routine ? ' and your routine' : ''}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">Answers come only from our reviewed information. Not medical advice.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Answers come only from our reviewed information. Not medical advice.
+        </p>
       </header>
 
       <ol ref={logRef} aria-live="polite" className="max-h-[28rem] flex-1 space-y-6 overflow-y-auto px-6 py-5">
         {turns.length === 0 && (
           <li className="text-sm text-muted-foreground">
-            {failed ? 'The assistant could not load. Try again later.' : !index ? 'Loading…' : 'Try: "What is niacinamide?", "How much is the sunscreen?" or "Where is my order?"'}
+            {failed
+              ? 'The assistant could not load. Try again later.'
+              : !index
+                ? 'Loading…'
+                : 'Try: "What is niacinamide?", "How much is the sunscreen?" or "Where is my order?"'}
           </li>
         )}
         {turns.map((t) => (
@@ -97,7 +109,13 @@ export function AssistantPanel({ routine, className }: { routine?: RoutineContex
           className="flex-1 rounded-full border border-border bg-transparent px-4 py-2 text-sm"
           placeholder="Ask a question"
         />
-        <Button type="submit" size="icon" className="rounded-full" disabled={!index || !question.trim()} aria-label="Ask">
+        <Button
+          type="submit"
+          size="icon"
+          className="rounded-full"
+          disabled={!index || !question.trim()}
+          aria-label="Ask"
+        >
           <Send className="h-4 w-4" aria-hidden="true" />
         </Button>
       </form>
@@ -109,7 +127,11 @@ function AnswerView({ a, onAsk }: { a: Answer; onAsk: (q: string) => void }) {
   return (
     <div className="max-w-[90%] space-y-2 text-[15px] leading-relaxed">
       <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-        {a.personalized ? 'About your routine' : a.kind === 'unsupported' ? 'Not something we can answer' : 'General information'}
+        {a.personalized
+          ? 'About your routine'
+          : a.kind === 'unsupported'
+            ? 'Not something we can answer'
+            : 'General information'}
       </p>
       {a.text.map((p, i) => (
         <p key={i}>{p}</p>
@@ -121,11 +143,18 @@ function AnswerView({ a, onAsk }: { a: Answer; onAsk: (q: string) => void }) {
           {a.options.map((o) => (
             <li key={o.label}>
               {o.query === 'routine finder' ? (
-                <Link href="/routine-finder" className="inline-block rounded-full border border-border px-3 py-1 text-sm hover:border-foreground">
+                <Link
+                  href="/routine-finder"
+                  className="inline-block rounded-full border border-border px-3 py-1 text-sm hover:border-foreground"
+                >
                   {o.label}
                 </Link>
               ) : (
-                <button type="button" onClick={() => onAsk(o.query)} className="rounded-full border border-border px-3 py-1 text-sm hover:border-foreground">
+                <button
+                  type="button"
+                  onClick={() => onAsk(o.query)}
+                  className="rounded-full border border-border px-3 py-1 text-sm hover:border-foreground"
+                >
                   {o.label}
                 </button>
               )}
@@ -151,7 +180,10 @@ function AnswerView({ a, onAsk }: { a: Answer; onAsk: (q: string) => void }) {
           </ul>
         </details>
       )}
-      <p className="text-xs text-muted-foreground">Knowledge release {a.release.id}{a.release.published ? '' : ' (preview)'}</p>
+      <p className="text-xs text-muted-foreground">
+        Knowledge release {a.release.id}
+        {a.release.published ? '' : ' (preview)'}
+      </p>
     </div>
   );
 }
@@ -159,27 +191,45 @@ function AnswerView({ a, onAsk }: { a: Answer; onAsk: (q: string) => void }) {
 /** Current price and stock for each size, from the live quote service. */
 function PriceCheck({ productId }: { productId: string }) {
   const product = PRODUCTS.find((p) => p.id === productId)!;
-  const [state, setState] = useState<{ size: string; paise: number | undefined; stock: number | null }[] | 'error' | null>(null);
+  const [state, setState] = useState<
+    { size: string; paise: number | undefined; stock: number | null }[] | 'error' | null
+  >(null);
   useEffect(() => {
     const controller = new AbortController();
     const keys = product.sizes.map((s) => `${product.id}::${s.label}`);
     requestQuote(keys.sort().join(','), { signal: controller.signal })
       .then(({ quote }) =>
-        setState(product.sizes.map((s) => ({ size: s.label, paise: quote.prices[`${product.id}::${s.label}`]?.price, stock: quote.stock ? (quote.stock[`${product.id}::${s.label}`] ?? 0) : null })))
+        setState(
+          product.sizes.map((s) => ({
+            size: s.label,
+            paise: quote.prices[`${product.id}::${s.label}`]?.price,
+            stock: quote.stock ? (quote.stock[`${product.id}::${s.label}`] ?? 0) : null,
+          }))
+        )
       )
       .catch((e) => e?.name !== 'AbortError' && setState('error'));
     return () => controller.abort();
   }, [product]);
-  if (state === null) return <p role="status"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden="true" />Checking current prices…</p>;
+  if (state === null)
+    return (
+      <p role="status">
+        <Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden="true" />
+        Checking current prices…
+      </p>
+    );
   if (state === 'error') return <p>We could not load current prices. Please try again.</p>;
   return (
     <ul className="space-y-1 rounded-2xl bg-muted/60 px-4 py-3 text-sm">
       {state.map((s) => (
         <li key={s.size} className="flex justify-between gap-4">
-          <span>{product.name}, {s.size}</span>
+          <span>
+            {product.name}, {s.size}
+          </span>
           <span className="flex items-center gap-3">
             {s.paise !== undefined && <Price amount={s.paise / 100} size="sm" />}
-            <span className="text-muted-foreground">{s.stock === null ? 'Stock not confirmed' : s.stock > 0 ? 'In stock' : 'Out of stock'}</span>
+            <span className="text-muted-foreground">
+              {s.stock === null ? 'Stock not confirmed' : s.stock > 0 ? 'In stock' : 'Out of stock'}
+            </span>
           </span>
         </li>
       ))}
@@ -197,11 +247,26 @@ function OrderCheck() {
       <div className="grid grid-cols-2 gap-2">
         <label className="space-y-1" htmlFor={`${id}-n`}>
           <span className="block font-medium">Order number</span>
-          <input id={`${id}-n`} name="orderNumber" required maxLength={40} autoComplete="off" className="w-full rounded-full border border-border bg-background px-3 py-1.5" />
+          <input
+            id={`${id}-n`}
+            name="orderNumber"
+            required
+            maxLength={40}
+            autoComplete="off"
+            className="w-full rounded-full border border-border bg-background px-3 py-1.5"
+          />
         </label>
         <label className="space-y-1" htmlFor={`${id}-e`}>
           <span className="block font-medium">Email used for the order</span>
-          <input id={`${id}-e`} name="email" type="email" required maxLength={254} autoComplete="email" className="w-full rounded-full border border-border bg-background px-3 py-1.5" />
+          <input
+            id={`${id}-e`}
+            name="email"
+            type="email"
+            required
+            maxLength={254}
+            autoComplete="email"
+            className="w-full rounded-full border border-border bg-background px-3 py-1.5"
+          />
         </label>
       </div>
       <div className="flex items-center gap-3">
@@ -215,7 +280,8 @@ function OrderCheck() {
       {state.error && <p role="alert">{state.error}</p>}
       {state.found && (
         <p role="status">
-          Order {state.found.orderNumber}, placed {state.found.placedOn}: {state.found.progress.label}. {state.found.progress.description}
+          Order {state.found.orderNumber}, placed {state.found.placedOn}: {state.found.progress.label}.{' '}
+          {state.found.progress.description}
         </p>
       )}
     </form>

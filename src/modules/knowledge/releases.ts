@@ -13,7 +13,14 @@ import { eq } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import * as schema from '@/db/schema';
 import { recordAudit } from '@/modules/audit/audit';
-import { canonicalJson, sha256, verifyRelease, type ArtifactName, type CompiledRelease, type Manifest } from './compile';
+import {
+  canonicalJson,
+  sha256,
+  verifyRelease,
+  type ArtifactName,
+  type CompiledRelease,
+  type Manifest,
+} from './compile';
 
 type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 export type Actor = { id: string; role: string };
@@ -46,7 +53,14 @@ export async function storeRelease(db: Db, release: CompiledRelease, actor: Acto
       .returning({ id: schema.kbReleases.id });
     if (inserted.length) {
       await recordAudit(
-        { actor: actor.id, actorRole: actor.role, action: 'knowledge.release_stored', entityType: 'kb_release', entityId: manifest.releaseId, after: { fixture: manifest.fixture } },
+        {
+          actor: actor.id,
+          actorRole: actor.role,
+          action: 'knowledge.release_stored',
+          entityType: 'kb_release',
+          entityId: manifest.releaseId,
+          after: { fixture: manifest.fixture },
+        },
         tx as never
       );
     }
@@ -54,21 +68,37 @@ export async function storeRelease(db: Db, release: CompiledRelease, actor: Acto
   return { ok: true, releaseId: manifest.releaseId };
 }
 
-async function activate(db: Db, releaseId: string, actor: Actor, action: string, reason?: string): Promise<ReleaseCommandResult> {
+async function activate(
+  db: Db,
+  releaseId: string,
+  actor: Actor,
+  action: string,
+  reason?: string
+): Promise<ReleaseCommandResult> {
   return db.transaction(async (tx) => {
     const [current] = await tx.select().from(schema.kbActiveRelease).for('update');
     const [row] = await tx.select().from(schema.kbReleases).where(eq(schema.kbReleases.id, releaseId));
     if (!row) return { ok: false as const, error: `No release ${releaseId}` };
-    if (row.isFixture) return { ok: false as const, error: `Release ${releaseId} is a development fixture and cannot be activated` };
+    if (row.isFixture)
+      return { ok: false as const, error: `Release ${releaseId} is a development fixture and cannot be activated` };
     if (row.status === 'revoked') return { ok: false as const, error: `Release ${releaseId} has been revoked` };
     const problems = verifyRelease(asCompiled(row));
-    if (problems.length) return { ok: false as const, error: `Release ${releaseId} is not intact: ${problems.join('; ')}` };
+    if (problems.length)
+      return { ok: false as const, error: `Release ${releaseId} is not intact: ${problems.join('; ')}` };
     if (current?.releaseId === releaseId) return { ok: true as const, releaseId };
 
     if (row.status === 'stored') {
-      await tx.update(schema.kbReleases).set({ status: 'published', publishedAt: new Date() }).where(eq(schema.kbReleases.id, releaseId));
+      await tx
+        .update(schema.kbReleases)
+        .set({ status: 'published', publishedAt: new Date() })
+        .where(eq(schema.kbReleases.id, releaseId));
     }
-    const pointer = { releaseId, previousReleaseId: current?.releaseId ?? null, activatedBy: actor.id, activatedAt: new Date() };
+    const pointer = {
+      releaseId,
+      previousReleaseId: current?.releaseId ?? null,
+      activatedBy: actor.id,
+      activatedAt: new Date(),
+    };
     if (current) await tx.update(schema.kbActiveRelease).set(pointer).where(eq(schema.kbActiveRelease.singleton, true));
     else await tx.insert(schema.kbActiveRelease).values(pointer);
 
@@ -102,7 +132,12 @@ export async function rollbackRelease(db: Db, actor: Actor, reason: string): Pro
 }
 
 /** Revokes a release. The active release must be replaced (activate or roll back) first. */
-export async function revokeRelease(db: Db, releaseId: string, actor: Actor, reason: string): Promise<ReleaseCommandResult> {
+export async function revokeRelease(
+  db: Db,
+  releaseId: string,
+  actor: Actor,
+  reason: string
+): Promise<ReleaseCommandResult> {
   if (!reason.trim()) return { ok: false, error: 'A reason is required to revoke a release' };
   return db.transaction(async (tx) => {
     const [current] = await tx.select().from(schema.kbActiveRelease).for('update');
@@ -116,7 +151,14 @@ export async function revokeRelease(db: Db, releaseId: string, actor: Actor, rea
       .returning({ id: schema.kbReleases.id });
     if (!updated.length) return { ok: false as const, error: `No release ${releaseId}` };
     await recordAudit(
-      { actor: actor.id, actorRole: actor.role, action: 'knowledge.release_revoked', entityType: 'kb_release', entityId: releaseId, reason },
+      {
+        actor: actor.id,
+        actorRole: actor.role,
+        action: 'knowledge.release_revoked',
+        entityType: 'kb_release',
+        entityId: releaseId,
+        reason,
+      },
       tx as never
     );
     return { ok: true as const, releaseId };
@@ -132,15 +174,22 @@ export async function loadActiveRelease(db: Db) {
   if (!row) return null;
   const compiled = asCompiled(row.release);
   const problems = verifyRelease(compiled);
-  if (problems.length) throw new Error(`Active knowledge release ${row.release.id} is not intact: ${problems.join('; ')}`);
+  if (problems.length)
+    throw new Error(`Active knowledge release ${row.release.id} is not intact: ${problems.join('; ')}`);
   return {
     manifest: compiled.manifest,
-    artifacts: Object.fromEntries(Object.entries(compiled.artifacts).map(([k, v]) => [k, JSON.parse(v)])) as Record<ArtifactName, unknown>,
+    artifacts: Object.fromEntries(Object.entries(compiled.artifacts).map(([k, v]) => [k, JSON.parse(v)])) as Record<
+      ArtifactName,
+      unknown
+    >,
   };
 }
 
 /** Whether a release may still be used for new saves: it exists and is not revoked. */
 export async function releaseUsable(db: Db, releaseId: string): Promise<boolean> {
-  const [row] = await db.select({ status: schema.kbReleases.status }).from(schema.kbReleases).where(eq(schema.kbReleases.id, releaseId));
+  const [row] = await db
+    .select({ status: schema.kbReleases.status })
+    .from(schema.kbReleases)
+    .where(eq(schema.kbReleases.id, releaseId));
   return row !== undefined && row.status !== 'revoked';
 }

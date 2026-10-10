@@ -38,9 +38,7 @@ export default async function AddressesPage() {
         <span className="text-foreground">Your Addresses</span>
       </nav>
 
-      <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
-        Your Addresses
-      </h1>
+      <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">Your Addresses</h1>
 
       <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {/* The add tile leads, so the primary action is never below the fold. */}
@@ -53,10 +51,7 @@ export default async function AddressesPage() {
         </Link>
 
         {addresses.map((address) => (
-          <div
-            key={address.id}
-            className="flex min-h-[240px] flex-col rounded-xl border border-border bg-card p-6"
-          >
+          <div key={address.id} className="flex min-h-[240px] flex-col rounded-xl border border-border bg-card p-6">
             {address.isDefault && (
               <p className="mb-3 border-b border-border pb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                 Default address
@@ -109,10 +104,7 @@ export default async function AddressesPage() {
                   <span className="text-border">|</span>
                   <form action={makeDefaultAddress}>
                     <input type="hidden" name="id" value={address.id} />
-                    <button
-                      type="submit"
-                      className="text-primary transition-opacity hover:opacity-70"
-                    >
+                    <button type="submit" className="text-primary transition-opacity hover:opacity-70">
                       Set as Default
                     </button>
                   </form>

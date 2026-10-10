@@ -19,9 +19,7 @@ vi.mock('@/lib/activity', () => ({ recordEvent: async () => {} }));
 vi.mock('@/lib/background', () => ({ runBackgroundQuietly: async () => {} }));
 vi.mock('next/server', () => ({ after: () => {} }));
 
-const { createOrder, markOrderPaid, markOrderPaymentFailed, cancelOrder } = await import(
-  '@/lib/orders'
-);
+const { createOrder, markOrderPaid, markOrderPaymentFailed, cancelOrder } = await import('@/lib/orders');
 const { recordProviderEvent, applyPaymentSignal } = await import('../payment-service');
 const { reconcileOrder } = await import('../reconciliation');
 const { sweepAbandonedReservations } = await import('@/lib/reservation-sweep');
@@ -54,7 +52,9 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await db.execute(sql`truncate orders, order_items, addresses, domain_events, payment_events, inventory restart identity cascade`);
+  await db.execute(
+    sql`truncate orders, order_items, addresses, domain_events, payment_events, inventory restart identity cascade`
+  );
   await db.insert(inventory).values({ ...SKU, quantity: 10 });
 });
 
@@ -77,7 +77,13 @@ async function stock(): Promise<number> {
   return row.quantity;
 }
 
-function event(id: string, type: string, signal: Parameters<typeof recordProviderEvent>[0]['signal'], amount: number | null, reference = REF) {
+function event(
+  id: string,
+  type: string,
+  signal: Parameters<typeof recordProviderEvent>[0]['signal'],
+  amount: number | null,
+  reference = REF
+) {
   return recordProviderEvent({
     provider: 'razorpay',
     providerEventId: id,
@@ -144,8 +150,18 @@ describe('payments', () => {
   it('processes a webhook delivered twice exactly once', async () => {
     const order = await openOrder();
 
-    const first = await event('evt_same', 'payment.captured', { type: 'captured', amount: order.totalPaise }, order.totalPaise);
-    const second = await event('evt_same', 'payment.captured', { type: 'captured', amount: order.totalPaise }, order.totalPaise);
+    const first = await event(
+      'evt_same',
+      'payment.captured',
+      { type: 'captured', amount: order.totalPaise },
+      order.totalPaise
+    );
+    const second = await event(
+      'evt_same',
+      'payment.captured',
+      { type: 'captured', amount: order.totalPaise },
+      order.totalPaise
+    );
 
     expect(first.status).toBe('processed');
     expect(second.status).toBe('duplicate');
@@ -153,7 +169,13 @@ describe('payments', () => {
   });
 
   it('does not record an event for an order it cannot find, so the retry is processed', async () => {
-    const result = await event('evt_early', 'payment.captured', { type: 'captured', amount: 100 }, 100, 'order_NOT_YET');
+    const result = await event(
+      'evt_early',
+      'payment.captured',
+      { type: 'captured', amount: 100 },
+      100,
+      'order_NOT_YET'
+    );
     expect(result.status).toBe('unknown_order');
     expect(await db.select().from(paymentEvents)).toHaveLength(0);
   });
@@ -198,10 +220,7 @@ describe('payments', () => {
   it('settles a capture and a failure racing each other into one consistent state', async () => {
     const order = await openOrder();
 
-    await Promise.all([
-      markOrderPaid(order.orderId, 'pay_1', order.totalPaise),
-      markOrderPaymentFailed(order.orderId),
-    ]);
+    await Promise.all([markOrderPaid(order.orderId, 'pay_1', order.totalPaise), markOrderPaymentFailed(order.orderId)]);
 
     const row = await orderRow(order.orderId);
     // Either order of application ends paid; stock must match that.

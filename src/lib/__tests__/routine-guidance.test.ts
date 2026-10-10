@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_REGION } from '@/lib/regions';
-import {
-  HUMIDITY_ARID,
-  UV_HIGH,
-  guidanceFor,
-  photosensitivityRisk,
-} from '@/lib/routine-guidance';
+import { HUMIDITY_ARID, UV_HIGH, guidanceFor, photosensitivityRisk } from '@/lib/routine-guidance';
 import type { Conditions } from '@/lib/environment';
 
 /**

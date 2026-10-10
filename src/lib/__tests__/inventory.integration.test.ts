@@ -105,10 +105,7 @@ describe('reserveStock (integration)', () => {
      * The cost is that a fresh deployment sells nothing until stock is
      * entered, which is the safer direction to fail in.
      */
-    const result = await reserveStock(
-      [{ productId: 'not-in-inventory', size: '30ml', quantity: 5 }],
-      db as never
-    );
+    const result = await reserveStock([{ productId: 'not-in-inventory', size: '30ml', quantity: 5 }], db as never);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {

@@ -65,10 +65,21 @@ export async function requestScanInference(
     const rows = await tx
       .update(s)
       .set({ status: 'queued' })
-      .where(and(eq(s.id, scanId), owner.kind === 'user' ? eq(s.userId, owner.userId) : eq(s.anonymousOwnerHash, owner.ownerHash), eq(s.status, 'uploaded'), gt(s.expiresAt, now)))
+      .where(
+        and(
+          eq(s.id, scanId),
+          owner.kind === 'user' ? eq(s.userId, owner.userId) : eq(s.anonymousOwnerHash, owner.ownerHash),
+          eq(s.status, 'uploaded'),
+          gt(s.expiresAt, now)
+        )
+      )
       .returning({ id: s.id });
     if (!rows.length) return { ok: false as const, code: 'unavailable' as const };
-    await enqueue(SKIN_ANALYSIS_JOB, { scanSessionId: scanId }, { tx: tx as never, dedupeKey: `scan:${scanId}`, maxAttempts: MAX_ATTEMPTS_PER_SCAN });
+    await enqueue(
+      SKIN_ANALYSIS_JOB,
+      { scanSessionId: scanId },
+      { tx: tx as never, dedupeKey: `scan:${scanId}`, maxAttempts: MAX_ATTEMPTS_PER_SCAN }
+    );
     return { ok: true as const };
   });
 }
@@ -77,7 +88,10 @@ export async function requestScanInference(
 async function deletePhoto(storage: PrivateStorage | null, objectKey: string | null): Promise<boolean> {
   if (!objectKey) return true;
   if (!storage) return false;
-  return storage.delete(objectKey).then(() => true, () => false);
+  return storage.delete(objectKey).then(
+    () => true,
+    () => false
+  );
 }
 const cleared = (gone: boolean) => (gone ? { objectKey: null, objectExpiresAt: null } : {});
 
@@ -106,7 +120,12 @@ function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, ms: number): P
 }
 
 export function skinAnalysisJobHandler(
-  deps: { analyzer?: () => SkinImageAnalyzer | null; storage?: () => PrivateStorage | null; now?: () => Date; timeoutMs?: number } = {}
+  deps: {
+    analyzer?: () => SkinImageAnalyzer | null;
+    storage?: () => PrivateStorage | null;
+    now?: () => Date;
+    timeoutMs?: number;
+  } = {}
 ) {
   const getAnalyzer = deps.analyzer ?? configuredSkinAnalyzer;
   const getStorage = deps.storage ?? privateStorage;
@@ -123,7 +142,14 @@ export function skinAnalysisJobHandler(
       .select({ scan: s })
       .from(s)
       .innerJoin(schema.consentRecords, eq(schema.consentRecords.id, s.consentId))
-      .where(and(eq(s.id, scanId), inArray(s.status, PENDING), gt(s.expiresAt, now), isNull(schema.consentRecords.withdrawnAt)));
+      .where(
+        and(
+          eq(s.id, scanId),
+          inArray(s.status, PENDING),
+          gt(s.expiresAt, now),
+          isNull(schema.consentRecords.withdrawnAt)
+        )
+      );
     if (!scan) throw new PermanentJobError('Scan is no longer pending (deleted, expired or consent withdrawn).');
     const { objectKey } = scan.scan;
 
@@ -147,7 +173,10 @@ export function skinAnalysisJobHandler(
       throw new PermanentJobError('Inference attempts for this scan are used up.');
     }
     // The consent trigger refuses this if consent was withdrawn meanwhile.
-    await db.update(s).set({ status: 'processing' }).where(and(eq(s.id, scanId), inArray(s.status, PENDING)));
+    await db
+      .update(s)
+      .set({ status: 'processing' })
+      .where(and(eq(s.id, scanId), inArray(s.status, PENDING)));
 
     let output: unknown;
     try {
@@ -155,9 +184,14 @@ export function skinAnalysisJobHandler(
     } catch (err) {
       if (attempt.attempt >= MAX_ATTEMPTS_PER_SCAN) {
         await failScan(storage, scanId, objectKey);
-        throw new PermanentJobError(`Inference failed on the last attempt: ${err instanceof Error ? err.message : 'error'}`);
+        throw new PermanentJobError(
+          `Inference failed on the last attempt: ${err instanceof Error ? err.message : 'error'}`
+        );
       }
-      await db.update(s).set({ status: 'queued' }).where(and(eq(s.id, scanId), eq(s.status, 'processing')));
+      await db
+        .update(s)
+        .set({ status: 'queued' })
+        .where(and(eq(s.id, scanId), eq(s.status, 'processing')));
       throw err; // transient: the queue retries with backoff
     }
 
@@ -177,6 +211,7 @@ export function skinAnalysisJobHandler(
       .where(and(eq(s.id, scanId), eq(s.status, 'processing')))
       .returning({ id: s.id })
       .catch(() => []);
-    if (!done.length) throw new PermanentJobError('Scan changed during inference (deleted or consent withdrawn); result discarded.');
+    if (!done.length)
+      throw new PermanentJobError('Scan changed during inference (deleted or consent withdrawn); result discarded.');
   };
 }

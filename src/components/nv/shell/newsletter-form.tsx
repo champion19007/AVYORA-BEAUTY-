@@ -38,13 +38,22 @@ export function NewsletterForm({
     }).catch(() => null);
     const json = await res?.json().catch(() => null);
     setBusy(false);
-    setMessage(res?.ok ? { ok: true, text: json?.message } : { ok: false, text: json?.error?.message ?? 'Could not sign you up. Try again.' });
+    setMessage(
+      res?.ok
+        ? { ok: true, text: json?.message }
+        : { ok: false, text: json?.error?.message ?? 'Could not sign you up. Try again.' }
+    );
     if (res?.ok) onSubscribed?.();
   };
 
   const control = large ? 'h-[52px] text-nv-label' : 'h-10 text-sm';
   return (
-    <form onSubmit={submit} className={cn(large ? 'w-full max-w-[560px]' : 'mt-8 max-w-sm')} aria-labelledby={heading ? `${id}-heading` : undefined} aria-label={heading ? undefined : buttonLabel}>
+    <form
+      onSubmit={submit}
+      className={cn(large ? 'w-full max-w-[560px]' : 'mt-8 max-w-sm')}
+      aria-labelledby={heading ? `${id}-heading` : undefined}
+      aria-label={heading ? undefined : buttonLabel}
+    >
       {heading && (
         <p id={`${id}-heading`} className="text-nv-label text-nv-faint">
           {heading}
@@ -61,19 +70,38 @@ export function NewsletterForm({
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className={cn('nv-focus-light flex-1 rounded-full bg-white/10 px-5 text-white placeholder:text-white/55', control)}
+          className={cn(
+            'nv-focus-light flex-1 rounded-full bg-white/10 px-5 text-white placeholder:text-white/55',
+            control
+          )}
           placeholder={placeholder}
         />
-        <button type="submit" disabled={!consent || busy} className={cn('nv-focus-light rounded-full bg-white px-6 text-nv-ink transition-colors hover:bg-white/90 disabled:opacity-50', control)}>
+        <button
+          type="submit"
+          disabled={!consent || busy}
+          className={cn(
+            'nv-focus-light rounded-full bg-white px-6 text-nv-ink transition-colors hover:bg-white/90 disabled:opacity-50',
+            control
+          )}
+        >
           {buttonLabel}
         </button>
       </div>
       <label className={cn('mt-3 flex items-start gap-2 text-white/70', large ? 'text-nv-small' : 'text-xs')}>
-        <input type="checkbox" autoComplete="off" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
+        <input
+          type="checkbox"
+          autoComplete="off"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-0.5"
+        />
         Email me Avyora news. I can unsubscribe from any email.
       </label>
       {message && (
-        <p role={message.ok ? 'status' : 'alert'} className={cn('mt-2 text-white/90', large ? 'text-nv-small' : 'text-xs')}>
+        <p
+          role={message.ok ? 'status' : 'alert'}
+          className={cn('mt-2 text-white/90', large ? 'text-nv-small' : 'text-xs')}
+        >
           {message.text}
         </p>
       )}

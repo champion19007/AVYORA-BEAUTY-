@@ -91,8 +91,8 @@ export function ProductClient({
                 aria-label={`Show image ${i + 1}`}
                 onClick={() => setCurrentImage(i)}
                 className={cn(
-                  "relative w-16 md:w-20 aspect-square border-2 shrink-0 transition-colors",
-                  currentImage === i ? "border-foreground" : "border-transparent hover:border-muted"
+                  'relative w-16 md:w-20 aspect-square border-2 shrink-0 transition-colors',
+                  currentImage === i ? 'border-foreground' : 'border-transparent hover:border-muted'
                 )}
               >
                 <Image
@@ -118,11 +118,11 @@ export function ProductClient({
               data-ai-hint="skincare bottle"
             />
             <button
-              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+              aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
               onClick={() => toggleWishlist(product.id)}
               className="absolute top-4 right-4 md:top-6 md:right-6 p-3 md:p-4 bg-white/50 backdrop-blur hover:bg-white transition-all z-10"
             >
-              <Heart className={cn("h-5 w-5 md:h-6 md:w-6", isWishlisted && "fill-primary text-primary")} />
+              <Heart className={cn('h-5 w-5 md:h-6 md:w-6', isWishlisted && 'fill-primary text-primary')} />
             </button>
           </div>
         </div>
@@ -131,24 +131,22 @@ export function ProductClient({
         <div className="lg:col-span-5 space-y-6 md:space-y-10">
           <div className="space-y-4">
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-primary">{product.category} Care</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-primary">
+                {product.category} Care
+              </span>
               <h1 className="font-headline text-3xl md:text-4xl lg:text-5xl font-normal tracking-tight mt-2 leading-tight">
                 {product.name}
               </h1>
               {/* The tagline is a sentence, so it is set as one: no caps, no
                   bold, at a size that can actually be read at arm's length. */}
-              <p className="mt-3 text-base md:text-lg leading-relaxed text-muted-foreground">
-                {product.tagline}
-              </p>
+              <p className="mt-3 text-base md:text-lg leading-relaxed text-muted-foreground">{product.tagline}</p>
               {/*
                 The catalogue carries a `description` for every product and the
                 page never rendered it — customers saw only the one-line
                 tagline. It is the main body copy on the page, so it leads at
                 full reading size.
               */}
-              <p className="mt-4 text-[15px] md:text-base leading-relaxed text-foreground/80">
-                {product.description}
-              </p>
+              <p className="mt-4 text-[15px] md:text-base leading-relaxed text-foreground/80">{product.description}</p>
               {highlights.length > 0 && (
                 <ul className="mt-4 list-disc space-y-1 pl-5 text-[15px] leading-relaxed text-foreground/80">
                   {highlights.map((point) => (
@@ -195,7 +193,7 @@ export function ProductClient({
             <div className="space-y-4">
               <span className="text-[10px] font-semibold uppercase tracking-widest">Select Size</span>
               <div className="flex flex-wrap gap-3 md:gap-4">
-                {product.sizes.map(size => {
+                {product.sizes.map((size) => {
                   const soldOut = (stockBySize[size.label] ?? 0) <= 0;
 
                   return (
@@ -204,18 +202,20 @@ export function ProductClient({
                       onClick={() => {
                         setSelectedSize(size.label);
                         // A quantity chosen for one size may exceed another's stock.
-                        setQuantity((q) => Math.max(1, Math.min(q, MAX_QUANTITY_PER_SKU, stockBySize[size.label] ?? 0)));
+                        setQuantity((q) =>
+                          Math.max(1, Math.min(q, MAX_QUANTITY_PER_SKU, stockBySize[size.label] ?? 0))
+                        );
                         setNotice(null);
                       }}
                       disabled={soldOut}
                       aria-label={soldOut ? `${size.label} — out of stock` : size.label}
                       className={cn(
-                        "px-6 py-3 border-2 text-[10px] font-semibold uppercase tracking-widest transition-all",
+                        'px-6 py-3 border-2 text-[10px] font-semibold uppercase tracking-widest transition-all',
                         soldOut
-                          ? "cursor-not-allowed border-muted text-muted-foreground line-through opacity-50"
+                          ? 'cursor-not-allowed border-muted text-muted-foreground line-through opacity-50'
                           : selectedSize === size.label
-                            ? "bg-foreground text-background border-foreground"
-                            : "border-muted hover:border-primary"
+                            ? 'bg-foreground text-background border-foreground'
+                            : 'border-muted hover:border-primary'
                       )}
                     >
                       {size.label}
@@ -225,12 +225,7 @@ export function ProductClient({
               </div>
 
               {/* Says the same thing checkout will, before the customer commits. */}
-              <p
-                className={cn(
-                  'text-[13px]',
-                  selectedOut ? 'font-medium text-destructive' : 'text-muted-foreground'
-                )}
-              >
+              <p className={cn('text-[13px]', selectedOut ? 'font-medium text-destructive' : 'text-muted-foreground')}>
                 {availability.label}
               </p>
             </div>
@@ -244,7 +239,9 @@ export function ProductClient({
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="px-6 font-semibold text-sm" aria-label="Quantity">{quantity}</span>
+                <span className="px-6 font-semibold text-sm" aria-label="Quantity">
+                  {quantity}
+                </span>
                 <button
                   aria-label="Increase quantity"
                   disabled={quantity >= maxQuantity}
@@ -279,13 +276,17 @@ export function ProductClient({
             <h2 className="sr-only">Product details</h2>
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="ingredients">
-                <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">Key Ingredients</AccordionTrigger>
+                <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">
+                  Key Ingredients
+                </AccordionTrigger>
                 <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
                   {product.ingredients.join(', ')}. Formulated with high-purity actives.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="how-to-use">
-                <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">How to Use</AccordionTrigger>
+                <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">
+                  How to Use
+                </AccordionTrigger>
                 <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
                   {howToUse ??
                     'Directions specific to this product are being reviewed. Until they are published here, follow the directions on the pack and patch test first.'}
@@ -298,11 +299,16 @@ export function ProductClient({
 
       <section className="mt-24 md:mt-32 pt-16 md:pt-24 border-t" aria-labelledby="recommendations-heading">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 md:mb-16 gap-4">
-          <h2 id="recommendations-heading" className="text-3xl md:text-4xl font-semibold tracking-tighter uppercase leading-none">You May Also Like</h2>
+          <h2
+            id="recommendations-heading"
+            className="text-3xl md:text-4xl font-semibold tracking-tighter uppercase leading-none"
+          >
+            You May Also Like
+          </h2>
           <div className="h-1 w-24 bg-primary hidden md:block" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
-          {recommendations.map(p => (
+          {recommendations.map((p) => (
             <ProductCard key={p.id} product={p} stock={catalogueStock} prices={cataloguePrices} />
           ))}
         </div>

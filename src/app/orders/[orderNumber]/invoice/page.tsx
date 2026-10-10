@@ -60,7 +60,8 @@ export default async function InvoicePage({
         <div>
           <h1 className="font-headline text-3xl font-normal tracking-tight">Tax invoice</h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            {invoice.invoiceNumber} · {invoice.issuedOn.toLocaleDateString('en-IN', {
+            {invoice.invoiceNumber} ·{' '}
+            {invoice.issuedOn.toLocaleDateString('en-IN', {
               day: 'numeric',
               month: 'long',
               year: 'numeric',
@@ -82,9 +83,7 @@ export default async function InvoicePage({
       </div>
 
       <div className="mb-8 border-y border-border py-5 text-[14px] leading-relaxed">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Billed to
-        </p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Billed to</p>
         <p className="mt-2 font-medium">{invoice.buyer.name}</p>
         {invoice.buyer.address.map((line, i) => (
           <p key={i} className="text-muted-foreground">
@@ -124,20 +123,11 @@ export default async function InvoicePage({
         <Row label="Taxable value" value={formatPaise(invoice.taxableValue)} />
         {invoice.split.intraState ? (
           <>
-            <Row
-              label={`CGST @ ${invoice.split.ratePercent / 2}%`}
-              value={formatPaise(invoice.split.cgst)}
-            />
-            <Row
-              label={`SGST @ ${invoice.split.ratePercent / 2}%`}
-              value={formatPaise(invoice.split.sgst)}
-            />
+            <Row label={`CGST @ ${invoice.split.ratePercent / 2}%`} value={formatPaise(invoice.split.cgst)} />
+            <Row label={`SGST @ ${invoice.split.ratePercent / 2}%`} value={formatPaise(invoice.split.sgst)} />
           </>
         ) : (
-          <Row
-            label={`IGST @ ${invoice.split.ratePercent}%`}
-            value={formatPaise(invoice.split.igst)}
-          />
+          <Row label={`IGST @ ${invoice.split.ratePercent}%`} value={formatPaise(invoice.split.igst)} />
         )}
         {invoice.shipping > 0 && <Row label="Delivery" value={formatPaise(invoice.shipping)} />}
         <div className="flex justify-between border-t border-border pt-3 text-base font-medium">
@@ -147,8 +137,8 @@ export default async function InvoicePage({
       </dl>
 
       <p className="mt-6 text-[12px] leading-relaxed text-muted-foreground">
-        Prices are inclusive of GST. {invoice.paid ? 'Paid.' : 'Payment due on delivery.'}
-        {' '}This is a computer-generated invoice and needs no signature.
+        Prices are inclusive of GST. {invoice.paid ? 'Paid.' : 'Payment due on delivery.'} This is a computer-generated
+        invoice and needs no signature.
       </p>
 
       <PrintButton />

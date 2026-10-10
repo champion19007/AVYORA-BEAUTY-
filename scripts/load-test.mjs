@@ -27,8 +27,16 @@ if (/vercel\.app|avyora\.com/.test(base)) {
 }
 
 const products = [
-  'rice-bran-cleansing-oil', 'centella-cleansing-balm', 'ha-toner', 'vitamin-c-serum',
-  'niacinamide-drops', 'retinol', 'ceramide-cream', 'sunscreen', 'galacto-essence', 'lip-mask',
+  'rice-bran-cleansing-oil',
+  'centella-cleansing-balm',
+  'ha-toner',
+  'vitamin-c-serum',
+  'niacinamide-drops',
+  'retinol',
+  'ceramide-cream',
+  'sunscreen',
+  'galacto-essence',
+  'lip-mask',
 ];
 
 /** [weight, path factory] — roughly how browsing traffic splits. */
@@ -136,9 +144,13 @@ const abuse = await stage(20, 10, { sameAddress: true });
 console.log(JSON.stringify({ ...abuse, note: 'single address' }));
 
 const errors = results.flatMap((r) =>
-  Object.entries(r.statuses).filter(([s]) => s !== '200').map(([s, n]) => `${s}×${n} at c=${r.concurrency}`)
+  Object.entries(r.statuses)
+    .filter(([s]) => s !== '200')
+    .map(([s, n]) => `${s}×${n} at c=${r.concurrency}`)
 );
 console.log(errors.length ? `Non-200 responses: ${errors.join(', ')}` : 'All staged requests returned 200.');
 console.log(
-  abuse.statuses['429'] ? `Rate limit engaged: ${abuse.statuses['429']} of ${abuse.requests} refused.` : 'WARNING: rate limit did not engage.'
+  abuse.statuses['429']
+    ? `Rate limit engaged: ${abuse.statuses['429']} of ${abuse.requests} refused.`
+    : 'WARNING: rate limit did not engage.'
 );

@@ -39,10 +39,7 @@ export async function createOrderAccessToken(orderNumber: string): Promise<strin
 }
 
 /** Verifies a token really was issued for this order number. */
-export async function verifyOrderAccessToken(
-  orderNumber: string,
-  token: string | undefined
-): Promise<boolean> {
+export async function verifyOrderAccessToken(orderNumber: string, token: string | undefined): Promise<boolean> {
   const secret = getSecret();
   if (!secret || !token) return false;
   const payload = await verifySessionToken(token, secret);

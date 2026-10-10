@@ -44,7 +44,8 @@ export async function catalogIntegrity(db: Db, products: readonly Product[]): Pr
   for (const v of expected.variants) {
     const row = variantsById.get(v.id);
     if (!row) coverage.push(`Variant missing from catalog_variants: ${v.id} (${v.legacyStockKey})`);
-    else if (row.legacyStockKey !== v.legacyStockKey) coverage.push(`Variant ${v.id} maps to ${row.legacyStockKey}, file says ${v.legacyStockKey}`);
+    else if (row.legacyStockKey !== v.legacyStockKey)
+      coverage.push(`Variant ${v.id} maps to ${row.legacyStockKey}, file says ${v.legacyStockKey}`);
   }
   const fileVariantIds = new Set(expected.variants.map((v) => v.id));
   for (const v of dbVariants) {
@@ -60,10 +61,7 @@ export async function catalogIntegrity(db: Db, products: readonly Product[]): Pr
     ['restock_requests', schema.restockRequests],
   ] as const;
   for (const [name, t] of tables) {
-    const rows = await db
-      .select({ productId: t.productId, size: t.size })
-      .from(t)
-      .where(isNull(t.variantId));
+    const rows = await db.select({ productId: t.productId, size: t.size }).from(t).where(isNull(t.variantId));
     const counts = new Map<string, { productId: string; size: string; count: number }>();
     for (const r of rows) {
       const key = `${r.productId}::${r.size}`;
@@ -92,7 +90,8 @@ export async function catalogIntegrity(db: Db, products: readonly Product[]): Pr
     .select()
     .from(schema.inventory)
     .where(and(lt(schema.inventory.quantity, 0), eq(schema.inventory.allowBackorder, false)));
-  for (const r of badStock) priceAndStock.push(`Negative stock without backorder: ${r.productId} ${r.size} (${r.quantity})`);
+  for (const r of badStock)
+    priceAndStock.push(`Negative stock without backorder: ${r.productId} ${r.size} (${r.quantity})`);
 
   return { catalogue: catalogProblems(products), coverage, unresolved, priceAndStock };
 }

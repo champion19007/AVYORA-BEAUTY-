@@ -28,7 +28,12 @@ export type SaveState =
   | { status: 'saved'; id: string }
   | { status: 'failed'; code: string; message: string; retryAfterSeconds?: number };
 
-export type SavedView = { id: string; validity: 'current' | 'outdated' | 'revoked'; expiresAt: string; profile: SkinProfileV2 };
+export type SavedView = {
+  id: string;
+  validity: 'current' | 'outdated' | 'revoked';
+  expiresAt: string;
+  profile: SkinProfileV2;
+};
 
 export type SessionState = {
   phase: 'idle' | 'computing' | 'ready' | 'error';
@@ -63,7 +68,13 @@ export type SessionState = {
   quote: QuoteLine[] | null;
 };
 
-export type QuoteLine = { productId: string; skuId: string; savedPaise: number; currentPaise: number | null; available: boolean };
+export type QuoteLine = {
+  productId: string;
+  skuId: string;
+  savedPaise: number;
+  currentPaise: number | null;
+  available: boolean;
+};
 
 const INITIAL: SessionState = {
   scanId: null,
@@ -83,10 +94,16 @@ const INITIAL: SessionState = {
 };
 
 const { variants } = catalogRecords(PRODUCTS);
-const ALL_SKUS = variants.map((v) => v.legacyStockKey).sort().join(',');
+const ALL_SKUS = variants
+  .map((v) => v.legacyStockKey)
+  .sort()
+  .join(',');
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === 'AbortError';
 
-type ErrorBody = { error?: { code?: string; message?: string; details?: { result?: RoutineSnapshot } }; retryAfterSeconds?: number };
+type ErrorBody = {
+  error?: { code?: string; message?: string; details?: { result?: RoutineSnapshot } };
+  retryAfterSeconds?: number;
+};
 
 export class RoutineSession {
   private state: SessionState = INITIAL;
@@ -125,7 +142,16 @@ export class RoutineSession {
     this.controller?.abort();
     const controller = (this.controller = new AbortController());
     this.saveKey = null;
-    this.set({ phase: 'computing', profile, excluded, error: null, saved: null, savedUnavailable: false, pricesChangedOnSave: false, save: { status: 'session' } });
+    this.set({
+      phase: 'computing',
+      profile,
+      excluded,
+      error: null,
+      saved: null,
+      savedUnavailable: false,
+      pricesChangedOnSave: false,
+      save: { status: 'session' },
+    });
     try {
       const [release, quote] = await Promise.all([
         this.loadRelease(),
@@ -135,7 +161,11 @@ export class RoutineSession {
       const offers: Record<string, Offer> = {};
       for (const v of variants) {
         const price = quote.quote.prices[v.legacyStockKey]?.price;
-        if (price !== undefined) offers[v.id] = { pricePaise: price, stock: quote.quote.stock ? (quote.quote.stock[v.legacyStockKey] ?? 0) : null };
+        if (price !== undefined)
+          offers[v.id] = {
+            pricePaise: price,
+            stock: quote.quote.stock ? (quote.quote.stock[v.legacyStockKey] ?? 0) : null,
+          };
       }
       const result = computeRoutine({ profile, release, products: PRODUCTS, offers, excludeProductIds: excluded });
       const stock = Object.fromEntries(Object.entries(offers).map(([sku, o]) => [sku, o.stock]));
@@ -143,7 +173,10 @@ export class RoutineSession {
     } catch (err) {
       if (isAbort(err) || generation !== this.generation) return;
       // The previous routine, if any, stays on screen with the error beside it.
-      this.set({ phase: this.state.result ? 'ready' : 'error', error: 'We could not load current prices and guidance. Check your connection and try again.' });
+      this.set({
+        phase: this.state.result ? 'ready' : 'error',
+        error: 'We could not load current prices and guidance. Check your connection and try again.',
+      });
     }
   }
 
@@ -151,7 +184,8 @@ export class RoutineSession {
     if (this.state.profile) return this.compute({ ...this.state.profile, budgetPaise }, this.state.excluded);
   }
   swap(productId: string) {
-    if (this.state.profile) return this.compute(this.state.profile, [...new Set([...this.state.excluded, productId])].sort());
+    if (this.state.profile)
+      return this.compute(this.state.profile, [...new Set([...this.state.excluded, productId])].sort());
   }
   undoSwaps() {
     if (this.state.profile) return this.compute(this.state.profile, []);
@@ -175,12 +209,24 @@ export class RoutineSession {
         const key = keyOf.get(p.skuId);
         const currentPaise = key ? (quote.quote.prices[key]?.price ?? null) : null;
         const stock = key && quote.quote.stock ? (quote.quote.stock[key] ?? 0) : null;
-        return { productId: p.productId, skuId: p.skuId, savedPaise: p.pricePaise, currentPaise, available: currentPaise !== null && stock !== null && stock > 0 };
+        return {
+          productId: p.productId,
+          skuId: p.skuId,
+          savedPaise: p.pricePaise,
+          currentPaise,
+          available: currentPaise !== null && stock !== null && stock > 0,
+        };
       });
-      const stock = Object.fromEntries(variants.map((v) => [v.id, quote.quote.stock ? (quote.quote.stock[v.legacyStockKey] ?? 0) : null]));
+      const stock = Object.fromEntries(
+        variants.map((v) => [v.id, quote.quote.stock ? (quote.quote.stock[v.legacyStockKey] ?? 0) : null])
+      );
       this.set({ quote: lines, stock, pricesExpireAt: quote.expiresAt, error: null });
     } catch {
-      if (generation === this.generation) this.set({ error: 'We could not check current prices and stock for this saved routine. Try again before adding to your bag.' });
+      if (generation === this.generation)
+        this.set({
+          error:
+            'We could not check current prices and stock for this saved routine. Try again before adding to your bag.',
+        });
     }
   }
 
@@ -200,7 +246,10 @@ export class RoutineSession {
       if (generation === this.generation) this.set({ save: { status: 'failed', code, message, retryAfterSeconds } });
     };
     try {
-      const consent = await this.post('/api/consent', { purpose: 'routine_saving', policyVersion: ROUTINE_SAVING_POLICY_VERSION });
+      const consent = await this.post('/api/consent', {
+        purpose: 'routine_saving',
+        policyVersion: ROUTINE_SAVING_POLICY_VERSION,
+      });
       if (!consent.ok) return failed(...(await this.failure(consent)));
       const res = await this.post(
         '/api/routines',
@@ -226,7 +275,14 @@ export class RoutineSession {
         // Guidance changed since this plan was made: recalculate with the new release, then ask again.
         this.release = null;
         await this.compute(profile, excluded);
-        return this.set({ save: { status: 'failed', code, message: 'Our routine guidance was just updated, so your routine has been recalculated. Review it and save again.' } });
+        return this.set({
+          save: {
+            status: 'failed',
+            code,
+            message:
+              'Our routine guidance was just updated, so your routine has been recalculated. Review it and save again.',
+          },
+        });
       }
       failed(code, message, retryAfter);
     } catch {
@@ -243,7 +299,8 @@ export class RoutineSession {
       const res = await this.fetchImpl(`/api/routines/${encodeURIComponent(id)}`, { cache: 'no-store' });
       if (generation !== this.generation) return;
       if (res.status === 404) return this.set({ phase: 'idle', savedUnavailable: true });
-      if (!res.ok) return this.set({ phase: 'error', error: 'We could not load your saved routine. Try again shortly.' });
+      if (!res.ok)
+        return this.set({ phase: 'error', error: 'We could not load your saved routine. Try again shortly.' });
       const { routine } = (await res.json()) as {
         routine: SavedView & { result: RoutineSnapshot | null; kbRelease: string };
       };
@@ -259,7 +316,11 @@ export class RoutineSession {
       // Historical prices are never presented as current: fetch a fresh quote now.
       await this.refreshSavedQuote();
     } catch {
-      if (generation === this.generation) this.set({ phase: 'error', error: 'We could not load your saved routine. Check your connection and try again.' });
+      if (generation === this.generation)
+        this.set({
+          phase: 'error',
+          error: 'We could not load your saved routine. Check your connection and try again.',
+        });
     }
   }
 
@@ -271,7 +332,11 @@ export class RoutineSession {
   }
 
   private post(url: string, body: unknown, headers: Record<string, string> = {}) {
-    return this.fetchImpl(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+    return this.fetchImpl(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
   }
 
   private async failure(res: Response): Promise<[string, string, number?]> {
@@ -281,11 +346,17 @@ export class RoutineSession {
     const messages: Record<string, string> = {
       rate_limited: `You have saved several routines just now. Try again in ${retryAfter ?? 60} seconds.`,
       limiter_unavailable: 'Saving is briefly unavailable. Your routine is still here; try again shortly.',
-      knowledge_unavailable: 'Saving opens once our routine guidance is published. Your routine is shown for this visit only.',
-      no_valid_plan: 'This routine can no longer be saved because nothing currently fits your answers. Try a different budget.',
+      knowledge_unavailable:
+        'Saving opens once our routine guidance is published. Your routine is shown for this visit only.',
+      no_valid_plan:
+        'This routine can no longer be saved because nothing currently fits your answers. Try a different budget.',
       consent_required: 'We need your permission to save your answers. Try again.',
       pricing_unavailable: 'Prices are briefly unavailable, so we could not save. Try again shortly.',
     };
-    return [code, messages[code] ?? body.error?.message ?? 'Saving failed. Your routine is still here; try again.', retryAfter];
+    return [
+      code,
+      messages[code] ?? body.error?.message ?? 'Saving failed. Your routine is still here; try again.',
+      retryAfter,
+    ];
   }
 }

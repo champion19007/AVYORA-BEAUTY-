@@ -8,7 +8,14 @@ import { isSameOrigin } from '@/lib/security';
 import { loadActiveRelease } from '@/modules/knowledge/releases';
 import { activeConsent } from '@/modules/personal/personal-records';
 import { apiError, limiterSubject, privateJson, resolveOwner } from '@/modules/personal/routine-http';
-import { getRoutine, insertRoutine, listRoutines, replay, requestHash, scanObservations } from '@/modules/personal/routines';
+import {
+  getRoutine,
+  insertRoutine,
+  listRoutines,
+  replay,
+  requestHash,
+  scanObservations,
+} from '@/modules/personal/routines';
 import { RESULT_MAX_BYTES, routineRequestSchema } from '@/modules/personalization/contracts';
 import { computeRoutine } from '@/modules/personalization/core/routine';
 import { currentOffers } from '@/modules/personalization/service/offers';
@@ -32,7 +39,11 @@ export async function POST(request: Request) {
   if (!owner) return apiError(401, 'owner_required', 'Sign in, or allow routine saving, first.');
   const key = request.headers.get('idempotency-key') ?? '';
   if (!KEY_SHAPE.test(key)) {
-    return apiError(400, 'idempotency_key_required', 'Send an Idempotency-Key header of 8 to 128 letters, digits, - or _.');
+    return apiError(
+      400,
+      'idempotency_key_required',
+      'Send an Idempotency-Key header of 8 to 128 letters, digits, - or _.'
+    );
   }
 
   const limited = await limit([
@@ -60,7 +71,8 @@ export async function POST(request: Request) {
     return apiError(403, 'consent_required', 'Saving a routine needs your permission first.');
   }
   const release = await loadActiveRelease(db).catch(() => null);
-  if (!release) return apiError(503, 'knowledge_unavailable', 'Routines cannot be saved until a knowledge release is published.');
+  if (!release)
+    return apiError(503, 'knowledge_unavailable', 'Routines cannot be saved until a knowledge release is published.');
   if (body.kbRelease !== release.manifest.releaseId) {
     return apiError(409, 'stale_release', 'The routine guidance has been updated; recalculate and try again.', {
       details: { activeRelease: release.manifest.releaseId },
@@ -89,9 +101,12 @@ export async function POST(request: Request) {
   }
   // Re-audit A02: a plan that breaks a hard rule is never saved, whatever the browser showed.
   if (snapshot.status === 'invalid' || snapshot.problems.length > 0) {
-    return apiError(422, 'invalid_plan', 'This routine breaks a safety rule, so it cannot be saved.', { details: { problems: snapshot.problems } });
+    return apiError(422, 'invalid_plan', 'This routine breaks a safety rule, so it cannot be saved.', {
+      details: { problems: snapshot.problems },
+    });
   }
-  if (JSON.stringify(snapshot).length > RESULT_MAX_BYTES) return apiError(422, 'result_too_large', 'This routine is too large to save.');
+  if (JSON.stringify(snapshot).length > RESULT_MAX_BYTES)
+    return apiError(422, 'result_too_large', 'This routine is too large to save.');
 
   const saved = await insertRoutine(db, owner, { request: body, snapshot, key });
   if (!saved.ok) return apiError(saved.status, saved.code, saved.message);

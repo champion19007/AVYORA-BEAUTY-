@@ -40,7 +40,8 @@ const post = (body: unknown) =>
     headers: { 'content-type': 'application/json', origin: 'http://localhost', host: 'localhost' },
     body: JSON.stringify(body),
   });
-const cartRows = async (userId: string) => (await loadCart(userId, null)).sort((x, y) => `${x.productId}${x.size}`.localeCompare(`${y.productId}${y.size}`));
+const cartRows = async (userId: string) =>
+  (await loadCart(userId, null)).sort((x, y) => `${x.productId}${x.size}`.localeCompare(`${y.productId}${y.size}`));
 
 afterAll(async () => {
   await client.close();
@@ -76,7 +77,12 @@ describe('merging a guest bag into an account', () => {
     await saveCart([L('ha-toner', '200ml', 2)], null, 'anon-1');
     await mergeIntoAccount(A, 'anon-1', [L('retinol', '90ml', 1)], []);
     expect(await cartRows(A)).toEqual([L('ha-toner', '200ml', 2), L('retinol', '90ml', 1)]);
-    expect(await db.select().from(carts).where(sql`anonymous_id = 'anon-1'`)).toHaveLength(0);
+    expect(
+      await db
+        .select()
+        .from(carts)
+        .where(sql`anonymous_id = 'anon-1'`)
+    ).toHaveLength(0);
   });
 
   it('repeated merge requests cannot duplicate quantities', async () => {
@@ -128,9 +134,18 @@ describe('the sync routes', () => {
   it('merge requires a signed-in account and validates the guest lines', async () => {
     expect((await mergeRoute.POST(post({ lines: [L('retinol', '90ml', 1)] }))).status).toBe(401);
     sessionUser = A;
-    const res = await mergeRoute.POST(post({ lines: [L('retinol', '90ml', 1), L('retinol', '60ml', 1), { productId: 'x', price: 1 }], wishlist: ['ha-toner', 7] }));
+    const res = await mergeRoute.POST(
+      post({
+        lines: [L('retinol', '90ml', 1), L('retinol', '60ml', 1), { productId: 'x', price: 1 }],
+        wishlist: ['ha-toner', 7],
+      })
+    );
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ accountKey: accountKey(A), cart: [L('retinol', '90ml', 1)], wishlist: ['ha-toner'] });
+    expect(await res.json()).toMatchObject({
+      accountKey: accountKey(A),
+      cart: [L('retinol', '90ml', 1)],
+      wishlist: ['ha-toner'],
+    });
   });
 
   it('merge uses the guest cookie of the request, not one named in the body', async () => {
@@ -139,7 +154,12 @@ describe('the sync routes', () => {
     cookieJar[ANONYMOUS_COOKIE] = 'my-anon';
     await mergeRoute.POST(post({ lines: [], wishlist: [], anonymousId: 'someone-elses-anon' }));
     expect(await cartRows(A)).toEqual([]);
-    expect(await db.select().from(carts).where(sql`anonymous_id = 'someone-elses-anon'`)).toHaveLength(1);
+    expect(
+      await db
+        .select()
+        .from(carts)
+        .where(sql`anonymous_id = 'someone-elses-anon'`)
+    ).toHaveLength(1);
   });
 
   it('a save tagged with another account is refused, and nothing is written', async () => {
@@ -183,7 +203,12 @@ describe('the sync routes', () => {
       await client.exec(`DROP TRIGGER fail_cart_items ON cart_items; DROP FUNCTION fail_insert();`);
     }
     // Rolled back: the guest cart was not deleted and the account got nothing.
-    expect(await db.select().from(carts).where(sql`anonymous_id = 'anon-3'`)).toHaveLength(1);
+    expect(
+      await db
+        .select()
+        .from(carts)
+        .where(sql`anonymous_id = 'anon-3'`)
+    ).toHaveLength(1);
     expect(await db.select().from(cartItems)).toHaveLength(1);
     // And a retry then succeeds.
     expect((await mergeRoute.POST(post({ lines: [L('retinol', '90ml', 1)], wishlist: [] }))).status).toBe(200);

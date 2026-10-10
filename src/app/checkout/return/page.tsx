@@ -56,8 +56,10 @@ function ReturnInner() {
   const copy = {
     checking: 'Confirming your payment…',
     failed: 'That payment did not go through. Your bag is still here: try again, or choose cash on delivery.',
-    pending: 'Your payment has not been confirmed yet. If you were charged, the order will update by itself within a few minutes.',
-    error: 'We could not check this payment. If you were charged, the order will update by itself within a few minutes.',
+    pending:
+      'Your payment has not been confirmed yet. If you were charged, the order will update by itself within a few minutes.',
+    error:
+      'We could not check this payment. If you were charged, the order will update by itself within a few minutes.',
   }[state];
 
   return (

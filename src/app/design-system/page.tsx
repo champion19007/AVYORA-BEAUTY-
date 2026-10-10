@@ -4,7 +4,22 @@ import { REDESIGN } from '@/lib/redesign';
 import { Accordion } from '@/components/nv/accordion';
 import { TextAreaField, TextField } from '@/components/nv/field';
 import { NvImage } from '@/components/nv/nv-image';
-import { ArrowLink, Button, Card, Container, Eyebrow, Grid, Heading, Muted, Section, Skeleton, Spinner, StatusMessage, Text, Wordmark } from '@/components/nv/primitives';
+import {
+  ArrowLink,
+  Button,
+  Card,
+  Container,
+  Eyebrow,
+  Grid,
+  Heading,
+  Muted,
+  Section,
+  Skeleton,
+  Spinner,
+  StatusMessage,
+  Text,
+  Wordmark,
+} from '@/components/nv/primitives';
 import { DialogDemo } from './dialog-demo';
 import { DEMO_BROKEN_IMAGE, DEMO_FAQ, DEMO_LONG_TITLE } from './fixtures';
 
@@ -47,14 +62,17 @@ export default function DesignSystemPage() {
             Design system <Muted>primitives</Muted>
           </Heading>
           <Text size="intro">
-            Redesign flag: <strong className="text-nv-ink">{REDESIGN ? 'on' : 'off'}</strong>. Values come from the Nuvē reference measured on 8 October 2026.
+            Redesign flag: <strong className="text-nv-ink">{REDESIGN ? 'on' : 'off'}</strong>. Values come from the Nuvē
+            reference measured on 8 October 2026.
           </Text>
         </Container>
       </Section>
 
       <Section space="sm" aria-labelledby="ds-type">
         <Container className="space-y-6">
-          <Heading id="ds-type" size="title">Typography</Heading>
+          <Heading id="ds-type" size="title">
+            Typography
+          </Heading>
           {TYPE.map(([cls, label]) => (
             <p key={cls} className={`${cls} font-medium`}>
               {label}
@@ -69,7 +87,9 @@ export default function DesignSystemPage() {
 
       <Section space="sm" aria-labelledby="ds-colour">
         <Container>
-          <Heading id="ds-colour" size="title">Colour</Heading>
+          <Heading id="ds-colour" size="title">
+            Colour
+          </Heading>
           <ul className="mt-6 grid grid-cols-6 gap-nv-gap">
             {SWATCHES.map(([name, hex, cls]) => (
               <li key={name} className="rounded-nv-card bg-nv-card p-4">
@@ -84,7 +104,9 @@ export default function DesignSystemPage() {
 
       <Section space="sm" aria-labelledby="ds-actions">
         <Container className="space-y-8">
-          <Heading id="ds-actions" size="title">Buttons and links</Heading>
+          <Heading id="ds-actions" size="title">
+            Buttons and links
+          </Heading>
           <div className="flex flex-wrap items-center gap-4">
             <Button>Find my routine</Button>
             <Button variant="outline">Outline</Button>
@@ -105,7 +127,9 @@ export default function DesignSystemPage() {
 
       <Section space="sm" aria-labelledby="ds-cards">
         <Container className="space-y-6">
-          <Heading id="ds-cards" size="title">Cards and images</Heading>
+          <Heading id="ds-cards" size="title">
+            Cards and images
+          </Heading>
           <Grid cols={2}>
             {sample.map((p) => (
               <article key={p.id} className="space-y-4">
@@ -120,7 +144,12 @@ export default function DesignSystemPage() {
               <h3 className="mt-10 text-nv-title">{DEMO_LONG_TITLE}</h3>
             </Card>
             <article className="space-y-3">
-              <NvImage src={DEMO_BROKEN_IMAGE} alt="DEMO: an image that fails to load keeps its slot" ratio={408 / 194} sizes="408px" />
+              <NvImage
+                src={DEMO_BROKEN_IMAGE}
+                alt="DEMO: an image that fails to load keeps its slot"
+                ratio={408 / 194}
+                sizes="408px"
+              />
               <Text size="small">Failure state: same size, alternative text shown.</Text>
             </article>
             <Card className="space-y-3">
@@ -136,17 +165,34 @@ export default function DesignSystemPage() {
       <Section space="sm" aria-labelledby="ds-forms">
         <Container className="grid grid-cols-2 gap-16">
           <div className="space-y-6">
-            <Heading id="ds-forms" size="title">Fields</Heading>
+            <Heading id="ds-forms" size="title">
+              Fields
+            </Heading>
             <TextField id="ds-name" label="Your name" autoComplete="name" />
-            <TextField id="ds-email" label="Email" type="email" hint="We reply within the hours shown on the contact page." error="Enter an email address like name@example.com." defaultValue="not-an-email" />
+            <TextField
+              id="ds-email"
+              label="Email"
+              type="email"
+              hint="We reply within the hours shown on the contact page."
+              error="Enter an email address like name@example.com."
+              defaultValue="not-an-email"
+            />
             <TextAreaField id="ds-message" label="Message" />
           </div>
           <div className="space-y-4">
-            <Heading size="title" as="h3">Status messages</Heading>
-            <StatusMessage tone="info" title="Prices are being checked">This takes a moment.</StatusMessage>
+            <Heading size="title" as="h3">
+              Status messages
+            </Heading>
+            <StatusMessage tone="info" title="Prices are being checked">
+              This takes a moment.
+            </StatusMessage>
             <StatusMessage tone="success">Saved to your routines.</StatusMessage>
-            <StatusMessage tone="warning" title="Prices may have changed">Refresh to see current prices.</StatusMessage>
-            <StatusMessage tone="error" title="We could not save your routine">Check your connection and try again.</StatusMessage>
+            <StatusMessage tone="warning" title="Prices may have changed">
+              Refresh to see current prices.
+            </StatusMessage>
+            <StatusMessage tone="error" title="We could not save your routine">
+              Check your connection and try again.
+            </StatusMessage>
             <DialogDemo />
           </div>
         </Container>
@@ -155,7 +201,9 @@ export default function DesignSystemPage() {
       <Section space="sm" aria-labelledby="ds-faq" tone="page">
         <Container className="grid grid-cols-[1fr_800px] gap-16">
           <div>
-            <Heading id="ds-faq" size="display">FAQ</Heading>
+            <Heading id="ds-faq" size="display">
+              FAQ
+            </Heading>
             <Text className="mt-6 max-w-[260px]">DEMO supporting copy beside the accordion.</Text>
           </div>
           <Accordion items={DEMO_FAQ} />

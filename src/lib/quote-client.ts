@@ -65,7 +65,9 @@ export async function requestQuote(
   if (!entry) {
     const controller = new AbortController();
     const fetchImpl = options.fetchImpl ?? fetch;
-    const promise = fetchImpl(`/api/catalog/availability?skus=${encodeURIComponent(skus)}`, { signal: controller.signal })
+    const promise = fetchImpl(`/api/catalog/availability?skus=${encodeURIComponent(skus)}`, {
+      signal: controller.signal,
+    })
       .then(async (r) => {
         if (!r.ok) throw new Error(`Quote request failed: ${r.status}`);
         const quote = (await r.json()) as AvailabilityResponse;

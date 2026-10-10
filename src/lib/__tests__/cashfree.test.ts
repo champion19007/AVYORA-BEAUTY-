@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { normaliseStatus, toPaise, verifyCashfreeWebhook } from '@/lib/cashfree';
 
 const secret = 'test_secret_not_real';
-const sign = (ts: string, body: string) => createHmac('sha256', secret).update(ts + body).digest('base64');
+const sign = (ts: string, body: string) =>
+  createHmac('sha256', secret)
+    .update(ts + body)
+    .digest('base64');
 
 describe('Cashfree webhook signature', () => {
   const body = '{"type":"PAYMENT_SUCCESS_WEBHOOK","data":{"order":{"order_id":"AVY-1"}}}';

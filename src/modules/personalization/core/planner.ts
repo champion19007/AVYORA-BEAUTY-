@@ -26,7 +26,14 @@ import type { TreatmentClass } from '@/data/product-directions';
 import type { Knowledge } from '@/modules/ingredients/formulations';
 import type { InteractionRule } from '@/modules/ingredients/interaction-rules';
 import type { ExplanationTemplate } from '@/modules/knowledge/records';
-import { conflictTier, possibleIngredients, type OwnedItem, type Reason, type SelectionResult, type Slot } from './selection';
+import {
+  conflictTier,
+  possibleIngredients,
+  type OwnedItem,
+  type Reason,
+  type SelectionResult,
+  type Slot,
+} from './selection';
 
 export type Session = 'am' | 'pm';
 export const DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -104,7 +111,9 @@ export function spreadDays(n: number, offset = 0): number[] {
 }
 
 const nameOf = (ctx: PlanContext, slot: PlannedSlot) =>
-  slot.source === 'owned' ? slot.label : (ctx.products.find((p) => p.id === slot.productId)?.name ?? slot.productId ?? 'A product');
+  slot.source === 'owned'
+    ? slot.label
+    : (ctx.products.find((p) => p.id === slot.productId)?.name ?? slot.productId ?? 'A product');
 
 function ingredientsOf(ctx: PlanContext, slot: PlannedSlot): string[] {
   if (slot.source === 'owned') return ctx.ownedItems.find((o) => o.id === slot.ownedItemId)?.ingredientIds ?? [];
@@ -114,7 +123,11 @@ function ingredientsOf(ctx: PlanContext, slot: PlannedSlot): string[] {
 
 function reorder(session: PlannedSlot[]): PlannedSlot[] {
   return [...session]
-    .sort((a, b) => (ROLE_ORDER[a.role] ?? 99) - (ROLE_ORDER[b.role] ?? 99) || (a.productId ?? a.ownedItemId ?? '').localeCompare(b.productId ?? b.ownedItemId ?? ''))
+    .sort(
+      (a, b) =>
+        (ROLE_ORDER[a.role] ?? 99) - (ROLE_ORDER[b.role] ?? 99) ||
+        (a.productId ?? a.ownedItemId ?? '').localeCompare(b.productId ?? b.ownedItemId ?? '')
+    )
     .map((s, i) => ({ ...s, position: i + 1 }));
 }
 
@@ -130,10 +143,12 @@ export function validatePlan(days: readonly PlanDay[], ctx: PlanContext): string
     for (const session of ['am', 'pm'] as const) {
       const slots = d[session];
       const where = `${DAY_NAMES[d.day]} ${session.toUpperCase()}`;
-      if (slots.length > ctx.maxDailySteps) problems.push(`${where}: ${slots.length} steps, limit ${ctx.maxDailySteps}`);
+      if (slots.length > ctx.maxDailySteps)
+        problems.push(`${where}: ${slots.length} steps, limit ${ctx.maxDailySteps}`);
       slots.forEach((s, i) => {
         if (s.position !== i + 1) problems.push(`${where}: positions out of sequence`);
-        if (i > 0 && (ROLE_ORDER[slots[i - 1].role] ?? 99) > (ROLE_ORDER[s.role] ?? 99)) problems.push(`${where}: ${s.role} applied before ${slots[i - 1].role}`);
+        if (i > 0 && (ROLE_ORDER[slots[i - 1].role] ?? 99) > (ROLE_ORDER[s.role] ?? 99))
+          problems.push(`${where}: ${s.role} applied before ${slots[i - 1].role}`);
       });
 
       // Every catalogue product with an approved usage profile is held to it, whatever its role.
@@ -141,7 +156,8 @@ export function validatePlan(days: readonly PlanDay[], ctx: PlanContext): string
         if (!s.productId) continue;
         uses.set(s.productId, (uses.get(s.productId) ?? 0) + 1);
         const d2 = ctx.knowledge.directions[s.productId];
-        if (d2 && d2.session !== 'am_or_pm' && d2.session !== session) problems.push(`${where}: ${s.productId} is approved for ${d2.session.toUpperCase()} only`);
+        if (d2 && d2.session !== 'am_or_pm' && d2.session !== session)
+          problems.push(`${where}: ${s.productId} is approved for ${d2.session.toUpperCase()} only`);
       }
       const actives = slots.filter((s) => s.productId && ctx.treatments[s.productId]);
       for (const s of actives) {
@@ -158,7 +174,8 @@ export function validatePlan(days: readonly PlanDay[], ctx: PlanContext): string
       for (let i = 0; i < slots.length; i++) {
         for (let j = i + 1; j < slots.length; j++) {
           const tier = conflictTier(ingredientsOf(ctx, slots[i]), ingredientsOf(ctx, slots[j]), ctx.interactions);
-          if (tier !== null) problems.push(`${where}: ${nameOf(ctx, slots[i])} and ${nameOf(ctx, slots[j])} conflict (tier ${tier})`);
+          if (tier !== null)
+            problems.push(`${where}: ${nameOf(ctx, slots[i])} and ${nameOf(ctx, slots[j])} conflict (tier ${tier})`);
         }
       }
     }
@@ -175,7 +192,16 @@ export function validatePlan(days: readonly PlanDay[], ctx: PlanContext): string
 function fromSelection(s: Slot, optional: boolean, ctx: PlanContext): PlannedSlot | null {
   if (s.source === 'unfilled') return null;
   if (s.source === 'owned') {
-    return { position: 0, role: s.role, optional, source: 'owned', ownedItemId: s.ownedItemId, label: s.label, directions: null, timing: 'role_default' };
+    return {
+      position: 0,
+      role: s.role,
+      optional,
+      source: 'owned',
+      ownedItemId: s.ownedItemId,
+      label: s.label,
+      directions: null,
+      timing: 'role_default',
+    };
   }
   const d = ctx.knowledge.directions[s.productId];
   return {
@@ -196,7 +222,12 @@ function fromSelection(s: Slot, optional: boolean, ctx: PlanContext): PlannedSlo
  * weekly maximum, introduction pace), otherwise its role's default sessions
  * every day. A missing profile never becomes an invented limit.
  */
-function placements(slot: PlannedSlot, roleSessions: readonly Session[], ctx: PlanContext, offset = 0): { day: number; session: Session }[] {
+function placements(
+  slot: PlannedSlot,
+  roleSessions: readonly Session[],
+  ctx: PlanContext,
+  offset = 0
+): { day: number; session: Session }[] {
   const d = slot.productId ? ctx.knowledge.directions[slot.productId] : undefined;
   const sessions: Session[] = !d || d.session === 'am_or_pm' ? [...roleSessions] : [d.session];
   if (!d || d.maxWeeklyUses === null) return DAYS.flatMap((day) => sessions.map((session) => ({ day, session })));
@@ -251,7 +282,8 @@ export function planWeek(selection: SelectionResult, ctx: PlanContext): WeeklyPl
     const slot = fromSelection(s, false, ctx);
     if (!slot || s.source === 'unfilled') continue;
     for (const at of placements(slot, s.session, ctx)) days = withSlot(days, at.day, at.session, slot);
-    if (slot.source === 'catalogue' && !slot.directions) missing.add(`Approved directions for ${slot.label} (essential; scheduled by its role, with pack directions)`);
+    if (slot.source === 'catalogue' && !slot.directions)
+      missing.add(`Approved directions for ${slot.label} (essential; scheduled by its role, with pack directions)`);
   }
 
   // A hard conflict among essentials is removed, never left in an actionable week.
@@ -260,13 +292,23 @@ export function planWeek(selection: SelectionResult, ctx: PlanContext): WeeklyPl
     const hit = firstConflict(days, ctx);
     if (!hit) break;
     const [a, b, tier] = hit;
-    const drop = a.source === 'owned' && b.source !== 'owned' ? b : b.source === 'owned' && a.source !== 'owned' ? a : b;
+    const drop =
+      a.source === 'owned' && b.source !== 'owned' ? b : b.source === 'owned' && a.source !== 'owned' ? a : b;
     const other = drop === a ? b : a;
     const key = keyOf(drop);
     dropped.add(key);
-    days = days.map((d) => ({ ...d, am: reorder(d.am.filter((x) => keyOf(x) !== key)), pm: reorder(d.pm.filter((x) => keyOf(x) !== key)) }));
-    const reason = { code: 'conflicts_in_routine', ruleId: 'builtin:interaction', message: `It has an established conflict (tier ${tier}) with ${nameOf(ctx, other)}, so it was left out.` };
-    if (drop.source === 'owned') ownedNotScheduled.push({ ownedItemId: drop.ownedItemId!, label: drop.label, reasons: [reason] });
+    days = days.map((d) => ({
+      ...d,
+      am: reorder(d.am.filter((x) => keyOf(x) !== key)),
+      pm: reorder(d.pm.filter((x) => keyOf(x) !== key)),
+    }));
+    const reason = {
+      code: 'conflicts_in_routine',
+      ruleId: 'builtin:interaction',
+      message: `It has an established conflict (tier ${tier}) with ${nameOf(ctx, other)}, so it was left out.`,
+    };
+    if (drop.source === 'owned')
+      ownedNotScheduled.push({ ownedItemId: drop.ownedItemId!, label: drop.label, reasons: [reason] });
     else excluded.push({ productId: drop.productId!, reasons: [reason] });
   }
 
@@ -278,7 +320,13 @@ export function planWeek(selection: SelectionResult, ctx: PlanContext): WeeklyPl
     if (!d || d.maxWeeklyUses === null) {
       excluded.push({
         productId: slot.productId!,
-        reasons: [{ code: 'frequency_missing', ruleId: 'builtin:usage-profile', message: 'No approved weekly frequency, so it cannot be scheduled.' }],
+        reasons: [
+          {
+            code: 'frequency_missing',
+            ruleId: 'builtin:usage-profile',
+            message: 'No approved weekly frequency, so it cannot be scheduled.',
+          },
+        ],
       });
       missing.add(`Approved weekly frequency for ${slot.label}`);
       continue;
@@ -295,7 +343,13 @@ export function planWeek(selection: SelectionResult, ctx: PlanContext): WeeklyPl
     else {
       excluded.push({
         productId: slot.productId!,
-        reasons: [{ code: 'cannot_schedule', ruleId: 'builtin:planner', message: 'It could not be placed on any day without breaking a step limit, conflict or frequency rule.' }],
+        reasons: [
+          {
+            code: 'cannot_schedule',
+            ruleId: 'builtin:planner',
+            message: 'It could not be placed on any day without breaking a step limit, conflict or frequency rule.',
+          },
+        ],
       });
     }
   }
@@ -324,7 +378,13 @@ export function planWeek(selection: SelectionResult, ctx: PlanContext): WeeklyPl
   ).length;
   // Missing an essential is an incomplete but valid plan; a broken hard rule is not a plan at all.
   const status: WeeklyPlan['status'] =
-    problems.length > 0 ? 'invalid' : essentialsFilled === 0 ? 'no_match' : essentialsFilled === 3 && selection.status === 'complete' ? 'complete' : 'partial';
+    problems.length > 0
+      ? 'invalid'
+      : essentialsFilled === 0
+        ? 'no_match'
+        : essentialsFilled === 3 && selection.status === 'complete'
+          ? 'complete'
+          : 'partial';
   const actionable = status !== 'invalid';
 
   return {
@@ -360,7 +420,9 @@ export function describeSchedule(days: readonly PlanDay[], ctx: PlanContext): st
   return [...where.values()]
     .sort((a, b) => a.label.localeCompare(b.label))
     .map((e) => {
-      const parts = [e.am.length ? when(e.am, 'morning') : null, e.pm.length ? when(e.pm, 'evening') : null].filter(Boolean);
+      const parts = [e.am.length ? when(e.am, 'morning') : null, e.pm.length ? when(e.pm, 'evening') : null].filter(
+        Boolean
+      );
       return `${e.label}: ${parts.join(' and ')}.`;
     });
 }
@@ -380,7 +442,14 @@ function explain(excluded: WeeklyPlan['excluded'], ctx: PlanContext): Explanatio
       const templateId = byCode[r.code];
       if (!templateId) continue;
       const variables = { productName: ctx.products.find((p) => p.id === e.productId)?.name ?? e.productId };
-      out.push({ templateId, variables, text: render(ctx.templates.find((t) => t.id === templateId), variables) });
+      out.push({
+        templateId,
+        variables,
+        text: render(
+          ctx.templates.find((t) => t.id === templateId),
+          variables
+        ),
+      });
     }
   }
   return out;
@@ -397,15 +466,25 @@ export type PlanEdit =
  * would break a rule is refused with the problems, leaving the plan as it was.
  * (Substitutions and budget changes go back through selectProducts and planWeek.)
  */
-export function applyEdit(days: readonly PlanDay[], edit: PlanEdit, ctx: PlanContext): { ok: true; days: PlanDay[] } | { ok: false; problems: string[] } {
+export function applyEdit(
+  days: readonly PlanDay[],
+  edit: PlanEdit,
+  ctx: PlanContext
+): { ok: true; days: PlanDay[] } | { ok: false; problems: string[] } {
   let next: PlanDay[] = days.map((d) => ({ ...d, am: [...d.am], pm: [...d.pm] }));
   if (edit.kind === 'remove') {
-    next = next.map((d) => (d.day === edit.day ? { ...d, [edit.session]: reorder(d[edit.session].filter((s) => s.position !== edit.position)) } : d));
+    next = next.map((d) =>
+      d.day === edit.day
+        ? { ...d, [edit.session]: reorder(d[edit.session].filter((s) => s.position !== edit.position)) }
+        : d
+    );
   } else {
     const from = next.find((d) => d.day === edit.fromDay)?.[edit.session].find((s) => s.productId === edit.productId);
     if (!from) return { ok: false, problems: [`${edit.productId} is not scheduled on ${DAY_NAMES[edit.fromDay]}`] };
     next = next.map((d) =>
-      d.day === edit.fromDay ? { ...d, [edit.session]: reorder(d[edit.session].filter((s) => s.productId !== edit.productId)) } : d
+      d.day === edit.fromDay
+        ? { ...d, [edit.session]: reorder(d[edit.session].filter((s) => s.productId !== edit.productId)) }
+        : d
     );
     if (next.find((d) => d.day === edit.toDay)?.[edit.session].some((s) => s.productId === edit.productId)) {
       return { ok: false, problems: [`${edit.productId} is already scheduled on ${DAY_NAMES[edit.toDay]}`] };

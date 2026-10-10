@@ -51,13 +51,9 @@ export function isRazorpayConfigured(): boolean {
 /* -------------------------------------------------------------------------- */
 
 async function hmacSha256Hex(message: string, secret: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+  ]);
   const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
   return Array.from(new Uint8Array(sig))
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -126,11 +122,7 @@ export type RazorpayOrder = {
  * exactly what a bare razorpay.me payment link cannot do.
  */
 export async function createRazorpayOrder(
-  {
-    amountPaise,
-    receipt,
-    notes,
-  }: { amountPaise: number; receipt: string; notes?: Record<string, string> },
+  { amountPaise, receipt, notes }: { amountPaise: number; receipt: string; notes?: Record<string, string> },
   config: RazorpayConfig
 ): Promise<RazorpayOrder> {
   if (!Number.isInteger(amountPaise) || amountPaise < 100) {

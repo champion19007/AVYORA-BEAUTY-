@@ -30,7 +30,12 @@ vi.mock('next/headers', () => ({
 }));
 const { variants } = catalogRecords(PRODUCTS);
 const PRICES: Record<string, Offer> = Object.fromEntries(
-  PRODUCTS.flatMap((p) => p.sizes.map((s) => [variants.find((v) => v.productId === p.id && v.sizeLabel === s.label)!.id, { pricePaise: s.price * 100, stock: 10 }]))
+  PRODUCTS.flatMap((p) =>
+    p.sizes.map((s) => [
+      variants.find((v) => v.productId === p.id && v.sizeLabel === s.label)!.id,
+      { pricePaise: s.price * 100, stock: 10 },
+    ])
+  )
 );
 vi.mock('@/modules/personalization/service/offers', () => ({ currentOffers: async () => PRICES }));
 
@@ -71,14 +76,25 @@ const fetchImpl: typeof fetch = async (input, init = {}) => {
   if (url.pathname === '/api/catalog/availability') {
     if (quoteGate) await quoteGate;
     if (init.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    const prices = Object.fromEntries(variants.map((v) => [v.legacyStockKey, { price: PRICES[v.id].pricePaise + quoteDelta, wasPrice: null, offerLabel: null }]));
+    const prices = Object.fromEntries(
+      variants.map((v) => [
+        v.legacyStockKey,
+        { price: PRICES[v.id].pricePaise + quoteDelta, wasPrice: null, offerLabel: null },
+      ])
+    );
     const stock = Object.fromEntries(variants.map((v) => [v.legacyStockKey, stockOverride[v.legacyStockKey] ?? 10]));
-    return Response.json({ prices, stock, quoteVersion: 'test', validUntil: new Date(Date.now() + 60_000).toISOString() });
+    return Response.json({
+      prices,
+      stock,
+      quoteVersion: 'test',
+      validUntil: new Date(Date.now() + 60_000).toISOString(),
+    });
   }
   const request = new Request(url, { ...init, headers });
   if (url.pathname === '/api/catalog/release') return releaseRoute.GET();
   if (url.pathname === '/api/consent') return consentRoute.POST(request);
-  if (url.pathname === '/api/routines') return init.method === 'POST' ? routinesRoute.POST(request) : routinesRoute.GET(request);
+  if (url.pathname === '/api/routines')
+    return init.method === 'POST' ? routinesRoute.POST(request) : routinesRoute.GET(request);
   const id = url.pathname.match(/^\/api\/routines\/([^/]+)$/)?.[1];
   if (id) return routineRoute.GET(request, { params: Promise.resolve({ id }) });
   return new Response('not found', { status: 404 });
@@ -101,7 +117,12 @@ const BEGINNER = profile({
   prescribedTreatment: 'no',
 });
 const scheduled = (s: InstanceType<typeof RoutineSession>) =>
-  new Set(s.getState().result!.days.flatMap((d) => [...d.am, ...d.pm]).map((x) => x.productId ?? x.ownedItemId));
+  new Set(
+    s
+      .getState()
+      .result!.days.flatMap((d) => [...d.am, ...d.pm])
+      .map((x) => x.productId ?? x.ownedItemId)
+  );
 
 afterAll(async () => {
   await client.close();
@@ -110,7 +131,9 @@ beforeAll(async () => {
   await storeRelease(db, RELEASE, { id: 'staff', role: 'owner' });
 }, 60_000);
 beforeEach(async () => {
-  await db.execute(sql`truncate users, consent_records, skin_profiles, routine_results, routine_schedule_slots, rate_limits restart identity cascade`);
+  await db.execute(
+    sql`truncate users, consent_records, skin_profiles, routine_results, routine_schedule_slots, rate_limits restart identity cascade`
+  );
   await db.delete(schema.kbActiveRelease);
   await activateRelease(db, RELEASE.manifest.releaseId, { id: 'staff', role: 'owner' });
   resetQuoteClient();
@@ -216,7 +239,10 @@ describe('quiz-only journeys', () => {
     resetQuoteClient();
     failNext = { path: '/api/catalog/availability' };
     await s.refresh();
-    expect(s.getState()).toMatchObject({ phase: 'ready', error: expect.stringMatching(/could not load current prices/) });
+    expect(s.getState()).toMatchObject({
+      phase: 'ready',
+      error: expect.stringMatching(/could not load current prices/),
+    });
     expect(s.getState().result).not.toBeNull();
   });
 });
@@ -257,10 +283,18 @@ describe('saving and reloading', () => {
     await s.compute(BEGINNER);
     failNext = {
       path: '/api/routines',
-      response: Response.json({ error: { code: 'rate_limited', message: 'x' }, retryAfterSeconds: 42 }, { status: 429, headers: { 'Retry-After': '42' } }),
+      response: Response.json(
+        { error: { code: 'rate_limited', message: 'x' }, retryAfterSeconds: 42 },
+        { status: 429, headers: { 'Retry-After': '42' } }
+      ),
     };
     await s.save();
-    expect(s.getState().save).toMatchObject({ status: 'failed', code: 'rate_limited', retryAfterSeconds: 42, message: expect.stringMatching(/42 seconds/) });
+    expect(s.getState().save).toMatchObject({
+      status: 'failed',
+      code: 'rate_limited',
+      retryAfterSeconds: 42,
+      message: expect.stringMatching(/42 seconds/),
+    });
     expect(s.getState().result).not.toBeNull();
   });
 
@@ -297,9 +331,17 @@ describe('saving and reloading', () => {
     const st = reopened.getState();
     expect(st.result!.days).toEqual(saved.days); // the saved schedule is not rewritten
     const line = st.quote!.find((q) => q.skuId === first.skuId)!;
-    expect(line).toMatchObject({ savedPaise: first.pricePaise, currentPaise: first.pricePaise + 500, available: false });
+    expect(line).toMatchObject({
+      savedPaise: first.pricePaise,
+      currentPaise: first.pricePaise + 500,
+      available: false,
+    });
     expect(st.stock[first.skuId]).toBe(0);
-    expect(st.quote!.filter((q) => q.skuId !== first.skuId).every((q) => q.available && q.currentPaise === q.savedPaise + 500)).toBe(true);
+    expect(
+      st
+        .quote!.filter((q) => q.skuId !== first.skuId)
+        .every((q) => q.available && q.currentPaise === q.savedPaise + 500)
+    ).toBe(true);
   });
 
   it('an expired, deleted or foreign saved routine is reported unavailable, not replaced', async () => {
@@ -307,8 +349,12 @@ describe('saving and reloading', () => {
     await s.compute(BEGINNER);
     await s.save();
     const id = (s.getState().save as { id: string }).id;
-    await client.query(`update routine_results set created_at = now() - interval '20 days', expires_at = now() - interval '1 day'`);
-    await client.query(`update skin_profiles set created_at = now() - interval '20 days', expires_at = now() - interval '1 day'`);
+    await client.query(
+      `update routine_results set created_at = now() - interval '20 days', expires_at = now() - interval '1 day'`
+    );
+    await client.query(
+      `update skin_profiles set created_at = now() - interval '20 days', expires_at = now() - interval '1 day'`
+    );
     const reload = new RoutineSession(fetchImpl);
     await reload.loadSaved(id);
     expect(reload.getState()).toMatchObject({ savedUnavailable: true, result: null, phase: 'idle' });

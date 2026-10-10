@@ -1,10 +1,6 @@
 import type { z } from 'zod';
 import { db } from '@/db';
-import {
-  IdempotencyKeyReusedError,
-  withIdempotency,
-  type Tx,
-} from '@/infrastructure/idempotency/idempotency';
+import { IdempotencyKeyReusedError, withIdempotency, type Tx } from '@/infrastructure/idempotency/idempotency';
 import { reportError } from '@/lib/observability';
 
 /**
@@ -33,16 +29,10 @@ export type CommandActor = {
   role: string | null;
 };
 
-export type CommandFailureCode =
-  | 'invalid'
-  | 'forbidden'
-  | 'not_found'
-  | 'conflict'
-  | 'key_reused';
+export type CommandFailureCode = 'invalid' | 'forbidden' | 'not_found' | 'conflict' | 'key_reused';
 
 export type CommandResult<O> =
-  | { ok: true; value: O; replayed: boolean }
-  | { ok: false; code: CommandFailureCode; message: string };
+  { ok: true; value: O; replayed: boolean } | { ok: false; code: CommandFailureCode; message: string };
 
 export class CommandError extends Error {
   constructor(
@@ -67,10 +57,7 @@ export type CommandDefinition<S extends z.ZodTypeAny, O> = {
 };
 
 export function defineCommand<S extends z.ZodTypeAny, O>(definition: CommandDefinition<S, O>) {
-  return async function execute(
-    raw: unknown,
-    actor: CommandActor | null
-  ): Promise<CommandResult<O>> {
+  return async function execute(raw: unknown, actor: CommandActor | null): Promise<CommandResult<O>> {
     const parsed = definition.schema.safeParse(raw);
     if (!parsed.success) {
       return {
@@ -90,9 +77,8 @@ export function defineCommand<S extends z.ZodTypeAny, O>(definition: CommandDefi
       const key = definition.idempotencyKey?.(input) ?? null;
 
       if (key) {
-        const outcome = await withIdempotency<O>(
-          { scope: definition.name, key, payload: input },
-          (tx) => definition.run(input, actor, tx)
+        const outcome = await withIdempotency<O>({ scope: definition.name, key, payload: input }, (tx) =>
+          definition.run(input, actor, tx)
         );
         return { ok: true, value: outcome.result, replayed: outcome.replayed };
       }

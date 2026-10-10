@@ -46,7 +46,14 @@ function Wrap({ id, label, hint, error, className, children }: Common & { childr
 const describedBy = (id: string, hint?: string, error?: string | null) =>
   [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined;
 
-export function TextField({ id, label, hint, error, className, ...input }: Common & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'id'>) {
+export function TextField({
+  id,
+  label,
+  hint,
+  error,
+  className,
+  ...input
+}: Common & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'id'>) {
   return (
     <Wrap id={id} label={label} hint={hint} error={error} className={className}>
       <input
@@ -60,7 +67,14 @@ export function TextField({ id, label, hint, error, className, ...input }: Commo
   );
 }
 
-export function TextAreaField({ id, label, hint, error, className, ...input }: Common & Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'>) {
+export function TextAreaField({
+  id,
+  label,
+  hint,
+  error,
+  className,
+  ...input
+}: Common & Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'>) {
   return (
     <Wrap id={id} label={label} hint={hint} error={error} className={className}>
       <textarea

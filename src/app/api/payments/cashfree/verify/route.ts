@@ -22,9 +22,12 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   const config = getCashfreeConfig();
-  if (!config || !isDatabaseConfigured()) return NextResponse.json({ error: 'Payments are not configured.' }, { status: 503 });
+  if (!config || !isDatabaseConfigured())
+    return NextResponse.json({ error: 'Payments are not configured.' }, { status: 503 });
 
-  const limited = await limit([{ policy: 'payment', subject: { kind: 'ip', address: trustedClientIp(request.headers) } }]);
+  const limited = await limit([
+    { policy: 'payment', subject: { kind: 'ip', address: trustedClientIp(request.headers) } },
+  ]);
   if (!limited.allowed) return limitResponse(limited);
 
   const read = await readBoundedJson(request, BODY_LIMITS.paymentVerify);
@@ -33,7 +36,8 @@ export async function POST(request: Request) {
   if (!/^[A-Z0-9-]{4,40}$/.test(orderNumber)) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
 
   const order = await getOrderByPaymentReference(orderNumber);
-  if (!order || order.paymentProvider !== 'cashfree') return NextResponse.json({ error: 'Unknown order.' }, { status: 404 });
+  if (!order || order.paymentProvider !== 'cashfree')
+    return NextResponse.json({ error: 'Unknown order.' }, { status: 404 });
   if (order.paymentStatus === 'paid') return NextResponse.json({ status: 'paid', orderNumber });
 
   const payments = await fetchCashfreePayments(orderNumber, config);

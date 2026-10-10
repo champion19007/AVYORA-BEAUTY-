@@ -33,7 +33,6 @@ export type TrackState = {
   };
 };
 
-
 export async function trackOrder(_prev: TrackState, formData: FormData): Promise<TrackState> {
   if (!isDatabaseConfigured()) {
     return { error: 'Order tracking is not available on this deployment.' };
@@ -41,8 +40,14 @@ export async function trackOrder(_prev: TrackState, formData: FormData): Promise
 
   // Rate limited because this is a guessing surface: order numbers are short
   // and an unbounded endpoint invites enumeration.
-  const orderNumber = String(formData.get('orderNumber') ?? '').trim().toUpperCase().slice(0, 40);
-  const email = String(formData.get('email') ?? '').trim().toLowerCase().slice(0, 254);
+  const orderNumber = String(formData.get('orderNumber') ?? '')
+    .trim()
+    .toUpperCase()
+    .slice(0, 40);
+  const email = String(formData.get('email') ?? '')
+    .trim()
+    .toLowerCase()
+    .slice(0, 254);
 
   const limited = await limit([
     { policy: 'accountLookup', subject: { kind: 'ip', address: trustedClientIp(await headers()) } },
@@ -89,9 +94,7 @@ export async function trackOrder(_prev: TrackState, formData: FormData): Promise
         year: 'numeric',
       }),
       progress: orderProgress(order.status),
-      destination: address?.city
-        ? `${address.city}${address.state ? `, ${address.state}` : ''}`
-        : null,
+      destination: address?.city ? `${address.city}${address.state ? `, ${address.state}` : ''}` : null,
     },
   };
 }

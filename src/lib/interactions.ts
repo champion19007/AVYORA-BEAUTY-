@@ -145,12 +145,7 @@ export async function evaluateRoutine(
   const pairs = await db
     .select()
     .from(ingredientInteractions)
-    .where(
-      and(
-        inArray(ingredientInteractions.ingredientA, ids),
-        inArray(ingredientInteractions.ingredientB, ids)
-      )
-    );
+    .where(and(inArray(ingredientInteractions.ingredientA, ids), inArray(ingredientInteractions.ingredientB, ids)));
 
   for (const pair of pairs) {
     const a = byId.get(pair.ingredientA);

@@ -8,7 +8,6 @@ import { StatusLabel, type Doc } from './status-label';
 export const metadata: Metadata = { title: 'Content' };
 export const dynamic = 'force-dynamic';
 
-
 /**
  * Everything editable, and where each piece stands.
  *
@@ -25,10 +24,7 @@ export default async function AdminContentPage() {
     );
   }
 
-  const [copies, articles] = await Promise.all([
-    documentsOfType('product_copy'),
-    documentsOfType('article'),
-  ]);
+  const [copies, articles] = await Promise.all([documentsOfType('product_copy'), documentsOfType('article')]);
   const copyBySlug = new Map(copies.map((d) => [d.slug, d]));
 
   return (
@@ -50,9 +46,7 @@ export default async function AdminContentPage() {
 
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Journal
-          </h2>
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Journal</h2>
           <Link
             href="/admin/content/article/new"
             className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary hover:opacity-70"
@@ -61,9 +55,7 @@ export default async function AdminContentPage() {
           </Link>
         </div>
         <ul className="mt-3 rounded-xl border border-border bg-card">
-          {articles.length === 0 && (
-            <li className="p-4 text-[14px] text-muted-foreground">No articles yet.</li>
-          )}
+          {articles.length === 0 && <li className="p-4 text-[14px] text-muted-foreground">No articles yet.</li>}
           {articles.map((doc) => (
             <Row
               key={doc.id}
@@ -76,9 +68,7 @@ export default async function AdminContentPage() {
       </section>
 
       <section>
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Product copy
-        </h2>
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Product copy</h2>
         <ul className="mt-3 rounded-xl border border-border bg-card">
           {allProducts().map((product) => (
             <Row

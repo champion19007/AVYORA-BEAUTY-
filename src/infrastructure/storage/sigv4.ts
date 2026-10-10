@@ -29,10 +29,7 @@ function hmac(key: string | Buffer, data: string): Buffer {
 
 /** RFC 3986 encoding, which is stricter than encodeURIComponent. */
 function encode(value: string): string {
-  return encodeURIComponent(value).replace(
-    /[!'()*]/g,
-    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
-  );
+  return encodeURIComponent(value).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
 function canonicalUri(pathname: string): string {
@@ -53,7 +50,10 @@ function canonicalQuery(params: URLSearchParams): string {
 }
 
 function amzDates(now: Date) {
-  const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const amzDate = now
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
   return { amzDate, dateStamp: amzDate.slice(0, 8) };
 }
 
@@ -97,9 +97,7 @@ export function signRequest(options: {
   const { amzDate, dateStamp } = amzDates(options.now ?? new Date());
 
   const headers: Record<string, string> = {
-    ...Object.fromEntries(
-      Object.entries(options.headers ?? {}).map(([k, v]) => [k.toLowerCase(), v.trim()])
-    ),
+    ...Object.fromEntries(Object.entries(options.headers ?? {}).map(([k, v]) => [k.toLowerCase(), v.trim()])),
     host: options.url.host,
     'x-amz-date': amzDate,
     'x-amz-content-sha256': options.payloadHash,

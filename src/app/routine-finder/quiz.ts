@@ -10,7 +10,12 @@ import { skinProfileV2Schema, type ConcernId, type SkinProfileV2 } from '@/modul
  * Pure: shared by the page and its tests.
  */
 
-export type OwnedDraft = { id: string; label: string; role: 'cleanse' | 'moisturise' | 'protect' | 'other'; prescribed: boolean };
+export type OwnedDraft = {
+  id: string;
+  label: string;
+  role: 'cleanse' | 'moisturise' | 'protect' | 'other';
+  prescribed: boolean;
+};
 
 export type Answers = {
   priorities?: ConcernId[];
@@ -61,7 +66,9 @@ export const PRIORITY_LABELS: Record<ConcernId, string> = {
 
 export const MAX_BUDGET_RUPEES = 10_000;
 export const UNLISTED_ALLERGEN = 'unlisted';
-export const ALLERGEN_OPTIONS = [...INGREDIENTS].map((i) => ({ value: i.id, label: i.common })).sort((a, b) => a.label.localeCompare(b.label));
+export const ALLERGEN_OPTIONS = [...INGREDIENTS]
+  .map((i) => ({ value: i.id, label: i.common }))
+  .sort((a, b) => a.label.localeCompare(b.label));
 
 export const QUESTIONS: Question[] = [
   {
@@ -209,7 +216,8 @@ export function isAnswered(q: Question, answers: Answers): boolean {
 export function budgetProblem(value: number | undefined): string | null {
   if (value === undefined || Number.isNaN(value)) return 'Enter an amount in rupees, or 0.';
   if (!Number.isInteger(value)) return 'Use whole rupees.';
-  if (value < 0 || value > MAX_BUDGET_RUPEES) return `Enter an amount from 0 to ${MAX_BUDGET_RUPEES.toLocaleString('en-IN')}.`;
+  if (value < 0 || value > MAX_BUDGET_RUPEES)
+    return `Enter an amount from 0 to ${MAX_BUDGET_RUPEES.toLocaleString('en-IN')}.`;
   return null;
 }
 
@@ -218,9 +226,12 @@ export function budgetProblem(value: number | undefined): string | null {
  * safety questions become `unknown`. An allergen we cannot name means no
  * listed ingredient can be ruled out, so the allergy stays unspecified.
  */
-export function toProfile(answers: Answers): { ok: true; profile: SkinProfileV2 } | { ok: false; missing: keyof Answers } {
+export function toProfile(
+  answers: Answers
+): { ok: true; profile: SkinProfileV2 } | { ok: false; missing: keyof Answers } {
   for (const id of ['experience', 'adherence', 'maxDailySteps', 'budgetRupees'] as const) {
-    if (id === 'budgetRupees' ? budgetProblem(answers.budgetRupees) !== null : answers[id] === undefined) return { ok: false, missing: id };
+    if (id === 'budgetRupees' ? budgetProblem(answers.budgetRupees) !== null : answers[id] === undefined)
+      return { ok: false, missing: id };
   }
   const allergyHistory = answers.allergyHistory ?? 'unknown';
   const allergens = allergyHistory === 'yes' ? (answers.allergens ?? []) : [];
@@ -243,7 +254,14 @@ export function toProfile(answers: Answers): { ok: true; profile: SkinProfileV2 
     preferences: { eyeCare: false, bodyCare: false },
     ownedItems: (answers.ownedItems ?? [])
       .filter((o) => o.label.trim())
-      .map((o) => ({ id: o.id, label: o.label.trim().slice(0, 80), ingredientIds: [], coverage: 'unknown', prescribed: o.prescribed, role: o.role })),
+      .map((o) => ({
+        id: o.id,
+        label: o.label.trim().slice(0, 80),
+        ingredientIds: [],
+        coverage: 'unknown',
+        prescribed: o.prescribed,
+        role: o.role,
+      })),
   });
   return { ok: true, profile };
 }

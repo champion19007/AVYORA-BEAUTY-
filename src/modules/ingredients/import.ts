@@ -36,7 +36,8 @@ export function importProblems(input: KnowledgeInput): string[] {
   }
   for (const f of input.formulations) {
     for (const ing of f.ingredients) {
-      if (ing.ingredientId && !ids.has(ing.ingredientId)) problems.push(`${f.productId} v${f.version}: unknown ingredient ${ing.ingredientId}`);
+      if (ing.ingredientId && !ids.has(ing.ingredientId))
+        problems.push(`${f.productId} v${f.version}: unknown ingredient ${ing.ingredientId}`);
     }
   }
   problems.push(...knowledgeProblems(input));
@@ -72,14 +73,25 @@ export async function importKnowledge(db: Db, input: KnowledgeInput): Promise<Im
     await tx.delete(schema.ingredientAliases);
     const aliasRows = [
       ...[...aliasMap.map].map(([alias, ingredientId]) => ({ alias, ingredientId, ambiguousCandidates: null })),
-      ...[...aliasMap.ambiguous].map(([alias, candidates]) => ({ alias, ingredientId: null, ambiguousCandidates: candidates })),
+      ...[...aliasMap.ambiguous].map(([alias, candidates]) => ({
+        alias,
+        ingredientId: null,
+        ambiguousCandidates: candidates,
+      })),
     ];
     if (aliasRows.length) await tx.insert(schema.ingredientAliases).values(aliasRows);
 
     for (const r of input.rules) {
       // One row per pair, sorted; the reader looks both ways.
       const [a, b] = [r.a, r.b].sort();
-      const row = { ingredientA: a, ingredientB: b, tier: r.tier, summary: r.summary, advice: r.advice, citation: r.citation };
+      const row = {
+        ingredientA: a,
+        ingredientB: b,
+        tier: r.tier,
+        summary: r.summary,
+        advice: r.advice,
+        citation: r.citation,
+      };
       await tx
         .insert(schema.ingredientInteractions)
         .values(row)
@@ -90,8 +102,18 @@ export async function importKnowledge(db: Db, input: KnowledgeInput): Promise<Im
     }
 
     for (const e of input.evidence) {
-      const row = { id: e.id, title: e.title, url: e.url, sourceType: e.sourceType, retrievedAt: e.retrievedAt, limitations: e.limitations };
-      await tx.insert(schema.evidenceSources).values(row).onConflictDoUpdate({ target: schema.evidenceSources.id, set: row });
+      const row = {
+        id: e.id,
+        title: e.title,
+        url: e.url,
+        sourceType: e.sourceType,
+        retrievedAt: e.retrievedAt,
+        limitations: e.limitations,
+      };
+      await tx
+        .insert(schema.evidenceSources)
+        .values(row)
+        .onConflictDoUpdate({ target: schema.evidenceSources.id, set: row });
     }
 
     for (const f of input.formulations) {
@@ -134,7 +156,10 @@ export async function importKnowledge(db: Db, input: KnowledgeInput): Promise<Im
         reviewedBy: d.reviewedBy,
         reviewedAt: d.reviewedAt,
       };
-      await tx.insert(schema.usageProfiles).values(row).onConflictDoUpdate({ target: schema.usageProfiles.formulationId, set: row });
+      await tx
+        .insert(schema.usageProfiles)
+        .values(row)
+        .onConflictDoUpdate({ target: schema.usageProfiles.formulationId, set: row });
     }
   });
 

@@ -12,8 +12,7 @@ const KEY_SECRET = 'test_secret_do_not_use';
 const WEBHOOK_SECRET = 'test_webhook_secret';
 
 /** Signs the way Razorpay does, so the tests verify against a real HMAC. */
-const sign = (message: string, secret: string) =>
-  createHmac('sha256', secret).update(message).digest('hex');
+const sign = (message: string, secret: string) => createHmac('sha256', secret).update(message).digest('hex');
 
 describe('verifyPaymentSignature', () => {
   const orderId = 'order_ABC123';
@@ -64,9 +63,7 @@ describe('verifyPaymentSignature', () => {
 
   it('rejects garbage without throwing', async () => {
     for (const signature of ['nonsense', '00', 'z'.repeat(64), '../../etc/passwd']) {
-      expect(await verifyPaymentSignature({ orderId, paymentId, signature }, KEY_SECRET)).toBe(
-        false
-      );
+      expect(await verifyPaymentSignature({ orderId, paymentId, signature }, KEY_SECRET)).toBe(false);
     }
   });
 });
@@ -75,9 +72,7 @@ describe('verifyWebhookSignature', () => {
   const body = JSON.stringify({ event: 'payment.captured', payload: { payment: { entity: {} } } });
 
   it('accepts a correctly signed body', async () => {
-    expect(await verifyWebhookSignature(body, sign(body, WEBHOOK_SECRET), WEBHOOK_SECRET)).toBe(
-      true
-    );
+    expect(await verifyWebhookSignature(body, sign(body, WEBHOOK_SECRET), WEBHOOK_SECRET)).toBe(true);
   });
 
   it('rejects a tampered body', async () => {
@@ -93,9 +88,7 @@ describe('verifyWebhookSignature', () => {
   it('is sensitive to whitespace, which is why the raw body must be hashed', async () => {
     // Re-serialising a parsed body changes the bytes and invalidates the signature.
     const reserialised = JSON.stringify(JSON.parse(body), null, 2);
-    expect(await verifyWebhookSignature(reserialised, sign(body, WEBHOOK_SECRET), WEBHOOK_SECRET)).toBe(
-      false
-    );
+    expect(await verifyWebhookSignature(reserialised, sign(body, WEBHOOK_SECRET), WEBHOOK_SECRET)).toBe(false);
   });
 
   it('rejects an empty signature', async () => {

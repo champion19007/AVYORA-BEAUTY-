@@ -31,12 +31,7 @@ export type OrderSummary = {
 
 /** Orders newest first, with the line count and destination for the list view. */
 export async function listOrders(limit = 50, offset = 0): Promise<OrderSummary[]> {
-  const rows = await db
-    .select()
-    .from(orders)
-    .orderBy(desc(orders.createdAt))
-    .limit(limit)
-    .offset(offset);
+  const rows = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(limit).offset(offset);
 
   if (rows.length === 0) return [];
 
@@ -56,7 +51,12 @@ export async function listOrders(limit = 50, offset = 0): Promise<OrderSummary[]
       quantity: sum(orderItems.quantity),
     })
     .from(orderItems)
-    .where(inArray(orderItems.orderId, rows.map((r) => r.id)))
+    .where(
+      inArray(
+        orderItems.orderId,
+        rows.map((r) => r.id)
+      )
+    )
     .groupBy(orderItems.orderId);
 
   const countByOrder = new Map(counts.map((c) => [c.orderId, Number(c.quantity ?? 0)]));
@@ -81,11 +81,7 @@ export async function listOrders(limit = 50, offset = 0): Promise<OrderSummary[]
 
 /** One order with its lines, for the detail view. */
 export async function getOrderDetail(orderNumber: string) {
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.orderNumber, orderNumber))
-    .limit(1);
+  const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
 
   if (!order) return null;
 
@@ -115,22 +111,21 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [[today], [total], [paid], [unpaid], [unfulfilled], [customerCount], stock] =
-    await Promise.all([
-      db.select({ n: count() }).from(orders).where(gte(orders.createdAt, startOfToday)),
-      db.select({ n: count() }).from(orders),
-      db
-        .select({ n: count(), amount: sum(orders.total) })
-        .from(orders)
-        .where(eq(orders.paymentStatus, 'paid')),
-      db.select({ n: count() }).from(orders).where(eq(orders.paymentStatus, 'unpaid')),
-      db
-        .select({ n: count() })
-        .from(orders)
-        .where(and(eq(orders.paymentStatus, 'paid'), eq(orders.status, 'paid'))),
-      db.select({ n: count() }).from(users),
-      db.select().from(inventory),
-    ]);
+  const [[today], [total], [paid], [unpaid], [unfulfilled], [customerCount], stock] = await Promise.all([
+    db.select({ n: count() }).from(orders).where(gte(orders.createdAt, startOfToday)),
+    db.select({ n: count() }).from(orders),
+    db
+      .select({ n: count(), amount: sum(orders.total) })
+      .from(orders)
+      .where(eq(orders.paymentStatus, 'paid')),
+    db.select({ n: count() }).from(orders).where(eq(orders.paymentStatus, 'unpaid')),
+    db
+      .select({ n: count() })
+      .from(orders)
+      .where(and(eq(orders.paymentStatus, 'paid'), eq(orders.status, 'paid'))),
+    db.select({ n: count() }).from(users),
+    db.select().from(inventory),
+  ]);
 
   return {
     ordersToday: today?.n ?? 0,
@@ -166,10 +161,7 @@ export type InventoryRow = {
  * reconcile against the shelf.
  */
 export async function listInventory(): Promise<InventoryRow[]> {
-  const rows = await db
-    .select()
-    .from(inventory)
-    .orderBy(inventory.productId, inventory.size);
+  const rows = await db.select().from(inventory).orderBy(inventory.productId, inventory.size);
 
   return rows.map((row) => {
     const product = getProductById(row.productId);

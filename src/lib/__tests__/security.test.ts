@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  isAllowedCrawler,
-  isBlockedAgent,
-  isSameOrigin,
-  contentSecurityPolicy,
-  securityHeaders,
-} from '../security';
+import { isAllowedCrawler, isBlockedAgent, isSameOrigin, contentSecurityPolicy, securityHeaders } from '../security';
 
 describe('crawler allowlist', () => {
   it('recognises the search engines that matter', () => {
@@ -26,9 +20,7 @@ describe('crawler allowlist', () => {
   });
 
   it('does not mistake an ordinary browser for a crawler', () => {
-    expect(
-      isAllowedCrawler('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120')
-    ).toBe(false);
+    expect(isAllowedCrawler('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120')).toBe(false);
   });
 });
 
@@ -77,9 +69,7 @@ describe('same-origin check', () => {
   });
 
   it('rejects a lookalike subdomain', () => {
-    expect(
-      isSameOrigin(req({ origin: 'https://avyora.com.evil.example', host: 'avyora.com' }))
-    ).toBe(false);
+    expect(isSameOrigin(req({ origin: 'https://avyora.com.evil.example', host: 'avyora.com' }))).toBe(false);
   });
 
   it('rejects a malformed origin rather than throwing', () => {
@@ -114,7 +104,9 @@ describe('content security policy', () => {
   });
 
   it('restricts where data can be sent', () => {
-    expect(csp).toContain("connect-src 'self' https://sdk.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com");
+    expect(csp).toContain(
+      "connect-src 'self' https://sdk.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com"
+    );
   });
 });
 
@@ -140,7 +132,7 @@ describe('camera permission', () => {
     const { securityHeaders } = await import('../security');
     expect(securityHeaders('/scan')['Permissions-Policy']).toMatch(/^camera=\(self\)/);
     expect(securityHeaders('/scan/upload')['Permissions-Policy']).toMatch(/^camera=\(self\)/);
-    for (const p of ['/', '/checkout', '/account', '/scanner', '/api/scans']) expect(securityHeaders(p)['Permissions-Policy']).toMatch(/^camera=\(\)/);
+    for (const p of ['/', '/checkout', '/account', '/scanner', '/api/scans'])
+      expect(securityHeaders(p)['Permissions-Policy']).toMatch(/^camera=\(\)/);
   });
 });
-

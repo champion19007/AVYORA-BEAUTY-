@@ -30,7 +30,13 @@ export async function verifiedOrder(db: Db, userId: string, productId: string): 
     .select({ id: schema.orders.id })
     .from(schema.orders)
     .innerJoin(schema.orderItems, eq(schema.orderItems.orderId, schema.orders.id))
-    .where(and(eq(schema.orders.userId, userId), eq(schema.orders.status, 'delivered'), eq(schema.orderItems.productId, productId)))
+    .where(
+      and(
+        eq(schema.orders.userId, userId),
+        eq(schema.orders.status, 'delivered'),
+        eq(schema.orderItems.productId, productId)
+      )
+    )
     .orderBy(desc(schema.orders.createdAt))
     .limit(1);
   return row?.id ?? null;
@@ -45,7 +51,15 @@ export async function submitReview(
   if (!orderId) return { ok: false, code: 'not_verified' };
   const [row] = await db
     .insert(r)
-    .values({ productId: input.productId, userId, orderId, rating: input.rating, title: input.title || null, body: input.body, published: false })
+    .values({
+      productId: input.productId,
+      userId,
+      orderId,
+      rating: input.rating,
+      title: input.title || null,
+      body: input.body,
+      published: false,
+    })
     .onConflictDoNothing()
     .returning({ id: r.id });
   return row ? { ok: true, id: row.id } : { ok: false, code: 'exists' };
@@ -54,7 +68,14 @@ export async function submitReview(
 /** Awaiting moderation, oldest first. Shows the text only; no reviewer contact details. */
 export async function pendingReviews(db: Db) {
   return db
-    .select({ id: r.id, productId: r.productId, rating: r.rating, title: r.title, body: r.body, createdAt: r.createdAt })
+    .select({
+      id: r.id,
+      productId: r.productId,
+      rating: r.rating,
+      title: r.title,
+      body: r.body,
+      createdAt: r.createdAt,
+    })
     .from(r)
     .where(eq(r.published, false))
     .orderBy(r.createdAt)
@@ -65,8 +86,15 @@ export async function pendingReviews(db: Db) {
 export async function moderateReview(db: Db, id: string, decision: 'publish' | 'reject'): Promise<boolean> {
   const rows =
     decision === 'publish'
-      ? await db.update(r).set({ published: true }).where(and(eq(r.id, id), eq(r.published, false))).returning({ id: r.id })
-      : await db.delete(r).where(and(eq(r.id, id), eq(r.published, false))).returning({ id: r.id });
+      ? await db
+          .update(r)
+          .set({ published: true })
+          .where(and(eq(r.id, id), eq(r.published, false)))
+          .returning({ id: r.id })
+      : await db
+          .delete(r)
+          .where(and(eq(r.id, id), eq(r.published, false)))
+          .returning({ id: r.id });
   return rows.length > 0;
 }
 
@@ -74,8 +102,16 @@ export async function moderateReview(db: Db, id: string, decision: 'publish' | '
 export async function productReviews(db: Db, productId: string) {
   const where = and(eq(r.productId, productId), eq(r.published, true));
   const [[agg], items] = await Promise.all([
-    db.select({ n: count(), mean: avg(r.rating) }).from(r).where(where),
-    db.select({ id: r.id, rating: r.rating, title: r.title, body: r.body, createdAt: r.createdAt }).from(r).where(where).orderBy(desc(r.createdAt)).limit(20),
+    db
+      .select({ n: count(), mean: avg(r.rating) })
+      .from(r)
+      .where(where),
+    db
+      .select({ id: r.id, rating: r.rating, title: r.title, body: r.body, createdAt: r.createdAt })
+      .from(r)
+      .where(where)
+      .orderBy(desc(r.createdAt))
+      .limit(20),
   ]);
   const n = Number(agg?.n ?? 0);
   return { count: n, average: n ? Math.round(Number(agg.mean) * 10) / 10 : null, items };
@@ -91,6 +127,8 @@ export async function reviewAggregates(db: Db): Promise<Record<string, ReviewAgg
     .where(eq(r.published, true))
     .groupBy(r.productId);
   return Object.fromEntries(
-    rows.filter((x) => Number(x.n) > 0).map((x) => [x.productId, { count: Number(x.n), average: Math.round(Number(x.mean) * 10) / 10 }])
+    rows
+      .filter((x) => Number(x.n) > 0)
+      .map((x) => [x.productId, { count: Number(x.n), average: Math.round(Number(x.mean) * 10) / 10 }])
   );
 }

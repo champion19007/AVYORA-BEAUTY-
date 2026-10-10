@@ -15,10 +15,7 @@
  */
 export const UNKNOWN_ORDER_GRACE_MS = 15 * 60 * 1000;
 
-export function shouldRetryUnknownOrder(
-  eventCreatedAtSeconds: number | null | undefined,
-  now = Date.now()
-): boolean {
+export function shouldRetryUnknownOrder(eventCreatedAtSeconds: number | null | undefined, now = Date.now()): boolean {
   // No timestamp to judge by: retry, and let the provider's own limit decide.
   if (typeof eventCreatedAtSeconds !== 'number' || !Number.isFinite(eventCreatedAtSeconds)) {
     return true;

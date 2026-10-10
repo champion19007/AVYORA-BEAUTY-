@@ -44,13 +44,22 @@ export type OrderStatus = keyof typeof FULFILMENT_FLOW;
  * released it from the risk hold it may be packed; before that, only
  * cancelled. Without this a COD order could never be dispatched.
  */
-function nextStatuses(order: { status: string; paymentProvider?: string | null; fraudStatus?: string }): readonly string[] {
-  if (order.status === 'pending' && order.paymentProvider === 'cod' && order.fraudStatus === 'approved') return ['fulfilled', 'cancelled'];
+function nextStatuses(order: {
+  status: string;
+  paymentProvider?: string | null;
+  fraudStatus?: string;
+}): readonly string[] {
+  if (order.status === 'pending' && order.paymentProvider === 'cod' && order.fraudStatus === 'approved')
+    return ['fulfilled', 'cancelled'];
   return FULFILMENT_FLOW[order.status as OrderStatus] ?? [];
 }
 
 /** Which transitions the UI should offer for an order in this state. */
-export async function allowedNextStatuses(order: { status: string; paymentProvider?: string | null; fraudStatus?: string }): Promise<readonly string[]> {
+export async function allowedNextStatuses(order: {
+  status: string;
+  paymentProvider?: string | null;
+  fraudStatus?: string;
+}): Promise<readonly string[]> {
   return nextStatuses(order);
 }
 
@@ -77,7 +86,12 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
   if (!orderNumber || !next) return;
 
   const [order] = await db
-    .select({ id: orders.id, status: orders.status, paymentProvider: orders.paymentProvider, fraudStatus: orders.fraudStatus })
+    .select({
+      id: orders.id,
+      status: orders.status,
+      paymentProvider: orders.paymentProvider,
+      fraudStatus: orders.fraudStatus,
+    })
     .from(orders)
     .where(eq(orders.orderNumber, orderNumber))
     .limit(1);
@@ -257,10 +271,7 @@ export type PriceFormState = { error?: string; saved?: boolean; conflict?: boole
  * Amounts arrive as rupees, because that is what a person types, and are
  * converted to paise here — the only unit the rest of the system uses.
  */
-export async function savePrice(
-  _prev: PriceFormState,
-  formData: FormData
-): Promise<PriceFormState> {
+export async function savePrice(_prev: PriceFormState, formData: FormData): Promise<PriceFormState> {
   if (!isDatabaseConfigured()) return { error: 'No database configured.' };
 
   const session = await getStaffSession();
@@ -283,7 +294,10 @@ export async function savePrice(
   if (price === null) return { error: 'Enter a price greater than zero.' };
 
   const salePrice = toPaise(String(formData.get('salePrice') ?? ''));
-  const offerLabel = String(formData.get('offerLabel') ?? '').trim().slice(0, 80) || null;
+  const offerLabel =
+    String(formData.get('offerLabel') ?? '')
+      .trim()
+      .slice(0, 80) || null;
 
   const endsRaw = String(formData.get('offerEndsAt') ?? '').trim();
   const offerEndsAt = endsRaw ? new Date(endsRaw) : null;
@@ -336,10 +350,7 @@ export async function resolveRestockRequest(formData: FormData): Promise<void> {
   const outcome = String(formData.get('outcome') ?? '');
   if (!id || (outcome !== 'ordered' && outcome !== 'declined')) return;
 
-  await db
-    .update(restockRequests)
-    .set({ status: outcome, resolvedAt: new Date() })
-    .where(eq(restockRequests.id, id));
+  await db.update(restockRequests).set({ status: outcome, resolvedAt: new Date() }).where(eq(restockRequests.id, id));
 
   revalidatePath('/admin/requests');
   revalidatePath('/manager/requests');
@@ -369,17 +380,11 @@ export async function resolveRiskHold(formData: FormData): Promise<void> {
   if (!orderId || (decision !== 'release' && decision !== 'cancel')) return;
 
   if (decision === 'release') {
-    await db
-      .update(orders)
-      .set({ fraudStatus: 'approved', updatedAt: new Date() })
-      .where(eq(orders.id, orderId));
+    await db.update(orders).set({ fraudStatus: 'approved', updatedAt: new Date() }).where(eq(orders.id, orderId));
   } else {
     // Order of operations matters: mark the decision first, then release the
     // stock through the claim that guarantees it happens exactly once.
-    await db
-      .update(orders)
-      .set({ fraudStatus: 'rejected', updatedAt: new Date() })
-      .where(eq(orders.id, orderId));
+    await db.update(orders).set({ fraudStatus: 'rejected', updatedAt: new Date() }).where(eq(orders.id, orderId));
 
     await cancelOrder(orderId);
   }
@@ -414,7 +419,9 @@ export async function resolveAttention(formData: FormData): Promise<void> {
 
   const orderId = String(formData.get('orderId') ?? '');
   const orderNumber = String(formData.get('orderNumber') ?? '');
-  const note = String(formData.get('note') ?? '').trim().slice(0, 500);
+  const note = String(formData.get('note') ?? '')
+    .trim()
+    .slice(0, 500);
   if (!orderId || !note) return;
 
   const [previous] = await db
@@ -424,10 +431,7 @@ export async function resolveAttention(formData: FormData): Promise<void> {
     .limit(1);
   if (!previous?.reason) return;
 
-  await db
-    .update(orders)
-    .set({ attentionReason: null, updatedAt: new Date() })
-    .where(eq(orders.id, orderId));
+  await db.update(orders).set({ attentionReason: null, updatedAt: new Date() }).where(eq(orders.id, orderId));
 
   const actor = await getStaffSession();
   await recordAudit({
@@ -458,11 +462,17 @@ export async function answerSupportRequest(formData: FormData): Promise<void> {
   const { markSupportAnswered } = await import('@/modules/support/support');
   const result = await markSupportAnswered(db, id, session.username, note);
   if (result.ok) {
-    await recordAudit({ actor: session.username, actorRole: session.role, action: 'support.answered', entityType: 'support_request', entityId: id, after: { status: 'answered' } });
+    await recordAudit({
+      actor: session.username,
+      actorRole: session.role,
+      action: 'support.answered',
+      entityType: 'support_request',
+      entityId: id,
+      after: { status: 'answered' },
+    });
   }
   revalidatePath('/admin/requests');
 }
-
 
 /** Publishes or rejects (deletes) a review awaiting moderation. Audited; the product page updates within its revalidate window. */
 export async function moderateReviewAction(formData: FormData): Promise<void> {
@@ -475,7 +485,14 @@ export async function moderateReviewAction(formData: FormData): Promise<void> {
   const decision = raw;
   const { moderateReview } = await import('@/modules/reviews/reviews');
   if (await moderateReview(db, id, decision)) {
-    await recordAudit({ actor: session.username, actorRole: session.role, action: `review.${decision}`, entityType: 'review', entityId: id, after: { published: decision === 'publish' } });
+    await recordAudit({
+      actor: session.username,
+      actorRole: session.role,
+      action: `review.${decision}`,
+      entityType: 'review',
+      entityId: id,
+      after: { published: decision === 'publish' },
+    });
   }
   revalidatePath('/admin/requests');
 }

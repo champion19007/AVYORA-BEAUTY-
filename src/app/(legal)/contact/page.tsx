@@ -21,8 +21,8 @@ export default function Page() {
 
       <h2>Customer support</h2>
       <p>
-        Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your order number if you
-        have one. Reply time: [TO CONFIRM].
+        Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with your order number if you have one. Reply
+        time: [TO CONFIRM].
       </p>
 
       <h2>Registered address</h2>
@@ -38,8 +38,8 @@ export default function Page() {
 
       <h2>Grievance redressal</h2>
       <p>
-        If we have not resolved something to your satisfaction, contact our grievance officer: [TO CONFIRM]
-        (name), [TO CONFIRM] (email).
+        If we have not resolved something to your satisfaction, contact our grievance officer: [TO CONFIRM] (name), [TO
+        CONFIRM] (email).
       </p>
     </>
   );

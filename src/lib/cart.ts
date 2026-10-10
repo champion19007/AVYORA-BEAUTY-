@@ -45,7 +45,9 @@ function clampQuantity(n: number, max = MAX_QUANTITY_PER_SKU): number {
 export function normaliseLines(stored: unknown): CartLine[] {
   const raw: unknown[] = Array.isArray(stored)
     ? stored
-    : stored && typeof stored === 'object' && (stored as { version?: unknown }).version === 2 &&
+    : stored &&
+        typeof stored === 'object' &&
+        (stored as { version?: unknown }).version === 2 &&
         Array.isArray((stored as { lines?: unknown }).lines)
       ? (stored as { lines: unknown[] }).lines
       : [];

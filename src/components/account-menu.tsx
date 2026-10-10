@@ -108,9 +108,7 @@ function SignedInMenu({ className }: { className?: string }) {
         >
           <Avatar className="h-7 w-7">
             {image && <AvatarImage src={image} alt="" />}
-            <AvatarFallback className="bg-primary/15 text-xs font-medium text-primary">
-              {initial}
-            </AvatarFallback>
+            <AvatarFallback className="bg-primary/15 text-xs font-medium text-primary">{initial}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -147,13 +145,7 @@ function SignedInMenu({ className }: { className?: string }) {
  * Sign-in button for the login page. Reports when the deployment has no Google
  * credentials configured rather than opening a broken OAuth round trip.
  */
-export function GoogleSignInButton({
-  enabled,
-  callbackUrl = '/',
-}: {
-  enabled: boolean;
-  callbackUrl?: string;
-}) {
+export function GoogleSignInButton({ enabled, callbackUrl = '/' }: { enabled: boolean; callbackUrl?: string }) {
   if (!enabled) {
     return (
       <p className="rounded-md border border-border p-4 text-center text-xs text-muted-foreground">

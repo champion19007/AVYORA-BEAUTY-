@@ -29,7 +29,10 @@ export const DECISION_RULES: readonly DecisionRule[] = [
     version: 1,
     severity: 'safety',
     when: { op: 'eq', field: 'currentCondition', value: 'irritated' },
-    effects: [{ kind: 'mode', value: 'recovery' }, { kind: 'excludeClass', value: 'elective_irritating' }],
+    effects: [
+      { kind: 'mode', value: 'recovery' },
+      { kind: 'excludeClass', value: 'elective_irritating' },
+    ],
     reasonTemplateId: 'reason_irritated',
     review: DRAFT,
   },
@@ -45,7 +48,10 @@ export const DECISION_RULES: readonly DecisionRule[] = [
         { op: 'not', of: { op: 'eq', field: 'currentCondition', value: 'irritated' } },
       ],
     },
-    effects: [{ kind: 'mode', value: 'gentle' }, { kind: 'excludeClass', value: 'elective_irritating' }],
+    effects: [
+      { kind: 'mode', value: 'gentle' },
+      { kind: 'excludeClass', value: 'elective_irritating' },
+    ],
     reasonTemplateId: 'reason_very_reactive',
     review: DRAFT,
   },
@@ -107,13 +113,48 @@ export const DECISION_RULES: readonly DecisionRule[] = [
 
 /** The customer-facing reasons the routine finder shows today, as draft templates. */
 export const EXPLANATION_TEMPLATES: readonly ExplanationTemplate[] = [
-  { id: 'reason_irritated', text: '{productName}: left out while your skin is irritated.', variables: ['productName'], review: DRAFT },
-  { id: 'reason_very_reactive', text: '{productName}: left out because your skin is very reactive.', variables: ['productName'], review: DRAFT },
-  { id: 'reason_beginner', text: '{productName}: left out of a starter routine. Get used to the essentials first.', variables: ['productName'], review: DRAFT },
-  { id: 'reason_pregnancy', text: '{productName}: not included while pregnant, breastfeeding, or if you preferred not to say.', variables: ['productName'], review: DRAFT },
-  { id: 'reason_under18', text: '{productName}: not included for customers under 18.', variables: ['productName'], review: DRAFT },
-  { id: 'reason_treatment_limit', text: '{productName}: left out so your routine introduces one active at a time.', variables: ['productName'], review: DRAFT },
-  { id: 'reason_low_adherence', text: '{productName}: left out so your routine starts with the essentials you can keep up.', variables: ['productName'], review: DRAFT },
+  {
+    id: 'reason_irritated',
+    text: '{productName}: left out while your skin is irritated.',
+    variables: ['productName'],
+    review: DRAFT,
+  },
+  {
+    id: 'reason_very_reactive',
+    text: '{productName}: left out because your skin is very reactive.',
+    variables: ['productName'],
+    review: DRAFT,
+  },
+  {
+    id: 'reason_beginner',
+    text: '{productName}: left out of a starter routine. Get used to the essentials first.',
+    variables: ['productName'],
+    review: DRAFT,
+  },
+  {
+    id: 'reason_pregnancy',
+    text: '{productName}: not included while pregnant, breastfeeding, or if you preferred not to say.',
+    variables: ['productName'],
+    review: DRAFT,
+  },
+  {
+    id: 'reason_under18',
+    text: '{productName}: not included for customers under 18.',
+    variables: ['productName'],
+    review: DRAFT,
+  },
+  {
+    id: 'reason_treatment_limit',
+    text: '{productName}: left out so your routine introduces one active at a time.',
+    variables: ['productName'],
+    review: DRAFT,
+  },
+  {
+    id: 'reason_low_adherence',
+    text: '{productName}: left out so your routine starts with the essentials you can keep up.',
+    variables: ['productName'],
+    review: DRAFT,
+  },
 ];
 
 export const EDUCATION_ANSWERS: readonly EducationAnswer[] = [];

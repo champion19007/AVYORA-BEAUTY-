@@ -3,13 +3,7 @@ import { db, isDatabaseConfigured } from '@/db';
 import { cmsDocuments, cmsRevisions } from '@/db/schema';
 import { cache, POLICIES } from '@/infrastructure/cache';
 import { reportError } from '@/lib/observability';
-import {
-  articleSchema,
-  productCopySchema,
-  type Article,
-  type ContentType,
-  type ProductCopy,
-} from './content-types';
+import { articleSchema, productCopySchema, type Article, type ContentType, type ProductCopy } from './content-types';
 
 /**
  * Reading content.
@@ -33,13 +27,7 @@ async function loadPublished(type: ContentType, slug: string): Promise<unknown |
   const [row] = await db
     .select({ published: cmsDocuments.published })
     .from(cmsDocuments)
-    .where(
-      and(
-        eq(cmsDocuments.type, type),
-        eq(cmsDocuments.slug, slug),
-        eq(cmsDocuments.status, 'published')
-      )
-    )
+    .where(and(eq(cmsDocuments.type, type), eq(cmsDocuments.slug, slug), eq(cmsDocuments.status, 'published')))
     .limit(1);
   return row?.published ?? null;
 }
@@ -87,13 +75,7 @@ export async function publishedArticle(slug: string): Promise<PublishedArticle |
     const [row] = await db
       .select({ published: cmsDocuments.published, publishedAt: cmsDocuments.publishedAt })
       .from(cmsDocuments)
-      .where(
-        and(
-          eq(cmsDocuments.type, 'article'),
-          eq(cmsDocuments.slug, slug),
-          eq(cmsDocuments.status, 'published')
-        )
-      )
+      .where(and(eq(cmsDocuments.type, 'article'), eq(cmsDocuments.slug, slug), eq(cmsDocuments.status, 'published')))
       .limit(1);
     if (!row?.published) return null;
     const parsed = articleSchema.safeParse(row.published);
@@ -152,11 +134,7 @@ export async function invalidateContent(type: string, slug: string): Promise<voi
 /* -------------------------------------------------------------------------- */
 
 export async function documentsOfType(type: ContentType) {
-  return db
-    .select()
-    .from(cmsDocuments)
-    .where(eq(cmsDocuments.type, type))
-    .orderBy(asc(cmsDocuments.slug));
+  return db.select().from(cmsDocuments).where(eq(cmsDocuments.type, type)).orderBy(asc(cmsDocuments.slug));
 }
 
 export async function documentBySlug(type: ContentType, slug: string) {

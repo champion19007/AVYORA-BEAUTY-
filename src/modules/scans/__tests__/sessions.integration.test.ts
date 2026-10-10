@@ -7,7 +7,16 @@ import { createMigratedDb } from '@/test/migrated-db';
 import type { Owner } from '@/lib/guest-owner';
 import { grantConsent, withdrawConsent } from '@/modules/personal/personal-records';
 import { localPrivateStorage, stagedObjectKey } from '../private-storage';
-import { createHostedScan, deleteScan, discardUnprocessedPhoto, getScan, purgeOwnerScans, scanHealth, sweepScans, uploadScanImage } from '../sessions';
+import {
+  createHostedScan,
+  deleteScan,
+  discardUnprocessedPhoto,
+  getScan,
+  purgeOwnerScans,
+  scanHealth,
+  sweepScans,
+  uploadScanImage,
+} from '../sessions';
 
 let ctx: Awaited<ReturnType<typeof createMigratedDb>>;
 const alice: Owner = { kind: 'user', userId: 'u-alice' };
@@ -16,11 +25,18 @@ const store = localPrivateStorage(mkdtempSync(path.join(tmpdir(), 'scan-store-')
 /** Whether any private object for this scan remains (uploads use per-request staged keys). */
 const stored = async (id: string) => (await store.list()).some((o) => o.key.startsWith(`private/scans/${id}`));
 const db = () => ctx.db as never;
-const photo = async () => new Uint8Array(await sharp({ create: { width: 640, height: 480, channels: 3, background: { r: 120, g: 110, b: 100 } } }).jpeg().toBuffer());
+const photo = async () =>
+  new Uint8Array(
+    await sharp({ create: { width: 640, height: 480, channels: 3, background: { r: 120, g: 110, b: 100 } } })
+      .jpeg()
+      .toBuffer()
+  );
 
 beforeAll(async () => {
   ctx = await createMigratedDb();
-  await ctx.client.exec(`INSERT INTO users (id, email) VALUES ('u-alice', 'a@example.test'), ('u-bob', 'b@example.test')`);
+  await ctx.client.exec(
+    `INSERT INTO users (id, email) VALUES ('u-alice', 'a@example.test'), ('u-bob', 'b@example.test')`
+  );
 }, 60_000);
 afterAll(async () => {
   await ctx?.client.close();
@@ -59,7 +75,10 @@ describe('hosted scan sessions', () => {
     expect(await deleteScan(db(), store, bob, id)).toEqual({ found: false, photo: 'none' });
     const later = new Date(Date.now() + 8 * 86_400_000);
     expect(await getScan(db(), alice, id, later)).toBeNull();
-    expect(await uploadScanImage(db(), store, alice, id, await photo(), later)).toEqual({ ok: false, code: 'unavailable' });
+    expect(await uploadScanImage(db(), store, alice, id, await photo(), later)).toEqual({
+      ok: false,
+      code: 'unavailable',
+    });
   });
 
   it('rejects an invalid image and keeps nothing', async () => {
@@ -74,7 +93,10 @@ describe('hosted scan sessions', () => {
 
   it('refuses uploads with no private storage configured', async () => {
     const id = await started(alice);
-    expect(await uploadScanImage(db(), null, alice, id, await photo())).toEqual({ ok: false, code: 'storage_unavailable' });
+    expect(await uploadScanImage(db(), null, alice, id, await photo())).toEqual({
+      ok: false,
+      code: 'storage_unavailable',
+    });
   });
 
   it('withdrawing consent stops the session and the purge deletes the photo', async () => {
@@ -84,7 +106,12 @@ describe('hosted scan sessions', () => {
     expect(await getScan(db(), alice, id)).toBeNull();
     expect(await purgeOwnerScans(db(), store, alice)).toEqual({ deleted: 1, pending: 0 });
     expect(await stored(id)).toBe(false);
-    const [row] = (await ctx.client.query<{ status: string; object_key: string | null }>(`SELECT status, object_key FROM scan_sessions WHERE id = $1`, [id])).rows;
+    const [row] = (
+      await ctx.client.query<{ status: string; object_key: string | null }>(
+        `SELECT status, object_key FROM scan_sessions WHERE id = $1`,
+        [id]
+      )
+    ).rows;
     expect(row).toEqual({ status: 'revoked', object_key: null });
   });
 
@@ -102,7 +129,12 @@ describe('hosted scan sessions', () => {
     const day2 = new Date(Date.now() + 25 * 3_600_000);
     expect(await scanHealth(db(), day2)).toMatchObject({ overduePhotos: 1 });
 
-    const broken = { ...store, delete: async () => { throw new Error('storage down'); } };
+    const broken = {
+      ...store,
+      delete: async () => {
+        throw new Error('storage down');
+      },
+    };
     expect(await sweepScans(db(), broken, day2)).toMatchObject({ photosDeleted: 0, photoFailures: 1, scansDeleted: 0 });
     expect(await stored(id)).toBe(true);
 
@@ -119,9 +151,17 @@ describe('hosted scan sessions', () => {
   // Re-audit A13: two uploads to one session; the loser may delete only its own bytes.
   it('concurrent uploads keep the winning photo and leave no untracked object', async () => {
     const id = await started(alice);
-    const [a, b] = await Promise.all([uploadScanImage(db(), store, alice, id, await photo()), uploadScanImage(db(), store, alice, id, await photo())]);
+    const [a, b] = await Promise.all([
+      uploadScanImage(db(), store, alice, id, await photo()),
+      uploadScanImage(db(), store, alice, id, await photo()),
+    ]);
     expect([a.ok, b.ok].filter(Boolean)).toHaveLength(1);
-    const [row] = (await ctx.client.query<{ status: string; object_key: string }>('SELECT status, object_key FROM scan_sessions WHERE id = $1', [id])).rows;
+    const [row] = (
+      await ctx.client.query<{ status: string; object_key: string }>(
+        'SELECT status, object_key FROM scan_sessions WHERE id = $1',
+        [id]
+      )
+    ).rows;
     expect(row.status).toBe('uploaded');
     expect(await store.get(row.object_key)).not.toBeNull();
     const mine = (await store.list()).filter((o) => o.key.startsWith(`private/scans/${id}`)).map((o) => o.key);
@@ -132,7 +172,12 @@ describe('hosted scan sessions', () => {
   it('a failed storage delete is reported as pending and keeps the key for a retry', async () => {
     const id = await started(alice);
     await uploadScanImage(db(), store, alice, id, await photo());
-    const broken = { ...store, delete: async () => { throw new Error('storage down'); } };
+    const broken = {
+      ...store,
+      delete: async () => {
+        throw new Error('storage down');
+      },
+    };
     expect(await deleteScan(db(), broken, alice, id)).toEqual({ found: true, photo: 'pending' });
     expect(await stored(id)).toBe(true);
     expect(await getScan(db(), alice, id)).toMatchObject({ status: 'revoked' });
@@ -152,7 +197,12 @@ describe('hosted scan sessions', () => {
     await uploadScanImage(db(), store, alice, id, await photo());
     expect(await discardUnprocessedPhoto(db(), store, id)).toBe(true);
     expect(await stored(id)).toBe(false);
-    const [row] = (await ctx.client.query<{ status: string; object_key: string | null }>('SELECT status, object_key FROM scan_sessions WHERE id = $1', [id])).rows;
+    const [row] = (
+      await ctx.client.query<{ status: string; object_key: string | null }>(
+        'SELECT status, object_key FROM scan_sessions WHERE id = $1',
+        [id]
+      )
+    ).rows;
     expect(row).toEqual({ status: 'failed', object_key: null });
   });
 
@@ -162,7 +212,9 @@ describe('hosted scan sessions', () => {
     await store.put(key, new Uint8Array([1, 2, 3]), 'image/jpeg');
     expect((await sweepScans(db(), store, new Date())).orphansDeleted).toBe(0);
     expect(await store.get(key)).not.toBeNull();
-    expect((await sweepScans(db(), store, new Date(Date.now() + 20 * 60_000))).orphansDeleted).toBeGreaterThanOrEqual(1);
+    expect((await sweepScans(db(), store, new Date(Date.now() + 20 * 60_000))).orphansDeleted).toBeGreaterThanOrEqual(
+      1
+    );
     expect(await store.get(key)).toBeNull();
   });
 

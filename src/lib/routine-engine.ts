@@ -13,7 +13,12 @@ import { SLOTS, SlotName, productForSlot, assertSlotsResolve } from './routine-s
 import { getProductById } from './catalogue';
 import { APPROVED_DIRECTIONS, TREATMENTS, type ProductDirections } from '@/data/product-directions';
 import { EVIDENCE_SOURCES, FORMULATIONS } from '@/data/formulations';
-import { treatmentReadiness, type EvidenceSource, type Formulation, type Knowledge } from '@/modules/ingredients/formulations';
+import {
+  treatmentReadiness,
+  type EvidenceSource,
+  type Formulation,
+  type Knowledge,
+} from '@/modules/ingredients/formulations';
 
 /**
  * AVYORA ROUTINE ENGINE
@@ -173,9 +178,7 @@ function isBeginner(p: SkinProfile): boolean {
 }
 
 function matchesConcern(p: SkinProfile, needles: string[]): boolean {
-  const haystack = [p.primaryConcern, ...p.secondaryConcerns]
-    .filter(Boolean)
-    .map((c) => String(c).toLowerCase());
+  const haystack = [p.primaryConcern, ...p.secondaryConcerns].filter(Boolean).map((c) => String(c).toLowerCase());
   return haystack.some((c) => needles.some((n) => c.includes(n)));
 }
 
@@ -186,7 +189,8 @@ function matchesConcern(p: SkinProfile, needles: string[]): boolean {
 /** Treatments that match what the customer asked about, in priority order. */
 function treatmentCandidates(p: SkinProfile): Candidate[] {
   const out: Candidate[] = [];
-  if (matchesConcern(p, ['aging', 'fine line', 'texture', 'rough'])) out.push({ productId: SLOTS.retinol, session: 'pm' });
+  if (matchesConcern(p, ['aging', 'fine line', 'texture', 'rough']))
+    out.push({ productId: SLOTS.retinol, session: 'pm' });
   if (matchesConcern(p, ['dark spot', 'pigment', 'dull', 'uneven', 'tanning'])) {
     out.push({ productId: SLOTS.vitaminC, session: 'am' });
   }
@@ -266,7 +270,11 @@ function treatmentStep(c: Candidate, directions: Readonly<Record<string, Product
   const product = getProductById(c.productId);
   const approved = directions[c.productId];
   const category: RoutineStep['category'] =
-    TREATMENTS[c.productId]?.class === 'retinoid' ? 'renew' : TREATMENTS[c.productId]?.class === 'vitamin_c' ? 'brighten' : 'treatment';
+    TREATMENTS[c.productId]?.class === 'retinoid'
+      ? 'renew'
+      : TREATMENTS[c.productId]?.class === 'vitamin_c'
+        ? 'brighten'
+        : 'treatment';
   return {
     order: 0,
     category,
@@ -351,14 +359,25 @@ function buildOptional(
 
   if (p.skinType === 'dry' || matchesConcern(p, ['dry'])) {
     optional.push(
-      slotStep('tone', 'Toner (optional)', p.skinType === 'dry' ? 'tonerRich' : 'tonerHydrating',
-        'Optional. A hydrating toner after cleansing, if your skin feels tight.', opt)
+      slotStep(
+        'tone',
+        'Toner (optional)',
+        p.skinType === 'dry' ? 'tonerRich' : 'tonerHydrating',
+        'Optional. A hydrating toner after cleansing, if your skin feels tight.',
+        opt
+      )
     );
   }
 
   if (!beginner && matchesConcern(p, ['dull', 'uneven', 'glow'])) {
     optional.push(
-      slotStep('essence', 'Essence (optional)', 'essenceBrightening', 'Optional. A light layer before moisturiser.', opt)
+      slotStep(
+        'essence',
+        'Essence (optional)',
+        'essenceBrightening',
+        'Optional. A light layer before moisturiser.',
+        opt
+      )
     );
   }
 
@@ -443,16 +462,22 @@ function getWarnings(p: SkinProfile, mode: RoutineMode, chosen: Candidate[], omi
     w.push('Your skin is reactive, so introduce one new product at a time.');
   }
   if (mode === 'recovery') {
-    w.push('Your skin is irritated right now, so this routine has no actives or exfoliation: only cleansing, moisturiser and sunscreen. If irritation persists or is painful, see a dermatologist.');
+    w.push(
+      'Your skin is irritated right now, so this routine has no actives or exfoliation: only cleansing, moisturiser and sunscreen. If irritation persists or is painful, see a dermatologist.'
+    );
   }
   if (mode === 'gentle') {
     w.push('Because your skin is very reactive, this routine has no actives or exfoliation.');
   }
   if (has('pregnancy_yes')) {
-    w.push('You told us you are pregnant or breastfeeding, so retinoids are left out. Check any new product with your doctor or midwife.');
+    w.push(
+      'You told us you are pregnant or breastfeeding, so retinoids are left out. Check any new product with your doctor or midwife.'
+    );
   }
   if (has('pregnancy_unknown')) {
-    w.push('You preferred not to say whether you are pregnant or breastfeeding, so retinoids are left out of this routine.');
+    w.push(
+      'You preferred not to say whether you are pregnant or breastfeeding, so retinoids are left out of this routine.'
+    );
   }
   if (has('under18')) {
     w.push('Retinoids are left out for customers under 18.');
@@ -461,7 +486,9 @@ function getWarnings(p: SkinProfile, mode: RoutineMode, chosen: Candidate[], omi
     w.push('Use daily sunscreen while using a retinoid, and follow its directions exactly.');
   }
 
-  w.push('This is general guidance, not medical advice. Persistent or painful skin conditions deserve a dermatologist.');
+  w.push(
+    'This is general guidance, not medical advice. Persistent or painful skin conditions deserve a dermatologist.'
+  );
   return w;
 }
 
@@ -482,22 +509,34 @@ function generateWhyThisRoutine(
   const parts = [`You told us ${concern} matters most and that your skin is ${p.skinType}.`];
 
   if (mode === 'recovery') {
-    parts.push('Your skin is irritated right now, so this routine is cleanse, moisturise and protect, with no actives or exfoliation. Reintroduce treatments one at a time once it has settled.');
+    parts.push(
+      'Your skin is irritated right now, so this routine is cleanse, moisturise and protect, with no actives or exfoliation. Reintroduce treatments one at a time once it has settled.'
+    );
   } else if (mode === 'gentle') {
-    parts.push('Your skin is very reactive, so the routine keeps to cleansing, moisturiser and sunscreen, with no actives or exfoliation.');
+    parts.push(
+      'Your skin is very reactive, so the routine keeps to cleansing, moisturiser and sunscreen, with no actives or exfoliation.'
+    );
   } else if (beginner) {
-    parts.push(`A simple routine to start: cleanse, moisturise and sunscreen, never more than ${BEGINNER_SESSION_STEP_CAP} steps at a time. Any optional additions are listed separately; add them only if you want to.`);
+    parts.push(
+      `A simple routine to start: cleanse, moisturise and sunscreen, never more than ${BEGINNER_SESSION_STEP_CAP} steps at a time. Any optional additions are listed separately; add them only if you want to.`
+    );
   } else if (chosen.length > 0) {
-    parts.push(`The essentials, plus ${NAMES(chosen.map((c) => c.productId))}, used exactly as its directions describe.`);
+    parts.push(
+      `The essentials, plus ${NAMES(chosen.map((c) => c.productId))}, used exactly as its directions describe.`
+    );
   } else {
     parts.push('This routine covers the essentials: cleanse, moisturise and protect.');
   }
 
   if (omitted.some((o) => o.reason === 'directions_pending')) {
-    parts.push('Some treatments that match your concern are not included yet, because their usage directions are still being reviewed.');
+    parts.push(
+      'Some treatments that match your concern are not included yet, because their usage directions are still being reviewed.'
+    );
   }
   if (omitted.some((o) => o.reason === 'formulation_incomplete')) {
-    parts.push('Some treatments that match your concern are not included yet, because their full formulation has not been verified.');
+    parts.push(
+      'Some treatments that match your concern are not included yet, because their full formulation has not been verified.'
+    );
   }
 
   parts.push('Consistency matters more than the number of steps. Stop anything that stings or burns.');

@@ -29,9 +29,7 @@ export default async function NewAddressPage() {
         <span className="text-foreground">New Address</span>
       </nav>
 
-      <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">
-        Add a new address
-      </h1>
+      <h1 className="mt-3 font-headline text-4xl font-normal tracking-tight md:text-5xl">Add a new address</h1>
 
       <AddressForm />
     </div>

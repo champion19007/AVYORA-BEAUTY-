@@ -55,11 +55,7 @@ export type DecisionContext = {
 
 const OPEN: ReadonlyArray<PaymentState> = ['unpaid', 'pending', 'authorized', 'failed'];
 
-export function decide(
-  current: PaymentState,
-  signal: PaymentSignal,
-  context: DecisionContext
-): Decision {
+export function decide(current: PaymentState, signal: PaymentSignal, context: DecisionContext): Decision {
   const stay = (outcome: Decision['outcome'], reason: string): Decision => ({
     next: current,
     stock: 'none',
