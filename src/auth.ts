@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { getDatabase } from '@/db';
 import { users, accounts, sessions, verificationTokens } from '@/db/schema';
 import { ANONYMOUS_COOKIE, mergeCarts } from '@/lib/cart-server';
+import { reportError } from '@/lib/observability';
 import { secureAccountLinkedToGoogle } from '@/lib/customer-accounts';
 
 /**
@@ -138,7 +139,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const anonymousId = (await cookies()).get(ANONYMOUS_COOKIE)?.value;
         if (anonymousId) await mergeCarts(user.id, anonymousId);
       } catch (err) {
-        console.error('cart merge on sign-in failed (ignored)', err);
+        // Ignored: the customer is signed in either way; the bag just is not merged.
+        reportError(err, { scope: 'auth.cartMerge' });
       }
     },
   },

@@ -198,10 +198,19 @@ export function reportError(error: unknown, context: ErrorContext): void {
 
 /** Structured informational log, for events worth seeing without an error. */
 export function logEvent(scope: string, message: string, extra?: Record<string, unknown>): void {
+  log('info', scope, message, extra);
+}
+
+/** Structured warning: something unusual that was handled, worth a look if it repeats. */
+export function logWarn(scope: string, message: string, extra?: Record<string, unknown>): void {
+  log('warn', scope, message, extra);
+}
+
+function log(level: 'info' | 'warn', scope: string, message: string, extra?: Record<string, unknown>): void {
   try {
-    console.log(
+    (level === 'warn' ? console.warn : console.log)(
       JSON.stringify({
-        level: 'info',
+        level,
         scope,
         message: scrubText(message),
         requestId: ambientRequestId(),

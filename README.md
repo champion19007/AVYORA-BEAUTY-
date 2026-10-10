@@ -102,6 +102,19 @@ last messaging it. Outside that window it delivers **approved templates** only.
 - Meta's free test number can only message numbers added to its recipient list
   (Meta app → WhatsApp → Try it out → To → Manage phone number list).
 
+### Health and monitoring
+
+- **`/api/health`** answers `200 {"status":"ok","database":"ok"}`, or `503`
+  with `"database":"down"` when the database is unreachable (8-second limit,
+  to allow for Neon waking from idle). Point an uptime monitor (Better Stack,
+  UptimeRobot, Vercel's own checks) at it.
+- **Errors** are written as structured JSON lines (`level`, `scope`,
+  `requestId`, with personal data scrubbed) to Vercel's runtime logs.
+- **Sentry** is wired in and switches on when `SENTRY_DSN` and
+  `NEXT_PUBLIC_SENTRY_DSN` are set: create a free project at sentry.io
+  (platform Next.js), copy its DSN into both variables, redeploy. Personal
+  data is scrubbed before anything is sent.
+
 ### Where the shop's orders appear
 
 - **Admin → Orders**: every order, newest first, with status buttons.
@@ -324,6 +337,7 @@ in a normal browser: some embedded browsers block Cashfree's checkout script.
 | `npm run build` / `npm start` | Production build, then serve it on port 3000 |
 | `npm run build:offline` | Build with no database, for checking the build only; never deploy it |
 | `npm run typecheck` · `npm run lint` · `npm test` | The checks CI runs |
+| `npm run test:coverage` | Tests plus coverage of the business logic; fails below the thresholds in `vitest.config.ts` |
 | `npm run db:migrate` | Apply pending migrations to `DATABASE_URL` |
 | `npm run db:seed-inventory` | Create stock rows for any catalogue size that has none |
 | `npm run check:env -- --production` | Check environment variables before a deploy (never prints secrets) |
@@ -465,6 +479,7 @@ The first-launch walkthrough is in [`docs/deploy.md`](docs/deploy.md).
 | Get the WhatsApp template approved and set `WHATSAPP_TEMPLATE`; move from Meta's test number to your own, with a permanent system-user token | Alerts at any time, from your number |
 | Replace the sample catalogue with real products (`docs/product-onboarding.md`) | The site currently shows samples |
 | Rotate any key or password that was ever shared in a chat or a screenshot | Assume it is known |
+| Set `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`, and point an uptime monitor at `/api/health` | You hear about errors and outages before customers tell you |
 | Turn on the daily backup: a private Cloudflare R2 bucket, the six `BACKUP_*` secrets in GitHub → Settings → Secrets → Actions, a 30-day expiry rule; then restore one into a scratch Neon branch | Neon keeps only 6 hours of history |
 
 ### When it grows
@@ -490,7 +505,7 @@ database). The application tier and connection counts scale on their own.
 
 | Suite | Command | What it proves |
 | --- | --- | --- |
-| Unit + integration (1,045 tests) | `npm test` | Pricing, payments, idempotency, guest phone verification, email/SMS/WhatsApp providers, cache, CMS, jobs, search, routines… integration tests run against a real Postgres engine in memory |
+| Unit + integration (1,057 tests) | `npm test` | Pricing, payments, idempotency, guest phone verification, email/SMS/WhatsApp providers, cache, CMS, jobs, search, routines… integration tests run against a real Postgres engine in memory |
 | Concurrency stress (8 scenarios) | `npm run test:stress` | No oversells, no double charges, no deadlocks, jobs run exactly once |
 | HTTP load | `npm run load-test -- http://localhost:3000` | Throughput and latency by page; rate limiting engages |
 
@@ -503,8 +518,19 @@ STRESS_ALLOW_DESTRUCTIVE=yes-this-is-a-scratch-database \
 npm run test:stress
 ```
 
-The load test refuses to target the live site. CI runs typecheck, lint, tests
-and a dependency audit on every push.
+The load test refuses to target the live site.
+
+**CI** (`.github/workflows/ci.yml`) runs on every push and pull request, and a
+failure blocks the merge:
+
+1. Typecheck and lint.
+2. Tests with coverage. Coverage of `lib`, `modules`, `infrastructure`, server
+   actions and API routes must stay above the thresholds in `vitest.config.ts`
+   (statements 68%, branches 58%, functions 72%, lines 70%; measured at 69.6,
+   60.6, 74.5 and 72.1).
+3. Dependency audit: any **high** advisory in runtime packages fails, and any
+   **critical** one in build tools. See `docs/security.md`.
+4. A production build without a database.
 
 ---
 
