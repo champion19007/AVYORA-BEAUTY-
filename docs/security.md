@@ -168,12 +168,14 @@ rate limits are a complement to it, not a replacement.
 
 ## Known gaps
 
-- **No WAF.** The single highest-value addition for bot and DDoS defence.
-- **No WAF.** Still the single highest-value addition; see below.
-- **One known high advisory**: postcss 8.4.31, bundled inside Next and fixable
-  only by upgrading to Next 16 (a breaking major). Exploiting it needs
-  attacker-controlled CSS input; all CSS here is authored by us. CI therefore
-  blocks on critical advisories only. Revisit when Next 16 is adopted.
+- **No WAF.** Still the single highest-value addition for bot and DDoS defence; see below.
+- **Dependency advisories**: runtime dependencies have none (`npm audit
+  --omit=dev`). Next's bundled postcss 8.4.31 is overridden to the patched 8.5
+  line in `package.json`. CI blocks on high runtime advisories and on critical
+  ones anywhere. Remaining highs are build tools only (Tailwind 3's file
+  watchers, `eslint-config-next`) and need breaking majors; revisit with
+  Tailwind 4 and Next 16. nodemailer is overridden to 10.1.0 past
+  next-auth's optional peer range for the same reason.
 - **Rate limiting fails open.** A limiter that takes checkout down when its own
   counter table hiccups causes more damage than the abuse it prevents — but it
   does mean a database outage removes the limits.
