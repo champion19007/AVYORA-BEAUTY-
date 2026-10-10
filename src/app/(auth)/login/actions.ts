@@ -19,12 +19,12 @@ import {
 import { createCustomerSession } from '@/lib/customer-session';
 import { isDemoIdentifier } from '@/lib/demo-access';
 import { issueOtp, verifyOtp } from '@/lib/otp';
+import { checkSmsCode, sendSmsCode } from '@/lib/sms-code';
 import {
   emailDeliveryConfigured,
   otpEmailBody,
   resetEmailBody,
   sendEmail,
-  sendOtpSms,
   smsDeliveryConfigured,
 } from '@/lib/notify';
 
@@ -200,15 +200,13 @@ export async function requestCode(_prev: ActionState, formData: FormData): Promi
   const refused = await throttled(['otpSend', 'otpResend'], identifier);
   if (refused) return { error: refused };
 
-  const code = await issueOtp(identifier, channel);
-
-  if (reveal) return { sent: true, demoCode: code };
+  if (reveal) return { sent: true, demoCode: await issueOtp(identifier, channel) };
 
   const delivery =
     channel === 'sms'
-      ? await sendOtpSms(identifier, code)
+      ? await sendSmsCode(identifier)
       : await (async () => {
-          const body = otpEmailBody(code);
+          const body = otpEmailBody(await issueOtp(identifier, 'email'));
           return sendEmail(identifier, body.subject, body.text);
         })();
 
@@ -236,7 +234,7 @@ export async function verifyCode(_prev: ActionState, formData: FormData): Promis
   const code = String(formData.get('code') ?? '').trim();
   if (!/^\d{6}$/.test(code)) return { error: 'Enter the 6-digit code.', sent: true };
 
-  const result = await verifyOtp(parsed.data, code);
+  const result = channel === 'sms' ? await checkSmsCode(parsed.data, code) : await verifyOtp(parsed.data, code);
 
   if (!result.ok) {
     const message =

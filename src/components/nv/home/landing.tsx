@@ -2,9 +2,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight, CalendarDays, Check, ClipboardList, FlaskConical, MessageCircleQuestion, Star, Wallet, Bookmark } from 'lucide-react';
 import { Accordion } from '@/components/nv/accordion';
-import { DELIVERY_SHORT, DELIVERY_TERMS, formatPaise } from '@/lib/money';
+import { formatPaise } from '@/lib/money';
 import { SUPPORT_EMAIL } from '@/data/business-info';
 import { GUEST_RETENTION_DAYS, ACCOUNT_RETENTION_DAYS } from '@/modules/personal/personal-records';
+import { PHOTO_SLOTS, type PhotoSlot } from './photos';
 import { QuickAdd } from './quick-add';
 import { SupportForm } from './support-form';
 import type { EssentialStep, LandingProduct, LandingReview } from './data';
@@ -19,37 +20,17 @@ import type { EssentialStep, LandingProduct, LandingReview } from './data';
  * the FAQ accordion and the support form.
  *
  * Content is Avyora's own and true today: no statistics, testimonials or
- * services that do not exist. Where approved photography is missing, the
- * slot is a neutral surface (see PHOTO_SLOTS) rather than stock imagery.
+ * services that do not exist. Photography comes from photos.ts.
  */
 
 const COLUMN = 'mx-auto w-full max-w-[calc(var(--nv-container)+2*var(--nv-gutter))] px-nv-gutter';
 
-/**
- * Photography slots with no approved image yet. Each keeps its measured
- * size; supply an approved photograph and set `src`.
- */
-// Placeholder stock photography (Unsplash License; no product labels) until approved campaign images exist.
-// `scrim` darkens the photo where white text sits on it, keeping it at 4.5:1.
-// `wide` crops a portrait original to a 16:9 frame around the face for the full-bleed sections.
-const unsplash = (id: string, wide = false) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=2400&q=80${wide ? '&h=1350&crop=faces%2Cedges' : ''}`;
-const PHOTO_SLOTS: Record<'about' | 'aboutCard' | 'vision' | 'services' | 'testimonial' | 'imageBreak' | 'consultation', { src: string | null; alt: string; scrim?: string }> = {
-  about: { src: unsplash('photo-1551184451-76b762941ad6'), alt: 'Portrait of a woman with clear, natural skin' },
-  aboutCard: { src: unsplash('photo-1695990190064-e8ca2ca16af6'), alt: '', scrim: 'bg-[linear-gradient(to_top,rgba(0,0,0,0.6),transparent_60%)]' },
-  vision: { src: unsplash('photo-1781439213513-ef4ee75a4cd6', true), alt: '', scrim: 'bg-[linear-gradient(to_right,rgba(0,0,0,0.7),rgba(0,0,0,0.25)_55%,transparent)]' },
-  services: { src: unsplash('photo-1773924684918-176cb489e65f', true), alt: '', scrim: 'bg-black/55' },
-  testimonial: { src: unsplash('photo-1781439212605-eb3cc09fa99e'), alt: 'A woman resting among green leaves in sunlight' },
-  imageBreak: { src: unsplash('photo-1675773051474-55c4b7d2cf53', true), alt: 'Close-up of skin texture in soft light' },
-  consultation: { src: unsplash('photo-1781819114972-478f14095968', true), alt: '', scrim: 'bg-black/60' },
-};
-
 function Photo({ slot, className, sizes, children }: { slot: keyof typeof PHOTO_SLOTS; className?: string; sizes: string; children?: React.ReactNode }) {
-  const p = PHOTO_SLOTS[slot];
+  const p: PhotoSlot = PHOTO_SLOTS[slot];
   return (
     <div className={`relative overflow-hidden bg-[radial-gradient(ellipse_at_60%_35%,#4a4642,#1a1a1a_75%)] ${className ?? ''}`}>
-      {p.src && <Image src={p.src} alt={p.alt} fill sizes={sizes} className="object-cover object-center" />}
-      {p.src && p.scrim && <div aria-hidden="true" className={`absolute inset-0 ${p.scrim}`} />}
+      <Image src={p.src} alt={p.alt} fill sizes={sizes} className={`object-cover ${p.pos ?? 'object-center'}`} />
+      {p.scrim && <div aria-hidden="true" className={`absolute inset-0 ${p.scrim}`} />}
       {children}
     </div>
   );
@@ -284,7 +265,6 @@ export function Testimonials({ review }: { review: LandingReview | null }) {
                 {/* No published reviews yet: product education, labelled as such, instead of a testimonial. */}
                 <p className="text-nv-small uppercase text-nv-muted">How routines work</p>
                 <p className="mt-6 text-nv-quote font-medium">Essentials every day. A treatment only when its directions have been reviewed, and never while your skin is irritated.</p>
-                <p className="mt-auto text-nv-small text-nv-muted">Reviews will appear here once customers publish them.</p>
               </>
             )}
           </div>
@@ -362,7 +342,7 @@ export function Pricing({ steps }: { steps: EssentialStep[] }) {
               </div>
             </div>
             <ul className="grid gap-x-8 gap-y-3 px-6 sm:grid-cols-2 py-6 text-nv-label text-nv-muted">
-              {['Allergy and conflict checks', 'Uses products you own', 'Stays within your budget', 'Saved with your permission', DELIVERY_SHORT, 'Prices confirmed at checkout'].map((t) => (
+              {['Allergy and conflict checks', 'Uses products you own', 'Stays within your budget', 'Saved with your permission', 'Prices confirmed at checkout'].map((t) => (
                 <li key={t} className="flex items-start gap-2">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-nv-ink" aria-hidden="true" />
                   {t}
@@ -405,9 +385,9 @@ const FAQ_ITEMS = [
     answer: `Nothing is saved unless you choose to save a routine. Saved routines are kept for ${GUEST_RETENTION_DAYS} days without an account and ${ACCOUNT_RETENTION_DAYS} days with one, and you can delete them at any time.`,
   },
   {
-    id: 'delivery',
-    question: 'How much is delivery?',
-    answer: DELIVERY_TERMS,
+    id: 'launch',
+    question: 'When does Avyora officially launch?',
+    answer: 'We are currently running closed-loop beta testing to perfect our logic and initial formulations. Early testers who complete the routine builder today get priority placement for our first official batch drop.',
   },
   {
     id: 'returns',

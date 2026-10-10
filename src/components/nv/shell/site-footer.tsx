@@ -1,7 +1,5 @@
 import Link from 'next/link';
 import { SUPPORT_EMAIL } from '@/data/business-info';
-import { FREE_DELIVERY_LINE } from '@/lib/money';
-import { IS_SAMPLE_CATALOGUE } from '@/lib/catalogue-mode';
 import { ACCOUNT_NAV, LEGAL_NAV, PRIMARY_NAV } from './nav';
 import { NewsletterForm } from './newsletter-form';
 
@@ -50,10 +48,7 @@ export function SiteFooter() {
       </div>
       <div className="flex flex-col gap-2 border-t border-white/15 sm:flex-row sm:justify-between px-nv-gutter py-6 text-nv-small text-white/80">
         <p>© {new Date().getFullYear()} Avyora</p>
-        <p>
-          {IS_SAMPLE_CATALOGUE && 'Preview shop: products shown are samples, not real stock. '}
-          {FREE_DELIVERY_LINE}. Prices are confirmed at checkout.
-        </p>
+        <p>Prices are confirmed at checkout.</p>
       </div>
     </footer>
   );

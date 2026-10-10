@@ -15,6 +15,7 @@ import { applyPaymentSignal } from '@/modules/payments/payment-service';
 import { currentRequestId } from '@/infrastructure/request-context';
 import { runBackgroundQuietly } from '@/lib/background';
 import { SAMPLE_ORDER_MESSAGE, sampleOrdersBlocked } from '@/lib/catalogue-mode';
+import { guestPhoneCheckRequired, phoneProofValid } from '@/lib/checkout-phone';
 
 /**
  * Order creation.
@@ -55,6 +56,8 @@ export const checkoutSchema = z.object({
    * makes the whole request safe to retry. See `orders.idempotencyKey`.
    */
   idempotencyKey: z.string().trim().min(8).max(200).optional(),
+  /** Guest checkout: proof the delivery number was verified by SMS (lib/checkout-phone.ts). */
+  phoneProof: z.string().max(1000).optional(),
   items: z
     .array(
       z.object({
@@ -79,7 +82,7 @@ export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 export type CreateOrderResult =
   | { ok: true; orderNumber: string; orderId: string; totalPaise: number }
-  | { ok: false; error: string; code?: 'price_changed' };
+  | { ok: false; error: string; code?: 'price_changed' | 'phone_unverified' };
 
 /**
  * Was this the idempotency index rejecting a duplicate?
@@ -159,6 +162,10 @@ export async function createOrder(
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid order details' };
   }
   const data = parsed.data;
+
+  if (guestPhoneCheckRequired(userId) && !(await phoneProofValid(data.phoneProof, data.address.phone))) {
+    return { ok: false, error: 'Verify your mobile number with the code we send before placing the order.', code: 'phone_unverified' };
+  }
 
   /*
    * A retry of a request that already succeeded returns the original order.

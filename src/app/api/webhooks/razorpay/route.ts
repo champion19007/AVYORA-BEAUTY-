@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { isDatabaseConfigured } from '@/db';
 import { recordProviderEvent } from '@/modules/payments/payment-service';
 import { shouldRetryUnknownOrder } from '@/modules/payments/webhook-policy';
-import { reportError } from '@/lib/observability';
+import { reportError, logWarn } from '@/lib/observability';
 import type { PaymentSignal } from '@/modules/payments/state-machine';
 import { getRazorpayConfig, verifyWebhookSignature } from '@/lib/razorpay';
 import { BODY_LIMITS, readBoundedText } from '@/lib/request-body';
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
      */
     const createdAt = payment?.created_at ?? event?.created_at;
     if (shouldRetryUnknownOrder(typeof createdAt === 'number' ? createdAt : null)) {
-      console.error(`Webhook for unknown Razorpay order ${razorpayOrderId}, asking for retry`);
+      logWarn('webhook.razorpay.unknown_order', 'Order not found yet, asking Razorpay to retry', { razorpayOrderId });
       return NextResponse.json({ error: 'Order not found yet.' }, { status: 503 });
     }
 

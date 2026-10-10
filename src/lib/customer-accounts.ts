@@ -265,3 +265,23 @@ export async function setPassword(userId: string, password: string): Promise<voi
     .set({ passwordHash: await hashPassword(password) })
     .where(eq(users.id, userId));
 }
+
+/**
+ * Called when Google is linked to an existing account by email.
+ *
+ * If that account's email was never verified, whoever set its password never
+ * proved they own the inbox: someone could register a victim's address with a
+ * password, wait for the victim to arrive via Google, then sign in with the
+ * password. Google has now proven the owner, so an unproven password is
+ * dropped and that account's existing sessions end. Verified accounts are
+ * left untouched.
+ */
+export async function secureAccountLinkedToGoogle(userId: string): Promise<void> {
+  const [row] = await db
+    .select({ emailVerified: users.emailVerified, passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.id, userId));
+  if (!row || row.emailVerified) return;
+  await db.update(users).set({ emailVerified: new Date(), passwordHash: null }).where(eq(users.id, userId));
+  if (row.passwordHash) await db.delete(sessions).where(eq(sessions.userId, userId));
+}

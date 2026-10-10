@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CUSTOMER_STEPS, orderProgress } from '@/lib/order-progress';
+import { CUSTOMER_STEPS, needsShipping, orderProgress } from '@/lib/order-progress';
 
 /**
  * The customer's view of an order's state.
@@ -56,5 +56,20 @@ describe('orderProgress', () => {
     for (const status of ['pending', 'fulfilled', 'shipped', 'out_for_delivery', 'delivered']) {
       expect(orderProgress(status).description.length).toBeGreaterThan(10);
     }
+  });
+});
+
+describe('needsShipping', () => {
+  it.each([
+    ['paid', 'cashfree', true],
+    ['fulfilled', 'cashfree', true],
+    ['pending', 'cod', true],
+    // Unpaid online order: nothing to send until the payment lands.
+    ['pending', 'cashfree', false],
+    ['shipped', 'cod', false],
+    ['delivered', 'cashfree', false],
+    ['cancelled', 'cod', false],
+  ])('%s via %s → %s', (status, paymentProvider, expected) => {
+    expect(needsShipping({ status, paymentProvider })).toBe(expected);
   });
 });

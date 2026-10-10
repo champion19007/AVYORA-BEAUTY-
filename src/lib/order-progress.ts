@@ -92,3 +92,14 @@ export function orderProgress(status: string): OrderProgress {
     description: DESCRIPTIONS[step],
   };
 }
+
+/**
+ * Whether an order is waiting to be packed or sent: paid online, cash on
+ * delivery (which stays `pending` until the courier collects), or packed but
+ * not yet handed over. An unpaid online order is not: there is nothing to send
+ * until the payment lands.
+ */
+export function needsShipping(order: { status: string; paymentProvider: string | null }): boolean {
+  if (order.status === 'paid' || order.status === 'fulfilled') return true;
+  return order.status === 'pending' && order.paymentProvider === 'cod';
+}

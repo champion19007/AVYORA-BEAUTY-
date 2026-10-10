@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 import { AlertTriangle } from 'lucide-react';
 import { isDatabaseConfigured } from '@/db';
-import { listInventory, listUntrackedSkus } from '@/lib/admin-data';
+import Link from 'next/link';
+import { listInventory, listOrders, listUntrackedSkus } from '@/lib/admin-data';
+import { formatPaise } from '@/lib/money';
+import { needsShipping } from '@/lib/order-progress';
+import { StatusPill } from '../status-pill';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { setBackorder, setStock } from '../actions';
@@ -32,7 +36,9 @@ export default async function AdminInventoryPage({
     );
   }
 
-  const [rows, untracked] = await Promise.all([listInventory(), listUntrackedSkus()]);
+  // ponytail: scans the 200 newest orders; move to a status-filtered query if the backlog ever outgrows that.
+  const [rows, untracked, recent] = await Promise.all([listInventory(), listUntrackedSkus(), listOrders(200)]);
+  const toShip = recent.filter(needsShipping).reverse(); // oldest first: ship in the order they came in
 
   return (
     <div className="space-y-10">
@@ -46,6 +52,39 @@ export default async function AdminInventoryPage({
           theirs. The figures below are current; set it again if it still needs changing.
         </p>
       )}
+      <section aria-labelledby="to-ship">
+        <h2 id="to-ship" className="font-headline text-2xl font-normal tracking-tight">
+          Orders to ship <span className="text-muted-foreground">({toShip.length})</span>
+        </h2>
+        <p className="mt-1 text-[15px] text-muted-foreground">
+          Paid or cash-on-delivery orders not yet sent, oldest first. Open one to mark it packed and shipped.
+        </p>
+        {toShip.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-border bg-card p-6 text-center text-[15px] text-muted-foreground">
+            Nothing waiting to ship.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {toShip.map((o) => (
+              <li key={o.id}>
+                <Link
+                  href={`/admin/orders/${o.orderNumber}`}
+                  className="flex flex-wrap items-center gap-x-6 gap-y-1 p-4 text-[15px] hover:bg-muted/50"
+                >
+                  <span className="font-medium">{o.orderNumber}</span>
+                  <span className="text-muted-foreground">
+                    {o.itemCount} item{o.itemCount === 1 ? '' : 's'} · {[o.shippingCity, o.shippingState].filter(Boolean).join(', ') || 'No address'}
+                  </span>
+                  <span className="tabular-nums">{formatPaise(o.total)}</span>
+                  <StatusPill kind="fulfilment" value={o.status} />
+                  <span className="ml-auto text-muted-foreground">{o.paymentProvider === 'cod' ? 'Cash on delivery' : 'Paid online'}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <div>
         <h1 className="font-headline text-3xl font-normal tracking-tight">Inventory</h1>
         <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">

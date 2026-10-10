@@ -7,6 +7,7 @@ import { isCashfreeConfigured } from '@/lib/cashfree';
 import { auth } from '@/auth';
 import { isDatabaseConfigured } from '@/db';
 import { listAddresses } from '@/lib/addresses';
+import { guestPhoneCheckRequired } from '@/lib/checkout-phone';
 
 export const metadata: Metadata = {
   title: 'Checkout',
@@ -54,6 +55,7 @@ export default async function CheckoutPage() {
       onlineEnabled={isCashfreeConfigured()}
       savedAddresses={savedAddresses}
       defaultEmail={session?.user?.email ?? ''}
+      phoneCheck={guestPhoneCheckRequired(session?.user?.id)}
     />
   );
 }

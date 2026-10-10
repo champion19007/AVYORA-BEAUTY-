@@ -22,3 +22,7 @@ export function sampleOrdersBlocked(env: Record<string, string | undefined> = pr
 }
 
 export const SAMPLE_ORDER_MESSAGE = 'This is a preview shop: the products shown are samples and cannot be ordered yet.';
+
+/** The shopping pages (listing, product, compare and checkout) that carry the sample notice. */
+const SHOP_PATHS = ['/collections', '/products', '/compare', '/checkout'];
+export const isShopPath = (pathname: string) => SHOP_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

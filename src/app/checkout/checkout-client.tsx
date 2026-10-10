@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { calculateTotals, formatPaise } from '@/lib/money';
-import { placeOrder } from './actions';
-import { Loader2, Lock, MapPin, Plus, ShoppingBag } from 'lucide-react';
+import { placeOrder, sendCheckoutCode, verifyCheckoutCode } from './actions';
+import { Check, Loader2, Lock, MapPin, Plus, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Address } from '@/lib/addresses';
 import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
@@ -77,14 +77,134 @@ function loadCashfreeScript(): Promise<boolean> {
   });
 }
 
+const TEN_DIGIT_MOBILE = /^(\+91[\s-]?)?[6-9]\d{9}$/;
+
+/**
+ * Guest checkout's mobile number: Get OTP, enter the code, Verify. Once
+ * verified the number is locked (greyed out) so the proof cannot drift from
+ * the number the order ships to; "Change" unlocks it and drops the proof.
+ */
+function VerifiedPhoneField({
+  value,
+  onChange,
+  proof,
+  onProof,
+  error,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  proof: string | null;
+  onProof: (proof: string | null) => void;
+  error?: string;
+}) {
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const verified = proof !== null;
+
+  const send = async () => {
+    setBusy(true);
+    setMessage(null);
+    const result = await sendCheckoutCode(value);
+    setBusy(false);
+    if (!result.ok) return setMessage(result.error);
+    setSent(true);
+    setCode('');
+  };
+
+  const verify = async () => {
+    setBusy(true);
+    setMessage(null);
+    const result = await verifyCheckoutCode(value, code);
+    setBusy(false);
+    if (result.ok) onProof(result.proof);
+    else setMessage(result.error);
+  };
+
+  const shown = message ?? error;
+  return (
+    <>
+      <Label htmlFor="phone" className="text-xs font-medium">
+        Mobile number
+      </Label>
+      <div className="mt-1.5 flex gap-2">
+        <Input
+          id="phone"
+          name="phone"
+          type="text"
+          inputMode="numeric"
+          autoComplete="tel"
+          value={value}
+          disabled={verified}
+          onChange={(e) => {
+            onChange(e.target.value);
+            // A code was sent to the old number; start again for the new one.
+            setSent(false);
+          }}
+          aria-invalid={!!shown}
+          aria-describedby={shown ? 'phone-error' : verified ? 'phone-verified' : undefined}
+          className={cn('h-11 rounded-md', verified && 'bg-muted text-muted-foreground')}
+        />
+        {verified ? (
+          <Button type="button" variant="outline" className="h-11 shrink-0" onClick={() => (onProof(null), setSent(false))}>
+            Change
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" className="h-11 shrink-0" disabled={busy || !TEN_DIGIT_MOBILE.test(value.trim())} onClick={send}>
+            {busy && !sent ? <Loader2 className="h-4 w-4 animate-spin" /> : sent ? 'Resend' : 'Get OTP'}
+          </Button>
+        )}
+      </div>
+
+      {verified && (
+        <p id="phone-verified" className="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-700">
+          <Check className="h-3.5 w-3.5" aria-hidden="true" /> Number verified
+        </p>
+      )}
+
+      {!verified && sent && (
+        <div className="mt-3">
+          <div className="flex gap-2">
+            <Input
+              id="phone-code"
+              aria-label="6-digit code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="6-digit code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              className="h-11 rounded-md tracking-[0.3em]"
+            />
+            <Button type="button" className="h-11 shrink-0" disabled={busy || code.length !== 6} onClick={verify}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+            </Button>
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">We sent a code by SMS to {value.trim()}.</p>
+        </div>
+      )}
+
+      {shown && (
+        <p id="phone-error" role="alert" className="mt-1.5 text-xs text-destructive">
+          {shown}
+        </p>
+      )}
+    </>
+  );
+}
+
 export function CheckoutClient({
   onlineEnabled,
   savedAddresses = [],
   prices,
   stock = null,
   defaultEmail = '',
+  phoneCheck = false,
 }: {
   onlineEnabled: boolean;
+  /** Guests must verify the delivery number by SMS before ordering (lib/checkout-phone.ts). */
+  phoneCheck?: boolean;
   /** The signed-in customer's address book. Empty for guests. */
   savedAddresses?: Address[];
   /**
@@ -101,7 +221,7 @@ export function CheckoutClient({
   /** Email from the session, so it is not retyped. */
   defaultEmail?: string;
 }) {
-  const { cart, updateQuantity, removeFromCart, clearCart } = useApp();
+  const { cart, cartReady, updateQuantity, removeFromCart, clearCart } = useApp();
   const router = useRouter();
 
   // Pre-select the default address, so a returning customer can pay without
@@ -116,6 +236,7 @@ export function CheckoutClient({
     ...(preselected ? addressToValues(preselected) : {}),
   }));
   const [errors, setErrors] = useState<Errors>({});
+  const [phoneProof, setPhoneProof] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -150,8 +271,8 @@ export function CheckoutClient({
   const validateErrors = (): Errors => {
     const e: Errors = {};
     if (!values.fullName || values.fullName.trim().length < 2) e.fullName = 'Enter your full name';
-    if (!/^(\+91[\s-]?)?[6-9]\d{9}$/.test((values.phone || '').trim()))
-      e.phone = 'Enter a valid Indian mobile number';
+    if (!TEN_DIGIT_MOBILE.test((values.phone || '').trim())) e.phone = 'Enter a valid Indian mobile number';
+    else if (phoneCheck && !phoneProof) e.phone = 'Verify your mobile number with the code we send';
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((values.email || '').trim()))
       e.email = 'Enter a valid email address';
     if (!values.line1 || values.line1.trim().length < 4) e.line1 = 'Enter your address';
@@ -183,6 +304,7 @@ export function CheckoutClient({
 
   const buildPayload = () => ({
     idempotencyKey,
+    ...(phoneProof ? { phoneProof } : {}),
     email: values.email.trim(),
     address: {
       fullName: values.fullName.trim(),
@@ -254,8 +376,9 @@ export function CheckoutClient({
         return;
       }
       setFormError(result.error);
-      // A changed price: fetch the current quote so the summary shows it.
-      if (result.code === 'price_changed') router.refresh();
+      // A changed price: fetch the current quote so the summary shows it. An unverified number
+      // means the session ended mid-checkout: re-render as a guest, which shows the code field.
+      if (result.code === 'price_changed' || result.code === 'phone_unverified') router.refresh();
       setSubmitting(false);
       return;
     }
@@ -273,7 +396,7 @@ export function CheckoutClient({
 
     if (!created.ok) {
       setFormError(created.body?.error ?? 'We could not start the payment. Please try again.');
-      if (created.body?.code === 'price_changed') router.refresh();
+      if (created.body?.code === 'price_changed' || created.body?.code === 'phone_unverified') router.refresh();
       setSubmitting(false);
       return;
     }
@@ -299,6 +422,9 @@ export function CheckoutClient({
       setSubmitting(false);
     }
   };
+
+  // The bag is read from storage after mount; until then, show nothing rather than "Your bag is empty".
+  if (!cartReady) return <div className="min-h-[60vh]" aria-busy="true" />;
 
   if (cart.length === 0) {
     return (
@@ -424,7 +550,21 @@ export function CheckoutClient({
               selectedAddressId !== null && 'hidden'
             )}
           >
-            {ADDRESS_FIELDS.map((f) => (
+            {ADDRESS_FIELDS.map((f) =>
+              f.name === 'phone' && phoneCheck ? (
+                <div key={f.name} className="sm:col-span-2">
+                  <VerifiedPhoneField
+                    value={values.phone ?? ''}
+                    onChange={(v) => set('phone', v)}
+                    proof={phoneProof}
+                    onProof={(proof) => {
+                      setPhoneProof(proof);
+                      setErrors((e) => ({ ...e, phone: '' }));
+                    }}
+                    error={errors.phone}
+                  />
+                </div>
+              ) : (
               <div key={f.name} className={cn(f.span === 2 && 'sm:col-span-2')}>
                 <Label htmlFor={f.name} className="text-xs font-medium">
                   {f.label}
