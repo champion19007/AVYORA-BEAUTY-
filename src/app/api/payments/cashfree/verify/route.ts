@@ -16,8 +16,9 @@ export const dynamic = 'force-dynamic';
  * amount against the order total. The webhook remains authoritative; both
  * paths are idempotent.
  *
- * Answers `paid`, `pending` (nothing settled yet; the customer may retry or
- * the bank may still confirm) or `failed`. Unknown orders are 404.
+ * Answers `paid`, `pending` (an attempt is not settled yet; the bank may still
+ * confirm), `failed`, or `not_started` (no payment was attempted: the customer
+ * backed out). Unknown orders are 404.
  */
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
@@ -49,6 +50,10 @@ export async function POST(request: Request) {
     if (!result.ok) return NextResponse.json({ error: result.error ?? 'Could not confirm payment.' }, { status: 409 });
     return NextResponse.json({ status: 'paid', orderNumber });
   }
-  const settledFailure = payments.length > 0 && payments.every((p) => p.status === 'failed' || p.status === 'dropped');
-  return NextResponse.json({ status: settledFailure ? 'failed' : 'pending', orderNumber });
+  if (payments.length === 0) return NextResponse.json({ status: 'not_started', orderNumber });
+  const settledFailure = payments.every((p) => p.status === 'failed' || p.status === 'dropped');
+  return NextResponse.json({
+    status: settledFailure ? 'failed' : 'pending',
+    orderNumber,
+  });
 }

@@ -40,6 +40,15 @@ describe('quotas', () => {
     }
   });
 
+  it('charges weighted units: a 0-unit check reads the spend, a charge adds to it', async () => {
+    const spend = (units: number) => run([{ policy: 'chatSpendDay', subject: { kind: 'user', id: 'u-spend' }, units }]);
+    expect(await spend(0)).toMatchObject({ allowed: true, remaining: 50 });
+    expect(await spend(30)).toMatchObject({ allowed: true, remaining: 20 });
+    expect(await spend(0)).toMatchObject({ allowed: true, remaining: 20 });
+    await spend(25);
+    expect(await spend(0)).toMatchObject({ allowed: false, reason: 'limited' });
+  });
+
   it('resets when the window has passed', async () => {
     for (let i = 0; i <= POLICIES.otpResend.limit; i++)
       await run([{ policy: 'otpResend', subject: { kind: 'identifier', value: 'b@example.test' } }]);

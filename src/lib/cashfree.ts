@@ -16,14 +16,22 @@
 
 export const CASHFREE_API_VERSION = '2025-01-01';
 
-export type CashfreeConfig = { appId: string; secretKey: string; env: 'sandbox' | 'production' };
+export type CashfreeConfig = {
+  appId: string;
+  secretKey: string;
+  env: 'sandbox' | 'production';
+};
 
 /** Null when unconfigured, so checkout offers cash on delivery instead of failing. */
 export function getCashfreeConfig(): CashfreeConfig | null {
   const appId = process.env.CASHFREE_APP_ID;
   const secretKey = process.env.CASHFREE_SECRET_KEY;
   if (!appId || !secretKey) return null;
-  return { appId, secretKey, env: process.env.CASHFREE_ENV === 'production' ? 'production' : 'sandbox' };
+  return {
+    appId,
+    secretKey,
+    env: process.env.CASHFREE_ENV === 'production' ? 'production' : 'sandbox',
+  };
 }
 
 export const isCashfreeConfigured = () => getCashfreeConfig() !== null;
@@ -78,7 +86,10 @@ export async function createCashfreeOrder(
         customer_phone: input.customer.phone,
         customer_name: input.customer.name,
       },
-      order_meta: { return_url: input.returnUrl, ...(input.notifyUrl ? { notify_url: input.notifyUrl } : {}) },
+      order_meta: {
+        return_url: input.returnUrl,
+        ...(input.notifyUrl ? { notify_url: input.notifyUrl } : {}),
+      },
       order_note: `Avyora order ${input.orderNumber}`,
     }),
     cache: 'no-store',
@@ -102,6 +113,28 @@ export async function fetchCashfreeOrder(orderNumber: string, c: CashfreeConfig)
       signal: AbortSignal.timeout(10_000),
     });
     return res.ok ? ((await res.json()) as CashfreeOrder) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Asks Cashfree to close an unpaid order so it can never be paid. Returns the
+ * order status Cashfree reports (`TERMINATED`, or `TERMINATION_REQUESTED` while
+ * it works on it), or null when it refused (a payment is in progress) or could
+ * not be reached. Only `TERMINATED` or `EXPIRED` means no payment can follow.
+ */
+export async function terminateCashfreeOrder(orderNumber: string, c: CashfreeConfig): Promise<string | null> {
+  try {
+    const res = await fetch(`${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}`, {
+      method: 'PATCH',
+      headers: headers(c),
+      body: JSON.stringify({ order_status: 'TERMINATED' }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    return String(((await res.json()) as { order_status?: unknown }).order_status ?? '');
   } catch {
     return null;
   }

@@ -69,6 +69,12 @@ const DEFAULT_POLICIES = {
   review: { limit: 5, ipLimit: 20, windowSeconds: 3_600, onFailure: 'closed' },
   /** Newsletter sign-up and confirmation (double opt-in). */
   newsletter: { limit: 3, ipLimit: 10, windowSeconds: 3_600, onFailure: 'closed' },
+  /** AI skin chat: per person per minute and per day, plus one global daily cap on total spend. */
+  chatMinute: { limit: 8, ipLimit: 8, windowSeconds: 60, onFailure: 'closed' },
+  /** Spend per person per day, in paise (units charged from each reply's token usage): ₹0.50. */
+  chatSpendDay: { limit: 50, ipLimit: 50, windowSeconds: 86_400, onFailure: 'closed' },
+  /** Total messages per day across everyone (identifier 'chat:global'). Roughly ₹0.05 each with Haiku 5.5. */
+  chatGlobalDay: { limit: 2_000, ipLimit: 2_000, windowSeconds: 86_400, onFailure: 'closed' },
   /** Staff publish and bulk jobs, per staff user. */
   staffPublish: { limit: 5, ipLimit: 30, windowSeconds: 60, onFailure: 'closed' },
 } as const satisfies Record<string, LimitPolicy>;
@@ -118,7 +124,8 @@ export type Subject =
   | { kind: 'identifier'; value: string }
   | { kind: 'ip'; address: string | null };
 
-export type LimitCheck = { policy: PolicyName; subject: Subject };
+/** `units` (default 1) is how much the check consumes; 0 only checks the counter. */
+export type LimitCheck = { policy: PolicyName; subject: Subject; units?: number };
 
 export type LimitResult =
   | { allowed: true; remaining: number; retryAfterSeconds: 0 }
@@ -160,7 +167,7 @@ export const LIMITER_TIMEOUT_MS = 2_500;
 type Executor = { execute: (query: ReturnType<typeof sql>) => Promise<unknown> };
 
 /**
- * Consumes one unit for every check, atomically, and allows the request only
+ * Consumes each check's units (default one), atomically, and allows the request only
  * if all of them are within their limits. A check whose subject cannot be
  * keyed (no trusted IP) is skipped; identity checks still apply.
  */
@@ -174,7 +181,13 @@ export async function limit(
       const p = policies[c.policy];
       const key = limiterKey(c.policy, c.subject);
       return key
-        ? { key, max: c.subject.kind === 'ip' ? p.ipLimit : p.limit, window: p.windowSeconds, policy: p }
+        ? {
+            key,
+            units: c.units ?? 1,
+            max: c.subject.kind === 'ip' ? p.ipLimit : p.limit,
+            window: p.windowSeconds,
+            policy: p,
+          }
         : null;
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)
@@ -196,12 +209,12 @@ export async function limit(
     const query = executor.execute(sql`
       INSERT INTO rate_limits (key, count, window_start, window_seconds)
       VALUES ${sql.join(
-        rows.map((r) => sql`(${r.key}, 1, now(), ${r.window})`),
+        rows.map((r) => sql`(${r.key}, ${r.units}, now(), ${r.window})`),
         sql`, `
       )}
       ON CONFLICT (key) DO UPDATE SET
         count = CASE WHEN rate_limits.window_start <= now() - make_interval(secs => EXCLUDED.window_seconds)
-                     THEN 1 ELSE rate_limits.count + 1 END,
+                     THEN EXCLUDED.count ELSE rate_limits.count + EXCLUDED.count END,
         window_start = CASE WHEN rate_limits.window_start <= now() - make_interval(secs => EXCLUDED.window_seconds)
                      THEN now() ELSE rate_limits.window_start END,
         window_seconds = EXCLUDED.window_seconds

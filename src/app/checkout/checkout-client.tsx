@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,7 @@ import type { Address } from '@/lib/addresses';
 import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
 import type { StockByKey } from '@/modules/catalog/storefront-data';
 import { MAX_QUANTITY_PER_SKU, stockProblems, unitPrice } from '@/lib/cart';
+import { closeAttempt, forgetAttempt, openAttempt, rememberAttempt } from '@/lib/payment-attempt';
 
 type Errors = Record<string, string>;
 
@@ -31,12 +32,29 @@ const ADDRESS_FIELDS = [
   // types ten digits on a QWERTY layout at the highest-value step in the
   // funnel. `type` stays text: `type="number"` brings spinner arrows and
   // silently drops a leading zero.
-  { name: 'phone', label: 'Mobile number', autoComplete: 'tel', span: 1, inputMode: 'numeric' as const },
+  {
+    name: 'phone',
+    label: 'Mobile number',
+    autoComplete: 'tel',
+    span: 1,
+    inputMode: 'numeric' as const,
+  },
   { name: 'line1', label: 'Address', autoComplete: 'address-line1', span: 2 },
-  { name: 'line2', label: 'Apartment, landmark (optional)', autoComplete: 'address-line2', span: 2 },
+  {
+    name: 'line2',
+    label: 'Apartment, landmark (optional)',
+    autoComplete: 'address-line2',
+    span: 2,
+  },
   { name: 'city', label: 'City', autoComplete: 'address-level2', span: 1 },
   { name: 'state', label: 'State', autoComplete: 'address-level1', span: 1 },
-  { name: 'postalCode', label: 'PIN code', autoComplete: 'postal-code', span: 1, inputMode: 'numeric' as const },
+  {
+    name: 'postalCode',
+    label: 'PIN code',
+    autoComplete: 'postal-code',
+    span: 1,
+    inputMode: 'numeric' as const,
+  },
 ] as const;
 
 /** Flattens a saved address into the shape the form state holds. */
@@ -58,6 +76,13 @@ function addressToValues(a: Address): Record<string, string> {
  * Confirmation URL. Guests carry a signed token because the order page shows
  * their address and phone number and must not be readable by URL alone.
  */
+/** One key per checkout attempt; a retry of the same attempt reuses it. */
+function newCheckoutKey(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `chk_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+}
+
 function orderUrl(orderNumber: string, accessToken?: string | null) {
   return accessToken ? `/orders/${orderNumber}?t=${encodeURIComponent(accessToken)}` : `/orders/${orderNumber}`;
 }
@@ -258,7 +283,10 @@ export function CheckoutClient({
     () =>
       calculateTotals(
         // Each line at the current price for its own SKU, from this render.
-        cart.map((line) => ({ unitPrice: unitPrice(line, prices).price / 100, quantity: line.quantity }))
+        cart.map((line) => ({
+          unitPrice: unitPrice(line, prices).price / 100,
+          quantity: line.quantity,
+        }))
       ),
     [cart, prices]
   );
@@ -301,11 +329,50 @@ export function CheckoutClient({
    * behind, so the key is still free, and keeping it means a retry of an
    * *apparent* failure that actually succeeded is still deduplicated.
    */
-  const [idempotencyKey] = useState(() =>
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `chk_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`
-  );
+  const [idempotencyKey, setIdempotencyKey] = useState(newCheckoutKey);
+
+  /*
+   * Coming back from the payment screen without paying (the back button,
+   * Cashfree's cancel, a reopened tab): close that attempt so nothing is
+   * ordered and its stock is returned now, not by tomorrow's sweep. Runs on
+   * mount and on `pageshow`, because the back button restores this page from
+   * the browser's cache without remounting it, Pay button still spinning.
+   */
+  useEffect(() => {
+    const resume = async () => {
+      setSubmitting(false);
+      const attempt = openAttempt();
+      if (!attempt) return;
+      const outcome = await closeAttempt(attempt);
+      if (outcome === 'paid') {
+        forgetAttempt();
+        clearCart();
+        router.replace(orderUrl(attempt.orderNumber, attempt.token));
+        return;
+      }
+      if (outcome === 'cancelled') {
+        forgetAttempt();
+        // That attempt's key now belongs to a cancelled order: start afresh.
+        setIdempotencyKey(newCheckoutKey());
+        setFormError(
+          'Your payment was not completed, so nothing was ordered and you have not been charged. Your bag is still here.'
+        );
+        return;
+      }
+      if (outcome === 'pending') {
+        setFormError(
+          `A payment for order ${attempt.orderNumber} is still being processed. If it completes you will get a confirmation; if not, nothing will be ordered.`
+        );
+      }
+    };
+    void resume();
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) void resume();
+    };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const buildPayload = () => ({
     idempotencyKey,
@@ -372,7 +439,10 @@ export function CheckoutClient({
     setSubmitting(true);
 
     if (method === 'cod') {
-      const result = await placeOrder({ ...buildPayload(), paymentMethod: 'cod' });
+      const result = await placeOrder({
+        ...buildPayload(),
+        paymentMethod: 'cod',
+      });
       if (result.ok) {
         // The bag was never emptied after an order, so a customer who had
         // just ordered was one click from ordering the same items again.
@@ -400,6 +470,7 @@ export function CheckoutClient({
       .catch(() => ({ ok: false, body: null as any }));
 
     if (!created.ok) {
+      if (created.body?.code === 'attempt_closed') setIdempotencyKey(newCheckoutKey());
       setFormError(created.body?.error ?? 'We could not start the payment. Please try again.');
       if (created.body?.code === 'price_changed' || created.body?.code === 'phone_unverified') router.refresh();
       setSubmitting(false);
@@ -419,8 +490,14 @@ export function CheckoutClient({
     try {
       sessionStorage.setItem(`order-token:${orderNumber}`, accessToken);
     } catch {}
-    const cashfree = (window as any).Cashfree({ mode: mode === 'production' ? 'production' : 'sandbox' });
-    const result = await cashfree.checkout({ paymentSessionId, redirectTarget: '_self' });
+    if (accessToken) rememberAttempt({ orderNumber, token: accessToken });
+    const cashfree = (window as any).Cashfree({
+      mode: mode === 'production' ? 'production' : 'sandbox',
+    });
+    const result = await cashfree.checkout({
+      paymentSessionId,
+      redirectTarget: '_self',
+    });
     // Only reached when the redirect did not happen.
     if (result?.error) {
       setFormError('That payment did not go through. Try again, or choose cash on delivery.');

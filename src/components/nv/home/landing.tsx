@@ -277,6 +277,7 @@ export function Services() {
               ['Shop all products', 'Every product, with current prices and stock.', '/collections'],
               ['Routine finder', 'A weekly morning and evening routine from a short questionnaire.', '/routine-finder'],
               ['Ask Avyora', 'Ingredient and product questions, answered from reviewed information.', '/assistant'],
+              ['Talk about your skin', 'An AI guide for everyday skin concerns. Not medical advice.', '/skin-chat'],
               ['Journal', 'Articles on routines and ingredients.', '/journal'],
             ].map(([label, text, href]) => (
               <li key={href} className="border-b border-white/20">

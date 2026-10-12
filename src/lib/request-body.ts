@@ -23,6 +23,8 @@ export const BODY_LIMITS = {
   support: 4 * 1024,
   review: 4 * 1024,
   newsletter: 1024,
+  /** Skin chat: at most 40 messages of 1,000 characters. */
+  chat: 48 * 1024,
   /** Scan image upload: the 4 MB file cap (image-validation MAX_UPLOAD_BYTES), under Vercel's 4.5 MB ceiling. */
   scanImage: 4 * 1024 * 1024,
 } as const;

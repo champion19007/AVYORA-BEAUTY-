@@ -1912,6 +1912,50 @@ Results are in `docs/redesign-reference/acceptance/2026-10-09/` (30 screenshots 
 
 Each is covered by integration tests.
 
+---
+
+## Payment back-out, load test and production errors (12 October 2026)
+
+### Backing out of the Cashfree screen
+
+**Before:** clicking Pay created the order, reserved its stock and announced it (customer email and the shop's WhatsApp/Gmail alert) before any payment. A customer who pressed back or cancelled still got an "order confirmed" message, the shop got a new-order alert, the stock stayed reserved until the daily sweep (cron at 08:45 IST; Hobby allows one run a day), the return page said "payment not confirmed yet", and the Pay button stayed disabled after Back. Retrying reused the same idempotency key, which would have replayed the abandoned order.
+
+**Now:**
+
+| Change | Where |
+| --- | --- |
+| Online orders are announced only when paid (`order.paid`); cash on delivery still on `order.placed` | `lib/event-consumers.ts` |
+| Events are drained right after a payment is confirmed (webhook, verify, reconciliation), not left for the cron | `modules/payments/payment-service.ts` |
+| `POST /api/payments/cashfree/cancel`: asks Cashfree to terminate the order; only when Cashfree reports `TERMINATED` or `EXPIRED` is our order cancelled and its stock returned; a payment that succeeded meanwhile is applied instead; refused while a payment is in progress. Requires the order's access token. Idempotent. | `app/api/payments/cashfree/cancel/route.ts`, `lib/cashfree.ts` (`terminateCashfreeOrder`) |
+| Shared `releaseIfUnpaid` used by the sweep and the cancel route | `lib/reservation-sweep.ts` |
+| Verify answers `not_started` when no payment was attempted, so the return page does not poll for 10 seconds | `app/api/payments/cashfree/verify/route.ts` |
+| Checkout remembers the open attempt; on return, Back (`pageshow`) or reload it closes it, resets the Pay button, rotates the idempotency key and says "nothing was ordered and you have not been charged"; the return page does the same | `lib/payment-attempt.ts`, `app/checkout/checkout-client.tsx`, `app/checkout/return/page.tsx` |
+| A retry carrying a cancelled attempt's key gets `409 attempt_closed` instead of reopening it | `app/api/payments/cashfree/create/route.ts` |
+
+Tests: `app/api/payments/cashfree/__tests__/backout.integration.test.ts` (9, against a fake Cashfree that follows the documented API): back-out cancels and returns stock; idempotent; waits while a payment is in progress (with and without a listed payment); applies a payment that succeeded; refuses without the right token; no reopening of a cancelled attempt; no alert for an abandoned online order, one alert once paid; COD still announced on placement. Mutation checks: alerting on create fails 1 test; cancelling despite Cashfree's refusal fails 1 test. Full suite 1066/1066; build passes. Not exercised against live Cashfree (would create real orders).
+
+### Production errors
+
+Only one error group in the last 48 hours (Vercel runtime errors): `notify.whatsapp` 400 "API access blocked" (Meta `OAuthException`, code 200) at 15:02 IST on 12 October, from `/api/payments/cashfree/create`. The WhatsApp order alert was rejected by Meta: the access token or app permission is blocked or expired. Not a code fault; needs a new token or app review in Meta. With the fix above this alert now fires on payment, not on create. No error, failed deployment, failed CI run or failed backup around midnight; Hobby keeps raw logs for one hour only.
+
+### Load test (what 10,000 simultaneous visitors would do)
+
+Measured: a local production build against a copy of the production database (Neon branch `loadtest-2026-10-12`, same 0.25 CU compute), stages of 10–500 simultaneous visitors, 20 s each.
+
+| Visitors | Requests/s | p50 | p95 | `/api/cart` p50 | Errors |
+| --- | --- | --- | --- | --- | --- |
+| 10 | 147 | 29 ms | 283 ms | 235 ms | 0 |
+| 50 | 133 | 92 ms | 1.9 s | 1.5 s | 0 |
+| 100 | 179 | 266 ms | 3.3 s | 3.2 s | 0 |
+| 250 | 134 | 876 ms | 6.3 s | 2.9 s | 0 |
+| 500 | 149 | 2.0 s | 10.5 s | 1.3 s | 876 connection errors (laptop limit) |
+
+One local process is not Vercel's capacity; what transfers is that pages are cheap and the database-bound APIs (cart, sign-in, checkout, rate limiter) are the bottleneck. On the live site pages are served from Vercel's cache (`x-vercel-cache: STALE/PRERENDER`).
+
+Vercel Hobby (docs, 12 October 2026): functions scale to 30,000 concurrent per region but only by **1,000 every 10 seconds**, beyond which requests get `503 FUNCTION_THROTTLED`; included per month: 1,000,000 invocations, 4 active-CPU hours, 100 GB transfer; exceeding one pauses that feature until the 30 days pass.
+
+The single-address rate-limit warning in the run is expected locally: the limiter trusts client addresses only on Vercel.
+
 ## Remaining sequence
 
 | # | Prompt | Status |

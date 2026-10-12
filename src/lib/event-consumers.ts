@@ -32,13 +32,24 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://avyora-beauty.vercel.a
 /* -------------------------------------------------------------------------- */
 
 async function handleNotification(event: DomainEvent): Promise<void> {
-  if (event.name !== 'order.placed') return;
+  if (event.name !== 'order.placed' && event.name !== 'order.paid') return;
 
   const orderNumber = String(event.payload.orderNumber ?? '');
   if (!orderNumber) return;
 
   const order = await getOrderByNumber(orderNumber);
   if (!order) return;
+
+  /*
+   * One announcement per order, at the moment it becomes a real order.
+   * Cash on delivery is real when placed. An online order is real only once
+   * paid: it is created when the customer clicks Pay, and announcing it then
+   * told both the customer and the shop about orders the customer backed
+   * out of on the payment screen and never paid for.
+   */
+  const online = order.paymentProvider !== 'cod';
+  if (event.name === 'order.placed' && online) return;
+  if (event.name === 'order.paid' && !online) return;
 
   const address = (order.shippingAddress ?? {}) as Record<string, string>;
   const token = await createOrderAccessToken(orderNumber).catch(() => null);
