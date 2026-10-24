@@ -1,3 +1,5 @@
+import { PRODUCTS } from '@/data/mock-data';
+
 /**
  * What role each catalogue product can play in a face routine.
  *
@@ -15,7 +17,7 @@
  */
 export type RoutineRole = 'cleanse' | 'moisturise' | 'protect' | 'treatment' | 'optional' | 'none';
 
-export const ROUTINE_ROLES: Readonly<Record<string, RoutineRole>> = {
+const SAMPLE_ROLES: Readonly<Record<string, RoutineRole>> = {
   'face-wash': 'cleanse',
   'centella-cleansing-balm': 'cleanse',
   'rice-bran-cleansing-oil': 'optional',
@@ -43,6 +45,43 @@ export const ROUTINE_ROLES: Readonly<Record<string, RoutineRole>> = {
   'sun-stick': 'optional',
   'lip-mask': 'none',
   'body-lotion': 'none',
+};
+
+/** The role each routine slot (lib/routine-slots.ts) plays, for products the owner assigned to one. */
+const SLOT_ROLES: Readonly<Record<string, RoutineRole>> = {
+  gelCleanser: 'cleanse',
+  cleansingBalm: 'cleanse',
+  cleansingOil: 'optional',
+  enzymeWash: 'treatment',
+  tonerHydrating: 'optional',
+  tonerRich: 'optional',
+  essenceBrightening: 'optional',
+  essenceRepair: 'optional',
+  essenceSoothing: 'optional',
+  vitaminC: 'treatment',
+  niacinamide: 'treatment',
+  peptide: 'treatment',
+  retinol: 'treatment',
+  exfoliantOily: 'treatment',
+  exfoliantGentle: 'treatment',
+  eyePatches: 'optional',
+  moisturizerLight: 'moisturise',
+  moisturizerRich: 'moisturise',
+  sunscreen: 'protect',
+  bodyLotion: 'none',
+};
+
+/**
+ * Every product's role: the sample table above, plus the role implied by
+ * the "Role in routines" slot the owner chose in the product editor. A
+ * product with neither is `optional` in the planner's eyes only if listed;
+ * unlisted products are simply not placed in routines.
+ */
+export const ROUTINE_ROLES: Readonly<Record<string, RoutineRole>> = {
+  ...SAMPLE_ROLES,
+  ...Object.fromEntries(
+    PRODUCTS.flatMap((p) => (p.routineSlot && SLOT_ROLES[p.routineSlot] ? [[p.id, SLOT_ROLES[p.routineSlot]]] : []))
+  ),
 };
 
 /** Which session an essential role belongs to. */

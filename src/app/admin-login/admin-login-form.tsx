@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,24 +22,13 @@ import { useToast } from '@/hooks/use-toast';
 export function AdminLoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  // Owner two-step sign-in: set once the server has emailed a code.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useApp();
   const { toast } = useToast();
   const router = useRouter();
-
-  /**
-   * Where to land after signing in.
-   *
-   * Pages that require an account send the visitor here with their own path in
-   * `callbackUrl`, so signing in returns them to what they were trying to do
-   * instead of dropping them on the homepage.
-   *
-   * Only same-site paths are honoured: an absolute URL here would let a crafted
-   * link bounce a freshly authenticated customer onto an attacker's page.
-   */
-  const searchParams = useSearchParams();
-  const requested = searchParams.get('callbackUrl') ?? '/';
-  const callbackUrl = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/';
 
   /**
    * Admin credentials are checked on the server.
@@ -57,10 +46,17 @@ export function AdminLoginForm() {
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, ...(needsCode ? { code } : {}) }),
       });
 
       if (response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { role?: string; step?: string };
+        if (body.step === 'code') {
+          setNeedsCode(true);
+          setIsLoading(false);
+          toast({ title: 'Check your email', description: 'We sent a 6-digit sign-in code to the owner’s email.' });
+          return;
+        }
         login(username, true);
         toast({
           title: 'Admin access granted',
@@ -74,7 +70,6 @@ export function AdminLoginForm() {
          * permission boundary. The role comes from the server's response, not
          * from anything the form could set.
          */
-        const body = await response.json().catch(() => ({}) as { role?: string });
         router.push(body?.role === 'manager' ? '/manager' : '/admin');
         return;
       }
@@ -100,10 +95,13 @@ export function AdminLoginForm() {
       //
       // Customer identity is Google sign-in, which verifies the person and
       // writes a real session row. This form is the admin credential only.
+      const failure = (await response.json().catch(() => ({}))) as { error?: string };
       toast({
         variant: 'destructive',
-        title: 'Authentication failed',
-        description: 'Please check your credentials and try again.',
+        title: needsCode ? 'Code not accepted' : 'Authentication failed',
+        description: needsCode
+          ? (failure.error ?? 'Check the code and try again.')
+          : 'Please check your credentials and try again.',
       });
       setIsLoading(false);
     } catch {
@@ -147,12 +145,7 @@ export function AdminLoginForm() {
               <Label htmlFor="password" className="text-[10px] font-semibold uppercase tracking-widest">
                 Password
               </Label>
-              <Link
-                href="#"
-                className="text-[8px] font-bold uppercase tracking-widest underline opacity-60 hover:opacity-100"
-              >
-                Forgot?
-              </Link>
+              <span className="text-[8px] font-bold uppercase tracking-widest opacity-60">Forgot? Ask the owner</span>
             </div>
             <Input
               id="password"
@@ -163,12 +156,31 @@ export function AdminLoginForm() {
               className="rounded-md border border-border h-12 text-xs focus-visible:ring-0 focus-visible:border-primary"
             />
           </div>
+          {needsCode && (
+            <div className="grid gap-2">
+              <Label htmlFor="code" className="text-[10px] font-semibold uppercase tracking-widest">
+                Code from your email
+              </Label>
+              <Input
+                id="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                required
+                autoFocus
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                className="rounded-md border border-border h-12 text-xs tracking-[0.4em] focus-visible:ring-0 focus-visible:border-primary"
+              />
+            </div>
+          )}
           <Button
             type="submit"
             disabled={isLoading}
             className="w-full bg-foreground text-background hover:bg-primary hover:text-primary-foreground h-14 rounded-md font-semibold uppercase tracking-widest text-[10px] transition-all"
           >
-            {isLoading ? 'Authenticating...' : 'Login'}
+            {isLoading ? 'Authenticating...' : needsCode ? 'Confirm code' : 'Login'}
           </Button>
         </form>
         <div className="mt-8 text-center">

@@ -52,7 +52,10 @@ export async function POST(request: Request) {
   ]);
   // A retry of an existing order replays (createOrder and the Razorpay claim
   // are both idempotent); only new work is refused.
-  if (!limited.allowed && !(input.idempotencyKey && (await findByIdempotencyKey(String(input.idempotencyKey))))) {
+  if (
+    !limited.allowed &&
+    !(input.idempotencyKey && (await findByIdempotencyKey(String(input.idempotencyKey), String(input.email ?? ''))))
+  ) {
     return limitResponse(limited);
   }
   const created = await createOrder({ ...input, paymentMethod: 'razorpay' }, session?.user?.id ?? null);

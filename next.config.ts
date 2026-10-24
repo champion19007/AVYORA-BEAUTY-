@@ -12,6 +12,15 @@ if (process.env.VERCEL_ENV === 'production' && !process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not set for this production build. Refusing to prerender pages without a database.');
 }
 
+/** Host of STORAGE_PUBLIC_BASE_URL (admin uploads), when configured. */
+const uploadsHost = (() => {
+  try {
+    return new URL(process.env.STORAGE_PUBLIC_BASE_URL ?? '').hostname;
+  } catch {
+    return null;
+  }
+})();
+
 const nextConfig: NextConfig = {
   /**
    * Pin the workspace root to this project.
@@ -54,7 +63,11 @@ const nextConfig: NextConfig = {
   compress: true,
 
   images: {
-    remotePatterns: [{ protocol: 'https', hostname: 'images.unsplash.com', port: '', pathname: '/**' }],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'images.unsplash.com', port: '', pathname: '/**' },
+      // Product photos uploaded in the admin, served from the storage bucket.
+      ...(uploadsHost ? [{ protocol: 'https' as const, hostname: uploadsHost, port: '', pathname: '/**' }] : []),
+    ],
     formats: ['image/avif', 'image/webp'],
     // Optimised images are immutable once generated; cache them hard so the
     // optimiser is not re-invoked per viewer under load.

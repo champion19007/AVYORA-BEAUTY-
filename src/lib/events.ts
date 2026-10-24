@@ -28,6 +28,7 @@ export type EventName =
   | 'order.refunded'
   | 'order.cancelled'
   | 'order.needs_attention'
+  | 'order.shipped'
   | 'inventory.stock_out'
   | 'inventory.changed'
   | 'pricing.changed'

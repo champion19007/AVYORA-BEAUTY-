@@ -50,7 +50,10 @@ export async function POST(request: Request) {
           subject: { kind: 'identifier', value: String(input.email ?? '') },
         },
   ]);
-  if (!limited.allowed && !(input.idempotencyKey && (await findByIdempotencyKey(String(input.idempotencyKey))))) {
+  if (
+    !limited.allowed &&
+    !(input.idempotencyKey && (await findByIdempotencyKey(String(input.idempotencyKey), String(input.email ?? ''))))
+  ) {
     return limitResponse(limited);
   }
 

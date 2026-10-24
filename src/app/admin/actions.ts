@@ -15,6 +15,7 @@ import { cancelOrder, restoreOrderStock } from '@/lib/orders';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { recordEvent } from '@/lib/activity';
 import { revalidateProduct } from '@/lib/storefront-cache';
+import { recordCodCollected } from '@/modules/shipping/shipments';
 
 /**
  * Operations actions: fulfilment status and stock levels.
@@ -128,6 +129,7 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
     revalidatePath(`/admin/orders/${orderNumber}`);
     return;
   }
+  if (next === 'delivered') await recordCodCollected(order.id);
 
   const actor = await getStaffSession();
   await recordAudit({
@@ -481,7 +483,7 @@ export async function moderateReviewAction(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '');
   const raw = formData.get('decision');
   // Only an explicit decision acts: a missing or unknown value must never fall through to deleting a review.
-  if (raw !== 'publish' && raw !== 'reject') return;
+  if (raw !== 'publish' && raw !== 'hide' && raw !== 'reject') return;
   const decision = raw;
   const { moderateReview } = await import('@/modules/reviews/reviews');
   if (await moderateReview(db, id, decision)) {
@@ -494,5 +496,7 @@ export async function moderateReviewAction(formData: FormData): Promise<void> {
       after: { published: decision === 'publish' },
     });
   }
-  revalidatePath('/admin/requests');
+  revalidatePath('/admin/reviews');
+  // The product pages show published reviews.
+  revalidatePath('/products/[slug]', 'page');
 }

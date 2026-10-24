@@ -11,6 +11,7 @@ import { SESSION_COOKIE } from '@/lib/auth';
 import { getStaffSession } from '@/lib/staff-auth';
 import { recordEvent } from '@/lib/activity';
 import { adjustStock as adjustStockCommand } from '@/modules/inventory/stock-commands';
+import { bookCourier, recordCodCollected } from '@/modules/shipping/shipments';
 
 /**
  * Dispatch and stock actions for the inventory manager.
@@ -89,6 +90,9 @@ export async function advanceDispatch(formData: FormData): Promise<void> {
     .update(orders)
     .set({ status: next as typeof orders.$inferInsert.status, updatedAt: new Date() })
     .where(eq(orders.id, order.id));
+
+  // Delivered by hand (no courier booking): cash on delivery was collected at the door.
+  if (next === 'delivered') await recordCodCollected(order.id);
 
   await recordEvent({
     name: 'admin.order_status_changed',
@@ -199,4 +203,18 @@ export async function managerSignOut(): Promise<void> {
   // Both roles share one sign-in page; it keeps its original path so existing
   // links and the middleware redirect target stay valid.
   redirect('/admin-login');
+}
+
+export type CourierFormState = { error?: string; awb?: string };
+
+/** Books a Shiprocket courier for a packed order. From then on the courier's updates move the order. */
+export async function bookCourierAction(_prev: CourierFormState, formData: FormData): Promise<CourierFormState> {
+  const session = await requireManager();
+  if (!session) return { error: 'Your staff session has ended. Sign in again.' };
+  const orderNumber = String(formData.get('orderNumber') ?? '');
+  if (!orderNumber) return { error: 'Missing order.' };
+  const result = await bookCourier(orderNumber, session);
+  revalidatePath('/manager');
+  revalidatePath(`/admin/orders/${orderNumber}`);
+  return result.ok ? { awb: result.awb } : { error: result.error };
 }

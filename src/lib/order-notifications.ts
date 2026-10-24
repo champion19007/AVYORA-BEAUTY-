@@ -194,3 +194,38 @@ export async function notifyOrderPlaced(input: OrderNotificationInput): Promise<
   await Promise.allSettled(tasks);
   return outcome;
 }
+
+/** The "it is on its way" email the order confirmation promises. Never throws; reports whether it was accepted. */
+export async function notifyOrderShipped(input: {
+  orderNumber: string;
+  email: string;
+  customerName: string;
+  courierName: string;
+  awb: string;
+  trackingUrl: string;
+  orderUrl: string;
+  cod: boolean;
+  total: number;
+}): Promise<{ attempted: boolean; sent: boolean }> {
+  if (!emailDeliveryConfigured()) return { attempted: false, sent: false };
+  const text = [
+    `Good news${input.customerName ? `, ${input.customerName}` : ''}: your order ${input.orderNumber} is on its way.`,
+    '',
+    `Courier: ${input.courierName}`,
+    `Tracking number: ${input.awb}`,
+    `Follow it here: ${input.trackingUrl}`,
+    '',
+    input.cod
+      ? `Cash on delivery: please keep ${formatPaise(input.total)} ready.`
+      : 'Already paid. Nothing to pay at the door.',
+    '',
+    `Your order: ${input.orderUrl}`,
+  ].join('\n');
+  const result = await sendEmail(input.email, `Your Avyora order ${input.orderNumber} has shipped`, text).catch(
+    (err) => {
+      reportError(err, { scope: 'orderNotify.shipped' });
+      return { ok: false };
+    }
+  );
+  return { attempted: true, sent: result.ok };
+}

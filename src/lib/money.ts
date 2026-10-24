@@ -75,11 +75,14 @@ export type OrderTotals = {
  * All arithmetic is integer. `tax` is the GST component already contained
  * within the total, shown for the invoice; it is not added again.
  */
-export function calculateTotals(lines: LineInput[], discount = 0): OrderTotals {
+export function calculateTotals(lines: LineInput[], discount = 0, opts: { freeDelivery?: boolean } = {}): OrderTotals {
   const subtotal = lines.reduce((sum, l) => sum + toPaise(l.unitPrice) * l.quantity, 0);
 
   const afterDiscount = Math.max(0, subtotal - discount);
-  const shipping = afterDiscount === 0 || afterDiscount >= FREE_SHIPPING_THRESHOLD_PAISE ? 0 : STANDARD_SHIPPING_PAISE;
+  const shipping =
+    opts.freeDelivery || afterDiscount === 0 || afterDiscount >= FREE_SHIPPING_THRESHOLD_PAISE
+      ? 0
+      : STANDARD_SHIPPING_PAISE;
 
   const total = afterDiscount + shipping;
   // Tax already included in `total`: total = net + net * rate.

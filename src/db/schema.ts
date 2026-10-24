@@ -228,12 +228,41 @@ export const catalogProducts = pgTable(
     name: text('name').notNull(),
     category: text('category').notNull(),
     published: boolean('published').notNull().default(true),
+    /**
+     * Who sees it. `live` is on the shop; `draft` is being written; `hidden`
+     * is kept (past orders point at it) but off the shop. Set from the
+     * owner's product editor.
+     */
+    status: text('status').notNull().default('live'),
+    /*
+     * The owner-edited copy. Null means "not edited": the value then comes
+     * from the catalogue file, so the sample products keep their text until
+     * someone changes it, and nothing is duplicated to drift.
+     */
+    tagline: text('tagline'),
+    description: text('description'),
+    howToUse: text('how_to_use'),
+    /** Highlighted ingredients, as shown on the product page. */
+    keyIngredients: jsonb('key_ingredients').$type<string[]>(),
+    /** The full ingredient list (INCI), as printed on the pack. */
+    fullIngredients: text('full_ingredients'),
+    skinTypes: jsonb('skin_types').$type<string[]>(),
+    concerns: jsonb('concerns').$type<string[]>(),
+    /** Image URLs in display order; empty shows the branded placeholder. */
+    images: jsonb('images').$type<string[]>(),
+    /** Which routine-finder slot this product fills (lib/routine-slots.ts), if any. */
+    routineSlot: text('routine_slot'),
+    isBestSeller: boolean('is_best_seller'),
+    isNew: boolean('is_new'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    updatedBy: text('updated_by'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     slugIdx: uniqueIndex('catalog_products_slug_idx').on(t.slug),
     categoryIdx: index('catalog_products_category_idx').on(t.category, t.published),
+    statusCheck: check('catalog_products_status_check', sql`${t.status} IN ('draft', 'live', 'hidden')`),
   })
 );
 
@@ -250,6 +279,12 @@ export const catalogVariants = pgTable(
     volumeMl: numeric('volume_ml', { precision: 8, scale: 2 }),
     /** Retire a variant by switching this off; never delete one orders point at. */
     active: boolean('active').notNull().default(true),
+    /**
+     * What one unit costs the shop to buy or make, in paise. Never shown to
+     * customers; used to refuse offers that would sell at a loss.
+     */
+    costPaise: integer('cost_paise'),
+    sortOrder: integer('sort_order').notNull().default(0),
   },
   (t) => ({
     legacyIdx: uniqueIndex('catalog_variants_legacy_key_idx').on(t.legacyStockKey),
@@ -372,6 +407,10 @@ export const orders = pgTable(
     /** All amounts in paise. */
     subtotal: integer('subtotal').notNull(),
     discount: integer('discount').notNull().default(0),
+    /** The offer that gave the discount (or free delivery), if any. */
+    offerId: text('offer_id'),
+    /** The coupon code typed at checkout, as entered, if any. */
+    offerCode: text('offer_code'),
     shipping: integer('shipping').notNull().default(0),
     tax: integer('tax').notNull().default(0),
     total: integer('total').notNull(),
@@ -434,11 +473,19 @@ export const orders = pgTable(
      * it records the problem and puts it in front of the owner.
      */
     attentionReason: text('attention_reason'),
+    /**
+     * The courier's tracking number (AWB), once a shipment is booked. Unique:
+     * tracking updates arrive keyed by AWB, and must find exactly one order.
+     */
+    awb: text('awb'),
+    /** The booked shipment as the courier aggregator described it. See modules/shipping. */
+    shipment: jsonb('shipment'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     numberIdx: uniqueIndex('orders_number_idx').on(t.orderNumber),
+    awbIdx: uniqueIndex('orders_awb_idx').on(t.awb),
     userIdx: index('orders_user_idx').on(t.userId),
     emailIdx: index('orders_email_idx').on(t.email),
     createdIdx: index('orders_created_idx').on(t.createdAt),
@@ -1001,6 +1048,72 @@ export const restockRequests = pgTable(
  * Money is integer paise, like everywhere else. A price stored as 12.99 in a
  * float is a rounding error waiting to become a wrong total.
  */
+/* -------------------------------------------------------------------------- */
+/* Offers and shop settings                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * An offer the owner runs from the admin. One offer applies per order: the
+ * best eligible automatic offer, or the coupon the customer typed if that is
+ * better. Every offer is checked against cost prices when saved, and the
+ * discount is capped again at checkout, so no order sells below the profit
+ * floor in `shop_settings` (see modules/offers/profit.ts).
+ *
+ * Kinds:
+ *  - `percent_off`   `percentOff`% off eligible items
+ *  - `amount_off`    `amountPaise` off the order (spread over eligible items)
+ *  - `buy_x_get_y`   buy `buyQty` eligible items, get `getQty` more free (cheapest free)
+ *  - `free_delivery` the delivery charge is waived
+ */
+export const offers = pgTable(
+  'offers',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    /** Shown to customers, e.g. "Launch week: 15% off". */
+    name: text('name').notNull(),
+    kind: text('kind').notNull(),
+    percentOff: integer('percent_off'),
+    amountPaise: integer('amount_paise'),
+    buyQty: integer('buy_qty'),
+    getQty: integer('get_qty'),
+    /** Product ids the offer covers; null means every product. */
+    productIds: jsonb('product_ids').$type<string[]>(),
+    /** Eligible-item subtotal needed before the offer applies, in paise. */
+    minSubtotalPaise: integer('min_subtotal_paise').notNull().default(0),
+    /** Eligible items needed in the bag, e.g. "any 3". */
+    minQuantity: integer('min_quantity').notNull().default(1),
+    /** Uppercase. Null: applies automatically, no code needed. */
+    couponCode: text('coupon_code'),
+    /** Only for a customer with no earlier order. */
+    firstOrderOnly: boolean('first_order_only').notNull().default(false),
+    /** Stop after this many orders; null means no limit. */
+    maxUses: integer('max_uses'),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    active: boolean('active').notNull().default(true),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    couponIdx: uniqueIndex('offers_coupon_code_idx').on(t.couponCode),
+    kindCheck: check(
+      'offers_kind_check',
+      sql`${t.kind} IN ('percent_off', 'amount_off', 'buy_x_get_y', 'free_delivery')`
+    ),
+  })
+);
+
+/** Small owner-editable settings, one JSON value per key (e.g. `profit`). */
+export const shopSettings = pgTable('shop_settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const productPricing = pgTable(
   'product_pricing',
   {

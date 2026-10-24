@@ -9,6 +9,7 @@ import { getOrderByNumber } from '@/lib/orders';
 import { verifyOrderAccessToken } from '@/lib/order-access';
 import { formatPaise } from '@/lib/money';
 import { OrderTracker } from '@/components/order-tracker';
+import { trackingUrl } from '@/modules/shipping/shiprocket';
 
 export const metadata: Metadata = {
   title: 'Order confirmed',
@@ -31,15 +32,15 @@ export default async function OrderPage({
   if (!isDatabaseConfigured()) notFound();
 
   const order = await getOrderByNumber(orderNumber);
-  if (!order) notFound();
 
   // The order number alone is not authorisation: this page carries the
-  // customer's name, address and phone number.
+  // customer's name, address and phone number. A missing order gets the same
+  // "private" page, so the URL cannot be used to test which order numbers exist.
   const session = await auth().catch(() => null);
-  const ownsOrder = Boolean(session?.user?.id && order.userId === session.user.id);
+  const ownsOrder = Boolean(order && session?.user?.id && order.userId === session.user.id);
   const hasToken = await verifyOrderAccessToken(orderNumber, t);
 
-  if (!ownsOrder && !hasToken) {
+  if (!order || (!ownsOrder && !hasToken)) {
     return (
       <div className="container mx-auto max-w-lg px-4 py-24 text-center">
         <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -77,6 +78,20 @@ export default async function OrderPage({
       {/* Where the parcel is, in words a customer uses. */}
       <div className="mt-10">
         <OrderTracker status={order.status} />
+        {order.awb && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            With {((order.shipment ?? {}) as { courierName?: string }).courierName ?? 'the courier'}, tracking number{' '}
+            <a
+              href={trackingUrl(order.awb)}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-foreground underline underline-offset-2"
+            >
+              {order.awb}
+            </a>
+            .
+          </p>
+        )}
       </div>
 
       <div className="mt-6 rounded-xl border border-border bg-card p-6">

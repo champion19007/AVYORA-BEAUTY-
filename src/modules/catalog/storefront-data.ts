@@ -3,6 +3,7 @@ import { isDatabaseConfigured } from '@/db';
 import { pricingMap } from '@/lib/pricing';
 import { getStockMap } from '@/lib/inventory';
 import { cache, POLICIES } from '@/infrastructure/cache';
+import { reportError } from '@/lib/observability';
 import { skuKey, skuPrice, type SkuPrice } from './sku-price';
 
 /**
@@ -29,8 +30,7 @@ export type StockByKey = Record<string, number | undefined>;
  * a few seconds behind an owner's edit.
  */
 export async function displayPrices(options: { fresh?: boolean } = {}): Promise<DisplayPrices> {
-  const compute = async (): Promise<DisplayPrices> => {
-    const overrides = isDatabaseConfigured() ? await pricingMap() : new Map();
+  const computeFrom = (overrides: Map<string, Parameters<typeof skuPrice>[2]>): DisplayPrices => {
     const now = new Date();
     const out: DisplayPrices = {};
     for (const product of PRODUCTS) {
@@ -41,9 +41,14 @@ export async function displayPrices(options: { fresh?: boolean } = {}): Promise<
     }
     return out;
   };
+  const compute = async () => computeFrom(isDatabaseConfigured() ? await pricingMap() : new Map());
 
   if (!isDatabaseConfigured() || options.fresh) return compute();
-  return cache.getOrSet(POLICIES.pricingDisplay, 'all', compute);
+  // Display only: a database outage shows the catalogue's list prices rather than an error page.
+  return cache.getOrSet(POLICIES.pricingDisplay, 'all', compute).catch((err) => {
+    reportError(err, { scope: 'storefront.prices' });
+    return computeFrom(new Map());
+  });
 }
 
 /**
@@ -68,7 +73,12 @@ export async function catalogueStock(options: { fresh?: boolean } = {}): Promise
 
   // `fresh` for checkout, as with prices: the figure a customer acts on.
   if (options.fresh) return compute();
-  return cache.getOrSet(POLICIES.availability, 'all', compute);
+  // Display only: during a database outage every item reads "Out of stock" (nothing can be ordered then anyway)
+  // instead of the page failing. Not cached, so the real figures return as soon as the database does.
+  return cache.getOrSet(POLICIES.availability, 'all', compute).catch((err) => {
+    reportError(err, { scope: 'storefront.stock' });
+    return {};
+  });
 }
 
 /** Called when anything about a product's price or stock changes. */

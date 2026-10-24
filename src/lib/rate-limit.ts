@@ -43,8 +43,8 @@ export type LimitPolicy = {
 const DEFAULT_POLICIES = {
   /** Customer sign-in and code checks: per identity and per IP. */
   login: { limit: 10, ipLimit: 30, windowSeconds: 600, onFailure: 'closed' },
-  /** Operator sign-in. */
-  adminLogin: { limit: 5, ipLimit: 5, windowSeconds: 900, onFailure: 'closed' },
+  /** Operator sign-in. Two requests per owner sign-in (password, then emailed code); codes allow five guesses on their own. */
+  adminLogin: { limit: 8, ipLimit: 8, windowSeconds: 900, onFailure: 'closed' },
   /** Sending a one-time code: per identifier, and per IP (spec: 5). */
   otpSend: { limit: 3, ipLimit: 5, windowSeconds: 900, onFailure: 'closed' },
   /** At most one code per identifier per minute. */
@@ -55,6 +55,8 @@ const DEFAULT_POLICIES = {
   payment: { limit: 15, ipLimit: 15, windowSeconds: 600, onFailure: 'closed' },
   /** Batch availability and price quotes; cached, so cheap to allow on outage. */
   catalogBatch: { limit: 60, ipLimit: 60, windowSeconds: 60, onFailure: 'open' },
+  /** Checkout offer quotes: generous for typing, tight enough that coupon codes cannot be ground through. */
+  offerQuote: { limit: 30, ipLimit: 30, windowSeconds: 60, onFailure: 'open' },
   routineSaveMinute: { limit: 5, ipLimit: 30, windowSeconds: 60, onFailure: 'closed' },
   routineSaveDay: { limit: 20, ipLimit: 200, windowSeconds: 86_400, onFailure: 'closed' },
   feedback: { limit: 5, ipLimit: 30, windowSeconds: 3_600, onFailure: 'closed' },

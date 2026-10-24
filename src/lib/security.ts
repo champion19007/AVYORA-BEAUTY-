@@ -99,6 +99,16 @@ export function isBlockedAgent(userAgent: string): boolean {
  *
  * If the site later moves to mostly dynamic rendering, switch this to a nonce.
  */
+/** The uploads bucket's origin (STORAGE_PUBLIC_BASE_URL), as a CSP source with a leading space, or ''. */
+function storageOrigin(): string {
+  try {
+    const url = new URL(process.env.STORAGE_PUBLIC_BASE_URL ?? '');
+    return url.protocol === 'https:' ? ` ${url.origin}` : '';
+  } catch {
+    return '';
+  }
+}
+
 export function contentSecurityPolicy(isDev: boolean): string {
   const directives = [
     "default-src 'self'",
@@ -107,8 +117,9 @@ export function contentSecurityPolicy(isDev: boolean): string {
     `script-src 'self' 'unsafe-inline' https://sdk.cashfree.com${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
-    // Unsplash for product imagery, Google for signed-in avatars.
-    "img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com",
+    // Unsplash for sample imagery, Google for signed-in avatars, and the
+    // bucket that serves product photos uploaded in the admin, when configured.
+    `img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com${storageOrigin()}`,
     // *.ingest.sentry.io is only reached when a DSN is configured; listing it
     // unconditionally avoids a CSP change being forgotten at the moment
     // monitoring is switched on.

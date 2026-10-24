@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
+    "prebuild": "tsx scripts/export-catalogue.ts",
     "build": "next build",
     "build:offline": "node scripts/build-offline.mjs",
     "start": "next start",
@@ -26,7 +27,8 @@
     "check:launch": "tsx scripts/check-launch.ts",
     "test:stress": "vitest run --config vitest.stress.config.ts",
     "load-test": "node scripts/load-test.mjs",
-    "catalogue:validate": "tsx scripts/catalogue-validate.ts"
+    "catalogue:validate": "tsx scripts/catalogue-validate.ts",
+    "catalogue:export": "tsx scripts/export-catalogue.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

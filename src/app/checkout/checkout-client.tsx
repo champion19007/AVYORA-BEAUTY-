@@ -17,6 +17,7 @@ import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
 import type { StockByKey } from '@/modules/catalog/storefront-data';
 import { MAX_QUANTITY_PER_SKU, stockProblems, unitPrice } from '@/lib/cart';
 import { closeAttempt, forgetAttempt, openAttempt, rememberAttempt } from '@/lib/payment-attempt';
+import type { AppliedOffer } from '@/modules/offers/engine';
 
 type Errors = Record<string, string>;
 
@@ -100,7 +101,13 @@ function loadCashfreeScript(): Promise<boolean> {
   });
 }
 
-const TEN_DIGIT_MOBILE = /^(\+91[\s-]?)?[6-9]\d{9}$/;
+/** Ten digits, accepting how people type them ("+91 98765 43210", "09876543210"); same rule as lib/checkout-phone. */
+const tenDigitMobile = (raw: string) =>
+  raw
+    .trim()
+    .replace(/[\s-]/g, '')
+    .replace(/^(\+91|0)/, '');
+const isMobile = (raw: string) => /^[6-9]\d{9}$/.test(tenDigitMobile(raw));
 
 /**
  * Guest checkout's mobile number: Get OTP, enter the code, Verify. Once
@@ -183,7 +190,7 @@ function VerifiedPhoneField({
             type="button"
             variant="outline"
             className="h-11 shrink-0"
-            disabled={busy || !TEN_DIGIT_MOBILE.test(value.trim())}
+            disabled={busy || !isMobile(value)}
             onClick={send}
           >
             {busy && !sent ? <Loader2 className="h-4 w-4 animate-spin" /> : sent ? 'Resend' : 'Get OTP'}
@@ -279,6 +286,42 @@ export function CheckoutClient({
   const problems = stock ? stockProblems(cart, stock) : [];
   const [method, setMethod] = useState<'cashfree' | 'cod'>(onlineEnabled ? 'cashfree' : 'cod');
 
+  /*
+   * The offer the server would give this bag (modules/offers), asked again
+   * whenever the bag, the code or the email changes. Placing the order quotes
+   * again from the database; this only shows the same answer early.
+   */
+  const [codeInput, setCodeInput] = useState('');
+  const [offerCode, setOfferCode] = useState<string | null>(null);
+  const [quote, setQuote] = useState<{ applied: AppliedOffer | null; codeProblem: string | null }>({
+    applied: null,
+    codeProblem: null,
+  });
+  const quoteEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((values.email ?? '').trim()) ? values.email.trim() : '';
+  const bagKey = cart.map((l) => `${l.productId}:${l.size}:${l.quantity}`).join('|');
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(async () => {
+      const res = await fetch('/api/offers/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          items: cart.map((l) => ({ productId: l.productId, size: l.size, quantity: l.quantity })),
+          code: offerCode ?? undefined,
+          email: quoteEmail,
+        }),
+      }).catch(() => null);
+      if (res?.ok) setQuote(await res.json());
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bagKey stands for the cart's contents
+  }, [bagKey, offerCode, quoteEmail, prices]);
+
+  const discount = quote.applied?.itemDiscount ?? 0;
   const totals = useMemo(
     () =>
       calculateTotals(
@@ -286,9 +329,11 @@ export function CheckoutClient({
         cart.map((line) => ({
           unitPrice: unitPrice(line, prices).price / 100,
           quantity: line.quantity,
-        }))
+        })),
+        discount,
+        { freeDelivery: quote.applied?.freeDelivery }
       ),
-    [cart, prices]
+    [cart, prices, discount, quote.applied?.freeDelivery]
   );
 
   const set = (name: string, value: string) => {
@@ -306,7 +351,7 @@ export function CheckoutClient({
   const validateErrors = (): Errors => {
     const e: Errors = {};
     if (!values.fullName || values.fullName.trim().length < 2) e.fullName = 'Enter your full name';
-    if (!TEN_DIGIT_MOBILE.test((values.phone || '').trim())) e.phone = 'Enter a valid Indian mobile number';
+    if (!isMobile(values.phone || '')) e.phone = 'Enter a valid Indian mobile number';
     else if (phoneCheck && !phoneProof) e.phone = 'Verify your mobile number with the code we send';
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((values.email || '').trim())) e.email = 'Enter a valid email address';
     if (!values.line1 || values.line1.trim().length < 4) e.line1 = 'Enter your address';
@@ -376,6 +421,9 @@ export function CheckoutClient({
 
   const buildPayload = () => ({
     idempotencyKey,
+    ...(offerCode ? { offerCode } : {}),
+    // The discount shown; the server refuses the order if it has changed since.
+    expectedDiscountPaise: discount,
     ...(phoneProof ? { phoneProof } : {}),
     email: values.email.trim(),
     address: {
@@ -386,7 +434,7 @@ export function CheckoutClient({
       state: values.state.trim(),
       postalCode: values.postalCode.trim(),
       country: 'IN',
-      phone: values.phone.trim(),
+      phone: tenDigitMobile(values.phone),
     },
     items: cart.map((line) => ({
       productId: line.productId,
@@ -767,6 +815,12 @@ export function CheckoutClient({
                 <dt className="text-muted-foreground">Subtotal</dt>
                 <dd className="tabular-nums">{formatPaise(totals.subtotal)}</dd>
               </div>
+              {quote.applied && discount > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <dt>{quote.applied.name}</dt>
+                  <dd className="tabular-nums">−{formatPaise(discount)}</dd>
+                </div>
+              )}
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Delivery</dt>
                 <dd className="tabular-nums">{totals.shipping === 0 ? 'Free' : formatPaise(totals.shipping)}</dd>
@@ -777,6 +831,59 @@ export function CheckoutClient({
               </div>
               <p className="pt-1 text-xs text-muted-foreground">Includes {formatPaise(totals.tax)} GST</p>
             </dl>
+
+            <div className="mt-5 border-t border-border pt-5">
+              {offerCode && quote.applied?.couponCode === offerCode ? (
+                <p className="flex items-center justify-between text-sm">
+                  <span>
+                    Code <span className="font-medium">{offerCode}</span> applied
+                  </span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground underline underline-offset-2"
+                    onClick={() => {
+                      setOfferCode(null);
+                      setCodeInput('');
+                    }}
+                  >
+                    Remove
+                  </button>
+                </p>
+              ) : (
+                <div className="flex gap-2">
+                  <label htmlFor="offer-code" className="sr-only">
+                    Offer code
+                  </label>
+                  <Input
+                    id="offer-code"
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setOfferCode(codeInput.trim().toUpperCase() || null);
+                      }
+                    }}
+                    placeholder="Offer code"
+                    className="h-10 uppercase"
+                    maxLength={30}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 shrink-0"
+                    onClick={() => setOfferCode(codeInput.trim().toUpperCase() || null)}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              )}
+              {offerCode && quote.codeProblem && (
+                <p role="status" className="mt-2 text-xs text-destructive">
+                  {quote.codeProblem}
+                </p>
+              )}
+            </div>
 
             {problems.length > 0 && (
               <p role="alert" className="mt-5 rounded-md bg-destructive/10 p-3 text-sm text-destructive">

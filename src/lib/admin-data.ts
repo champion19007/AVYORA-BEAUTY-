@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gte, inArray, sum } from 'drizzle-orm';
 import { db } from '@/db';
-import { orders, orderItems, inventory, users } from '@/db/schema';
+import { catalogProducts, orders, orderItems, inventory, users } from '@/db/schema';
 import { allProducts, getProductById } from '@/lib/catalogue';
 
 /**
@@ -161,19 +161,24 @@ export type InventoryRow = {
  * reconcile against the shelf.
  */
 export async function listInventory(): Promise<InventoryRow[]> {
-  const rows = await db.select().from(inventory).orderBy(inventory.productId, inventory.size);
+  const [rows, catalogue] = await Promise.all([
+    db.select().from(inventory).orderBy(inventory.productId, inventory.size),
+    // Drafts and hidden products are in the database but not on the shop; their stock is still real.
+    db.select({ id: catalogProducts.id, name: catalogProducts.name }).from(catalogProducts),
+  ]);
+  const names = new Map(catalogue.map((p) => [p.id, p.name]));
 
   return rows.map((row) => {
     const product = getProductById(row.productId);
     return {
       id: row.id,
       productId: row.productId,
-      productName: product?.name ?? row.productId,
+      productName: product?.name ?? names.get(row.productId) ?? row.productId,
       size: row.size,
       quantity: row.quantity,
       lowStockThreshold: row.lowStockThreshold,
       allowBackorder: row.allowBackorder,
-      orphaned: !product,
+      orphaned: !product && !names.has(row.productId),
     };
   });
 }

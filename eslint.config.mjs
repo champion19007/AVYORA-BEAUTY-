@@ -6,7 +6,16 @@ import typescript from 'eslint-config-next/typescript';
 // configs) fails with a circular-structure error during validation.
 export default [
   {
-    ignores: ['.next/**', '.vercel/**', 'coverage/**', 'node_modules/**', 'drizzle/**', 'next-env.d.ts', 'public/**'],
+    ignores: [
+      '.next/**',
+      '.vercel/**',
+      'coverage/**',
+      'node_modules/**',
+      'drizzle/**',
+      'next-env.d.ts',
+      'public/**',
+      'docs/**',
+    ],
   },
   ...coreWebVitals,
   ...typescript,

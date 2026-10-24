@@ -35,8 +35,8 @@ describe('orderProgress', () => {
     }
   });
 
-  it('takes cancelled and refunded off the track', () => {
-    for (const status of ['cancelled', 'refunded']) {
+  it('takes cancelled, refunded and returned off the track', () => {
+    for (const status of ['cancelled', 'refunded', 'returned']) {
       const progress = orderProgress(status);
       expect(progress.stopped).toBe(true);
       expect(progress.currentIndex).toBe(-1);

@@ -1956,6 +1956,26 @@ Vercel Hobby (docs, 12 October 2026): functions scale to 30,000 concurrent per r
 
 The single-address rate-limit warning in the run is expected locally: the limiter trusts client addresses only on Vercel.
 
+## Security, deliveries, stock autopilot and the manual (21 October 2026)
+
+| Change | Where |
+| --- | --- |
+| **Security review** of checkout, payments, order access, staff actions and data paths. One weakness fixed: a checkout replay key returned the existing order (and its access link) to anyone holding the key; replays now require the same email. Dependency audit (runtime): 0 vulnerabilities | `lib/orders.ts`, payment create routes, `checkout/actions.ts`; test in `order-idempotency.integration.test.ts` |
+| **Shiprocket**: "Book courier" on packed orders (create order, assign AWB, pickup, label; claimed so a double click cannot book twice); tracking webhook at `/api/webhooks/courier` (token in `x-api-key`, constant-time, refuses all when unset); courier statuses move orders forward only; returns restocked once; prepaid returns flagged for refund; lost/undelivered flagged for the owner | `modules/shipping/`, `app/api/webhooks/courier/`, `app/manager/` |
+| **Migration 0022** (additive): `orders.awb` (unique) and `orders.shipment` | `drizzle/0022_order_shipments.sql`; applied to the 9006 acceptance database only |
+| **COD revenue**: a delivered COD order is recorded as paid through the payment state machine (before, COD sales never counted as revenue) | `recordCodCollected` |
+| **"On its way" email** with courier and tracking link (the confirmation email promised one that did not exist) | `order.shipped` event, `notifyOrderShipped` |
+| **Stock autopilot** in the daily sweep: 28-day sales rate, reorder point from a 7-day lead time, requests sized for 7 + 30 days; morning summary to the owner (WhatsApp short, email full) | `modules/inventory/autopilot.ts`, `api/cron/sweep` |
+| **Owner two-step sign-in**: a six-digit code to `OWNER_EMAIL` after the password; `OWNER_TWO_STEP=off` as an emergency switch; staff sign-in limit 5 → 8 per 15 minutes (two requests per owner sign-in) | `api/admin/login`, `admin-login-form.tsx` |
+| **Storefront survives a database outage**: display prices and stock fall back (list prices, out of stock), not cached; checkout still fails loudly | `modules/catalog/storefront-data.ts` |
+| Fixes: returned orders left the dispatch queue; a returned order now shows "Returned" to the customer (it showed "Order placed"); analytics count only real sales (they counted returned parcels and abandoned online orders), shared with the autopilot; expired sign-in codes are now deleted by the daily sweep (the clean-up existed but never ran); the staff "Forgot?" link pointed nowhere | `lib/manager-data.ts`, `lib/order-progress.ts`, `lib/analytics.ts`, `api/cron/sweep`, `admin-login-form.tsx` |
+| **Stockroom Help page** with step-by-step jobs | `app/manager/help/` |
+| **Technical and Operations Manual**, about 120 full pages: architecture, features, security, operations, runbooks, decision log, API reference, quick-reference cards; appendices generated from the code | `docs/manual/` |
+
+Tests: full suite **1,131 passed**, 3 opt-in skipped (100 files). New: Shiprocket client (8), shipping flow on real migrations (8), autopilot (4), owner two-step (3), storefront outage (2), replay-key ownership (1), analytics real-sale rule (1); returned added to the tracker test. Mutation check: letting courier updates move orders backwards fails 2 tests. Typecheck, lint and formatting clean; offline production build passes.
+
+Not exercised live: a real Shiprocket account (bookings cost money), and owner two-step email delivery in production. Migration 0022 needs approval for production.
+
 ## Remaining sequence
 
 | # | Prompt | Status |

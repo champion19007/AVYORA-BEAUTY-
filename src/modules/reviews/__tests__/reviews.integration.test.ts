@@ -26,20 +26,36 @@ beforeEach(async () => {
   await ctx.client.exec('DELETE FROM reviews');
 });
 
-describe('verified-purchase reviews', () => {
-  it('accepts only an account with a delivered order of the product', async () => {
-    expect(await submitReview(db(), 'u-none', review)).toEqual({ ok: false, code: 'not_verified' });
-    expect(await submitReview(db(), 'u-pending', review)).toEqual({ ok: false, code: 'not_verified' });
-    expect(await submitReview(db(), 'u-buyer', { ...review, productId: 'retinal-ampoule' })).toEqual({
-      ok: false,
-      code: 'not_verified',
-    });
-    const ok = await submitReview(db(), 'u-buyer', review);
-    expect(ok.ok).toBe(true);
-    const [row] = (
-      await ctx.client.query<{ order_id: string; published: boolean }>('SELECT order_id, published FROM reviews')
+describe('customer reviews', () => {
+  it('accepts any signed-in account, marking a delivered order as verified', async () => {
+    const buyer = await submitReview(db(), 'u-buyer', review);
+    const shipped = await submitReview(db(), 'u-pending', review);
+    const stranger = await submitReview(db(), 'u-none', review);
+    expect(buyer).toMatchObject({ ok: true, verified: true });
+    expect(shipped).toMatchObject({ ok: true, verified: false });
+    expect(stranger).toMatchObject({ ok: true, verified: false });
+    const rows = (
+      await ctx.client.query<{ user_id: string; order_id: string | null; published: boolean }>(
+        'SELECT user_id, order_id, published FROM reviews ORDER BY user_id'
+      )
     ).rows;
-    expect(row).toEqual({ order_id: 'o-delivered', published: false });
+    expect(rows).toEqual([
+      { user_id: 'u-buyer', order_id: 'o-delivered', published: false },
+      { user_id: 'u-none', order_id: null, published: false },
+      { user_id: 'u-pending', order_id: null, published: false },
+    ]);
+  });
+
+  it('a published review can be hidden again', async () => {
+    const first = await submitReview(db(), 'u-none', review);
+    if (!first.ok) throw new Error('setup');
+    expect(await moderateReview(db(), first.id, 'hide')).toBe(false);
+    await moderateReview(db(), first.id, 'publish');
+    const shown = await productReviews(db(), P);
+    expect(shown.items[0]).toMatchObject({ verified: false });
+    expect(await moderateReview(db(), first.id, 'hide')).toBe(true);
+    expect((await productReviews(db(), P)).count).toBe(0);
+    expect(await pendingReviews(db())).toHaveLength(1);
   });
 
   it('allows one review per product and shows nothing until published', async () => {

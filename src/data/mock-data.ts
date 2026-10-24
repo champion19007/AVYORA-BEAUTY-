@@ -1,4 +1,4 @@
-import { CATALOGUE_MODE } from '@/lib/catalogue-mode';
+import { CATALOGUE_MODE, PUBLISHED_CATALOGUE } from '@/lib/catalogue-mode';
 import { VERIFIED_PRODUCTS } from './verified-products';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -41,6 +41,13 @@ export interface Product {
   concerns: string[];
   ingredients: string[];
   sizes: { label: string; price: number }[];
+  /* Set by the owner's product editor (modules/catalog/product-store.ts); absent on samples. */
+  howToUse?: string;
+  /** The full ingredient list (INCI), as printed on the pack. */
+  fullIngredients?: string;
+  skinTypes?: string[];
+  /** The routine-finder slot this product fills (lib/routine-slots.ts). */
+  routineSlot?: string;
 }
 
 const getImg = (id: string) => PlaceHolderImages.find((img) => img.id === id)?.imageUrl || '';
@@ -50,7 +57,7 @@ const getImg = (id: string) => PlaceHolderImages.find((img) => img.id === id)?.i
  * Names, prices, images and highlights are placeholders until real products
  * are onboarded through validated records (docs/product-onboarding.md).
  */
-const SAMPLE_PRODUCTS: Product[] = [
+export const SAMPLE_PRODUCTS: Product[] = [
   // PHASE 1: FOUNDATIONAL CLEANSING & PREP
   {
     id: 'rice-bran-cleansing-oil',
@@ -483,12 +490,20 @@ const SAMPLE_PRODUCTS: Product[] = [
 ];
 
 /**
- * The catalogue the site shows. `NEXT_PUBLIC_CATALOGUE_MODE=verified` shows
- * only products whose records passed onboarding (none yet, so the shop is
- * empty and says so); anything else shows the sample catalogue, labelled as
- * samples, with orders refused in production builds (lib/catalogue-mode.ts).
+ * The catalogue the site shows (lib/catalogue-mode.ts):
+ *  - `managed`: the products the owner published from the admin, written
+ *    into `catalogue.published.json` at build time. The normal case once the
+ *    shop is set up.
+ *  - `verified`: only products whose records passed onboarding.
+ *  - `sample`: the sample catalogue above, labelled as samples, with orders
+ *    refused in production builds.
  */
-export const PRODUCTS: Product[] = CATALOGUE_MODE === 'verified' ? [...VERIFIED_PRODUCTS] : SAMPLE_PRODUCTS;
+export const PRODUCTS: Product[] =
+  CATALOGUE_MODE === 'managed'
+    ? [...(PUBLISHED_CATALOGUE?.products ?? [])]
+    : CATALOGUE_MODE === 'verified'
+      ? [...VERIFIED_PRODUCTS]
+      : SAMPLE_PRODUCTS;
 
 export const CATEGORIES = [
   { id: 'cleanser', name: 'Phase 1: Cleansing & Prep', image: getImg('gel-cleanser'), hint: 'cleansing gel' },

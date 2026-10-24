@@ -57,6 +57,13 @@ const STOPPED: Record<string, { label: string; description: string }> = {
     label: 'Refunded',
     description: 'This order was refunded. It can take 5–7 working days to appear on your statement.',
   },
+  // The courier could not deliver and brought the parcel back. Without this the
+  // tracker fell through to "Order placed", which told the customer it was still coming.
+  returned: {
+    label: 'Returned',
+    description:
+      'The courier could not deliver this parcel and brought it back to us. We will be in touch; anything paid online is refunded to the original method.',
+  },
 };
 
 const DESCRIPTIONS: Record<CustomerStep, string> = {

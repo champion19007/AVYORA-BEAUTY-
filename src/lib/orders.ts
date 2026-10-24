@@ -9,6 +9,9 @@ import { pricingMap } from '@/lib/pricing';
 import { skuKey, skuPrice } from '@/modules/catalog/sku-price';
 import { calculateTotals, formatPaise, generateOrderNumber } from '@/lib/money';
 import { releaseStock, reserveStock } from '@/lib/inventory';
+import { MAX_QUANTITY_PER_SKU } from '@/lib/cart';
+import { quoteBag } from '@/modules/offers/store';
+import { normaliseCode } from '@/modules/offers/engine';
 import { recordEvent } from '@/lib/activity';
 import { emitEvent } from '@/lib/events';
 import { applyPaymentSignal } from '@/modules/payments/payment-service';
@@ -58,12 +61,21 @@ export const checkoutSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(200).optional(),
   /** Guest checkout: proof the delivery number was verified by SMS (lib/checkout-phone.ts). */
   phoneProof: z.string().max(1000).optional(),
+  /** A coupon code the customer typed, if any. */
+  offerCode: z.string().trim().max(40).optional(),
+  /**
+   * The discount the checkout page showed, in paise. When present and no
+   * longer what the offer gives (it ended, or hit its limit), the order is
+   * refused like a price change rather than charging an unseen amount.
+   */
+  expectedDiscountPaise: z.number().int().min(0).optional(),
   items: z
     .array(
       z.object({
         productId: z.string().min(1).max(100),
         size: z.string().min(1).max(40),
-        quantity: z.number().int().min(1).max(20),
+        // The bag's per-SKU cap, enforced here too: a direct call could otherwise order any amount.
+        quantity: z.number().int().min(1).max(MAX_QUANTITY_PER_SKU),
         /**
          * The unit price, in paise, the customer was shown for this line.
          * Optional for older clients. When present and no longer current, the
@@ -75,7 +87,11 @@ export const checkoutSchema = z.object({
     )
     .min(1, 'Your bag is empty')
     // A bag holds at most one line per SKU; 50 is far above the catalogue's 30.
-    .max(50, 'Too many items in one order'),
+    .max(50, 'Too many items in one order')
+    .refine(
+      (items) => new Set(items.map((i) => `${i.productId}|${i.size}`)).size === items.length,
+      'Each product and size can appear only once in an order'
+    ),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
@@ -119,15 +135,26 @@ function isDuplicateOrderKey(err: unknown): boolean {
   return false;
 }
 
-/** The order already placed under this key, if there is one. */
-export async function findByIdempotencyKey(key: string): Promise<CreateOrderResult | null> {
+/**
+ * The order already placed under this key, if there is one, and only for the
+ * same email. A replay answers with the order number (and the caller issues an
+ * access token for it), so a key alone must never unlock someone else's order.
+ */
+export async function findByIdempotencyKey(key: string, email: string): Promise<CreateOrderResult | null> {
   const [existing] = await db
-    .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total })
+    .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total, email: orders.email })
     .from(orders)
     .where(eq(orders.idempotencyKey, key))
     .limit(1);
 
-  if (!existing) return null;
+  if (
+    !existing ||
+    existing.email.trim().toLowerCase() !==
+      String(email ?? '')
+        .trim()
+        .toLowerCase()
+  )
+    return null;
 
   return {
     ok: true,
@@ -175,7 +202,7 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
    * actually decides, and the duplicate is caught when it fails to insert.
    */
   if (data.idempotencyKey) {
-    const existing = await findByIdempotencyKey(data.idempotencyKey);
+    const existing = await findByIdempotencyKey(data.idempotencyKey, data.email);
     if (existing) return existing;
   }
 
@@ -286,7 +313,36 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     };
   }
 
-  const totals = calculateTotals(lines.map((l) => ({ unitPrice: l.unitPrice / 100, quantity: l.quantity })));
+  /*
+   * The best offer for this bag, from the prices just resolved and the cost
+   * prices in the database, capped at the profit floor (modules/offers).
+   */
+  const quote = await quoteBag(
+    db as never,
+    lines.map((l) => ({ productId: l.productId, size: l.size, unitPrice: l.unitPrice, quantity: l.quantity })),
+    { code: data.offerCode, email: data.email, userId }
+  );
+  const applied = quote.applied;
+  if (data.offerCode && quote.codeProblem && applied?.couponCode !== normaliseCode(data.offerCode)) {
+    // A typed code that does nothing is reported, unless a better offer already covers the bag.
+    if (!applied) return { ok: false, code: 'price_changed', error: quote.codeProblem };
+  }
+  const discount = applied?.itemDiscount ?? 0;
+  if (data.expectedDiscountPaise !== undefined && data.expectedDiscountPaise !== discount) {
+    return {
+      ok: false,
+      code: 'price_changed',
+      error: `Your discount changed from ${formatPaise(data.expectedDiscountPaise)} to ${formatPaise(
+        discount
+      )}. Review your updated total, then place your order again.`,
+    };
+  }
+
+  const totals = calculateTotals(
+    lines.map((l) => ({ unitPrice: l.unitPrice / 100, quantity: l.quantity })),
+    discount,
+    { freeDelivery: applied?.freeDelivery }
+  );
 
   const orderNumber = generateOrderNumber();
   const requestId = await currentRequestId();
@@ -330,6 +386,8 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
           paymentStatus: 'unpaid',
           subtotal: totals.subtotal,
           discount: totals.discount,
+          offerId: applied?.offerId ?? null,
+          offerCode: applied?.couponCode ?? null,
           shipping: totals.shipping,
           tax: totals.tax,
           total: totals.total,
@@ -413,7 +471,7 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
      * and returning it is exactly what the customer expects to see.
      */
     if (isDuplicateOrderKey(err) && data.idempotencyKey) {
-      const existing = await findByIdempotencyKey(data.idempotencyKey);
+      const existing = await findByIdempotencyKey(data.idempotencyKey, data.email);
       if (existing) return existing;
     }
     reportError(err, { scope: 'orders.createOrder', correlationId: orderNumber });

@@ -162,7 +162,7 @@ export function ProductClient({
                   {product.rating} <Star className="h-3 w-3 ml-2 fill-primary text-primary" aria-hidden="true" />
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-                  {product.reviewCount.toLocaleString()} Reviews
+                  {product.reviewCount.toLocaleString()} {product.reviewCount === 1 ? 'Review' : 'Reviews'}
                 </span>
               </div>
             ) : (
@@ -280,9 +280,22 @@ export function ProductClient({
                   Key Ingredients
                 </AccordionTrigger>
                 <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
-                  {product.ingredients.join(', ')}. Formulated with high-purity actives.
+                  {product.ingredients.join(', ')}.
+                  {product.skinTypes?.length ? (
+                    <span className="mt-2 block">Suits {product.skinTypes.join(', ')} skin.</span>
+                  ) : null}
                 </AccordionContent>
               </AccordionItem>
+              {product.fullIngredients && (
+                <AccordionItem value="full-ingredients">
+                  <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">
+                    Full Ingredient List
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-2 text-[13px] leading-relaxed text-muted-foreground">
+                    {product.fullIngredients}
+                  </AccordionContent>
+                </AccordionItem>
+              )}
               <AccordionItem value="how-to-use">
                 <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">
                   How to Use

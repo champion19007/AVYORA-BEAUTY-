@@ -3,6 +3,8 @@ import { listDispatchQueue } from '@/lib/manager-data';
 import { orderProgress } from '@/lib/order-progress';
 import { Button } from '@/components/ui/button';
 import { advanceDispatch, dispatchActionLabel, nextDispatchSteps } from './actions';
+import { BookCourier } from './book-courier';
+import { getShiprocketConfig, trackingUrl } from '@/modules/shipping/shiprocket';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,7 @@ export default async function DispatchPage() {
   }
 
   const queue = await listDispatchQueue();
+  const courierConnected = getShiprocketConfig() !== null;
 
   /*
    * Steps and button wording are resolved here, not inside the map.
@@ -154,7 +157,48 @@ export default async function DispatchPage() {
                   </div>
                 </div>
 
-                {!onHold && actions.length > 0 && (
+                {order.courier && (
+                  <div className="mt-4 rounded-lg bg-muted/50 p-4 text-[14px] leading-relaxed">
+                    <p>
+                      <span className="font-medium">{order.courier.name}</span> · tracking{' '}
+                      <a
+                        href={trackingUrl(order.courier.awb)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono underline underline-offset-2"
+                      >
+                        {order.courier.awb}
+                      </a>
+                      {order.courier.status && <span className="text-muted-foreground"> · {order.courier.status}</span>}
+                    </p>
+                    {order.courier.labelUrl ? (
+                      <a
+                        href={order.courier.labelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block font-medium underline underline-offset-2"
+                      >
+                        Print the shipping label
+                      </a>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        Label not ready yet: download it from the Shiprocket panel.
+                      </p>
+                    )}
+                    <p className="mt-1 text-muted-foreground">
+                      Stick the label on the parcel and hand it over at pickup. The courier updates this order by
+                      itself.
+                    </p>
+                  </div>
+                )}
+
+                {!onHold && !order.courier && order.status === 'fulfilled' && courierConnected && (
+                  <div className="mt-5 border-t border-border pt-4">
+                    <BookCourier orderNumber={order.orderNumber} />
+                  </div>
+                )}
+
+                {!onHold && !order.courier && actions.length > 0 && (
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                     {actions.map(({ status, label }) => (
                       <form key={status} action={advanceDispatch}>

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ClipboardList, Boxes, PackagePlus, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { getStaffSession } from '@/lib/staff-auth';
+import { ConsoleNav, type NavGroup } from '@/components/admin/console-nav';
 import { managerSignOut } from './actions';
 
 export const metadata: Metadata = {
@@ -11,6 +12,21 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = 'force-dynamic';
+
+const GROUPS: NavGroup[] = [
+  {
+    title: 'Stockroom',
+    items: [
+      { href: '/manager', label: 'Dispatch' },
+      { href: '/manager/stock', label: 'Stock' },
+      { href: '/manager/requests', label: 'Restock requests' },
+    ],
+  },
+  { title: 'Help', items: [{ href: '/manager/help', label: 'How to' }] },
+];
+
+/** The owner also sees a way back to their own console. */
+const OWNER_GROUP: NavGroup = { title: 'Owner', items: [{ href: '/admin', label: 'Owner console' }] };
 
 /**
  * The stockroom shell.
@@ -25,58 +41,31 @@ export default async function ManagerLayout({ children }: { children: React.Reac
   if (!session) redirect('/admin-login?next=/manager');
 
   return (
-    <div className="min-h-screen bg-muted/20">
+    <div className="min-h-screen w-full bg-muted/20">
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4">
-          <span className="font-headline text-xl font-normal tracking-tight">Stockroom</span>
-
-          <nav className="flex items-center gap-1" aria-label="Stockroom">
-            <NavLink href="/manager" icon={<ClipboardList className="h-4 w-4" />} label="Dispatch" />
-            <NavLink href="/manager/stock" icon={<Boxes className="h-4 w-4" />} label="Stock" />
-            <NavLink href="/manager/requests" icon={<PackagePlus className="h-4 w-4" />} label="Requests" />
-          </nav>
-
-          <div className="ml-auto flex items-center gap-4">
-            <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              {session.username} · {session.role}
-            </span>
-
-            {/* The owner gets a way back to their own console. */}
-            {session.role === 'owner' && (
-              <Link
-                href="/admin"
-                className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary hover:opacity-70"
-              >
-                Owner view
-              </Link>
-            )}
-
-            <form action={managerSignOut}>
-              <button
-                type="submit"
-                className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-primary"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </button>
-            </form>
-          </div>
+        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+          <Link href="/manager" className="font-headline text-xl font-normal tracking-tight">
+            Avyora <span className="text-muted-foreground">Stockroom</span>
+          </Link>
+          <span className="ml-auto hidden text-xs uppercase tracking-[0.16em] text-muted-foreground sm:inline">
+            {session.username} · {session.role}
+          </span>
+          <form action={managerSignOut} className="ml-auto sm:ml-0">
+            <button
+              type="submit"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-primary"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Sign out
+            </button>
+          </form>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:flex-row md:gap-10">
+        <ConsoleNav groups={session.role === 'owner' ? [...GROUPS, OWNER_GROUP] : GROUPS} />
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
     </div>
-  );
-}
-
-function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-    >
-      {icon}
-      {label}
-    </Link>
   );
 }

@@ -36,6 +36,8 @@ export type DispatchOrder = {
   postalCode: string;
   phone: string;
   items: { name: string; size: string; quantity: number }[];
+  /** Set once a courier is booked. */
+  courier: { awb: string; name: string; labelUrl: string | null; status: string | null } | null;
 };
 
 /**
@@ -52,7 +54,15 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
   const rows = await db
     .select()
     .from(orders)
-    .where(and(ne(orders.status, 'delivered'), ne(orders.status, 'cancelled'), ne(orders.status, 'refunded')))
+    .where(
+      and(
+        ne(orders.status, 'delivered'),
+        ne(orders.status, 'cancelled'),
+        ne(orders.status, 'refunded'),
+        // Back with us: the stock is already on the shelf, nothing left to send.
+        ne(orders.status, 'returned')
+      )
+    )
     .orderBy(orders.createdAt)
     .limit(100);
 
@@ -96,6 +106,17 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
         size: l.size,
         quantity: l.quantity,
       })),
+      courier: row.awb
+        ? (() => {
+            const s = (row.shipment ?? {}) as { courierName?: string; labelUrl?: string | null; statusLabel?: string };
+            return {
+              awb: row.awb,
+              name: s.courierName ?? 'Courier',
+              labelUrl: s.labelUrl ?? null,
+              status: s.statusLabel ?? null,
+            };
+          })()
+        : null,
     };
   });
 }

@@ -172,7 +172,7 @@ export default async function ProductPage({ params }: Props) {
         howToUse={
           APPROVED_DIRECTIONS[product.id]
             ? `${APPROVED_DIRECTIONS[product.id].frequency}. ${APPROVED_DIRECTIONS[product.id].text}`
-            : copy?.howToUse || null
+            : product.howToUse || copy?.howToUse || null
         }
         highlights={copy?.highlights ?? []}
       />
