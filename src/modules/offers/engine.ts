@@ -72,7 +72,14 @@ export type QuoteContext = {
 
 export const normaliseCode = (code: string | null | undefined) => (code ?? '').trim().toUpperCase();
 
-/** Running, inside its dates and under its use limit. */
+/**
+ * Running, inside its dates and under its use limit.
+ *
+ * ponytail: the use limit counts orders already placed, so two checkouts at
+ * the same moment can both take the last use (a limit of 100 may end at 101).
+ * Fine for launch offers; reserve a use in the order transaction if an exact
+ * cap ever matters.
+ */
 export function offerLive(offer: Offer, now: Date, used = 0): boolean {
   if (!offer.active) return false;
   if (offer.startsAt && offer.startsAt > now) return false;

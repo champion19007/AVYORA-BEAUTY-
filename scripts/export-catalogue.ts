@@ -39,7 +39,8 @@ async function main() {
     }
     // A preview shows drafts too; the site then labels everything a sample and refuses orders.
     const preview = record.preview === true;
-    const products = preview ? await previewCatalogue(db) : await liveCatalogue(db);
+    // The snapshot taken when the owner pressed Publish; older records predate snapshots.
+    const products = record.products ?? (preview ? await previewCatalogue(db) : await liveCatalogue(db));
     writeFileSync(FILE, `${JSON.stringify({ publishedAt: record.requestedAt, preview, products }, null, 2)}\n`);
     console.log(
       `catalogue: ${products.length} ${preview ? 'preview (not for sale)' : 'live'} products written to ${FILE}.`

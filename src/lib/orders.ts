@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { reportError } from '@/lib/observability';
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db';
-import { orders, orderItems, addresses } from '@/db/schema';
+import { orders, orderItems, addresses, catalogProducts } from '@/db/schema';
 import { getProductById, getVariant } from '@/lib/catalogue';
 import { pricingMap } from '@/lib/pricing';
 import { skuKey, skuPrice } from '@/modules/catalog/sku-price';
@@ -17,7 +17,7 @@ import { emitEvent } from '@/lib/events';
 import { applyPaymentSignal } from '@/modules/payments/payment-service';
 import { currentRequestId } from '@/infrastructure/request-context';
 import { runBackgroundQuietly } from '@/lib/background';
-import { SAMPLE_ORDER_MESSAGE, sampleOrdersBlocked } from '@/lib/catalogue-mode';
+import { CATALOGUE_MODE, IS_PREVIEW, SAMPLE_ORDER_MESSAGE, sampleOrdersBlocked } from '@/lib/catalogue-mode';
 import { guestPhoneCheckRequired, phoneProofValid } from '@/lib/checkout-phone';
 
 /**
@@ -177,6 +177,16 @@ class OutOfStockError extends Error {
  * The insert of the order and its lines runs in a transaction so a failure
  * partway cannot leave an order with missing items.
  */
+/** Of these products, the ones that may be sold right now by their status in the database. */
+async function sellableProductIds(ids: string[]): Promise<Set<string>> {
+  const allowed = IS_PREVIEW ? ['live', 'draft'] : ['live'];
+  const rows = await db
+    .select({ id: catalogProducts.id })
+    .from(catalogProducts)
+    .where(and(inArray(catalogProducts.id, ids), inArray(catalogProducts.status, allowed)));
+  return new Set(rows.map((r) => r.id));
+}
+
 export async function createOrder(input: CheckoutInput, userId?: string | null): Promise<CreateOrderResult> {
   // Sample inventory is never sold as real stock (lib/catalogue-mode.ts).
   if (sampleOrdersBlocked()) return { ok: false, error: SAMPLE_ORDER_MESSAGE };
@@ -228,10 +238,18 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     pricingSnapshot: Record<string, unknown>;
   }[] = [];
 
+  /*
+   * The product list is compiled into the site at publish time, so a product
+   * the owner has since hidden (a recall, a wrong price) would stay buyable
+   * until the next publish. With an owner-managed catalogue its status is
+   * read now: live products sell, drafts only while a preview is shown.
+   */
+  const sellable = CATALOGUE_MODE === 'managed' ? await sellableProductIds(data.items.map((i) => i.productId)) : null;
+
   for (const item of data.items) {
     const product = getProductById(item.productId);
-    if (!product) {
-      return { ok: false, error: `That product is no longer available: ${item.productId}` };
+    if (!product || (sellable && !sellable.has(item.productId))) {
+      return { ok: false, error: `That product is no longer available: ${product?.name ?? item.productId}` };
     }
 
     /*

@@ -129,6 +129,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         liveCount={all.filter((p) => p.status === 'live').length}
         draftCount={all.filter((p) => p.status === 'draft').length}
         showingSamples={CATALOGUE_MODE === 'sample' && !PUBLISHED_CATALOGUE}
+        onShopSince={PUBLISHED_CATALOGUE?.publishedAt ?? null}
       />
 
       <form className="max-w-sm">

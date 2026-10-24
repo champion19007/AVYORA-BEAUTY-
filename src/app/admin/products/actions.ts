@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { db, isDatabaseConfigured } from '@/db';
 import { getStaffSession } from '@/lib/staff-auth';
 import { reportError } from '@/lib/observability';
+import { revalidateProduct } from '@/lib/storefront-cache';
 import { uploadMedia } from '@/modules/cms/media';
 import {
   liveCatalogue,
@@ -46,6 +47,8 @@ export async function saveProductAction(_prev: SaveProductState, form: FormData)
   if (!result.ok) return { errors: result.errors };
 
   revalidatePath('/admin/products');
+  // Prices and stock show on the shop straight away: clear the caches behind product pages and cards.
+  await revalidateProduct(result.id);
   if (!parsed.data.id) redirect(`/admin/products/${result.id}?created=1`);
   return { savedId: result.id };
 }
@@ -88,15 +91,13 @@ export async function publishCatalogueAction(_prev: PublishState, form: FormData
   // A preview shows drafts too, labelled as samples, with ordering switched off.
   const preview = form.get('mode') === 'preview';
 
+  // What is published is decided now and saved with the record; every later build writes exactly this.
+  const products = preview ? await previewCatalogue(db) : await liveCatalogue(db);
+
   if (!process.env.VERCEL) {
-    await recordPublish(db, actor, preview);
-    const products = preview ? await previewCatalogue(db) : await liveCatalogue(db);
+    const record = await recordPublish(db, actor, products, preview);
     const file = path.join(process.cwd(), 'src', 'data', 'catalogue.published.json');
-    writeFileSync(
-      file,
-      `${JSON.stringify({ publishedAt: new Date().toISOString(), preview, products }, null, 2)}
-`
-    );
+    writeFileSync(file, `${JSON.stringify({ publishedAt: record.requestedAt, preview, products }, null, 2)}\n`);
     revalidatePath('/', 'layout');
     return {
       message: `Published ${products.length} ${
@@ -112,7 +113,7 @@ export async function publishCatalogueAction(_prev: PublishState, form: FormData
         'Publishing needs a deploy hook: in Vercel, Settings → Git → Deploy Hooks, create one for the main branch, then add its URL as VERCEL_DEPLOY_HOOK_URL and redeploy once.',
     };
   }
-  await recordPublish(db, actor, preview);
+  await recordPublish(db, actor, products, preview);
   const res = await fetch(hook, { method: 'POST' }).catch((err) => {
     reportError(err, { scope: 'catalogue.publish' });
     return null;

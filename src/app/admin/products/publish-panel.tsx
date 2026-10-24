@@ -10,11 +10,14 @@ export function PublishPanel({
   liveCount,
   draftCount,
   showingSamples,
+  onShopSince,
 }: {
   publishedAt: string | null;
   unpublished: number;
   liveCount: number;
   draftCount: number;
+  /** The publish this running site was built from; differs from `publishedAt` while a rebuild is on its way. */
+  onShopSince: string | null;
   showingSamples: boolean;
 }) {
   const [state, publish, pending] = useActionState<PublishState, FormData>(publishCatalogueAction, {});
@@ -33,6 +36,16 @@ export function PublishPanel({
             : 'The shop matches what is here.'}{' '}
           Publishing puts the {liveCount} live {liveCount === 1 ? 'product' : 'products'} on the shop.
         </p>
+        {publishedAt && onShopSince !== publishedAt && (
+          <p className="mt-2 text-amber-800">
+            Waiting for the shop to update: it still shows{' '}
+            {onShopSince
+              ? `the version published ${new Date(onShopSince).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`
+              : 'the sample products'}
+            . A rebuild takes about 3 minutes; reload this page to check. If it does not change, the rebuild failed: see
+            Vercel&apos;s deployments.
+          </p>
+        )}
         {state.message && <p className="mt-2 text-emerald-700">{state.message}</p>}
         {state.error && (
           <p role="alert" className="mt-2 text-destructive">

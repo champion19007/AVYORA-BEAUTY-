@@ -480,7 +480,18 @@ export async function previewCatalogue(db: Db): Promise<Product[]> {
 /** `shop_settings` key recording that the owner has published, and when. */
 export const PUBLISH_KEY = 'catalogue_publish';
 /** `preview`: drafts shown too, labelled as samples, ordering off (see previewCatalogue). */
-export type PublishRecord = { requestedAt: string; by: string; preview?: boolean };
+export type PublishRecord = {
+  requestedAt: string;
+  by: string;
+  preview?: boolean;
+  /**
+   * The exact products published. Every build writes these, so a deploy for
+   * a code change re-publishes what the owner published, not whatever is
+   * saved in the editor at that moment. Older records without it fall back
+   * to reading the catalogue.
+   */
+  products?: Product[];
+};
 
 export async function publishRecord(db: Db): Promise<PublishRecord | null> {
   const [row] = await db
@@ -491,10 +502,16 @@ export async function publishRecord(db: Db): Promise<PublishRecord | null> {
   return (row?.value as PublishRecord | undefined) ?? null;
 }
 
-export async function recordPublish(db: Db, by: string, preview = false): Promise<void> {
-  const value: PublishRecord = { requestedAt: new Date().toISOString(), by, ...(preview ? { preview: true } : {}) };
+export async function recordPublish(db: Db, by: string, products: Product[], preview = false): Promise<PublishRecord> {
+  const value: PublishRecord = {
+    requestedAt: new Date().toISOString(),
+    by,
+    products,
+    ...(preview ? { preview: true } : {}),
+  };
   await db
     .insert(schema.shopSettings)
     .values({ key: PUBLISH_KEY, value, updatedBy: by })
     .onConflictDoUpdate({ target: schema.shopSettings.key, set: { value, updatedBy: by, updatedAt: new Date() } });
+  return value;
 }

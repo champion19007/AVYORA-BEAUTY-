@@ -122,3 +122,16 @@ describe('product store', () => {
     expect(rows).toHaveLength(2);
   });
 });
+
+describe('publishing', () => {
+  it('stores the exact products published, so later builds repeat them rather than re-reading the editor', async () => {
+    const { recordPublish, publishRecord } = await import('../product-store');
+    const published = await liveCatalogue(db());
+    await recordPublish(db(), 'owner', published);
+    // An edit saved after publishing must not reach the shop until the next publish.
+    await saveProduct(db(), form({ id: 'mineral-sunscreen-spf-50', name: 'Renamed later', status: 'live' }), 'owner');
+    const record = await publishRecord(db());
+    expect(record?.products?.map((p) => p.name)).toEqual(published.map((p) => p.name));
+    expect(record?.products?.map((p) => p.name)).not.toContain('Renamed later');
+  });
+});
