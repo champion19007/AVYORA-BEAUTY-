@@ -1,11 +1,26 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { orderItems, orders, paymentEvents } from '@/db/schema';
-import { releaseStock, reserveStock } from '@/lib/inventory';
+import { recordAllocations, releaseOrderStock, reserveStock } from '@/lib/inventory';
 import { emitEvent } from '@/lib/events';
 import { currentRequestId } from '@/infrastructure/request-context';
 import type { Tx } from '@/infrastructure/idempotency/idempotency';
 import { decide, type Decision, type PaymentSignal, type PaymentState } from './state-machine';
+import { after } from 'next/server';
+
+/**
+ * Background work after the response. Imported lazily: lib/background reaches
+ * the event consumers, which reach orders, which reach this module. Outside a
+ * request (scripts, tests) there is no `after`, and the next drain picks the
+ * event up instead.
+ */
+function scheduleBackgroundWork(): void {
+  try {
+    after(() => import('@/lib/background').then((m) => m.runBackgroundQuietly()));
+  } catch {
+    /* no request scope */
+  }
+}
 
 /**
  * Applying payment signals to orders.
@@ -59,7 +74,7 @@ export async function applyPaymentSignalInTx(
   let attention: string | null = null;
 
   if (decision.stock === 'release' && stockRestoredAt === null) {
-    await releaseStock(lines, tx as never);
+    await releaseOrderStock(tx as never, orderId);
     stockRestoredAt = new Date();
   }
 
@@ -75,6 +90,7 @@ export async function applyPaymentSignalInTx(
       await tx.transaction(async (savepoint) => {
         const reserved = await reserveStock(lines, savepoint as never);
         if (!reserved.ok) throw new StockUnavailable();
+        await recordAllocations(savepoint as never, orderId, reserved.allocations);
       });
       stockRestoredAt = null;
     } catch (err) {
@@ -117,6 +133,10 @@ export async function applyPaymentSignalInTx(
   if (eventName) {
     await emitEvent(eventName, orderId, { orderId, orderNumber: order.orderNumber }, tx, requestId);
   }
+  // A paid online order is announced by the `order.paid` consumer: run the
+  // drain once this response has gone, as checkout does for `order.placed`,
+  // rather than leaving the confirmation for the daily cron.
+  if (eventName === 'order.paid') scheduleBackgroundWork();
   if (attention) {
     await emitEvent(
       'order.needs_attention',
@@ -199,7 +219,9 @@ export async function recordProviderEvent(input: ProviderEventInput): Promise<Pr
 
     await tx
       .update(paymentEvents)
-      .set({ outcome: applied ? (applied.attention ? 'attention' : applied.outcome) : 'ignored' })
+      .set({
+        outcome: applied ? (applied.attention ? 'attention' : applied.outcome) : 'ignored',
+      })
       .where(eq(paymentEvents.id, inserted[0].id));
 
     return { status: 'processed', applied } as const;

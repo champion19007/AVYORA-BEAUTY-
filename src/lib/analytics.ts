@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ne, sql, sum } from 'drizzle-orm';
+import { and, desc, eq, gte, notInArray, or, sql, sum } from 'drizzle-orm';
 import { readWith } from '@/db';
 import { orders, orderItems, inventory } from '@/db/schema';
 import { getProductById } from '@/lib/catalogue';
@@ -6,7 +6,8 @@ import { getProductById } from '@/lib/catalogue';
 /**
  * Sales analysis for the owner.
  *
- * Cancelled and refunded orders are excluded everywhere. Counting them would
+ * Cancelled, refunded and returned orders, and unpaid online orders, are
+ * excluded everywhere (`realSale`). Counting them would
  * flatter every figure and, worse, would drive the reorder forecast on parcels
  * that came straight back.
  *
@@ -22,8 +23,18 @@ import { getProductById } from '@/lib/catalogue';
  * on the primary otherwise.
  */
 
-/** Orders that count as real sales. */
-const SOLD = and(ne(orders.status, 'cancelled'), ne(orders.status, 'refunded'));
+/**
+ * Orders that count as real sales: paid online, or cash on delivery, and not
+ * cancelled, refunded or returned. Shared with the stock autopilot so the
+ * owner's figures and the reorder requests agree. An online order abandoned at
+ * the payment screen is not a sale, and a parcel that came back is not one.
+ */
+export const realSale = () =>
+  and(
+    notInArray(orders.status, ['cancelled', 'refunded', 'returned']),
+    or(eq(orders.paymentStatus, 'paid'), eq(orders.paymentProvider, 'cod'))
+  );
+const SOLD = realSale();
 
 export type ProductSales = {
   productId: string;

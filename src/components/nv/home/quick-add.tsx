@@ -6,6 +6,7 @@ import { useApp } from '@/lib/store';
 import { formatPaise } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import type { SkuOffer } from './data';
+import { IS_PREVIEW } from '@/lib/catalogue-mode';
 
 /**
  * Size choice and add-to-bag for one product, the only client code in a
@@ -76,7 +77,7 @@ export function QuickAdd({
         ) : (
           <ShoppingBag className="h-4 w-4" aria-hidden="true" />
         )}
-        {!sku.inStock ? 'Sold out' : inBag ? 'In bag' : 'Add'}
+        {!sku.inStock ? (IS_PREVIEW ? 'Coming soon' : 'Sold out') : inBag ? 'In bag' : 'Add'}
         <span className="sr-only">
           {' '}
           {productName}, {sku.size}

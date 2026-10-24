@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server';
 import { sweepAbandonedReservations } from '@/lib/reservation-sweep';
 import { pruneExpiredIdempotencyKeys } from '@/infrastructure/idempotency/idempotency';
 import { pruneRateLimits } from '@/lib/rate-limit';
+import { pruneExpiredOtps } from '@/lib/otp';
 import { db } from '@/db';
 import { purgeExpiredRoutines } from '@/modules/personal/routines';
 import { privateStorage } from '@/modules/scans/private-storage';
 import { sweepScans } from '@/modules/scans/sessions';
 import { purgeUnconfirmed } from '@/modules/newsletter/newsletter';
+import { runStockAutopilot } from '@/modules/inventory/autopilot';
+import { holdBackExpiringBatches } from '@/lib/inventory';
+import { reportError } from '@/lib/observability';
 
 /** Node runtime: the Postgres driver cannot open a socket at the edge. */
 export const runtime = 'nodejs';
@@ -39,6 +43,10 @@ export async function GET(request: Request) {
   const result = await sweepAbandonedReservations();
   const idempotencyKeysPruned = await pruneExpiredIdempotencyKeys().catch(() => 0);
   const rateLimitsPruned = await pruneRateLimits().catch(() => 0);
+  // Spent and expired sign-in codes: hashed and useless, but personal data all the same.
+  const otpCodesPruned = await pruneExpiredOtps()
+    .then(() => true)
+    .catch(() => false);
   const expiredRoutinesDeleted = await purgeExpiredRoutines(db).catch(() => 0);
   const scans = await sweepScans(db, privateStorage()).catch(() => ({
     photosDeleted: 0,
@@ -48,13 +56,30 @@ export async function GET(request: Request) {
 
   const unconfirmedSignupsDeleted = await purgeUnconfirmed(db).catch(() => 0);
 
+  // Before the autopilot, so its low-stock figures already exclude short-dated batches.
+  const batchesHeldBack = await holdBackExpiringBatches().catch((err) => {
+    reportError(err, { scope: 'cron.batches' });
+    return { batches: -1, units: -1 };
+  });
+
+  // Reorders and the owner's morning summary. Last, so a failure here cannot stop the clean-ups above.
+  const stock = await runStockAutopilot(db)
+    .then((r) => ({ restockRaised: r.raised.length, lowSkus: r.low.length, summarySent: r.summarySent }))
+    .catch((err) => {
+      reportError(err, { scope: 'cron.autopilot' });
+      return { restockRaised: -1, lowSkus: -1, summarySent: false };
+    });
+
   return NextResponse.json({
     ok: true,
     ...result,
     idempotencyKeysPruned,
     rateLimitsPruned,
+    otpCodesPruned,
     expiredRoutinesDeleted,
     scans,
     unconfirmedSignupsDeleted,
+    batchesHeldBack,
+    stock,
   });
 }

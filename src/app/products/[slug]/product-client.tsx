@@ -3,9 +3,13 @@
 import { Product } from '@/data/mock-data';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Star, Plus, Minus, Heart } from 'lucide-react';
+import { Star, Plus, Minus, Heart, Truck, Wallet, RotateCcw } from 'lucide-react';
+import Link from 'next/link';
+import { FREE_DELIVERY_LINE } from '@/lib/money';
+import { UNAVAILABLE_LABEL } from '@/lib/catalogue-mode';
 import { Button } from '@/components/ui/button';
 import { Price } from '@/components/price';
+import { PromoDetails } from '@/components/product/promo-badge';
 import { useApp } from '@/lib/store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ProductCard } from '@/components/product/product-card';
@@ -162,7 +166,7 @@ export function ProductClient({
                   {product.rating} <Star className="h-3 w-3 ml-2 fill-primary text-primary" aria-hidden="true" />
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-                  {product.reviewCount.toLocaleString()} Reviews
+                  {product.reviewCount.toLocaleString()} {product.reviewCount === 1 ? 'Review' : 'Reviews'}
                 </span>
               </div>
             ) : (
@@ -188,6 +192,8 @@ export function ProductClient({
               )}
             </div>
           </div>
+
+          <PromoDetails productId={product.id} />
 
           <div className="space-y-8">
             <div className="space-y-4">
@@ -262,7 +268,7 @@ export function ProductClient({
                 className="flex-1 h-14 md:h-16 rounded-md bg-primary text-primary-foreground font-semibold uppercase tracking-widest hover:bg-primary/90 text-[10px] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={handleAdd}
               >
-                {selectedOut ? 'Out of stock' : 'Add to Cart'}
+                {selectedOut ? UNAVAILABLE_LABEL : 'Add to Cart'}
               </Button>
             </div>
             {notice && (
@@ -270,6 +276,22 @@ export function ProductClient({
                 {notice}
               </p>
             )}
+
+            {/* What shoppers check before buying, from the same figures checkout and the policies use. */}
+            <ul className="space-y-1.5 text-sm text-muted-foreground">
+              <li className="flex items-center gap-2">
+                <Truck className="h-4 w-4 shrink-0" aria-hidden="true" /> {FREE_DELIVERY_LINE}
+              </li>
+              <li className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" /> Cash on delivery available
+              </li>
+              <li className="flex items-center gap-2">
+                <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <Link href="/refund-policy" className="underline underline-offset-2">
+                  Returns and refunds
+                </Link>
+              </li>
+            </ul>
           </div>
 
           <div className="pt-6 md:pt-10 border-t">
@@ -280,9 +302,22 @@ export function ProductClient({
                   Key Ingredients
                 </AccordionTrigger>
                 <AccordionContent className="pt-2 text-[15px] leading-relaxed text-muted-foreground">
-                  {product.ingredients.join(', ')}. Formulated with high-purity actives.
+                  {product.ingredients.join(', ')}.
+                  {product.skinTypes?.length ? (
+                    <span className="mt-2 block">Suits {product.skinTypes.join(', ')} skin.</span>
+                  ) : null}
                 </AccordionContent>
               </AccordionItem>
+              {product.fullIngredients && (
+                <AccordionItem value="full-ingredients">
+                  <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">
+                    Full Ingredient List
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-2 text-[13px] leading-relaxed text-muted-foreground">
+                    {product.fullIngredients}
+                  </AccordionContent>
+                </AccordionItem>
+              )}
               <AccordionItem value="how-to-use">
                 <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-[0.18em]">
                   How to Use

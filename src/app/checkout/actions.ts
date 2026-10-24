@@ -44,7 +44,7 @@ export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult
   if (!limited.allowed) {
     // A retry of an order that already exists is a replay, not new work:
     // answer it rather than refusing a customer whose order went through.
-    const replay = input?.idempotencyKey ? await findByIdempotencyKey(String(input.idempotencyKey)) : null;
+    const replay = input?.idempotencyKey ? await findByIdempotencyKey(String(input.idempotencyKey), email) : null;
     if (!replay) return { ok: false, error: limitMessage(limited) };
   }
 

@@ -9,7 +9,7 @@ import { reviewInputSchema, submitReview } from '@/modules/reviews/reviews';
 
 export const dynamic = 'force-dynamic';
 
-/** A review from an account with a delivered order of the product. Stored for moderation, not published. */
+/** A review from a signed-in customer. Stored for moderation, not published until the owner approves it. */
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return apiError(403, 'bad_origin', 'Invalid request origin.');
   if (!isDatabaseConfigured()) return apiError(503, 'unavailable', 'Reviews are unavailable right now.');
@@ -30,10 +30,6 @@ export async function POST(request: Request) {
     });
   }
   const out = await submitReview(db, userId, parsed.data);
-  if (!out.ok) {
-    return out.code === 'not_verified'
-      ? apiError(403, 'not_verified', 'Reviews are open to customers whose order of this product has been delivered.')
-      : apiError(409, 'exists', 'You have already reviewed this product.');
-  }
+  if (!out.ok) return apiError(409, 'exists', 'You have already reviewed this product.');
   return privateJson({ ok: true, status: 'pending_moderation' }, 201);
 }

@@ -3,7 +3,8 @@ import { db } from '@/db';
 import { orders } from '@/db/schema';
 import { drain, type DomainEvent, type DrainResult } from '@/lib/events';
 import { getOrderByNumber, restoreOrderStock } from '@/lib/orders';
-import { notifyOrderPlaced } from '@/lib/order-notifications';
+import { notifyOrderPlaced, notifyOrderShipped } from '@/lib/order-notifications';
+import { trackingUrl } from '@/modules/shipping/shiprocket';
 import { createOrderAccessToken } from '@/lib/order-access';
 import { assessCodOrder } from '@/lib/cod-risk';
 import { revalidateContent, revalidateProduct } from '@/lib/storefront-cache';
@@ -32,13 +33,25 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://avyora-beauty.vercel.a
 /* -------------------------------------------------------------------------- */
 
 async function handleNotification(event: DomainEvent): Promise<void> {
-  if (event.name !== 'order.placed') return;
+  if (event.name === 'order.shipped') return handleShipped(event);
+  if (event.name !== 'order.placed' && event.name !== 'order.paid') return;
 
   const orderNumber = String(event.payload.orderNumber ?? '');
   if (!orderNumber) return;
 
   const order = await getOrderByNumber(orderNumber);
   if (!order) return;
+
+  /*
+   * One announcement per order, at the moment it becomes a real order.
+   * Cash on delivery is real when placed. An online order is real only once
+   * paid: it is created when the customer clicks Pay, and announcing it then
+   * told both the customer and the shop about orders the customer backed
+   * out of on the payment screen and never paid for.
+   */
+  const online = order.paymentProvider !== 'cod';
+  if (event.name === 'order.placed' && online) return;
+  if (event.name === 'order.paid' && !online) return;
 
   const address = (order.shippingAddress ?? {}) as Record<string, string>;
   const token = await createOrderAccessToken(orderNumber).catch(() => null);
@@ -77,6 +90,29 @@ async function handleNotification(event: DomainEvent): Promise<void> {
   if (outcome.customerEmailAttempted && !outcome.customerEmailed) {
     throw new Error(`Confirmation email for ${orderNumber} was not accepted`);
   }
+}
+
+/** Tells the customer their parcel is with the courier, with the tracking link. */
+async function handleShipped(event: DomainEvent): Promise<void> {
+  const orderNumber = String(event.payload.orderNumber ?? '');
+  const order = orderNumber ? await getOrderByNumber(orderNumber) : null;
+  if (!order?.awb) return;
+  const shipment = (order.shipment ?? {}) as { courierName?: string };
+  const address = (order.shippingAddress ?? {}) as Record<string, string>;
+  const token = await createOrderAccessToken(orderNumber).catch(() => null);
+  const outcome = await notifyOrderShipped({
+    orderNumber,
+    email: order.email,
+    customerName: address.fullName ?? '',
+    courierName: shipment.courierName ?? 'Courier',
+    awb: order.awb,
+    trackingUrl: trackingUrl(order.awb),
+    orderUrl: token ? `${SITE}/orders/${orderNumber}?t=${encodeURIComponent(token)}` : `${SITE}/orders/${orderNumber}`,
+    cod: order.paymentProvider === 'cod' && order.paymentStatus !== 'paid',
+    total: order.total,
+  });
+  // Retried by drain, like the confirmation, if the provider refused it.
+  if (outcome.attempted && !outcome.sent) throw new Error(`Shipped email for ${orderNumber} was not accepted`);
 }
 
 /* -------------------------------------------------------------------------- */

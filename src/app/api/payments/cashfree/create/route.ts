@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { isDatabaseConfigured } from '@/db';
+import { db, isDatabaseConfigured } from '@/db';
 import { orders } from '@/db/schema';
 import { createOrder, findByIdempotencyKey, type CheckoutInput } from '@/lib/orders';
 import { withIdempotency } from '@/infrastructure/idempotency/idempotency';
@@ -39,12 +39,21 @@ export async function POST(request: Request) {
 
   const session = await auth().catch(() => null);
   const limited = await limit([
-    { policy: 'payment', subject: { kind: 'ip', address: trustedClientIp(request.headers) } },
+    {
+      policy: 'payment',
+      subject: { kind: 'ip', address: trustedClientIp(request.headers) },
+    },
     session?.user?.id
       ? { policy: 'payment', subject: { kind: 'user', id: session.user.id } }
-      : { policy: 'payment', subject: { kind: 'identifier', value: String(input.email ?? '') } },
+      : {
+          policy: 'payment',
+          subject: { kind: 'identifier', value: String(input.email ?? '') },
+        },
   ]);
-  if (!limited.allowed && !(input.idempotencyKey && (await findByIdempotencyKey(String(input.idempotencyKey))))) {
+  if (
+    !limited.allowed &&
+    !(input.idempotencyKey && (await findByIdempotencyKey(String(input.idempotencyKey), String(input.email ?? ''))))
+  ) {
     return limitResponse(limited);
   }
 
@@ -53,6 +62,26 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: created.error, code: created.code },
       { status: created.code === 'price_changed' ? 409 : 400 }
+    );
+  }
+
+  /*
+   * A retry with the key of an attempt the customer backed out of returns
+   * that cancelled order; it must not be reopened. The browser starts a
+   * fresh attempt with a new key.
+   */
+  const [existing] = await db
+    .select({ status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, created.orderId))
+    .limit(1);
+  if (existing?.status === 'cancelled') {
+    return NextResponse.json(
+      {
+        error: 'That payment attempt was closed. Please try again.',
+        code: 'attempt_closed',
+      },
+      { status: 409 }
     );
   }
 
@@ -92,7 +121,10 @@ export async function POST(request: Request) {
           .where(eq(orders.id, created.orderId));
         await applyPaymentSignalInTx(tx, created.orderId, { type: 'session_opened' });
         await scheduleReconciliation(created.orderId, tx);
-        return { paymentSessionId: cf.payment_session_id, cashfreeOrderId: cf.order_id };
+        return {
+          paymentSessionId: cf.payment_session_id,
+          cashfreeOrderId: cf.order_id,
+        };
       }
     );
     return NextResponse.json({
@@ -102,7 +134,10 @@ export async function POST(request: Request) {
       accessToken: await createOrderAccessToken(created.orderNumber),
     });
   } catch (err) {
-    reportError(err, { scope: 'cashfree.createOrder', correlationId: created.orderNumber });
+    reportError(err, {
+      scope: 'cashfree.createOrder',
+      correlationId: created.orderNumber,
+    });
     return NextResponse.json({ error: 'We could not start the payment. Please try again.' }, { status: 502 });
   }
 }

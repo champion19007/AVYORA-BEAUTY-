@@ -12,6 +12,7 @@ import { LogoDark } from '@/components/logo';
 import { GoogleSignInButton } from '@/components/account-menu';
 import type { AccountMethods } from '@/lib/customer-accounts';
 import { authErrorMessage } from './auth-errors';
+import { sameSitePath } from '@/lib/safe-redirect';
 import {
   lookupAccount,
   passwordSignIn,
@@ -57,8 +58,7 @@ export function CustomerAuth({
 
   // Only same-site paths: an absolute URL here would let a crafted link bounce
   // a freshly authenticated customer onto an attacker's page.
-  const requested = searchParams.get('callbackUrl') ?? '/account';
-  const callbackUrl = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/account';
+  const callbackUrl = sameSitePath(searchParams.get('callbackUrl'));
 
   // Auth.js returns here with ?error=… when a Google sign-in is refused.
   const authError = authErrorMessage(searchParams.get('error'));

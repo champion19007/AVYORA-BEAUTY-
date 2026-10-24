@@ -51,8 +51,11 @@ export default function Page() {
 
       <h2>Your rights</h2>
       <p>
-        You can ask for a copy of your data, ask us to correct or delete it, or object to how we use it. Write to{' '}
-        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> and we will respond within 30 days.
+        Signed in, you can delete your skin data or your whole account yourself, at any time, from Your Account → Login
+        &amp; Data; deleting skin data also withdraws your consent to process it. Orders are kept, unlinked from you,
+        for as long as tax law requires invoices to be kept. You can also ask for a copy of your data, ask us to correct
+        or delete it, or object to how we use it: write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> and
+        we will respond within 30 days.
       </p>
 
       <h2>Grievance officer</h2>

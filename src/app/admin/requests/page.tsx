@@ -2,9 +2,7 @@ import type { Metadata } from 'next';
 import { isDatabaseConfigured } from '@/db';
 import { listRestockRequests } from '@/lib/manager-data';
 import { Button } from '@/components/ui/button';
-import { answerSupportRequest, moderateReviewAction, resolveRestockRequest } from '../actions';
-import { pendingReviews } from '@/modules/reviews/reviews';
-import { getProductById } from '@/lib/catalogue';
+import { answerSupportRequest, resolveRestockRequest } from '../actions';
 import { db } from '@/db';
 import { listSupportRequests } from '@/modules/support/support';
 
@@ -34,51 +32,9 @@ export default async function AdminRequestsPage() {
   const open = requests.filter((r) => r.status === 'open');
   const support = await listSupportRequests(db).catch(() => []);
   const openSupport = support.filter((r) => r.status === 'open');
-  const reviews = await pendingReviews(db).catch(() => []);
 
   return (
     <div>
-      <section aria-labelledby="reviews-heading" className="mb-12">
-        <h2 id="reviews-heading" className="text-2xl font-medium tracking-tight">
-          Reviews to moderate
-        </h2>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          {reviews.length === 0 ? 'Nothing waiting.' : `${reviews.length} waiting.`} All are from delivered orders.
-          Publish genuine experiences; reject personal details, medical claims or abuse.
-        </p>
-        {reviews.length > 0 && (
-          <ul className="mt-6 divide-y divide-border rounded-xl border border-border bg-card">
-            {reviews.map((r) => (
-              <li key={r.id} className="space-y-2 p-4">
-                <p className="text-[13px] text-muted-foreground">
-                  {getProductById(r.productId)?.name ?? r.productId} · {r.rating}/5 ·{' '}
-                  {r.createdAt.toLocaleDateString('en-IN', { dateStyle: 'medium' })}
-                </p>
-                {r.title && <p className="font-medium">{r.title}</p>}
-                <p className="whitespace-pre-wrap text-[15px]">{r.body}</p>
-                {/* One form per decision: the decision travels in a hidden field, never inferred from which button submitted. */}
-                <div className="flex gap-2">
-                  <form action={moderateReviewAction}>
-                    <input type="hidden" name="id" value={r.id} />
-                    <input type="hidden" name="decision" value="publish" />
-                    <Button type="submit" className="h-9 rounded-md px-4 text-sm">
-                      Publish
-                    </Button>
-                  </form>
-                  <form action={moderateReviewAction}>
-                    <input type="hidden" name="id" value={r.id} />
-                    <input type="hidden" name="decision" value="reject" />
-                    <Button type="submit" variant="outline" className="h-9 rounded-md px-4 text-sm">
-                      Reject
-                    </Button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <section aria-labelledby="support-heading" className="mb-12">
         <h1 id="support-heading" className="text-3xl font-medium tracking-tight">
           Customer messages

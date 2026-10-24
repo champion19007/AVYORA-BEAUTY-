@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
-import { productPricing } from '@/db/schema';
+import { catalogVariants, productPricing } from '@/db/schema';
+import { formatPaise } from '@/lib/money';
+import { skuKey } from '@/modules/catalog/sku-price';
+import { minProfitablePrice } from '@/modules/offers/profit';
+import { getProfitSettings } from '@/modules/offers/settings';
 import { CommandError, defineCommand } from '@/infrastructure/commands/command';
 import { recordAudit } from '@/modules/audit/audit';
 import { emitEvent } from '@/lib/events';
@@ -50,6 +54,32 @@ export const setPrice = defineCommand({
 
     if ((current?.version ?? 0) !== input.expectedVersion) {
       throw new CommandError('conflict', STALE_PRICE_MESSAGE);
+    }
+
+    /*
+     * The profit floor applies here too: a sale price is an offer by another
+     * name. Refused when it would sell below cost + floor, or when there is
+     * no cost price to check it against.
+     */
+    const [variant] = await tx
+      .select({ cost: catalogVariants.costPaise })
+      .from(catalogVariants)
+      .where(eq(catalogVariants.legacyStockKey, skuKey(input.productId, input.size)))
+      .limit(1);
+    const cost = variant?.cost ?? null;
+    if (input.salePrice !== null && cost === null) {
+      throw new CommandError('conflict', 'Add a cost price for this size in Products before giving it a sale price.');
+    }
+    if (cost !== null) {
+      const settings = await getProfitSettings(tx as never);
+      const floor = minProfitablePrice(cost, settings);
+      const selling = input.salePrice ?? input.price;
+      if (selling < floor) {
+        throw new CommandError(
+          'conflict',
+          `That price is below the profit floor of ${formatPaise(floor)} (cost + ${settings.floorPercent}% after GST and fees).`
+        );
+      }
     }
 
     const fields = {

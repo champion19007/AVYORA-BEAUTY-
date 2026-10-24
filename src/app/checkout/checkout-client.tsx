@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,9 @@ import type { Address } from '@/lib/addresses';
 import { skuKey, type SkuPrice } from '@/modules/catalog/sku-price';
 import type { StockByKey } from '@/modules/catalog/storefront-data';
 import { MAX_QUANTITY_PER_SKU, stockProblems, unitPrice } from '@/lib/cart';
+import { closeAttempt, forgetAttempt, openAttempt, rememberAttempt } from '@/lib/payment-attempt';
+import type { AppliedOffer } from '@/modules/offers/engine';
+import { COD_MAX_PAISE } from '@/modules/shipping/cod-policy';
 
 type Errors = Record<string, string>;
 
@@ -31,12 +34,29 @@ const ADDRESS_FIELDS = [
   // types ten digits on a QWERTY layout at the highest-value step in the
   // funnel. `type` stays text: `type="number"` brings spinner arrows and
   // silently drops a leading zero.
-  { name: 'phone', label: 'Mobile number', autoComplete: 'tel', span: 1, inputMode: 'numeric' as const },
+  {
+    name: 'phone',
+    label: 'Mobile number',
+    autoComplete: 'tel',
+    span: 1,
+    inputMode: 'numeric' as const,
+  },
   { name: 'line1', label: 'Address', autoComplete: 'address-line1', span: 2 },
-  { name: 'line2', label: 'Apartment, landmark (optional)', autoComplete: 'address-line2', span: 2 },
+  {
+    name: 'line2',
+    label: 'Apartment, landmark (optional)',
+    autoComplete: 'address-line2',
+    span: 2,
+  },
   { name: 'city', label: 'City', autoComplete: 'address-level2', span: 1 },
   { name: 'state', label: 'State', autoComplete: 'address-level1', span: 1 },
-  { name: 'postalCode', label: 'PIN code', autoComplete: 'postal-code', span: 1, inputMode: 'numeric' as const },
+  {
+    name: 'postalCode',
+    label: 'PIN code',
+    autoComplete: 'postal-code',
+    span: 1,
+    inputMode: 'numeric' as const,
+  },
 ] as const;
 
 /** Flattens a saved address into the shape the form state holds. */
@@ -58,6 +78,13 @@ function addressToValues(a: Address): Record<string, string> {
  * Confirmation URL. Guests carry a signed token because the order page shows
  * their address and phone number and must not be readable by URL alone.
  */
+/** One key per checkout attempt; a retry of the same attempt reuses it. */
+function newCheckoutKey(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `chk_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+}
+
 function orderUrl(orderNumber: string, accessToken?: string | null) {
   return accessToken ? `/orders/${orderNumber}?t=${encodeURIComponent(accessToken)}` : `/orders/${orderNumber}`;
 }
@@ -75,7 +102,13 @@ function loadCashfreeScript(): Promise<boolean> {
   });
 }
 
-const TEN_DIGIT_MOBILE = /^(\+91[\s-]?)?[6-9]\d{9}$/;
+/** Ten digits, accepting how people type them ("+91 98765 43210", "09876543210"); same rule as lib/checkout-phone. */
+const tenDigitMobile = (raw: string) =>
+  raw
+    .trim()
+    .replace(/[\s-]/g, '')
+    .replace(/^(\+91|0)/, '');
+const isMobile = (raw: string) => /^[6-9]\d{9}$/.test(tenDigitMobile(raw));
 
 /**
  * Guest checkout's mobile number: Get OTP, enter the code, Verify. Once
@@ -158,7 +191,7 @@ function VerifiedPhoneField({
             type="button"
             variant="outline"
             className="h-11 shrink-0"
-            disabled={busy || !TEN_DIGIT_MOBILE.test(value.trim())}
+            disabled={busy || !isMobile(value)}
             onClick={send}
           >
             {busy && !sent ? <Loader2 className="h-4 w-4 animate-spin" /> : sent ? 'Resend' : 'Get OTP'}
@@ -252,16 +285,87 @@ export function CheckoutClient({
    * rather than after submitting. The order transaction still decides.
    */
   const problems = stock ? stockProblems(cart, stock) : [];
-  const [method, setMethod] = useState<'cashfree' | 'cod'>(onlineEnabled ? 'cashfree' : 'cod');
+  const [chosenMethod, setMethod] = useState<'cashfree' | 'cod'>(onlineEnabled ? 'cashfree' : 'cod');
 
+  /*
+   * The offer the server would give this bag (modules/offers), asked again
+   * whenever the bag, the code or the email changes. Placing the order quotes
+   * again from the database; this only shows the same answer early.
+   */
+  const [codeInput, setCodeInput] = useState('');
+  const [offerCode, setOfferCode] = useState<string | null>(null);
+  const [quote, setQuote] = useState<{ applied: AppliedOffer | null; codeProblem: string | null }>({
+    applied: null,
+    codeProblem: null,
+  });
+  const quoteEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((values.email ?? '').trim()) ? values.email.trim() : '';
+  const bagKey = cart.map((l) => `${l.productId}:${l.size}:${l.quantity}`).join('|');
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(async () => {
+      const res = await fetch('/api/offers/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          items: cart.map((l) => ({ productId: l.productId, size: l.size, quantity: l.quantity })),
+          code: offerCode ?? undefined,
+          email: quoteEmail,
+        }),
+      }).catch(() => null);
+      if (res?.ok) setQuote(await res.json());
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bagKey stands for the cart's contents
+  }, [bagKey, offerCode, quoteEmail, prices]);
+
+  const discount = quote.applied?.itemDiscount ?? 0;
   const totals = useMemo(
     () =>
       calculateTotals(
         // Each line at the current price for its own SKU, from this render.
-        cart.map((line) => ({ unitPrice: unitPrice(line, prices).price / 100, quantity: line.quantity }))
+        cart.map((line) => ({
+          unitPrice: unitPrice(line, prices).price / 100,
+          quantity: line.quantity,
+        })),
+        discount,
+        { freeDelivery: quote.applied?.freeDelivery }
       ),
-    [cart, prices]
+    [cart, prices, discount, quote.applied?.freeDelivery]
   );
+
+  /*
+   * Whether couriers reach this PIN code and take cash there, asked once the
+   * code is complete. Placing the order checks again; this only answers early.
+   */
+  const pin = (values.postalCode ?? '').trim();
+  const [delivery, setDelivery] = useState<{
+    pin: string;
+    deliverable: boolean;
+    cod: boolean;
+    days: number | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!/^\d{6}$/.test(pin)) return;
+    const ctrl = new AbortController();
+    fetch(`/api/delivery/check?pin=${pin}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.known && setDelivery({ pin, deliverable: d.deliverable, cod: d.cod, days: d.days }))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [pin]);
+  const here = delivery?.pin === pin ? delivery : null;
+  const codBlocked =
+    totals.total > COD_MAX_PAISE
+      ? `Available on orders up to ${formatPaise(COD_MAX_PAISE)}.`
+      : here && !here.cod
+        ? `Not available at PIN code ${pin}.`
+        : null;
+  // Cash on delivery stops being an option when the bag outgrows the limit or the PIN code takes no cash.
+  const method = codBlocked && chosenMethod === 'cod' && onlineEnabled ? 'cashfree' : chosenMethod;
 
   const set = (name: string, value: string) => {
     setValues((v) => ({ ...v, [name]: value }));
@@ -278,13 +382,14 @@ export function CheckoutClient({
   const validateErrors = (): Errors => {
     const e: Errors = {};
     if (!values.fullName || values.fullName.trim().length < 2) e.fullName = 'Enter your full name';
-    if (!TEN_DIGIT_MOBILE.test((values.phone || '').trim())) e.phone = 'Enter a valid Indian mobile number';
+    if (!isMobile(values.phone || '')) e.phone = 'Enter a valid Indian mobile number';
     else if (phoneCheck && !phoneProof) e.phone = 'Verify your mobile number with the code we send';
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((values.email || '').trim())) e.email = 'Enter a valid email address';
     if (!values.line1 || values.line1.trim().length < 4) e.line1 = 'Enter your address';
     if (!values.city || values.city.trim().length < 2) e.city = 'Enter your city';
     if (!values.state || values.state.trim().length < 2) e.state = 'Enter your state';
     if (!/^\d{6}$/.test((values.postalCode || '').trim())) e.postalCode = 'Enter a valid 6-digit PIN code';
+    else if (here && !here.deliverable) e.postalCode = `Our couriers do not deliver to ${pin} yet`;
     return e;
   };
 
@@ -301,14 +406,56 @@ export function CheckoutClient({
    * behind, so the key is still free, and keeping it means a retry of an
    * *apparent* failure that actually succeeded is still deduplicated.
    */
-  const [idempotencyKey] = useState(() =>
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `chk_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`
-  );
+  const [idempotencyKey, setIdempotencyKey] = useState(newCheckoutKey);
+
+  /*
+   * Coming back from the payment screen without paying (the back button,
+   * Cashfree's cancel, a reopened tab): close that attempt so nothing is
+   * ordered and its stock is returned now, not by tomorrow's sweep. Runs on
+   * mount and on `pageshow`, because the back button restores this page from
+   * the browser's cache without remounting it, Pay button still spinning.
+   */
+  useEffect(() => {
+    const resume = async () => {
+      setSubmitting(false);
+      const attempt = openAttempt();
+      if (!attempt) return;
+      const outcome = await closeAttempt(attempt);
+      if (outcome === 'paid') {
+        forgetAttempt();
+        clearCart();
+        router.replace(orderUrl(attempt.orderNumber, attempt.token));
+        return;
+      }
+      if (outcome === 'cancelled') {
+        forgetAttempt();
+        // That attempt's key now belongs to a cancelled order: start afresh.
+        setIdempotencyKey(newCheckoutKey());
+        setFormError(
+          'Your payment was not completed, so nothing was ordered and you have not been charged. Your bag is still here.'
+        );
+        return;
+      }
+      if (outcome === 'pending') {
+        setFormError(
+          `A payment for order ${attempt.orderNumber} is still being processed. If it completes you will get a confirmation; if not, nothing will be ordered.`
+        );
+      }
+    };
+    void resume();
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) void resume();
+    };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const buildPayload = () => ({
     idempotencyKey,
+    ...(offerCode ? { offerCode } : {}),
+    // The discount shown; the server refuses the order if it has changed since.
+    expectedDiscountPaise: discount,
     ...(phoneProof ? { phoneProof } : {}),
     email: values.email.trim(),
     address: {
@@ -319,7 +466,7 @@ export function CheckoutClient({
       state: values.state.trim(),
       postalCode: values.postalCode.trim(),
       country: 'IN',
-      phone: values.phone.trim(),
+      phone: tenDigitMobile(values.phone),
     },
     items: cart.map((line) => ({
       productId: line.productId,
@@ -372,7 +519,10 @@ export function CheckoutClient({
     setSubmitting(true);
 
     if (method === 'cod') {
-      const result = await placeOrder({ ...buildPayload(), paymentMethod: 'cod' });
+      const result = await placeOrder({
+        ...buildPayload(),
+        paymentMethod: 'cod',
+      });
       if (result.ok) {
         // The bag was never emptied after an order, so a customer who had
         // just ordered was one click from ordering the same items again.
@@ -400,6 +550,7 @@ export function CheckoutClient({
       .catch(() => ({ ok: false, body: null as any }));
 
     if (!created.ok) {
+      if (created.body?.code === 'attempt_closed') setIdempotencyKey(newCheckoutKey());
       setFormError(created.body?.error ?? 'We could not start the payment. Please try again.');
       if (created.body?.code === 'price_changed' || created.body?.code === 'phone_unverified') router.refresh();
       setSubmitting(false);
@@ -419,8 +570,14 @@ export function CheckoutClient({
     try {
       sessionStorage.setItem(`order-token:${orderNumber}`, accessToken);
     } catch {}
-    const cashfree = (window as any).Cashfree({ mode: mode === 'production' ? 'production' : 'sandbox' });
-    const result = await cashfree.checkout({ paymentSessionId, redirectTarget: '_self' });
+    if (accessToken) rememberAttempt({ orderNumber, token: accessToken });
+    const cashfree = (window as any).Cashfree({
+      mode: mode === 'production' ? 'production' : 'sandbox',
+    });
+    const result = await cashfree.checkout({
+      paymentSessionId,
+      redirectTarget: '_self',
+    });
     // Only reached when the redirect did not happen.
     if (result?.error) {
       setFormError('That payment did not go through. Try again, or choose cash on delivery.');
@@ -587,6 +744,17 @@ export function CheckoutClient({
             )}
           </div>
 
+          {here && (
+            <p
+              className={cn('mt-4 text-sm', here.deliverable ? 'text-muted-foreground' : 'text-destructive')}
+              role="status"
+            >
+              {here.deliverable
+                ? `Delivers to ${pin}${here.days ? ` in about ${here.days} day${here.days === 1 ? '' : 's'}` : ''}.`
+                : `Our couriers do not deliver to ${pin} yet. Please use another address.`}
+            </p>
+          )}
+
           <h2 className="mt-12 font-headline text-xl font-normal tracking-tight">Payment</h2>
           <div className="mt-4 space-y-3" role="radiogroup" aria-label="Payment method">
             {onlineEnabled && (
@@ -610,14 +778,18 @@ export function CheckoutClient({
               type="button"
               role="radio"
               aria-checked={method === 'cod'}
+              aria-disabled={codBlocked !== null}
+              disabled={codBlocked !== null && onlineEnabled}
               onClick={() => setMethod('cod')}
               className={cn(
-                'w-full rounded-lg border p-5 text-left transition-colors',
+                'w-full rounded-lg border p-5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
                 method === 'cod' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
               )}
             >
               <p className="text-sm font-medium">Cash on delivery</p>
-              <p className="mt-1.5 text-sm text-muted-foreground">Pay the courier when your order arrives.</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {codBlocked ?? 'Pay the courier when your order arrives. We ask you to confirm before we pack it.'}
+              </p>
             </button>
           </div>
           {!onlineEnabled && (
@@ -690,6 +862,12 @@ export function CheckoutClient({
                 <dt className="text-muted-foreground">Subtotal</dt>
                 <dd className="tabular-nums">{formatPaise(totals.subtotal)}</dd>
               </div>
+              {quote.applied && discount > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <dt>{quote.applied.name}</dt>
+                  <dd className="tabular-nums">−{formatPaise(discount)}</dd>
+                </div>
+              )}
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Delivery</dt>
                 <dd className="tabular-nums">{totals.shipping === 0 ? 'Free' : formatPaise(totals.shipping)}</dd>
@@ -700,6 +878,59 @@ export function CheckoutClient({
               </div>
               <p className="pt-1 text-xs text-muted-foreground">Includes {formatPaise(totals.tax)} GST</p>
             </dl>
+
+            <div className="mt-5 border-t border-border pt-5">
+              {offerCode && quote.applied?.couponCode === offerCode ? (
+                <p className="flex items-center justify-between text-sm">
+                  <span>
+                    Code <span className="font-medium">{offerCode}</span> applied
+                  </span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground underline underline-offset-2"
+                    onClick={() => {
+                      setOfferCode(null);
+                      setCodeInput('');
+                    }}
+                  >
+                    Remove
+                  </button>
+                </p>
+              ) : (
+                <div className="flex gap-2">
+                  <label htmlFor="offer-code" className="sr-only">
+                    Offer code
+                  </label>
+                  <Input
+                    id="offer-code"
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setOfferCode(codeInput.trim().toUpperCase() || null);
+                      }
+                    }}
+                    placeholder="Offer code"
+                    className="h-10 uppercase"
+                    maxLength={30}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 shrink-0"
+                    onClick={() => setOfferCode(codeInput.trim().toUpperCase() || null)}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              )}
+              {offerCode && quote.codeProblem && (
+                <p role="status" className="mt-2 text-xs text-destructive">
+                  {quote.codeProblem}
+                </p>
+              )}
+            </div>
 
             {problems.length > 0 && (
               <p role="alert" className="mt-5 rounded-md bg-destructive/10 p-3 text-sm text-destructive">

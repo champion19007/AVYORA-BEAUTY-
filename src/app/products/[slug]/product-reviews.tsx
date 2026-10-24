@@ -1,10 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-type Review = { id: string; rating: number; title: string | null; body: string | null; createdAt: Date | string };
+type Review = {
+  id: string;
+  rating: number;
+  title: string | null;
+  body: string | null;
+  verified: boolean;
+  author: string | null;
+  createdAt: Date | string;
+};
 
 const stars = (n: number) => (
   <span className="inline-flex" aria-label={`${n} out of 5`}>
@@ -19,9 +28,9 @@ const stars = (n: number) => (
 );
 
 /**
- * Published reviews (all from verified purchases) and a form. Anyone may
- * try the form; the server accepts it only from an account whose order of
- * this product was delivered, and holds it for moderation.
+ * Published reviews and a form. Any signed-in customer may review; every
+ * review is read before it appears, and one from a customer whose order of
+ * this product was delivered is labelled a verified purchase.
  */
 export function ProductReviews({
   productId,
@@ -32,11 +41,14 @@ export function ProductReviews({
   productName: string;
   reviews: { count: number; average: number | null; items: Review[] };
 }) {
+  const pathname = usePathname() ?? '/';
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [state, setState] = useState<{ kind: 'idle' | 'busy' | 'sent' } | { kind: 'error'; message: string }>({
+  const [state, setState] = useState<
+    { kind: 'idle' | 'busy' | 'sent' | 'signin' } | { kind: 'error'; message: string }
+  >({
     kind: 'idle',
   });
 
@@ -49,6 +61,7 @@ export function ProductReviews({
       body: JSON.stringify({ productId, rating, title: title || undefined, body }),
     }).catch(() => null);
     if (res?.status === 201) return setState({ kind: 'sent' });
+    if (res?.status === 401) return setState({ kind: 'signin' });
     const json = await res?.json().catch(() => null);
     setState({ kind: 'error', message: json?.error?.message ?? 'Could not send your review. Try again.' });
   };
@@ -60,9 +73,9 @@ export function ProductReviews({
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
         {reviews.count > 0
-          ? `${reviews.average} out of 5 from ${reviews.count} verified ${reviews.count === 1 ? 'purchase' : 'purchases'}.`
-          : 'No reviews yet.'}{' '}
-        Only customers whose order was delivered can review, and every review is read before it appears.
+          ? `${reviews.average} out of 5 from ${reviews.count} ${reviews.count === 1 ? 'review' : 'reviews'}.`
+          : 'No reviews yet. Be the first to share your experience.'}{' '}
+        Every review is read before it appears.
       </p>
 
       <ul className="mt-8 space-y-6">
@@ -71,7 +84,8 @@ export function ProductReviews({
             <div className="flex items-center gap-3">
               {stars(r.rating)}
               <span className="text-xs text-muted-foreground">
-                Verified purchase ·{' '}
+                {r.author ?? 'A customer'}
+                {r.verified && <span className="text-emerald-700"> · Verified purchase</span>} ·{' '}
                 {new Date(r.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
               </span>
             </div>
@@ -138,6 +152,15 @@ export function ProductReviews({
           >
             {state.kind === 'busy' ? 'Sending…' : 'Send review'}
           </Button>
+          {state.kind === 'signin' && (
+            <p role="alert" className="text-sm">
+              Please{' '}
+              <a href={`/login?callbackUrl=${encodeURIComponent(pathname)}`} className="underline underline-offset-2">
+                sign in
+              </a>{' '}
+              to send your review.
+            </p>
+          )}
           {state.kind === 'error' && (
             <p role="alert" className="text-sm text-destructive">
               {state.message}

@@ -46,7 +46,7 @@ describe('calculateTotals', () => {
   });
 
   it('gives free shipping at exactly the threshold', () => {
-    const t = calculateTotals([line(1199)]);
+    const t = calculateTotals([line(750)]);
     expect(t.subtotal).toBe(FREE_SHIPPING_THRESHOLD_PAISE);
     expect(t.shipping).toBe(0);
   });
@@ -57,9 +57,9 @@ describe('calculateTotals', () => {
 
   it('applies the discount before deciding on shipping', () => {
     // Above the threshold before discount, below it after.
-    const t = calculateTotals([line(1250)], toPaise(200));
+    const t = calculateTotals([line(800)], toPaise(100));
     expect(t.shipping).toBe(STANDARD_SHIPPING_PAISE);
-    expect(t.total).toBe(toPaise(1250) - toPaise(200) + STANDARD_SHIPPING_PAISE);
+    expect(t.total).toBe(toPaise(800) - toPaise(100) + STANDARD_SHIPPING_PAISE);
   });
 
   it('never lets a discount push the total below zero', () => {
@@ -122,7 +122,7 @@ describe('delivery wording', () => {
     const threshold = m.formatPaise(m.FREE_SHIPPING_THRESHOLD_PAISE);
     for (const text of [m.DELIVERY_SHORT, m.DELIVERY_TERMS, m.FREE_DELIVERY_LINE]) expect(text).toContain(threshold);
     expect(m.DELIVERY_SHORT).toContain(m.formatPaise(m.STANDARD_SHIPPING_PAISE));
-    expect(threshold).toBe('₹1,199');
+    expect(threshold).toBe('₹750');
   });
 });
 

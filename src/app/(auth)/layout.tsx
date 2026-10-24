@@ -1,3 +1,10 @@
+import { ExitBar } from '@/components/layout/exit-bar';
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-screen items-center justify-center bg-background p-8">{children}</div>;
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-8 pt-20">
+      <ExitBar />
+      {children}
+    </div>
+  );
 }

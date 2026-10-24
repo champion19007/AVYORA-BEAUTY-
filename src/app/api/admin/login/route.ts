@@ -5,6 +5,21 @@ import { trustedClientIp } from '@/lib/client-ip';
 import { BODY_LIMITS, readBoundedJson } from '@/lib/request-body';
 import { SESSION_COOKIE, SESSION_MAX_AGE, createSessionToken, verifyPassword } from '@/lib/auth';
 import { encodeSubject, findStaffCredential, staffCredentials } from '@/lib/staff-auth';
+import { issueOtp, verifyOtp } from '@/lib/otp';
+import { emailDeliveryConfigured, sendEmail } from '@/lib/notify';
+import { isDatabaseConfigured } from '@/db';
+
+/**
+ * Two-step sign-in for the owner: after the password, a six-digit code sent to
+ * OWNER_EMAIL. The owner console sets prices and sees every customer, so a
+ * leaked password alone must not open it. On whenever the code can actually be
+ * delivered; `OWNER_TWO_STEP=off` is the escape hatch if email ever breaks.
+ */
+function ownerTwoStepTarget(): string | null {
+  if (process.env.OWNER_TWO_STEP === 'off') return null;
+  const email = process.env.OWNER_EMAIL;
+  return email && emailDeliveryConfigured() && isDatabaseConfigured() ? email : null;
+}
 
 /**
  * Verifies staff credentials and issues a signed session cookie.
@@ -28,10 +43,11 @@ export async function POST(request: Request) {
 
   const read = await readBoundedJson(request, BODY_LIMITS.adminLogin);
   if (!read.ok) return read.response;
-  const body = read.json as { username?: unknown; password?: unknown } | undefined;
+  const body = read.json as { username?: unknown; password?: unknown; code?: unknown } | undefined;
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   const username = typeof body.username === 'string' ? body.username : '';
   const password = typeof body.password === 'string' ? body.password : '';
+  const code = typeof body.code === 'string' ? body.code.trim() : '';
 
   // Brute force protection, per IP and per operator name: without it the
   // PBKDF2 hash is only as strong as the number of guesses allowed. Fails
@@ -59,6 +75,36 @@ export async function POST(request: Request) {
     // One generic message: revealing which half was wrong helps an attacker
     // enumerate usernames.
     return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
+  }
+
+  const twoStep = credential.role === 'owner' ? ownerTwoStepTarget() : null;
+  if (twoStep) {
+    const identifier = `staff:${credential.username}`;
+    if (!code) {
+      const issued = await issueOtp(identifier, 'email');
+      const sent = await sendEmail(
+        twoStep,
+        'Your Avyora sign-in code',
+        `Your owner sign-in code is ${issued}. It expires in 10 minutes.\n\n` +
+          'If you did not just try to sign in, someone has your password: change it now.'
+      );
+      if (!sent.ok) return NextResponse.json({ error: 'Could not send the sign-in code. Try again.' }, { status: 502 });
+      return NextResponse.json({ step: 'code' });
+    }
+    const checked = /^\d{6}$/.test(code)
+      ? await verifyOtp(identifier, code)
+      : { ok: false as const, reason: 'invalid' };
+    if (!checked.ok) {
+      return NextResponse.json(
+        {
+          error:
+            checked.reason === 'invalid'
+              ? 'That code is not right.'
+              : 'That code has expired. Sign in again for a new one.',
+        },
+        { status: 401 }
+      );
+    }
   }
 
   const token = await createSessionToken(encodeSubject(credential.role, credential.username), secret);

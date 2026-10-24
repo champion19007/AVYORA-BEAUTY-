@@ -9,12 +9,13 @@ import { orders, inventory, restockRequests } from '@/db/schema';
 import { isAdmin } from '@/lib/admin-guard';
 import { getStaffSession } from '@/lib/staff-auth';
 import { setPrice } from '@/modules/catalog/pricing-commands';
-import { setStock as setStockCommand } from '@/modules/inventory/stock-commands';
 import { recordAudit } from '@/modules/audit/audit';
 import { cancelOrder, restoreOrderStock } from '@/lib/orders';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { recordEvent } from '@/lib/activity';
 import { revalidateProduct } from '@/lib/storefront-cache';
+import { recordDelivered } from '@/modules/shipping/shipments';
+import { packingHold } from '@/modules/shipping/cod-policy';
 
 /**
  * Operations actions: fulfilment status and stock levels.
@@ -38,28 +39,38 @@ const FULFILMENT_FLOW = {
 
 export type OrderStatus = keyof typeof FULFILMENT_FLOW;
 
-/**
- * Which transitions an order may take. A cash-on-delivery order stays
- * `pending` (nothing is paid until the courier collects), so once staff have
- * released it from the risk hold it may be packed; before that, only
- * cancelled. Without this a COD order could never be dispatched.
- */
-function nextStatuses(order: {
+type TransitionInput = {
   status: string;
   paymentProvider?: string | null;
+  paymentStatus?: string;
   fraudStatus?: string;
-}): readonly string[] {
-  if (order.status === 'pending' && order.paymentProvider === 'cod' && order.fraudStatus === 'approved')
-    return ['fulfilled', 'cancelled'];
-  return FULFILMENT_FLOW[order.status as OrderStatus] ?? [];
+  attentionReason?: string | null;
+  codConfirmedAt?: Date | null;
+};
+
+/**
+ * Which transitions an order may take. A cash-on-delivery order stays
+ * `pending` (nothing is paid until the courier collects), so it may go to
+ * packing from there. Packing itself is offered only when `packingHold` has
+ * nothing against it: the same rule the stockroom and courier booking use.
+ */
+function nextStatuses(order: TransitionInput): readonly string[] {
+  const base: readonly string[] =
+    order.status === 'pending' && order.paymentProvider === 'cod'
+      ? ['fulfilled', 'cancelled']
+      : (FULFILMENT_FLOW[order.status as OrderStatus] ?? []);
+  const hold = packingHold({
+    paymentProvider: order.paymentProvider ?? null,
+    paymentStatus: order.paymentStatus ?? (order.status === 'paid' ? 'paid' : 'unpaid'),
+    fraudStatus: order.fraudStatus ?? 'approved',
+    attentionReason: order.attentionReason ?? null,
+    codConfirmedAt: order.codConfirmedAt ?? null,
+  });
+  return hold ? base.filter((s) => s !== 'fulfilled') : base;
 }
 
 /** Which transitions the UI should offer for an order in this state. */
-export async function allowedNextStatuses(order: {
-  status: string;
-  paymentProvider?: string | null;
-  fraudStatus?: string;
-}): Promise<readonly string[]> {
+export async function allowedNextStatuses(order: TransitionInput): Promise<readonly string[]> {
   return nextStatuses(order);
 }
 
@@ -90,7 +101,10 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
       id: orders.id,
       status: orders.status,
       paymentProvider: orders.paymentProvider,
+      paymentStatus: orders.paymentStatus,
       fraudStatus: orders.fraudStatus,
+      attentionReason: orders.attentionReason,
+      codConfirmedAt: orders.codConfirmedAt,
     })
     .from(orders)
     .where(eq(orders.orderNumber, orderNumber))
@@ -128,6 +142,7 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
     revalidatePath(`/admin/orders/${orderNumber}`);
     return;
   }
+  if (next === 'delivered') await recordDelivered(order.id);
 
   const actor = await getStaffSession();
   await recordAudit({
@@ -148,63 +163,6 @@ export async function updateOrderStatus(formData: FormData): Promise<void> {
 
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${orderNumber}`);
-}
-
-/**
- * Sets the stock count for one product and size.
- *
- * An absolute value, not a delta. An operator counting a shelf knows how many
- * are there, not how many have changed since a number they never saw; a delta
- * form also double-applies if the page is submitted twice.
- */
-export async function setStock(formData: FormData): Promise<void> {
-  if (!isDatabaseConfigured()) return;
-  if (!(await isAdmin())) return;
-
-  /*
-   * The owner is not the person holding the box.
-   *
-   * Stock counts belong to whoever is standing at the shelf, and a number the
-   * owner types from memory overwrites what the manager actually counted. The
-   * ability is kept — the manager is sometimes off sick — but the form must
-   * send an explicit confirmation, which the interface only produces after
-   * asking a second time.
-   */
-  if (formData.get('confirmed') !== 'yes') return;
-
-  const productId = String(formData.get('productId') ?? '');
-  const size = String(formData.get('size') ?? '');
-  const raw = String(formData.get('quantity') ?? '');
-
-  if (!productId || !size) return;
-
-  const quantity = Number(raw);
-  if (!Number.isInteger(quantity) || quantity < 0 || quantity > 1_000_000) return;
-
-  // The count the owner was looking at. Empty means the SKU had no row yet.
-  const expectedRaw = String(formData.get('expectedQuantity') ?? '');
-  const expectedQuantity = expectedRaw === '' ? null : Number(expectedRaw);
-
-  const session = await getStaffSession();
-  const result = await setStockCommand(
-    { productId, size, quantity, expectedQuantity },
-    session ? { id: session.username, role: session.role } : null
-  );
-
-  if (!result.ok) {
-    /*
-     * The count moved under the owner. Sending them back with a marker lets
-     * the page say which SKU and why, instead of the save silently doing
-     * nothing or silently overwriting a sale.
-     */
-    redirect(`/admin/inventory?stale=${encodeURIComponent(`${productId}::${size}`)}`);
-  }
-
-  revalidatePath('/admin/inventory');
-  revalidatePath('/admin');
-  // The shop shows this count too. Without this the storefront kept selling
-  // goods the shelf no longer had, for up to a minute.
-  await revalidateProduct(productId);
 }
 
 /** Turns backorder on or off for a SKU. */
@@ -481,7 +439,7 @@ export async function moderateReviewAction(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '');
   const raw = formData.get('decision');
   // Only an explicit decision acts: a missing or unknown value must never fall through to deleting a review.
-  if (raw !== 'publish' && raw !== 'reject') return;
+  if (raw !== 'publish' && raw !== 'hide' && raw !== 'reject') return;
   const decision = raw;
   const { moderateReview } = await import('@/modules/reviews/reviews');
   if (await moderateReview(db, id, decision)) {
@@ -494,5 +452,7 @@ export async function moderateReviewAction(formData: FormData): Promise<void> {
       after: { published: decision === 'publish' },
     });
   }
-  revalidatePath('/admin/requests');
+  revalidatePath('/admin/reviews');
+  // The product pages show published reviews.
+  revalidatePath('/products/[slug]', 'page');
 }

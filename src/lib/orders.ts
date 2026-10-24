@@ -1,20 +1,25 @@
 import { after } from 'next/server';
 import { z } from 'zod';
 import { reportError } from '@/lib/observability';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { db } from '@/db';
-import { orders, orderItems, addresses } from '@/db/schema';
+import { orders, orderItems, addresses, catalogProducts, offers } from '@/db/schema';
 import { getProductById, getVariant } from '@/lib/catalogue';
 import { pricingMap } from '@/lib/pricing';
 import { skuKey, skuPrice } from '@/modules/catalog/sku-price';
 import { calculateTotals, formatPaise, generateOrderNumber } from '@/lib/money';
-import { releaseStock, reserveStock } from '@/lib/inventory';
+import { recordAllocations, releaseOrderStock, reserveStock } from '@/lib/inventory';
+import { MAX_QUANTITY_PER_SKU } from '@/lib/cart';
+import { checkServiceability } from '@/modules/shipping/shiprocket';
+import { COD_MAX_PAISE } from '@/modules/shipping/cod-policy';
+import { quoteBag } from '@/modules/offers/store';
+import { normaliseCode } from '@/modules/offers/engine';
 import { recordEvent } from '@/lib/activity';
 import { emitEvent } from '@/lib/events';
 import { applyPaymentSignal } from '@/modules/payments/payment-service';
 import { currentRequestId } from '@/infrastructure/request-context';
 import { runBackgroundQuietly } from '@/lib/background';
-import { SAMPLE_ORDER_MESSAGE, sampleOrdersBlocked } from '@/lib/catalogue-mode';
+import { CATALOGUE_MODE, IS_PREVIEW, SAMPLE_ORDER_MESSAGE, sampleOrdersBlocked } from '@/lib/catalogue-mode';
 import { guestPhoneCheckRequired, phoneProofValid } from '@/lib/checkout-phone';
 
 /**
@@ -58,12 +63,21 @@ export const checkoutSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(200).optional(),
   /** Guest checkout: proof the delivery number was verified by SMS (lib/checkout-phone.ts). */
   phoneProof: z.string().max(1000).optional(),
+  /** A coupon code the customer typed, if any. */
+  offerCode: z.string().trim().max(40).optional(),
+  /**
+   * The discount the checkout page showed, in paise. When present and no
+   * longer what the offer gives (it ended, or hit its limit), the order is
+   * refused like a price change rather than charging an unseen amount.
+   */
+  expectedDiscountPaise: z.number().int().min(0).optional(),
   items: z
     .array(
       z.object({
         productId: z.string().min(1).max(100),
         size: z.string().min(1).max(40),
-        quantity: z.number().int().min(1).max(20),
+        // The bag's per-SKU cap, enforced here too: a direct call could otherwise order any amount.
+        quantity: z.number().int().min(1).max(MAX_QUANTITY_PER_SKU),
         /**
          * The unit price, in paise, the customer was shown for this line.
          * Optional for older clients. When present and no longer current, the
@@ -75,7 +89,11 @@ export const checkoutSchema = z.object({
     )
     .min(1, 'Your bag is empty')
     // A bag holds at most one line per SKU; 50 is far above the catalogue's 30.
-    .max(50, 'Too many items in one order'),
+    .max(50, 'Too many items in one order')
+    .refine(
+      (items) => new Set(items.map((i) => `${i.productId}|${i.size}`)).size === items.length,
+      'Each product and size can appear only once in an order'
+    ),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
@@ -119,15 +137,26 @@ function isDuplicateOrderKey(err: unknown): boolean {
   return false;
 }
 
-/** The order already placed under this key, if there is one. */
-export async function findByIdempotencyKey(key: string): Promise<CreateOrderResult | null> {
+/**
+ * The order already placed under this key, if there is one, and only for the
+ * same email. A replay answers with the order number (and the caller issues an
+ * access token for it), so a key alone must never unlock someone else's order.
+ */
+export async function findByIdempotencyKey(key: string, email: string): Promise<CreateOrderResult | null> {
   const [existing] = await db
-    .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total })
+    .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total, email: orders.email })
     .from(orders)
     .where(eq(orders.idempotencyKey, key))
     .limit(1);
 
-  if (!existing) return null;
+  if (
+    !existing ||
+    existing.email.trim().toLowerCase() !==
+      String(email ?? '')
+        .trim()
+        .toLowerCase()
+  )
+    return null;
 
   return {
     ok: true,
@@ -138,6 +167,13 @@ export async function findByIdempotencyKey(key: string): Promise<CreateOrderResu
 }
 
 /** Thrown inside the order transaction to roll it back when stock runs out. */
+/** The order's offer reached its use limit while this order was being placed. */
+class OfferUsedUpError extends Error {
+  constructor(readonly detail: string) {
+    super(detail);
+  }
+}
+
 class OutOfStockError extends Error {
   constructor(readonly detail: string) {
     super(detail);
@@ -150,6 +186,16 @@ class OutOfStockError extends Error {
  * The insert of the order and its lines runs in a transaction so a failure
  * partway cannot leave an order with missing items.
  */
+/** Of these products, the ones that may be sold right now by their status in the database. */
+async function sellableProductIds(ids: string[]): Promise<Set<string>> {
+  const allowed = IS_PREVIEW ? ['live', 'draft'] : ['live'];
+  const rows = await db
+    .select({ id: catalogProducts.id })
+    .from(catalogProducts)
+    .where(and(inArray(catalogProducts.id, ids), inArray(catalogProducts.status, allowed)));
+  return new Set(rows.map((r) => r.id));
+}
+
 export async function createOrder(input: CheckoutInput, userId?: string | null): Promise<CreateOrderResult> {
   // Sample inventory is never sold as real stock (lib/catalogue-mode.ts).
   if (sampleOrdersBlocked()) return { ok: false, error: SAMPLE_ORDER_MESSAGE };
@@ -175,7 +221,7 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
    * actually decides, and the duplicate is caught when it fails to insert.
    */
   if (data.idempotencyKey) {
-    const existing = await findByIdempotencyKey(data.idempotencyKey);
+    const existing = await findByIdempotencyKey(data.idempotencyKey, data.email);
     if (existing) return existing;
   }
 
@@ -198,13 +244,23 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     unitPrice: number;
     quantity: number;
     lineTotal: number;
+    /** This line's share of the order discount (set once the offer is known). */
+    discount: number;
     pricingSnapshot: Record<string, unknown>;
   }[] = [];
 
+  /*
+   * The product list is compiled into the site at publish time, so a product
+   * the owner has since hidden (a recall, a wrong price) would stay buyable
+   * until the next publish. With an owner-managed catalogue its status is
+   * read now: live products sell, drafts only while a preview is shown.
+   */
+  const sellable = CATALOGUE_MODE === 'managed' ? await sellableProductIds(data.items.map((i) => i.productId)) : null;
+
   for (const item of data.items) {
     const product = getProductById(item.productId);
-    if (!product) {
-      return { ok: false, error: `That product is no longer available: ${item.productId}` };
+    if (!product || (sellable && !sellable.has(item.productId))) {
+      return { ok: false, error: `That product is no longer available: ${product?.name ?? item.productId}` };
     }
 
     /*
@@ -238,6 +294,7 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
       unitPrice,
       quantity: item.quantity,
       lineTotal: unitPrice * item.quantity,
+      discount: 0,
       /*
        * Why this line cost what it did, frozen now. Read only by people
        * explaining a past order; checkout's authority is the price above,
@@ -286,7 +343,56 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     };
   }
 
-  const totals = calculateTotals(lines.map((l) => ({ unitPrice: l.unitPrice / 100, quantity: l.quantity })));
+  /*
+   * The best offer for this bag, from the prices just resolved and the cost
+   * prices in the database, capped at the profit floor (modules/offers).
+   */
+  const quote = await quoteBag(
+    db as never,
+    lines.map((l) => ({ productId: l.productId, size: l.size, unitPrice: l.unitPrice, quantity: l.quantity })),
+    { code: data.offerCode, email: data.email, userId }
+  );
+  const applied = quote.applied;
+  if (data.offerCode && quote.codeProblem && applied?.couponCode !== normaliseCode(data.offerCode)) {
+    // A typed code that does nothing is reported, unless a better offer already covers the bag.
+    if (!applied) return { ok: false, code: 'price_changed', error: quote.codeProblem };
+  }
+  const discount = applied?.itemDiscount ?? 0;
+  // Each line's share, so a partial refund or a per-line tax invoice uses what was actually paid for it.
+  applied?.lineDiscounts.forEach((share, i) => {
+    lines[i].discount = share;
+  });
+  if (data.expectedDiscountPaise !== undefined && data.expectedDiscountPaise !== discount) {
+    return {
+      ok: false,
+      code: 'price_changed',
+      error: `Your discount changed from ${formatPaise(data.expectedDiscountPaise)} to ${formatPaise(
+        discount
+      )}. Review your updated total, then place your order again.`,
+    };
+  }
+
+  const totals = calculateTotals(
+    lines.map((l) => ({ unitPrice: l.unitPrice / 100, quantity: l.quantity })),
+    discount,
+    { freeDelivery: applied?.freeDelivery }
+  );
+
+  if (data.paymentMethod === 'cod' && totals.total > COD_MAX_PAISE) {
+    return {
+      ok: false,
+      error: `Cash on delivery is available on orders up to ${formatPaise(COD_MAX_PAISE)}. Please pay online for this one.`,
+    };
+  }
+  // Checked before stock is touched. Unknown (Shiprocket not set up or slow) lets the order through.
+  const pin = data.address.postalCode.trim();
+  const service = await checkServiceability(pin);
+  if (service && !service.deliverable) {
+    return { ok: false, error: `Our couriers do not deliver to PIN code ${pin} yet. Please use another address.` };
+  }
+  if (service && data.paymentMethod === 'cod' && !service.cod) {
+    return { ok: false, error: `Cash on delivery is not available at PIN code ${pin}. Please pay online.` };
+  }
 
   const orderNumber = generateOrderNumber();
   const requestId = await currentRequestId();
@@ -312,6 +418,30 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
         );
       }
 
+      /*
+       * An offer with a use limit is counted here, under a lock on its row,
+       * so simultaneous checkouts queue and the last use goes to one order
+       * only. The quote above counted without a lock and can be one behind.
+       */
+      if (applied) {
+        const [offer] = await tx
+          .select({ maxUses: offers.maxUses })
+          .from(offers)
+          .where(eq(offers.id, applied.offerId))
+          .for('update');
+        if (offer?.maxUses != null) {
+          const [{ used }] = await tx
+            .select({ used: count() })
+            .from(orders)
+            .where(and(eq(orders.offerId, applied.offerId), ne(orders.status, 'cancelled')));
+          if (Number(used) >= offer.maxUses) {
+            throw new OfferUsedUpError(
+              `${applied.name} has just been used up. Review your updated total, then place your order again.`
+            );
+          }
+        }
+      }
+
       const [address] = await tx
         .insert(addresses)
         .values({ ...data.address, line2: data.address.line2 || null, userId: userId ?? null })
@@ -330,6 +460,8 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
           paymentStatus: 'unpaid',
           subtotal: totals.subtotal,
           discount: totals.discount,
+          offerId: applied?.offerId ?? null,
+          offerCode: applied?.couponCode ?? null,
           shipping: totals.shipping,
           tax: totals.tax,
           total: totals.total,
@@ -349,6 +481,7 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
       createdOrderId = order.id;
 
       await tx.insert(orderItems).values(lines.map((l) => ({ ...l, orderId: order.id })));
+      await recordAllocations(tx as never, order.id, reservation.allocations);
 
       /*
        * The order and the fact that it happened commit together.
@@ -406,6 +539,9 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     if (err instanceof OutOfStockError) {
       return { ok: false, error: err.detail };
     }
+    if (err instanceof OfferUsedUpError) {
+      return { ok: false, code: 'price_changed', error: err.detail };
+    }
 
     /*
      * Lost the race to an identical request. The transaction rolled back —
@@ -413,7 +549,7 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
      * and returning it is exactly what the customer expects to see.
      */
     if (isDuplicateOrderKey(err) && data.idempotencyKey) {
-      const existing = await findByIdempotencyKey(data.idempotencyKey);
+      const existing = await findByIdempotencyKey(data.idempotencyKey, data.email);
       if (existing) return existing;
     }
     reportError(err, { scope: 'orders.createOrder', correlationId: orderNumber });
@@ -567,14 +703,10 @@ export async function restoreOrderStock(orderId: string): Promise<boolean> {
     // Someone else already restored this order's stock.
     if (claimed.length === 0) return false;
 
-    const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    const items = await tx.select({ id: orderItems.id }).from(orderItems).where(eq(orderItems.orderId, orderId));
     if (items.length === 0) return false;
 
-    await releaseStock(
-      items.map((i) => ({ productId: i.productId, size: i.size, quantity: i.quantity })),
-      tx as never
-    );
-
+    await releaseOrderStock(tx as never, orderId);
     return true;
   });
 }

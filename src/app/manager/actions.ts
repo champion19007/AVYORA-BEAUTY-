@@ -4,13 +4,19 @@ import { revalidatePath } from 'next/cache';
 import { revalidateProduct } from '@/lib/storefront-cache';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db, isDatabaseConfigured } from '@/db';
 import { orders, inventory, restockRequests } from '@/db/schema';
 import { SESSION_COOKIE } from '@/lib/auth';
 import { getStaffSession } from '@/lib/staff-auth';
 import { recordEvent } from '@/lib/activity';
-import { adjustStock as adjustStockCommand } from '@/modules/inventory/stock-commands';
+import {
+  adjustBatch as adjustBatchCommand,
+  receiveStock as receiveStockCommand,
+} from '@/modules/inventory/stock-commands';
+import { bookCourier, recordDelivered } from '@/modules/shipping/shipments';
+import { packingHold } from '@/modules/shipping/cod-policy';
+import { recordAudit } from '@/modules/audit/audit';
 
 /**
  * Dispatch and stock actions for the inventory manager.
@@ -72,11 +78,7 @@ export async function advanceDispatch(formData: FormData): Promise<void> {
   const next = String(formData.get('status') ?? '');
   if (!orderNumber || !next) return;
 
-  const [order] = await db
-    .select({ id: orders.id, status: orders.status })
-    .from(orders)
-    .where(eq(orders.orderNumber, orderNumber))
-    .limit(1);
+  const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
 
   if (!order) return;
 
@@ -84,11 +86,16 @@ export async function advanceDispatch(formData: FormData): Promise<void> {
   // be able to skip an order straight to delivered.
   const allowed = DISPATCH_FLOW[order.status as DispatchStatus] ?? [];
   if (!allowed.includes(next as never)) return;
+  // A held order is not packed, whatever the page showed when it loaded.
+  if (next === 'fulfilled' && packingHold(order)) return;
 
   await db
     .update(orders)
     .set({ status: next as typeof orders.$inferInsert.status, updatedAt: new Date() })
     .where(eq(orders.id, order.id));
+
+  // Delivered by hand (no courier booking): cash on delivery was collected at the door.
+  if (next === 'delivered') await recordDelivered(order.id);
 
   await recordEvent({
     name: 'admin.order_status_changed',
@@ -101,35 +108,102 @@ export async function advanceDispatch(formData: FormData): Promise<void> {
 }
 
 /**
- * Adds to or removes from a stock count.
+ * Staff rang a cash-on-delivery customer, who still wants the order.
  *
- * A delta, not an absolute — the opposite of the owner's screen, and
- * deliberately so. The manager is standing at the shelf putting twelve units
- * away or taking three out; "+12" is what actually happened, and asking them
- * to compute the new total is how a miscount enters the system.
- *
- * The database does the arithmetic (`quantity + delta`) rather than the
- * application reading and writing back, so two people counting at once cannot
- * overwrite each other's change.
+ * The phone call is the fallback for a customer who never tapped the link in
+ * their email; either way packing waits for a yes from the person paying.
  */
-export async function adjustStock(formData: FormData): Promise<void> {
+export async function confirmCodByPhone(formData: FormData): Promise<void> {
+  const session = await requireManager();
+  if (!session) return;
+  const orderNumber = String(formData.get('orderNumber') ?? '');
+  const confirmed = await db
+    .update(orders)
+    .set({ codConfirmedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(orders.orderNumber, orderNumber), eq(orders.paymentProvider, 'cod'), isNull(orders.codConfirmedAt)))
+    .returning({ id: orders.id });
+  if (confirmed.length > 0) {
+    await recordAudit({
+      actor: session.username,
+      actorRole: session.role,
+      action: 'order.cod_confirmed',
+      entityType: 'order',
+      entityId: orderNumber,
+      before: null,
+      after: { by: 'phone' },
+    }).catch(() => {});
+  }
+  revalidatePath('/manager');
+  revalidatePath(`/admin/orders/${orderNumber}`);
+}
+
+/** Pages that render the batch forms; the only places a stock action may send someone back to. */
+const STOCK_PAGES = ['/manager/stock', '/admin/inventory'] as const;
+
+function backTo(formData: FormData, error?: string): never {
+  const raw = String(formData.get('back') ?? '');
+  const page = (STOCK_PAGES as readonly string[]).includes(raw) ? raw : STOCK_PAGES[0];
+  redirect(error ? `${page}?error=${encodeURIComponent(error)}` : page);
+}
+
+async function afterStockChange(productId: string) {
+  for (const page of STOCK_PAGES) revalidatePath(page);
+  // The shelf just changed, and the shop shows the shelf.
+  await revalidateProduct(productId);
+}
+
+/**
+ * Records a delivery: a batch, its expiry, how many.
+ *
+ * Errors go back to the page as a message rather than failing silently: a
+ * delivery the stockroom thinks they entered, and did not, is stock nobody
+ * can sell.
+ */
+export async function receiveStockAction(formData: FormData): Promise<void> {
   const session = await requireManager();
   if (!session) return;
 
   const productId = String(formData.get('productId') ?? '');
-  const size = String(formData.get('size') ?? '');
-  const delta = Number(String(formData.get('delta') ?? ''));
+  const result = await receiveStockCommand(
+    {
+      productId,
+      size: String(formData.get('size') ?? ''),
+      batchCode: String(formData.get('batchCode') ?? ''),
+      expiresOn: String(formData.get('expiresOn') ?? ''),
+      quantity: Number(String(formData.get('quantity') ?? '')),
+    },
+    { id: session.username, role: session.role }
+  );
+  if (!result.ok) backTo(formData, result.message);
 
-  if (!productId || !size) return;
-  if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100_000) return;
+  await afterStockChange(productId);
+  backTo(formData);
+}
 
-  const result = await adjustStockCommand({ productId, size, delta }, { id: session.username, role: session.role });
-  if (!result.ok) return;
+/**
+ * Adds to or removes from one batch: "-3, damaged", "+2, found behind the box".
+ *
+ * A delta, not an absolute. The person at the shelf knows what happened, not
+ * the new total, and the database does the arithmetic so two people at once
+ * cannot overwrite each other.
+ */
+export async function adjustBatchAction(formData: FormData): Promise<void> {
+  const session = await requireManager();
+  if (!session) return;
 
-  revalidatePath('/manager/stock');
-  revalidatePath('/admin/inventory');
-  // The shelf just changed, and the shop shows the shelf.
-  await revalidateProduct(productId);
+  const reason = String(formData.get('reason') ?? '').trim();
+  const result = await adjustBatchCommand(
+    {
+      lotId: Number(String(formData.get('lotId') ?? '')),
+      delta: Number(String(formData.get('delta') ?? '')),
+      reason: reason || undefined,
+    },
+    { id: session.username, role: session.role }
+  );
+  if (!result.ok) backTo(formData, result.message);
+
+  await afterStockChange(String(formData.get('productId') ?? ''));
+  backTo(formData);
 }
 
 /**
@@ -199,4 +273,18 @@ export async function managerSignOut(): Promise<void> {
   // Both roles share one sign-in page; it keeps its original path so existing
   // links and the middleware redirect target stay valid.
   redirect('/admin-login');
+}
+
+export type CourierFormState = { error?: string; awb?: string };
+
+/** Books a Shiprocket courier for a packed order. From then on the courier's updates move the order. */
+export async function bookCourierAction(_prev: CourierFormState, formData: FormData): Promise<CourierFormState> {
+  const session = await requireManager();
+  if (!session) return { error: 'Your staff session has ended. Sign in again.' };
+  const orderNumber = String(formData.get('orderNumber') ?? '');
+  if (!orderNumber) return { error: 'Missing order.' };
+  const result = await bookCourier(orderNumber, session);
+  revalidatePath('/manager');
+  revalidatePath(`/admin/orders/${orderNumber}`);
+  return result.ok ? { awb: result.awb } : { error: result.error };
 }

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
+    "prebuild": "tsx scripts/export-catalogue.ts && tsx scripts/sync-knowledge.ts",
     "build": "next build",
     "build:offline": "node scripts/build-offline.mjs",
     "start": "next start",
@@ -26,9 +27,12 @@
     "check:launch": "tsx scripts/check-launch.ts",
     "test:stress": "vitest run --config vitest.stress.config.ts",
     "load-test": "node scripts/load-test.mjs",
-    "catalogue:validate": "tsx scripts/catalogue-validate.ts"
+    "catalogue:validate": "tsx scripts/catalogue-validate.ts",
+    "catalogue:export": "tsx scripts/export-catalogue.ts",
+    "catalogue:sync-knowledge": "tsx scripts/sync-knowledge.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@auth/drizzle-adapter": "^1.11.3",
     "@hookform/resolvers": "^4.1.3",
     "@radix-ui/react-accordion": "^1.2.3",
@@ -52,7 +56,7 @@
     "@radix-ui/react-tabs": "^1.1.3",
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.1.8",
-    "@sentry/nextjs": "^10.72.0",
+    "@sentry/nextjs": "^10.76.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
@@ -60,7 +64,7 @@
     "drizzle-orm": "^0.45.2",
     "embla-carousel-react": "^8.6.0",
     "lucide-react": "^0.475.0",
-    "next": "^15.5.24",
+    "next": "^15.5.28",
     "next-auth": "^5.0.0-beta.32",
     "next-themes": "^0.3.0",
     "nodemailer": "^10.1.0",
@@ -71,7 +75,7 @@
     "react-hook-form": "^7.54.2",
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
-    "zod": "^3.24.2"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

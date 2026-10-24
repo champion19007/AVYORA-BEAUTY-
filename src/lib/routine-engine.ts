@@ -9,7 +9,7 @@ import type {
   OmittedTreatment,
   TriState,
 } from './routine-types';
-import { SLOTS, SlotName, productForSlot, assertSlotsResolve } from './routine-slots';
+import { SlotName, productForSlot, assertSlotsResolve } from './routine-slots';
 import { getProductById } from './catalogue';
 import { APPROVED_DIRECTIONS, TREATMENTS, type ProductDirections } from '@/data/product-directions';
 import { EVIDENCE_SOURCES, FORMULATIONS } from '@/data/formulations';
@@ -189,12 +189,14 @@ function matchesConcern(p: SkinProfile, needles: string[]): boolean {
 /** Treatments that match what the customer asked about, in priority order. */
 function treatmentCandidates(p: SkinProfile): Candidate[] {
   const out: Candidate[] = [];
-  if (matchesConcern(p, ['aging', 'fine line', 'texture', 'rough']))
-    out.push({ productId: SLOTS.retinol, session: 'pm' });
-  if (matchesConcern(p, ['dark spot', 'pigment', 'dull', 'uneven', 'tanning'])) {
-    out.push({ productId: SLOTS.vitaminC, session: 'am' });
-  }
-  if (matchesConcern(p, ['acne', 'breakout', 'oil', 'pore'])) out.push({ productId: SLOTS.niacinamide, session: 'am' });
+  // Only treatments actually on sale; a slot nothing fills offers nothing.
+  const add = (slot: SlotName, session: 'am' | 'pm') => {
+    const id = productForSlot(slot)?.id;
+    if (id) out.push({ productId: id, session });
+  };
+  if (matchesConcern(p, ['aging', 'fine line', 'texture', 'rough'])) add('retinol', 'pm');
+  if (matchesConcern(p, ['dark spot', 'pigment', 'dull', 'uneven', 'tanning'])) add('vitaminC', 'am');
+  if (matchesConcern(p, ['acne', 'breakout', 'oil', 'pore'])) add('niacinamide', 'am');
   return out;
 }
 
@@ -252,16 +254,18 @@ function slotStep(
   extra: Partial<RoutineStep> = {}
 ): RoutineStep {
   const product = productForSlot(slot);
+  // Nothing on sale fills the slot: the step stays (a routine still needs a
+  // cleanser), without a product, so the customer uses one they own.
   return {
     order: 0,
     category,
     label: slotName.toUpperCase(),
     slotName,
-    productId: SLOTS[slot],
+    productId: product?.id,
     productName: product?.name,
     productSize: product?.sizes[0]?.label,
     explanation,
-    isAvyoraProduct: true,
+    isAvyoraProduct: Boolean(product),
     ...extra,
   };
 }
@@ -385,8 +389,9 @@ function buildOptional(
     optional.push(slotStep('eye', 'Eye patches (optional)', 'eyePatches', 'Optional, for the under-eye area.', opt));
   }
 
-  if (matchesConcern(p, ['texture', 'rough', 'acne', 'breakout'])) {
-    const exfoliant = SLOTS[p.skinType === 'oily' ? 'exfoliantOily' : 'exfoliantGentle'];
+  // Only when an exfoliant is on sale; otherwise there is nothing to offer or omit.
+  const exfoliant = productForSlot(p.skinType === 'oily' ? 'exfoliantOily' : 'exfoliantGentle')?.id;
+  if (exfoliant && matchesConcern(p, ['texture', 'rough', 'acne', 'breakout'])) {
     const retinoidInPlan = chosen.some((c) => TREATMENTS[c.productId]?.class === 'retinoid');
     const reason =
       exclusion(p, exfoliant, null, beginner, knowledge) ??
@@ -414,12 +419,15 @@ function buildOptional(
     }
   }
 
-  return numbered(optional);
+  // An optional extra is only worth showing with something to buy.
+  return numbered(optional.filter((step) => step.productId));
 }
 
 function buildBodyRoutine(p: SkinProfile): RoutineStep[] {
   if (!p.bodyCare) return [];
-  return numbered([slotStep('body', 'Body care', 'bodyLotion', 'Body moisturiser, after bathing.')]);
+  return numbered(
+    [slotStep('body', 'Body care', 'bodyLotion', 'Body moisturiser, after bathing.')].filter((s) => s.productId)
+  );
 }
 
 /** De-duplicated purchase list; an essential occurrence wins over an optional one. */

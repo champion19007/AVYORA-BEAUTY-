@@ -1,20 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Package,
-  Boxes,
-  LogOut,
-  Tag,
-  LineChart,
-  PackagePlus,
-  FileText,
-  BookOpen,
-  Activity,
-  ClipboardCheck,
-} from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { isAdmin } from '@/lib/admin-guard';
+import { ConsoleNav, type NavGroup } from '@/components/admin/console-nav';
 import { adminSignOut } from './actions';
 
 export const metadata: Metadata = {
@@ -25,6 +14,43 @@ export const metadata: Metadata = {
 
 /** Operator data is per-request and must never be cached or prerendered. */
 export const dynamic = 'force-dynamic';
+
+/** Grouped by the job the owner came to do, not by when each page was built. */
+const GROUPS: NavGroup[] = [
+  { title: 'Today', items: [{ href: '/admin', label: 'Overview' }] },
+  {
+    title: 'Sell',
+    items: [
+      { href: '/admin/orders', label: 'Orders' },
+      { href: '/admin/returns', label: 'Returns & refunds' },
+      { href: '/admin/offers', label: 'Offers' },
+      { href: '/admin/reviews', label: 'Reviews' },
+    ],
+  },
+  {
+    title: 'Products',
+    items: [
+      { href: '/admin/products', label: 'Products' },
+      { href: '/admin/inventory', label: 'Stock' },
+    ],
+  },
+  { title: 'Customers', items: [{ href: '/admin/requests', label: 'Requests' }] },
+  {
+    title: 'Content',
+    items: [
+      { href: '/admin/content', label: 'Pages & journal' },
+      { href: '/admin/knowledge', label: 'Ingredient knowledge' },
+    ],
+  },
+  { title: 'Reports', items: [{ href: '/admin/analytics', label: 'Analytics' }] },
+  {
+    title: 'Settings',
+    items: [
+      { href: '/admin/system', label: 'System health' },
+      { href: '/manager', label: 'Stockroom' },
+    ],
+  },
+];
 
 /**
  * The operations shell.
@@ -37,57 +63,28 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!(await isAdmin())) redirect('/admin-login?next=/admin');
 
   return (
-    <div className="min-h-screen bg-muted/20">
+    <div className="min-h-screen w-full bg-muted/20">
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4">
-          <span className="font-headline text-xl font-normal tracking-tight">Operations</span>
-
-          <nav className="flex items-center gap-1" aria-label="Operations">
-            <NavLink href="/admin" icon={<LayoutDashboard className="h-4 w-4" />} label="Overview" />
-            <NavLink href="/admin/orders" icon={<Package className="h-4 w-4" />} label="Orders" />
-            <NavLink href="/admin/inventory" icon={<Boxes className="h-4 w-4" />} label="Inventory" />
-            <NavLink href="/admin/pricing" icon={<Tag className="h-4 w-4" />} label="Pricing" />
-            <NavLink href="/admin/content" icon={<FileText className="h-4 w-4" />} label="Content" />
-            <NavLink href="/admin/knowledge" icon={<BookOpen className="h-4 w-4" />} label="Knowledge" />
-            <NavLink href="/admin/catalogue" icon={<ClipboardCheck className="h-4 w-4" />} label="Onboarding" />
-            <NavLink href="/admin/analytics" icon={<LineChart className="h-4 w-4" />} label="Analytics" />
-            <NavLink href="/admin/requests" icon={<PackagePlus className="h-4 w-4" />} label="Requests" />
-            <NavLink href="/admin/system" icon={<Activity className="h-4 w-4" />} label="System" />
-          </nav>
-
-          {/* The owner can step into the stockroom to pack when needed. */}
-          <Link
-            href="/manager"
-            className="ml-auto text-[11px] font-semibold uppercase tracking-[0.16em] text-primary hover:opacity-70"
-          >
-            Stockroom
+        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+          <Link href="/admin" className="font-headline text-xl font-normal tracking-tight">
+            Avyora <span className="text-muted-foreground">Operations</span>
           </Link>
-
-          <form action={adminSignOut}>
+          <form action={adminSignOut} className="ml-auto">
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-primary"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-primary"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4" aria-hidden="true" />
               Sign out
             </button>
           </form>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:flex-row md:gap-10">
+        <ConsoleNav groups={GROUPS} />
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
     </div>
-  );
-}
-
-function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-    >
-      {icon}
-      {label}
-    </Link>
   );
 }

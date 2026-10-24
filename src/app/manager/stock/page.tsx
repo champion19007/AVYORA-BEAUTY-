@@ -1,27 +1,29 @@
 import type { Metadata } from 'next';
 import { AlertTriangle } from 'lucide-react';
 import { isDatabaseConfigured } from '@/db';
-import { listManagerStock } from '@/lib/manager-data';
+import { listBatches, listManagerStock } from '@/lib/manager-data';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { adjustStock, requestRestock } from '../actions';
+import { StockBatches, StockError } from '@/components/admin/stock-batches';
+import { requestRestock } from '../actions';
 
 export const metadata: Metadata = { title: 'Stock' };
 export const dynamic = 'force-dynamic';
 
 /**
- * The shelf.
+ * The shelf, batch by batch.
  *
- * Adjustments are deltas — "+12" or "-3" — because that is what actually
- * happened at the shelf. The owner's screen takes absolute counts instead;
- * asking the person holding the box to compute a new total is how a miscount
- * gets in.
+ * Deliveries are recorded with their batch number and expiry; corrections are
+ * deltas on one batch — "-3, damaged" — because that is what actually
+ * happened at the shelf, and asking the person holding the box to compute a
+ * new total is how a miscount gets in.
  *
  * Every catalogue SKU is listed, including ones never counted. From the
  * manager's side "we have never counted this" and "we have none" look
  * identical on the shelf, and both mean a customer cannot buy it.
  */
-export default async function ManagerStockPage() {
+export default async function ManagerStockPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   if (!isDatabaseConfigured()) {
     return (
       <p className="rounded-xl border border-border bg-card p-8 text-center text-[15px] text-muted-foreground">
@@ -30,25 +32,29 @@ export default async function ManagerStockPage() {
     );
   }
 
-  const rows = await listManagerStock();
+  const [rows, batches] = await Promise.all([listManagerStock(), listBatches()]);
   const out = rows.filter((r) => r.quantity <= 0).length;
 
   return (
     <div>
       <h1 className="font-headline text-3xl font-normal tracking-tight">Stock</h1>
       <p className="mt-1 text-[15px] text-muted-foreground">
-        Enter what you added or removed, not the new total.
+        Record each delivery with its batch number and expiry. Orders take the earliest expiry first.
         {out > 0 && ` ${out} item${out === 1 ? '' : 's'} at zero.`}
       </p>
 
+      <div className="mt-4">
+        <StockError error={error} />
+      </div>
+
       <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
-        <table className="w-full min-w-[860px] text-left text-[15px]">
+        <table className="w-full min-w-[980px] text-left text-[15px]">
           <thead className="border-b border-border text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
               <th className="p-4 font-semibold">Product</th>
               <th className="p-4 font-semibold">Size</th>
               <th className="p-4 font-semibold">On shelf</th>
-              <th className="p-4 font-semibold">Add / remove</th>
+              <th className="p-4 font-semibold">Batches</th>
               <th className="p-4 font-semibold">Need more</th>
             </tr>
           </thead>
@@ -77,25 +83,13 @@ export default async function ManagerStockPage() {
                   </td>
 
                   <td className="p-4">
-                    <form action={adjustStock} className="flex items-center gap-2">
-                      <input type="hidden" name="productId" value={row.productId} />
-                      <input type="hidden" name="size" value={row.size} />
-                      <Input
-                        name="delta"
-                        type="number"
-                        step={1}
-                        placeholder="+12 or -3"
-                        aria-label={`Adjust ${row.productName} ${row.size}`}
-                        className="h-10 w-28 rounded-md"
-                      />
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        className="h-10 rounded-md px-4 text-[11px] font-semibold uppercase tracking-[0.14em]"
-                      >
-                        Apply
-                      </Button>
-                    </form>
+                    <StockBatches
+                      productId={row.productId}
+                      productName={row.productName}
+                      size={row.size}
+                      batches={batches.get(`${row.productId}::${row.size}`) ?? []}
+                      back="/manager/stock"
+                    />
                   </td>
 
                   <td className="p-4">

@@ -9,6 +9,9 @@ import { getOrderByNumber } from '@/lib/orders';
 import { verifyOrderAccessToken } from '@/lib/order-access';
 import { formatPaise } from '@/lib/money';
 import { OrderTracker } from '@/components/order-tracker';
+import { trackingUrl } from '@/modules/shipping/shiprocket';
+import { OrderReturns } from './order-returns';
+import { confirmCodAction } from './actions';
 
 export const metadata: Metadata = {
   title: 'Order confirmed',
@@ -23,23 +26,23 @@ export default async function OrderPage({
   searchParams,
 }: {
   params: Promise<{ orderNumber: string }>;
-  searchParams: Promise<{ t?: string }>;
+  searchParams: Promise<{ t?: string; done?: string; error?: string }>;
 }) {
   const { orderNumber } = await params;
-  const { t } = await searchParams;
+  const { t, done, error } = await searchParams;
 
   if (!isDatabaseConfigured()) notFound();
 
   const order = await getOrderByNumber(orderNumber);
-  if (!order) notFound();
 
   // The order number alone is not authorisation: this page carries the
-  // customer's name, address and phone number.
+  // customer's name, address and phone number. A missing order gets the same
+  // "private" page, so the URL cannot be used to test which order numbers exist.
   const session = await auth().catch(() => null);
-  const ownsOrder = Boolean(session?.user?.id && order.userId === session.user.id);
+  const ownsOrder = Boolean(order && session?.user?.id && order.userId === session.user.id);
   const hasToken = await verifyOrderAccessToken(orderNumber, t);
 
-  if (!ownsOrder && !hasToken) {
+  if (!order || (!ownsOrder && !hasToken)) {
     return (
       <div className="container mx-auto max-w-lg px-4 py-24 text-center">
         <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -67,16 +70,32 @@ export default async function OrderPage({
     <div className="container mx-auto max-w-3xl px-4 py-16">
       <div className="text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-        <h1 className="mt-6 font-headline text-4xl font-normal tracking-tight md:text-5xl">Thank you</h1>
+        <h1 className="mt-6 font-headline text-4xl font-normal tracking-tight md:text-5xl">
+          {order.status === 'cancelled' ? 'Order cancelled' : 'Thank you'}
+        </h1>
         <p className="mt-4 text-muted-foreground">
-          Your order <span className="font-medium text-foreground">{order.orderNumber}</span> is confirmed. We have sent
-          the details to {order.email}.
+          Your order <span className="font-medium text-foreground">{order.orderNumber}</span>{' '}
+          {order.status === 'cancelled' ? 'is cancelled.' : `is confirmed. We have sent the details to ${order.email}.`}
         </p>
       </div>
 
       {/* Where the parcel is, in words a customer uses. */}
       <div className="mt-10">
         <OrderTracker status={order.status} />
+        {order.awb && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            With {((order.shipment ?? {}) as { courierName?: string }).courierName ?? 'the courier'}, tracking number{' '}
+            <a
+              href={trackingUrl(order.awb)}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-foreground underline underline-offset-2"
+            >
+              {order.awb}
+            </a>
+            .
+          </p>
+        )}
       </div>
 
       <div className="mt-6 rounded-xl border border-border bg-card p-6">
@@ -131,6 +150,27 @@ export default async function OrderPage({
           </address>
         </div>
       )}
+
+      {order.paymentProvider === 'cod' && order.status === 'pending' && !order.codConfirmedAt && (
+        <form
+          action={confirmCodAction}
+          className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/40 bg-primary/5 p-6"
+        >
+          <input type="hidden" name="orderNumber" value={order.orderNumber} />
+          {t && <input type="hidden" name="t" value={t} />}
+          <p className="text-sm">
+            <span className="block font-medium">Please confirm your cash on delivery order</span>
+            <span className="text-muted-foreground">
+              We pack it as soon as you confirm. Keep {formatPaise(order.total)} ready at delivery.
+            </span>
+          </p>
+          <Button type="submit" className="rounded-md px-8 py-5 text-xs font-semibold uppercase tracking-[0.2em]">
+            Confirm order
+          </Button>
+        </form>
+      )}
+
+      <OrderReturns order={order} token={t} done={done === '1'} error={error?.slice(0, 300)} />
 
       <div className="mt-10 flex flex-wrap justify-center gap-4">
         {/* Carries the access token through, so a guest keeps their access. */}

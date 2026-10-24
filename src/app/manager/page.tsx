@@ -2,7 +2,9 @@ import { isDatabaseConfigured } from '@/db';
 import { listDispatchQueue } from '@/lib/manager-data';
 import { orderProgress } from '@/lib/order-progress';
 import { Button } from '@/components/ui/button';
-import { advanceDispatch, dispatchActionLabel, nextDispatchSteps } from './actions';
+import { advanceDispatch, confirmCodByPhone, dispatchActionLabel, nextDispatchSteps } from './actions';
+import { BookCourier } from './book-courier';
+import { getShiprocketConfig, trackingUrl } from '@/modules/shipping/shiprocket';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,7 @@ export default async function DispatchPage() {
   }
 
   const queue = await listDispatchQueue();
+  const courierConnected = getShiprocketConfig() !== null;
 
   /*
    * Steps and button wording are resolved here, not inside the map.
@@ -73,8 +76,7 @@ export default async function DispatchPage() {
              * a fast picker would otherwise send a parcel the gate was about
              * to stop.
              */
-            const onHold =
-              order.fraudStatus === 'review' || order.fraudStatus === 'pending' || order.attentionReason !== null;
+            const onHold = order.hold !== null || order.attentionReason !== null;
 
             return (
               <li key={order.id} className="rounded-xl border border-border bg-card p-6">
@@ -100,7 +102,7 @@ export default async function DispatchPage() {
                   here stops the manager either holding a valid parcel or
                   shipping one that was abandoned at the payment step.
                 */}
-                {unpaid && (
+                {unpaid && (order.paymentProvider === 'cod' || !onHold) && (
                   <p
                     className={
                       order.paymentProvider === 'cod'
@@ -115,13 +117,20 @@ export default async function DispatchPage() {
                 )}
 
                 {onHold && (
-                  <p className="mt-3 text-[13px] font-medium text-red-600 dark:text-red-400">
-                    {order.attentionReason
-                      ? 'On hold — the owner needs to decide what happens to this order before it is packed.'
-                      : order.fraudStatus === 'review'
-                        ? 'On hold — this cash-on-delivery order failed an automatic check. Confirm with the customer before packing.'
-                        : 'Risk check still running. Wait a moment and refresh.'}
-                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <p className="text-[13px] font-medium text-red-600 dark:text-red-400">
+                      On hold —{' '}
+                      {order.attentionReason ? 'the owner needs to decide what happens to this order.' : order.hold}
+                    </p>
+                    {order.awaitingCodConfirmation && order.status === 'pending' && !order.attentionReason && (
+                      <form action={confirmCodByPhone}>
+                        <input type="hidden" name="orderNumber" value={order.orderNumber} />
+                        <Button type="submit" variant="outline" className="h-9 rounded-md px-4 text-[13px]">
+                          Customer confirmed by phone
+                        </Button>
+                      </form>
+                    )}
+                  </div>
                 )}
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -134,6 +143,17 @@ export default async function DispatchPage() {
                         <li key={i}>
                           <span className="font-medium tabular-nums">{item.quantity} ×</span> {item.name}
                           <span className="text-muted-foreground"> · {item.size}</span>
+                          {item.batches.length > 0 && (
+                            <span className="block text-[13px] text-muted-foreground">
+                              From batch{' '}
+                              {item.batches
+                                .map(
+                                  (b) =>
+                                    `${b.code}${item.batches.length > 1 ? ` ×${b.quantity}` : ''}${b.expiresOn ? ` (exp ${b.expiresOn})` : ''}`
+                                )
+                                .join(', ')}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -154,7 +174,48 @@ export default async function DispatchPage() {
                   </div>
                 </div>
 
-                {!onHold && actions.length > 0 && (
+                {order.courier && (
+                  <div className="mt-4 rounded-lg bg-muted/50 p-4 text-[14px] leading-relaxed">
+                    <p>
+                      <span className="font-medium">{order.courier.name}</span> · tracking{' '}
+                      <a
+                        href={trackingUrl(order.courier.awb)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono underline underline-offset-2"
+                      >
+                        {order.courier.awb}
+                      </a>
+                      {order.courier.status && <span className="text-muted-foreground"> · {order.courier.status}</span>}
+                    </p>
+                    {order.courier.labelUrl ? (
+                      <a
+                        href={order.courier.labelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block font-medium underline underline-offset-2"
+                      >
+                        Print the shipping label
+                      </a>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        Label not ready yet: download it from the Shiprocket panel.
+                      </p>
+                    )}
+                    <p className="mt-1 text-muted-foreground">
+                      Stick the label on the parcel and hand it over at pickup. The courier updates this order by
+                      itself.
+                    </p>
+                  </div>
+                )}
+
+                {!onHold && !order.courier && order.status === 'fulfilled' && courierConnected && (
+                  <div className="mt-5 border-t border-border pt-4">
+                    <BookCourier orderNumber={order.orderNumber} />
+                  </div>
+                )}
+
+                {!onHold && !order.courier && actions.length > 0 && (
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                     {actions.map(({ status, label }) => (
                       <form key={status} action={advanceDispatch}>

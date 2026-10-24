@@ -1,4 +1,4 @@
-import { CATALOGUE_MODE } from '@/lib/catalogue-mode';
+import { CATALOGUE_MODE, PUBLISHED_CATALOGUE } from '@/lib/catalogue-mode';
 import { VERIFIED_PRODUCTS } from './verified-products';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -41,6 +41,13 @@ export interface Product {
   concerns: string[];
   ingredients: string[];
   sizes: { label: string; price: number }[];
+  /* Set by the owner's product editor (modules/catalog/product-store.ts); absent on samples. */
+  howToUse?: string;
+  /** The full ingredient list (INCI), as printed on the pack. */
+  fullIngredients?: string;
+  skinTypes?: string[];
+  /** The routine-finder slot this product fills (lib/routine-slots.ts). */
+  routineSlot?: string;
 }
 
 const getImg = (id: string) => PlaceHolderImages.find((img) => img.id === id)?.imageUrl || '';
@@ -50,7 +57,7 @@ const getImg = (id: string) => PlaceHolderImages.find((img) => img.id === id)?.i
  * Names, prices, images and highlights are placeholders until real products
  * are onboarded through validated records (docs/product-onboarding.md).
  */
-const SAMPLE_PRODUCTS: Product[] = [
+export const SAMPLE_PRODUCTS: Product[] = [
   // PHASE 1: FOUNDATIONAL CLEANSING & PREP
   {
     id: 'rice-bran-cleansing-oil',
@@ -483,30 +490,48 @@ const SAMPLE_PRODUCTS: Product[] = [
 ];
 
 /**
- * The catalogue the site shows. `NEXT_PUBLIC_CATALOGUE_MODE=verified` shows
- * only products whose records passed onboarding (none yet, so the shop is
- * empty and says so); anything else shows the sample catalogue, labelled as
- * samples, with orders refused in production builds (lib/catalogue-mode.ts).
+ * The catalogue the site shows (lib/catalogue-mode.ts):
+ *  - `managed`: the products the owner published from the admin, written
+ *    into `catalogue.published.json` at build time. The normal case once the
+ *    shop is set up.
+ *  - `verified`: only products whose records passed onboarding.
+ *  - `sample`: the sample catalogue above, labelled as samples, with orders
+ *    refused in production builds.
  */
-export const PRODUCTS: Product[] = CATALOGUE_MODE === 'verified' ? [...VERIFIED_PRODUCTS] : SAMPLE_PRODUCTS;
+export const PRODUCTS: Product[] =
+  CATALOGUE_MODE === 'managed'
+    ? [...(PUBLISHED_CATALOGUE?.products ?? [])]
+    : CATALOGUE_MODE === 'verified'
+      ? [...VERIFIED_PRODUCTS]
+      : SAMPLE_PRODUCTS;
 
+/**
+ * Shop categories, named the way shoppers look for things. Every category the
+ * product editor offers (modules/catalog/product-store.ts) is here, so a
+ * product never falls outside the shop's filters.
+ */
 export const CATEGORIES = [
-  { id: 'cleanser', name: 'Phase 1: Cleansing & Prep', image: getImg('gel-cleanser'), hint: 'cleansing gel' },
-  { id: 'exfoliator', name: 'Phase 2: Exfoliation', image: getImg('pha-fluid'), hint: 'exfoliating fluid' },
-  { id: 'toner', name: 'Phase 3: Deep Hydration', image: getImg('ha-toner'), hint: 'hydrating toner' },
-  { id: 'essence', name: 'Phase 4: Repair Essences', image: getImg('galacto-essence'), hint: 'skin essence' },
-  { id: 'serum', name: 'Phase 5: Targeted Serums', image: getImg('niacinamide-drops'), hint: 'clinical serum' },
-  { id: 'mask', name: 'Phase 6: Treatments', image: getImg('collagen-mask'), hint: 'sheet mask' },
-  { id: 'moisturizer', name: 'Phase 7: Moisture & Sun', image: getImg('ceramide-cream'), hint: 'barrier cream' },
+  { id: 'cleanser', name: 'Cleansers', image: getImg('gel-cleanser'), hint: 'cleansing gel' },
+  { id: 'toner', name: 'Toners', image: getImg('ha-toner'), hint: 'hydrating toner' },
+  { id: 'essence', name: 'Essences', image: getImg('galacto-essence'), hint: 'skin essence' },
+  { id: 'serum', name: 'Serums', image: getImg('niacinamide-drops'), hint: 'serum' },
+  { id: 'moisturizer', name: 'Moisturisers', image: getImg('ceramide-cream'), hint: 'moisturiser' },
+  { id: 'sun', name: 'Sunscreen', image: getImg('relief-sun-cream'), hint: 'sunscreen' },
+  { id: 'exfoliator', name: 'Exfoliators', image: getImg('pha-fluid'), hint: 'exfoliating fluid' },
+  { id: 'mask', name: 'Masks & treatments', image: getImg('collagen-mask'), hint: 'sheet mask' },
+  { id: 'lip', name: 'Lip care', image: getImg('ceramide-cream'), hint: 'lip balm' },
+  { id: 'body', name: 'Body care', image: getImg('ceramide-cream'), hint: 'body lotion' },
 ];
 
+/** Shop by concern. Plain descriptions of what a product is for, not promised results. */
 export const CONCERNS = [
-  { id: 'face-wash', name: 'Daily Cleansing', image: getImg('fw-1'), hint: 'fresh skin' },
-  { id: 'glass-skin', name: 'Glass Skin Glow', image: getImg('galacto-essence'), hint: 'radiant skin' },
-  { id: 'barrier-repair', name: 'Barrier Support', image: getImg('ceramide-cream'), hint: 'healthy skin' },
-  { id: 'aging', name: 'Anti-Aging', image: getImg('retinal-ampoule'), hint: 'youthful skin' },
-  { id: 'acne', name: 'Acne Control', image: getImg('lha-liquid'), hint: 'clear skin' },
-  { id: 'texture', name: 'Texture Smoothing', image: getImg('pha-fluid'), hint: 'smooth skin' },
-  { id: 'dryness', name: 'Deep Hydration', image: getImg('ha-toner'), hint: 'plump skin' },
-  { id: 'eye-care', name: 'Under-Eye Help', image: getImg('eye-patches'), hint: 'eye patches' },
+  { id: 'face-wash', name: 'Daily cleansing', image: getImg('fw-1'), hint: 'fresh skin' },
+  { id: 'dryness', name: 'Dryness', image: getImg('ha-toner'), hint: 'plump skin' },
+  { id: 'barrier-repair', name: 'Barrier support', image: getImg('ceramide-cream'), hint: 'healthy skin' },
+  { id: 'acne', name: 'Breakouts', image: getImg('lha-liquid'), hint: 'clear skin' },
+  { id: 'texture', name: 'Texture', image: getImg('pha-fluid'), hint: 'smooth skin' },
+  { id: 'glass-skin', name: 'Dullness', image: getImg('galacto-essence'), hint: 'radiant skin' },
+  { id: 'aging', name: 'Fine lines', image: getImg('retinal-ampoule'), hint: 'youthful skin' },
+  { id: 'protect', name: 'Sun protection', image: getImg('relief-sun-cream'), hint: 'sunscreen' },
+  { id: 'eye-care', name: 'Under-eye care', image: getImg('eye-patches'), hint: 'eye patches' },
 ];

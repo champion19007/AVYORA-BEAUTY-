@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useApp } from '@/lib/store';
+import { closeAttempt, forgetAttempt, openAttempt } from '@/lib/payment-attempt';
 
 /**
  * Where Cashfree sends the customer after checkout. The query string is not
@@ -17,20 +18,31 @@ function ReturnInner() {
   const router = useRouter();
   const { clearCart } = useApp();
   const orderNumber = params.get('order') ?? '';
-  const [state, setState] = useState<'checking' | 'failed' | 'pending' | 'error'>(orderNumber ? 'checking' : 'error');
+  const [state, setState] = useState<'checking' | 'cancelled' | 'pending' | 'error'>(
+    orderNumber ? 'checking' : 'error'
+  );
 
   useEffect(() => {
     let cancelled = false;
+    // The order's access token, kept by this tab at checkout: it entitles this browser to the order's status.
+    const storedToken = (() => {
+      try {
+        return sessionStorage.getItem(`order-token:${orderNumber}`) ?? openAttempt()?.token ?? null;
+      } catch {
+        return openAttempt()?.token ?? null;
+      }
+    })();
     const check = async (attempt: number) => {
       const res = await fetch('/api/payments/cashfree/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNumber }),
+        body: JSON.stringify({ orderNumber, ...(storedToken ? { token: storedToken } : {}) }),
       })
         .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
         .catch(() => ({ ok: false, body: null as any }));
       if (cancelled) return;
       if (res.ok && res.body?.status === 'paid') {
+        forgetAttempt();
         clearCart();
         let token: string | null = null;
         try {
@@ -40,11 +52,34 @@ function ReturnInner() {
         router.replace(token ? `/orders/${orderNumber}?t=${encodeURIComponent(token)}` : `/orders/${orderNumber}`);
         return;
       }
+      // `not_started`: no payment was attempted at all (the customer backed
+      // out), so there is nothing to wait for.
       if (res.ok && res.body?.status === 'pending' && attempt < 5) {
         setTimeout(() => check(attempt + 1), 2000);
         return;
       }
-      setState(!res.ok ? 'error' : res.body?.status === 'failed' ? 'failed' : 'pending');
+      if (!res.ok) {
+        setState('error');
+        return;
+      }
+      // Another tab or device (no token here): the payment is being applied, but this page cannot show it.
+      if (res.body?.status === 'unverified') {
+        setState('pending');
+        return;
+      }
+      // Not paid: the customer cancelled, backed out or the payment failed.
+      // Close the attempt so nothing is ordered, unless a payment is still
+      // in flight (then Cashfree refuses and we wait).
+      const open = openAttempt();
+      const outcome = open?.orderNumber === orderNumber ? await closeAttempt(open) : 'pending';
+      if (cancelled) return;
+      if (outcome === 'paid') {
+        // Paid after all: one more check confirms it and opens the order.
+        void check(5);
+        return;
+      }
+      if (outcome === 'cancelled') forgetAttempt();
+      setState(outcome === 'cancelled' ? 'cancelled' : 'pending');
     };
     if (orderNumber) check(0);
     return () => {
@@ -55,7 +90,8 @@ function ReturnInner() {
 
   const copy = {
     checking: 'Confirming your payment…',
-    failed: 'That payment did not go through. Your bag is still here: try again, or choose cash on delivery.',
+    cancelled:
+      'Your payment was not completed, so nothing was ordered and you have not been charged. Your bag is still here: try again, or choose cash on delivery.',
     pending:
       'Your payment has not been confirmed yet. If you were charged, the order will update by itself within a few minutes.',
     error:

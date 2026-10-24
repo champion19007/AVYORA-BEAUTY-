@@ -50,6 +50,17 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: { '@': path.resolve(__dirname, 'src') },
+    alias: [
+      /*
+       * Tests always see the default (unpublished) catalogue, whatever a
+       * local "Publish" has written into src/data/catalogue.published.json.
+       * A test that needs a published catalogue mocks this path itself.
+       */
+      {
+        find: '@/data/catalogue.published.json',
+        replacement: path.resolve(__dirname, 'src/test/catalogue.published.default.json'),
+      },
+      { find: '@', replacement: path.resolve(__dirname, 'src') },
+    ],
   },
 });

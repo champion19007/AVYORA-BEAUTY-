@@ -16,14 +16,22 @@
 
 export const CASHFREE_API_VERSION = '2025-01-01';
 
-export type CashfreeConfig = { appId: string; secretKey: string; env: 'sandbox' | 'production' };
+export type CashfreeConfig = {
+  appId: string;
+  secretKey: string;
+  env: 'sandbox' | 'production';
+};
 
 /** Null when unconfigured, so checkout offers cash on delivery instead of failing. */
 export function getCashfreeConfig(): CashfreeConfig | null {
   const appId = process.env.CASHFREE_APP_ID;
   const secretKey = process.env.CASHFREE_SECRET_KEY;
   if (!appId || !secretKey) return null;
-  return { appId, secretKey, env: process.env.CASHFREE_ENV === 'production' ? 'production' : 'sandbox' };
+  return {
+    appId,
+    secretKey,
+    env: process.env.CASHFREE_ENV === 'production' ? 'production' : 'sandbox',
+  };
 }
 
 export const isCashfreeConfigured = () => getCashfreeConfig() !== null;
@@ -78,7 +86,10 @@ export async function createCashfreeOrder(
         customer_phone: input.customer.phone,
         customer_name: input.customer.name,
       },
-      order_meta: { return_url: input.returnUrl, ...(input.notifyUrl ? { notify_url: input.notifyUrl } : {}) },
+      order_meta: {
+        return_url: input.returnUrl,
+        ...(input.notifyUrl ? { notify_url: input.notifyUrl } : {}),
+      },
       order_note: `Avyora order ${input.orderNumber}`,
     }),
     cache: 'no-store',
@@ -102,6 +113,28 @@ export async function fetchCashfreeOrder(orderNumber: string, c: CashfreeConfig)
       signal: AbortSignal.timeout(10_000),
     });
     return res.ok ? ((await res.json()) as CashfreeOrder) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Asks Cashfree to close an unpaid order so it can never be paid. Returns the
+ * order status Cashfree reports (`TERMINATED`, or `TERMINATION_REQUESTED` while
+ * it works on it), or null when it refused (a payment is in progress) or could
+ * not be reached. Only `TERMINATED` or `EXPIRED` means no payment can follow.
+ */
+export async function terminateCashfreeOrder(orderNumber: string, c: CashfreeConfig): Promise<string | null> {
+  try {
+    const res = await fetch(`${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}`, {
+      method: 'PATCH',
+      headers: headers(c),
+      body: JSON.stringify({ order_status: 'TERMINATED' }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    return String(((await res.json()) as { order_status?: unknown }).order_status ?? '');
   } catch {
     return null;
   }
@@ -153,6 +186,75 @@ export async function fetchCashfreePayments(orderNumber: string, c: CashfreeConf
       : null;
   } catch {
     return null;
+  }
+}
+
+/** A refund as Cashfree reports it, in this app's terms. */
+export type CashfreeRefund = { cfRefundId: string | null; status: 'pending' | 'done' | 'failed' };
+
+const REFUND_STATUS: Record<string, CashfreeRefund['status']> = {
+  SUCCESS: 'done',
+  PENDING: 'pending',
+  ONHOLD: 'pending',
+  CANCELLED: 'failed',
+};
+const readRefund = (body: { cf_refund_id?: unknown; refund_status?: unknown }): CashfreeRefund => ({
+  cfRefundId: body.cf_refund_id == null ? null : String(body.cf_refund_id),
+  status: REFUND_STATUS[String(body.refund_status ?? '').toUpperCase()] ?? 'pending',
+});
+
+/** Where a refund stands. Null when Cashfree cannot be reached or does not know it. */
+export async function fetchCashfreeRefund(
+  orderNumber: string,
+  refundId: string,
+  c: CashfreeConfig
+): Promise<CashfreeRefund | null> {
+  try {
+    const res = await fetch(
+      `${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}/refunds/${encodeURIComponent(refundId)}`,
+      { headers: headers(c), cache: 'no-store', signal: AbortSignal.timeout(10_000) }
+    );
+    return res.ok ? readRefund(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Refunds part or all of a paid order to the customer's original payment method.
+ *
+ * `refundId` is ours and Cashfree keeps it unique per order, so a retried call
+ * cannot refund twice: a repeat is answered with the existing refund's status.
+ */
+export async function createCashfreeRefund(
+  orderNumber: string,
+  refundId: string,
+  amountPaise: number,
+  note: string,
+  c: CashfreeConfig
+): Promise<CashfreeRefund | { error: string }> {
+  try {
+    const res = await fetch(`${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}/refunds`, {
+      method: 'POST',
+      headers: headers(c),
+      body: JSON.stringify({
+        refund_amount: toRupees(amountPaise),
+        refund_id: refundId,
+        refund_note: note.slice(0, 100),
+      }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      message?: unknown;
+      cf_refund_id?: unknown;
+      refund_status?: unknown;
+    };
+    if (res.ok) return readRefund(body);
+    const existing = res.status === 409 ? await fetchCashfreeRefund(orderNumber, refundId, c) : null;
+    return existing ?? { error: String(body.message ?? `Cashfree refused the refund (${res.status}).`) };
+  } catch {
+    return { error: 'Cashfree could not be reached. Nothing was refunded; try again in a minute.' };
   }
 }
 

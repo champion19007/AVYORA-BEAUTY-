@@ -77,6 +77,21 @@ async function stockNow(): Promise<number> {
 }
 
 describe('order idempotency', () => {
+  it('never hands someone else’s order to a different email reusing its key', async () => {
+    const key = 'shared-key-0001';
+    const first = await createOrder({ ...CHECKOUT, idempotencyKey: key }, null);
+    expect(first.ok).toBe(true);
+
+    const stranger = await createOrder({ ...CHECKOUT, email: 'someone@example.com', idempotencyKey: key }, null);
+    expect(stranger.ok).toBe(false);
+    expect(await orderCount()).toBe(1);
+    expect(await stockNow()).toBe(8);
+
+    // The same customer retrying (any capitalisation) still gets their order back.
+    const retry = await createOrder({ ...CHECKOUT, email: 'Priya@Example.com', idempotencyKey: key }, null);
+    expect(retry.ok && first.ok && retry.orderNumber === first.orderNumber).toBe(true);
+  });
+
   it('returns the original order when the same key is submitted twice', async () => {
     const key = 'chk_11111111-2222-3333-4444-555555555555';
 

@@ -3,6 +3,7 @@
  * HTTP load test for the storefront. No dependencies: fetch and a timer.
  *
  *   node scripts/load-test.mjs http://localhost:3000 [seconds-per-stage]
+ *   LOAD_STAGES=10,100,250 node scripts/load-test.mjs http://localhost:3000 20
  *
  * Runs stages of increasing concurrency against a weighted mix of the pages
  * customers actually hit, then one burst from a single address to confirm the
@@ -133,7 +134,12 @@ for (const path of ['/', '/collections', '/products/ha-toner', '/journal', '/api
 }
 
 const results = [];
-for (const concurrency of [10, 50, 100]) {
+// LOAD_STAGES=10,50,100,250 overrides the default stages.
+const stages = (process.env.LOAD_STAGES ?? '10,50,100')
+  .split(',')
+  .map(Number)
+  .filter((n) => n > 0);
+for (const concurrency of stages) {
   const r = await stage(concurrency, stageSeconds);
   results.push(r);
   console.log(JSON.stringify(r));

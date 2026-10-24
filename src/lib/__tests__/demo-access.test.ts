@@ -16,6 +16,17 @@ afterEach(() => {
 });
 
 describe('demo access', () => {
+  it('is off on any Vercel deployment, whatever the variable says', () => {
+    process.env.DEMO_IDENTIFIERS = 'owner@example.com';
+    process.env.VERCEL = '1';
+    try {
+      expect(demoModeEnabled()).toBe(false);
+      expect(isDemoIdentifier('owner@example.com')).toBe(false);
+    } finally {
+      delete process.env.VERCEL;
+    }
+  });
+
   it('is off when the variable is unset', () => {
     delete process.env.DEMO_IDENTIFIERS;
 

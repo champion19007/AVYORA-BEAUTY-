@@ -64,6 +64,7 @@ function customerEmail(input: OrderNotificationInput) {
     : input.paymentProvider === 'cod'
       ? 'Cash on delivery — please keep the amount ready.'
       : 'Payment pending.';
+  const cod = !input.paid && input.paymentProvider === 'cod';
 
   return {
     subject: `Your Avyora order ${input.orderNumber}`,
@@ -81,7 +82,7 @@ function customerEmail(input: OrderNotificationInput) {
       '',
       // The link is the whole point of this email for a guest: without it a
       // closed tab loses the order permanently.
-      'Track your order here:',
+      cod ? 'Please confirm your order so we can pack it (one tap):' : 'Track your order here:',
       input.orderUrl,
       '',
       'We will email again when it is on its way.',
@@ -193,4 +194,39 @@ export async function notifyOrderPlaced(input: OrderNotificationInput): Promise<
 
   await Promise.allSettled(tasks);
   return outcome;
+}
+
+/** The "it is on its way" email the order confirmation promises. Never throws; reports whether it was accepted. */
+export async function notifyOrderShipped(input: {
+  orderNumber: string;
+  email: string;
+  customerName: string;
+  courierName: string;
+  awb: string;
+  trackingUrl: string;
+  orderUrl: string;
+  cod: boolean;
+  total: number;
+}): Promise<{ attempted: boolean; sent: boolean }> {
+  if (!emailDeliveryConfigured()) return { attempted: false, sent: false };
+  const text = [
+    `Good news${input.customerName ? `, ${input.customerName}` : ''}: your order ${input.orderNumber} is on its way.`,
+    '',
+    `Courier: ${input.courierName}`,
+    `Tracking number: ${input.awb}`,
+    `Follow it here: ${input.trackingUrl}`,
+    '',
+    input.cod
+      ? `Cash on delivery: please keep ${formatPaise(input.total)} ready.`
+      : 'Already paid. Nothing to pay at the door.',
+    '',
+    `Your order: ${input.orderUrl}`,
+  ].join('\n');
+  const result = await sendEmail(input.email, `Your Avyora order ${input.orderNumber} has shipped`, text).catch(
+    (err) => {
+      reportError(err, { scope: 'orderNotify.shipped' });
+      return { ok: false };
+    }
+  );
+  return { attempted: true, sent: result.ok };
 }

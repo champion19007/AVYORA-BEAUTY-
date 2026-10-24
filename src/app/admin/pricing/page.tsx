@@ -3,6 +3,7 @@ import { isDatabaseConfigured } from '@/db';
 import { allProducts } from '@/lib/catalogue';
 import { pricingMap, resolvePrice } from '@/lib/pricing';
 import { PriceRow } from './price-row';
+import { PromotionBuilder } from '@/components/admin/promotion-builder';
 
 export const metadata: Metadata = { title: 'Pricing' };
 export const dynamic = 'force-dynamic';
@@ -59,10 +60,24 @@ export default async function AdminPricingPage() {
     <div>
       <h1 className="font-headline text-3xl font-normal tracking-tight">Pricing &amp; offers</h1>
       <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
-        Enter amounts in rupees. An offer price must be below the normal price, and leaving it blank ends the offer.
-        {liveOffers > 0 && ` ${liveOffers} offer${liveOffers === 1 ? '' : 's'} running.`}
+        Prepare category promotions or manage individual product prices below.
       </p>
 
+      <div className="mt-7">
+        <PromotionBuilder
+          categories={[...new Set(allProducts().map((product) => product.category))].map((id) => ({
+            id,
+            label: id.charAt(0).toUpperCase() + id.slice(1),
+          }))}
+        />
+      </div>
+
+      <h2 className="mt-10 font-headline text-2xl">Individual product prices</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Enter amounts in rupees. An offer price must be below the normal price; leaving it blank ends the offer. Saving
+        a row updates that product’s live price. Promotion JSON above is a separate draft.
+        {liveOffers > 0 && ` ${liveOffers} product offer${liveOffers === 1 ? '' : 's'} configured.`}
+      </p>
       <div className="mt-6 rounded-xl border border-border bg-card">
         {rows.map((row) => (
           <PriceRow key={`${row.productId}-${row.size}`} {...row} />

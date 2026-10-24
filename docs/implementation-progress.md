@@ -1912,6 +1912,70 @@ Results are in `docs/redesign-reference/acceptance/2026-10-09/` (30 screenshots 
 
 Each is covered by integration tests.
 
+---
+
+## Payment back-out, load test and production errors (12 October 2026)
+
+### Backing out of the Cashfree screen
+
+**Before:** clicking Pay created the order, reserved its stock and announced it (customer email and the shop's WhatsApp/Gmail alert) before any payment. A customer who pressed back or cancelled still got an "order confirmed" message, the shop got a new-order alert, the stock stayed reserved until the daily sweep (cron at 08:45 IST; Hobby allows one run a day), the return page said "payment not confirmed yet", and the Pay button stayed disabled after Back. Retrying reused the same idempotency key, which would have replayed the abandoned order.
+
+**Now:**
+
+| Change | Where |
+| --- | --- |
+| Online orders are announced only when paid (`order.paid`); cash on delivery still on `order.placed` | `lib/event-consumers.ts` |
+| Events are drained right after a payment is confirmed (webhook, verify, reconciliation), not left for the cron | `modules/payments/payment-service.ts` |
+| `POST /api/payments/cashfree/cancel`: asks Cashfree to terminate the order; only when Cashfree reports `TERMINATED` or `EXPIRED` is our order cancelled and its stock returned; a payment that succeeded meanwhile is applied instead; refused while a payment is in progress. Requires the order's access token. Idempotent. | `app/api/payments/cashfree/cancel/route.ts`, `lib/cashfree.ts` (`terminateCashfreeOrder`) |
+| Shared `releaseIfUnpaid` used by the sweep and the cancel route | `lib/reservation-sweep.ts` |
+| Verify answers `not_started` when no payment was attempted, so the return page does not poll for 10 seconds | `app/api/payments/cashfree/verify/route.ts` |
+| Checkout remembers the open attempt; on return, Back (`pageshow`) or reload it closes it, resets the Pay button, rotates the idempotency key and says "nothing was ordered and you have not been charged"; the return page does the same | `lib/payment-attempt.ts`, `app/checkout/checkout-client.tsx`, `app/checkout/return/page.tsx` |
+| A retry carrying a cancelled attempt's key gets `409 attempt_closed` instead of reopening it | `app/api/payments/cashfree/create/route.ts` |
+
+Tests: `app/api/payments/cashfree/__tests__/backout.integration.test.ts` (9, against a fake Cashfree that follows the documented API): back-out cancels and returns stock; idempotent; waits while a payment is in progress (with and without a listed payment); applies a payment that succeeded; refuses without the right token; no reopening of a cancelled attempt; no alert for an abandoned online order, one alert once paid; COD still announced on placement. Mutation checks: alerting on create fails 1 test; cancelling despite Cashfree's refusal fails 1 test. Full suite 1066/1066; build passes. Not exercised against live Cashfree (would create real orders).
+
+### Production errors
+
+Only one error group in the last 48 hours (Vercel runtime errors): `notify.whatsapp` 400 "API access blocked" (Meta `OAuthException`, code 200) at 15:02 IST on 12 October, from `/api/payments/cashfree/create`. The WhatsApp order alert was rejected by Meta: the access token or app permission is blocked or expired. Not a code fault; needs a new token or app review in Meta. With the fix above this alert now fires on payment, not on create. No error, failed deployment, failed CI run or failed backup around midnight; Hobby keeps raw logs for one hour only.
+
+### Load test (what 10,000 simultaneous visitors would do)
+
+Measured: a local production build against a copy of the production database (Neon branch `loadtest-2026-10-12`, same 0.25 CU compute), stages of 10–500 simultaneous visitors, 20 s each.
+
+| Visitors | Requests/s | p50 | p95 | `/api/cart` p50 | Errors |
+| --- | --- | --- | --- | --- | --- |
+| 10 | 147 | 29 ms | 283 ms | 235 ms | 0 |
+| 50 | 133 | 92 ms | 1.9 s | 1.5 s | 0 |
+| 100 | 179 | 266 ms | 3.3 s | 3.2 s | 0 |
+| 250 | 134 | 876 ms | 6.3 s | 2.9 s | 0 |
+| 500 | 149 | 2.0 s | 10.5 s | 1.3 s | 876 connection errors (laptop limit) |
+
+One local process is not Vercel's capacity; what transfers is that pages are cheap and the database-bound APIs (cart, sign-in, checkout, rate limiter) are the bottleneck. On the live site pages are served from Vercel's cache (`x-vercel-cache: STALE/PRERENDER`).
+
+Vercel Hobby (docs, 12 October 2026): functions scale to 30,000 concurrent per region but only by **1,000 every 10 seconds**, beyond which requests get `503 FUNCTION_THROTTLED`; included per month: 1,000,000 invocations, 4 active-CPU hours, 100 GB transfer; exceeding one pauses that feature until the 30 days pass.
+
+The single-address rate-limit warning in the run is expected locally: the limiter trusts client addresses only on Vercel.
+
+## Security, deliveries, stock autopilot and the manual (21 October 2026)
+
+| Change | Where |
+| --- | --- |
+| **Security review** of checkout, payments, order access, staff actions and data paths. One weakness fixed: a checkout replay key returned the existing order (and its access link) to anyone holding the key; replays now require the same email. Dependency audit (runtime): 0 vulnerabilities | `lib/orders.ts`, payment create routes, `checkout/actions.ts`; test in `order-idempotency.integration.test.ts` |
+| **Shiprocket**: "Book courier" on packed orders (create order, assign AWB, pickup, label; claimed so a double click cannot book twice); tracking webhook at `/api/webhooks/courier` (token in `x-api-key`, constant-time, refuses all when unset); courier statuses move orders forward only; returns restocked once; prepaid returns flagged for refund; lost/undelivered flagged for the owner | `modules/shipping/`, `app/api/webhooks/courier/`, `app/manager/` |
+| **Migration 0022** (additive): `orders.awb` (unique) and `orders.shipment` | `drizzle/0022_order_shipments.sql`; applied to the 9006 acceptance database only |
+| **COD revenue**: a delivered COD order is recorded as paid through the payment state machine (before, COD sales never counted as revenue) | `recordCodCollected` |
+| **"On its way" email** with courier and tracking link (the confirmation email promised one that did not exist) | `order.shipped` event, `notifyOrderShipped` |
+| **Stock autopilot** in the daily sweep: 28-day sales rate, reorder point from a 7-day lead time, requests sized for 7 + 30 days; morning summary to the owner (WhatsApp short, email full) | `modules/inventory/autopilot.ts`, `api/cron/sweep` |
+| **Owner two-step sign-in**: a six-digit code to `OWNER_EMAIL` after the password; `OWNER_TWO_STEP=off` as an emergency switch; staff sign-in limit 5 → 8 per 15 minutes (two requests per owner sign-in) | `api/admin/login`, `admin-login-form.tsx` |
+| **Storefront survives a database outage**: display prices and stock fall back (list prices, out of stock), not cached; checkout still fails loudly | `modules/catalog/storefront-data.ts` |
+| Fixes: returned orders left the dispatch queue; a returned order now shows "Returned" to the customer (it showed "Order placed"); analytics count only real sales (they counted returned parcels and abandoned online orders), shared with the autopilot; expired sign-in codes are now deleted by the daily sweep (the clean-up existed but never ran); the staff "Forgot?" link pointed nowhere | `lib/manager-data.ts`, `lib/order-progress.ts`, `lib/analytics.ts`, `api/cron/sweep`, `admin-login-form.tsx` |
+| **Stockroom Help page** with step-by-step jobs | `app/manager/help/` |
+| **Technical and Operations Manual**, about 120 full pages: architecture, features, security, operations, runbooks, decision log, API reference, quick-reference cards; appendices generated from the code | `docs/manual/` |
+
+Tests: full suite **1,131 passed**, 3 opt-in skipped (100 files). New: Shiprocket client (8), shipping flow on real migrations (8), autopilot (4), owner two-step (3), storefront outage (2), replay-key ownership (1), analytics real-sale rule (1); returned added to the tracker test. Mutation check: letting courier updates move orders backwards fails 2 tests. Typecheck, lint and formatting clean; offline production build passes.
+
+Not exercised live: a real Shiprocket account (bookings cost money), and owner two-step email delivery in production. Migration 0022 needs approval for production.
+
 ## Remaining sequence
 
 | # | Prompt | Status |

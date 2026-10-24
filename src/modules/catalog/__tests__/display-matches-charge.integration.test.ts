@@ -58,6 +58,8 @@ beforeEach(async () => {
     sql`truncate product_pricing, orders, order_items, addresses, inventory, domain_events, audit_logs restart identity cascade`
   );
   await db.insert(inventory).values({ ...SKU, quantity: 50 });
+  // A sale price needs a cost to check the profit floor against: ₹100 puts the floor at ₹144.49.
+  await db.execute(sql`update catalog_variants set cost_paise = 10000 where legacy_stock_key = ${KEY}`);
   cache.clearLocal();
 });
 
@@ -156,5 +158,13 @@ describe('display matches charge', () => {
       offerLabel: 'Festive',
       pricingVersion: 1,
     });
+  });
+
+  it('refuses a sale price below the profit floor, or on a size with no cost price', async () => {
+    const sale = (salePrice: number) =>
+      setPrice({ ...SKU, price: 79_900, salePrice, offerLabel: 'Sale', offerEndsAt: null, expectedVersion: 0 }, owner);
+    expect(await sale(14_000)).toMatchObject({ ok: false, message: expect.stringContaining('profit floor') });
+    await db.execute(sql`update catalog_variants set cost_paise = null where legacy_stock_key = ${KEY}`);
+    expect(await sale(54_900)).toMatchObject({ ok: false, message: expect.stringContaining('cost price') });
   });
 });

@@ -87,22 +87,10 @@ export async function sweepAbandonedReservations(
        * and a lost browser callback leaves no trace here at all. Releasing
        * first and being told later is how a paid order ended up cancelled.
        */
-      const outcome = await reconcileOrder(order.id, provider);
-
-      if (outcome === 'paid') {
-        recovered += 1;
-        continue;
-      }
-      if (outcome === 'unknown') {
-        undetermined += 1;
-        continue;
-      }
-
-      const restored = await restoreOrderStock(order.id);
-      if (restored) {
-        released += 1;
-        await db.update(orders).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(orders.id, order.id));
-      }
+      const outcome = await releaseIfUnpaid(order.id, provider);
+      if (outcome === 'paid') recovered += 1;
+      else if (outcome === 'unknown') undetermined += 1;
+      else if (outcome === 'released') released += 1;
     } catch (err) {
       // One bad order must not stop the sweep for the rest.
       reportError(err, {
@@ -113,4 +101,25 @@ export async function sweepAbandonedReservations(
   }
 
   return { examined: stale.length, released, recovered, undetermined };
+}
+
+/**
+ * Cancels an online order and returns its stock, unless the provider says it
+ * was paid (then the payment is applied instead) or cannot say (then nothing
+ * changes). Shared by the sweep and the customer's own "I backed out" path.
+ * Safe to repeat: `restoreOrderStock` claims the order with a conditional
+ * update, so stock is returned at most once.
+ */
+export async function releaseIfUnpaid(
+  orderId: string,
+  provider?: PaymentProviderClient | null
+): Promise<'paid' | 'unknown' | 'released' | 'already_released'> {
+  const outcome = await reconcileOrder(orderId, provider);
+  if (outcome === 'paid') return 'paid';
+  if (outcome === 'unknown') return 'unknown';
+
+  const restored = await restoreOrderStock(orderId);
+  if (!restored) return 'already_released';
+  await db.update(orders).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(orders.id, orderId));
+  return 'released';
 }
