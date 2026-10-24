@@ -39,7 +39,7 @@ export function formatRupees(rupees: number): string {
 export type LineInput = { unitPrice: number; quantity: number };
 
 /** Free shipping at or above this order value. */
-export const FREE_SHIPPING_THRESHOLD_PAISE = toPaise(1199);
+export const FREE_SHIPPING_THRESHOLD_PAISE = toPaise(750);
 export const STANDARD_SHIPPING_PAISE = toPaise(79);
 
 /**

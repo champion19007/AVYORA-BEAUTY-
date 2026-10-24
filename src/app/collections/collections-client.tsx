@@ -11,6 +11,8 @@ import type { ReviewAggregate } from '@/modules/reviews/reviews';
 import { Button } from '@/components/ui/button';
 import { InMemoryCatalogSearch } from '@/modules/search/catalog-search';
 import { activeCategories, activeConcerns } from '@/lib/catalogue';
+import { promotionBadge, promotionCovers, promotionDetail } from '@/modules/offers/promotions';
+import { promotionsFor, usePromotionsState } from '@/lib/use-promotions';
 
 /*
  * Built once per page load. The catalogue ships with the page, so search runs
@@ -33,6 +35,8 @@ const CONCERN_OPTIONS = CONCERNS.filter((c) => activeConcerns().has(c.id));
 const MAX_COMPARE = 3;
 
 type Filters = {
+  /** An offer id: only the products it covers (from a product page's "See all eligible products"). */
+  offer: string | null;
   category: string | null;
   concern: string | null;
   filter: string | null;
@@ -40,7 +44,15 @@ type Filters = {
   sort: SortKey;
   compare: string[];
 };
-const NO_FILTERS: Filters = { category: null, concern: null, filter: null, q: null, sort: 'featured', compare: [] };
+const NO_FILTERS: Filters = {
+  offer: null,
+  category: null,
+  concern: null,
+  filter: null,
+  q: null,
+  sort: 'featured',
+  compare: [],
+};
 type Props = { stock: StockByKey; prices: DisplayPrices; reviews: Record<string, ReviewAggregate> };
 
 /** Reads the URL's filters; only rendered in the browser, inside Suspense. */
@@ -48,6 +60,7 @@ function CollectionsFromUrl(props: Props) {
   const p = useSearchParams();
   const sort = p.get('sort') as SortKey | null;
   const filters: Filters = {
+    offer: p.get('offer'),
     category: p.get('category'),
     concern: p.get('concern'),
     filter: p.get('filter'),
@@ -70,6 +83,7 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
   const update = (patch: Partial<Filters>) => {
     const next = { ...filters, ...patch };
     const params = new URLSearchParams();
+    if (next.offer) params.set('offer', next.offer);
     if (next.q) params.set('q', next.q);
     if (next.category) params.set('category', next.category);
     if (next.concern) params.set('concern', next.concern);
@@ -79,10 +93,16 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
     const qs = params.toString();
     router.replace(qs ? `/collections?${qs}` : '/collections', { scroll: false });
   };
-  const activeCount = [filters.q, filters.category, filters.concern, filters.filter].filter(Boolean).length;
+  const activeCount = [filters.offer, filters.q, filters.category, filters.concern, filters.filter].filter(
+    Boolean
+  ).length;
+  const { list: promotions, loaded: promotionsLoaded } = usePromotionsState();
+  const offer = filters.offer ? promotions.find((x) => x.id === filters.offer) : undefined;
 
   const filteredProducts = useMemo(() => {
     let result = [...PRODUCTS];
+    if (filters.offer) result = offer ? result.filter((p) => promotionCovers(offer, p.id)) : [];
+    if (filters.filter === 'offers') result = result.filter((p) => promotionsFor(promotions, p.id).length > 0);
     if (filters.category)
       result = result.filter((p) => p.category === filters.category || p.id.includes(filters.category!));
     if (filters.concern) result = result.filter((p) => p.concerns.includes(filters.concern!));
@@ -116,19 +136,23 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
         break;
     }
     return result;
-  }, [filters, prices, reviews]);
+  }, [filters, prices, reviews, offer, promotions]);
 
-  const heading = filters.q
-    ? `Results for “${filters.q}”`
-    : filters.filter === 'bestsellers'
-      ? 'Our picks'
-      : filters.filter === 'new'
-        ? 'New arrivals'
-        : filters.concern
-          ? (CONCERNS.find((c) => c.id === filters.concern)?.name ?? filters.concern.replace(/-/g, ' '))
-          : filters.category
-            ? (CATEGORIES.find((c) => c.id === filters.category)?.name ?? filters.category.replace(/-/g, ' '))
-            : 'Shop all';
+  const heading = offer
+    ? promotionBadge(offer)
+    : filters.filter === 'offers'
+      ? 'On offer'
+      : filters.q
+        ? `Results for “${filters.q}”`
+        : filters.filter === 'bestsellers'
+          ? 'Our picks'
+          : filters.filter === 'new'
+            ? 'New arrivals'
+            : filters.concern
+              ? (CONCERNS.find((c) => c.id === filters.concern)?.name ?? filters.concern.replace(/-/g, ' '))
+              : filters.category
+                ? (CATEGORIES.find((c) => c.id === filters.category)?.name ?? filters.category.replace(/-/g, ' '))
+                : 'Shop all';
 
   const toggleCompare = (id: string) =>
     update({
@@ -144,7 +168,15 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
         <h1 className="mt-3 font-headline text-5xl font-normal capitalize tracking-tight md:text-6xl">{heading}</h1>
         <span className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
         <p className="mt-8 text-base leading-relaxed text-muted-foreground">
-          Every product in the range, with current prices and stock.
+          {offer
+            ? promotionDetail(offer)
+            : filters.offer
+              ? promotionsLoaded
+                ? 'This offer has ended.'
+                : 'Loading the offer…'
+              : filters.filter === 'offers'
+                ? 'Everything with an offer running now. Offers apply automatically at checkout.'
+                : 'Every product in the range, with current prices and stock.'}
         </p>
       </header>
 
@@ -166,9 +198,9 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
             value={draftQuery}
             onChange={(e) => setDraftQuery(e.target.value)}
             placeholder="Search products, ingredients or concerns"
-            className="h-11 flex-1 rounded-full border border-border bg-background px-5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="h-11 min-w-0 flex-1 rounded-full border border-border bg-background px-5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           />
-          <Button type="submit" className="h-11 rounded-full px-6">
+          <Button type="submit" className="h-11 shrink-0 rounded-full px-6">
             Search
           </Button>
         </form>
@@ -242,7 +274,7 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
               className="h-10 gap-1 rounded-full"
               onClick={() => {
                 setDraftQuery('');
-                update({ q: null, category: null, concern: null, filter: null });
+                update({ offer: null, q: null, category: null, concern: null, filter: null });
               }}
             >
               <X className="h-4 w-4" aria-hidden="true" /> Clear all filters
@@ -294,7 +326,7 @@ function CollectionsContent({ stock, prices, reviews, filters }: Props & { filte
             className="rounded-full px-8"
             onClick={() => {
               setDraftQuery('');
-              update({ q: null, category: null, concern: null, filter: null });
+              update({ offer: null, q: null, category: null, concern: null, filter: null });
             }}
           >
             Clear all filters

@@ -36,6 +36,15 @@
 
 /** Identifiers permitted to use an otherwise-unavailable channel. */
 function demoIdentifiers(): string[] {
+  /*
+   * Never on a deployed site. "The listed identifiers are the owner's own"
+   * does not make revealing their codes safe: anyone can type the owner's
+   * address on the public sign-in page, and if email delivery ever failed the
+   * code would be shown to them. Local development and acceptance runs keep
+   * the convenience; every Vercel deployment (production and previews) ignores
+   * DEMO_IDENTIFIERS entirely.
+   */
+  if (process.env.VERCEL) return [];
   const raw = process.env.DEMO_IDENTIFIERS;
   if (!raw) return [];
 

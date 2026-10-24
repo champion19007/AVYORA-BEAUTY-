@@ -163,9 +163,11 @@ describe('backing out of the payment screen', () => {
     expect(await stock()).toBe(8);
 
     // Back on our site with no payment attempted.
-    expect(await (await post(verify, { orderNumber: body.orderNumber })).json()).toMatchObject({
-      status: 'not_started',
-    });
+    expect(await (await post(verify, { orderNumber: body.orderNumber, token: body.accessToken })).json()).toMatchObject(
+      {
+        status: 'not_started',
+      }
+    );
     const closed = await post(cancel, {
       orderNumber: body.orderNumber,
       token: body.accessToken,
@@ -245,6 +247,14 @@ describe('backing out of the payment screen', () => {
       paymentStatus: 'paid',
     });
     expect(await stock()).toBe(8);
+  });
+
+  it('tells only the paying browser the status: anyone else gets one answer, real order or not', async () => {
+    const { body } = await startPayment();
+    const stranger = await (await post(verify, { orderNumber: body.orderNumber })).json();
+    const madeUp = await (await post(verify, { orderNumber: 'AVY-NOSUCH' })).json();
+    expect(stranger).toEqual({ status: 'unverified', orderNumber: body.orderNumber });
+    expect(madeUp).toEqual({ status: 'unverified', orderNumber: 'AVY-NOSUCH' });
   });
 
   it('refuses to cancel without the token issued to the paying browser', async () => {

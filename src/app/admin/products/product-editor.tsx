@@ -37,12 +37,14 @@ export function ProductEditor({
   categories,
   skinTypes,
   slots,
+  concernOptions,
   settings,
 }: {
   product: EditableProduct | null;
   categories: readonly (readonly [string, string])[];
   skinTypes: readonly string[];
   slots: { value: string; label: string }[];
+  concernOptions: { id: string; name: string }[];
   settings: ProfitSettings;
 }) {
   const [name, setName] = useState(product?.name ?? '');
@@ -54,7 +56,7 @@ export function ProductEditor({
   const [keyIngredients, setKeyIngredients] = useState((product?.keyIngredients ?? []).join('\n'));
   const [fullIngredients, setFullIngredients] = useState(product?.fullIngredients ?? '');
   const [skin, setSkin] = useState<string[]>(product?.skinTypes ?? []);
-  const [concerns, setConcerns] = useState((product?.concerns ?? []).join(', '));
+  const [concerns, setConcerns] = useState<string[]>(product?.concerns ?? []);
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [routineSlot, setRoutineSlot] = useState(product?.routineSlot ?? '');
   const [isBestSeller, setBestSeller] = useState(product?.isBestSeller ?? false);
@@ -92,7 +94,7 @@ export function ProductEditor({
     keyIngredients,
     fullIngredients,
     skinTypes: skin,
-    concerns,
+    concerns: concerns.join('\n'),
     images: images.join('\n'),
     routineSlot: routineSlot || null,
     isBestSeller,
@@ -261,15 +263,24 @@ export function ProductEditor({
               ))}
             </div>
           </fieldset>
-          <label className={label}>
-            Concerns it is for (comma-separated)
-            <input
-              className={field}
-              value={concerns}
-              onChange={(e) => setConcerns(e.target.value)}
-              placeholder="dryness, dullness"
-            />
-          </label>
+          <fieldset>
+            <legend className={label}>Shop by concern</legend>
+            <div className="mt-2 flex flex-wrap gap-4">
+              {concernOptions.map((c) => (
+                <label key={c.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={concerns.includes(c.id)}
+                    onChange={(e) =>
+                      setConcerns((list) => (e.target.checked ? [...list, c.id] : list.filter((x) => x !== c.id)))
+                    }
+                  />
+                  {c.name}
+                </label>
+              ))}
+            </div>
+            <span className={hint}>Customers find it under these in the shop&apos;s concern filter.</span>
+          </fieldset>
         </Section>
 
         <Section title="Shop and routine finder">

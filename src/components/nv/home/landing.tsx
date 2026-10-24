@@ -19,6 +19,7 @@ import { PHOTO_SLOTS, type PhotoSlot } from './photos';
 import { QuickAdd } from './quick-add';
 import { SupportForm } from './support-form';
 import type { EssentialStep, LandingProduct, LandingReview } from './data';
+import { PromoBadge } from '@/components/product/promo-badge';
 
 /**
  * The redesign landing page below the hero, in the reference's section
@@ -146,6 +147,7 @@ export function Results({ products }: { products: LandingProduct[] }) {
                   className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.55),transparent_50%),linear-gradient(to_bottom,rgba(0,0,0,0.25),transparent_30%)]"
                 />
                 <div className="absolute left-5 top-5 flex flex-wrap gap-2 lg:left-8 lg:top-8">
+                  <PromoBadge productId={p.id} className="px-4 py-2 text-nv-label" />
                   {p.concerns.map((c) => (
                     <span
                       key={c}

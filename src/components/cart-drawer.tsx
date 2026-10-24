@@ -11,6 +11,8 @@ import Link from 'next/link';
 import { MAX_QUANTITY_PER_SKU, subtotal as cartSubtotal, unitPrice } from '@/lib/cart';
 import { useCartQuote } from '@/lib/use-cart-quote';
 import { skuKey } from '@/modules/catalog/sku-price';
+import { usePromotions } from '@/lib/use-promotions';
+import { bagProgress } from '@/modules/offers/promotions';
 
 export function CartDrawer() {
   const { cart, updateQuantity, removeFromCart, isCartOpen, setCartOpen, syncNotice, dismissSyncNotice } = useApp();
@@ -32,6 +34,22 @@ export function CartDrawer() {
    */
   const toFreeDelivery = Math.max(0, FREE_SHIPPING_THRESHOLD_PAISE - totals.paise);
   const progress = Math.min((totals.paise / FREE_SHIPPING_THRESHOLD_PAISE) * 100, 100);
+
+  /*
+   * Where the bag stands on each automatic offer ("add 1 more and the
+   * lowest-priced is free"). Checkout applies the single best one, capped at
+   * the profit floor, and shows the actual amount there.
+   */
+  const promotions = usePromotions();
+  const priced = cart.map((line) => ({
+    productId: line.productId,
+    quantity: line.quantity,
+    unitPrice: unitPrice(line, quote?.prices).price,
+  }));
+  const offerHints = promotions.flatMap((p) => {
+    const hint = bagProgress(p, priced);
+    return hint ? [{ id: p.id, ...hint }] : [];
+  });
 
   return (
     <Sheet open={isCartOpen} onOpenChange={setCartOpen}>
@@ -182,6 +200,21 @@ export function CartDrawer() {
                 <div className="h-full bg-primary transition-all duration-700" style={{ width: `${progress}%` }} />
               </div>
             </div>
+
+            {offerHints.length > 0 && (
+              <ul className="space-y-2" aria-label="Offers">
+                {offerHints.map((h) => (
+                  <li
+                    key={h.id}
+                    className={`rounded-md px-3 py-2 text-xs leading-relaxed ${
+                      h.qualifies ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-950'
+                    }`}
+                  >
+                    {h.message}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="flex justify-between text-xl font-semibold uppercase tracking-tighter">
               <span>Subtotal</span>

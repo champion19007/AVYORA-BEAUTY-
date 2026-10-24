@@ -15,6 +15,16 @@ const KINDS: { value: OfferKind; label: string; example: string }[] = [
   { value: 'free_delivery', label: 'Free delivery', example: 'e.g. free delivery over ₹599' },
 ];
 
+/** The offers shops run most, one tap away. */
+const PRESETS: { label: string; kind: OfferKind; buy?: number; get?: number; percent?: number }[] = [
+  { label: 'Buy 1, get 1 free', kind: 'buy_x_get_y', buy: 1, get: 1 },
+  { label: 'Buy 2, get 1 free', kind: 'buy_x_get_y', buy: 2, get: 1 },
+  { label: 'Buy 3, get 1 free', kind: 'buy_x_get_y', buy: 3, get: 1 },
+  { label: 'Buy 2, get 2 free', kind: 'buy_x_get_y', buy: 2, get: 2 },
+  { label: '10% off', kind: 'percent_off', percent: 10 },
+  { label: 'Free delivery', kind: 'free_delivery' },
+];
+
 const field = 'mt-1.5 w-full rounded-md border border-border bg-background px-3 py-2 text-sm';
 const label = 'block text-sm font-medium';
 const hint = 'mt-1 text-xs text-muted-foreground';
@@ -108,6 +118,34 @@ export function OfferEditor({
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All offers
       </Link>
       <h1 className="font-headline text-3xl font-normal tracking-tight">{offer ? 'Edit offer' : 'New offer'}</h1>
+
+      <section className="space-y-3 rounded-xl border border-border bg-card p-5">
+        <h2 className="font-medium">Quick start</h2>
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <Button
+              key={p.label}
+              type="button"
+              variant="outline"
+              className="h-9"
+              onClick={() => {
+                setKind(p.kind);
+                if (p.buy) setBuy(String(p.buy));
+                if (p.get) setGet(String(p.get));
+                if (p.percent) setPercent(String(p.percent));
+                setName((n) => n || p.label);
+                setCode('');
+              }}
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
+        <p className={hint}>
+          Fills the form; then choose the products. In buy-and-get offers the lowest-priced items are the free ones, and
+          customers can mix and match any eligible products.
+        </p>
+      </section>
 
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <label className={label}>
@@ -215,7 +253,7 @@ export function OfferEditor({
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <h2 className="font-medium">Who and when</h2>
         <label className={label}>
-          Coupon code (leave empty to apply automatically)
+          Coupon code (leave empty to apply automatically and show it on the shop)
           <input
             className={`${field} uppercase`}
             value={code}
@@ -224,6 +262,11 @@ export function OfferEditor({
             placeholder="WELCOME10"
           />
         </label>
+        <p className={hint}>
+          {code.trim()
+            ? 'With a code, the offer stays private: only customers you give the code to can use it.'
+            : 'Without a code, eligible products get a badge (e.g. "Buy 2, get 1 free"), their pages explain the offer, and the bag tells customers how close they are.'}
+        </p>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={firstOrderOnly} onChange={(e) => setFirst(e.target.checked)} /> First order
           only

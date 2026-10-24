@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, ne, or } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import * as schema from '@/db/schema';
@@ -8,6 +8,7 @@ import { skuKey, skuPrice } from '@/modules/catalog/sku-price';
 import {
   bestOffer,
   normaliseCode,
+  offerLive,
   offerProblems,
   OFFER_KINDS,
   type Offer,
@@ -15,6 +16,7 @@ import {
   type QuoteResult,
 } from './engine';
 import { getProfitSettings } from './settings';
+import { toPromotion, type Promotion } from './promotions';
 
 /**
  * Offers in the database: saving them (with the profit check), and quoting
@@ -266,4 +268,26 @@ export async function setOfferActive(db: Db, id: string, active: boolean, actor:
     entityId: id,
   });
   return { ok: true, id };
+}
+
+/**
+ * Automatic offers running now, for the shop to show. Coupon offers are
+ * left out (the owner hands those codes out), as are offers that are used
+ * up or cover nothing on sale.
+ */
+export async function activePromotions(db: Db, now = new Date()): Promise<Promotion[]> {
+  const [rows, usage] = await Promise.all([
+    db
+      .select()
+      .from(O)
+      .where(and(eq(O.active, true), isNull(O.couponCode))),
+    usageCounts(db),
+  ]);
+  const onSale = new Set(PRODUCTS.map((p) => p.id));
+  return rows
+    .map(toOffer)
+    .filter((o) => offerLive(o, now, usage[o.id] ?? 0))
+    .map((o) => ({ ...o, productIds: o.productIds?.filter((id) => onSale.has(id)) ?? null }))
+    .filter((o) => o.productIds === null || o.productIds.length > 0)
+    .map(toPromotion);
 }

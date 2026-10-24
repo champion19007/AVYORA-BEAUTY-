@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { stockLabel } from '@/lib/stock-label';
 import { skuPrice, type SkuPrice } from '@/modules/catalog/sku-price';
 import { IS_SAMPLE_CATALOGUE } from '@/lib/catalogue-mode';
+import { PromoBadge } from './promo-badge';
 
 /**
  * Availability for the whole catalogue, keyed `productId::size`.
@@ -114,7 +115,8 @@ export function ProductCard({
           </div>
         )}
 
-        <div className="absolute left-4 top-4 z-10 flex flex-col gap-2">
+        <div className="absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
+          <PromoBadge productId={product.id} />
           {IS_SAMPLE_CATALOGUE && (
             <span className="rounded-full bg-background/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-foreground">
               Sample

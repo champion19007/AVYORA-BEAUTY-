@@ -24,11 +24,19 @@ function ReturnInner() {
 
   useEffect(() => {
     let cancelled = false;
+    // The order's access token, kept by this tab at checkout: it entitles this browser to the order's status.
+    const storedToken = (() => {
+      try {
+        return sessionStorage.getItem(`order-token:${orderNumber}`) ?? openAttempt()?.token ?? null;
+      } catch {
+        return openAttempt()?.token ?? null;
+      }
+    })();
     const check = async (attempt: number) => {
       const res = await fetch('/api/payments/cashfree/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNumber }),
+        body: JSON.stringify({ orderNumber, ...(storedToken ? { token: storedToken } : {}) }),
       })
         .then((r) => r.json().then((body) => ({ ok: r.ok, body })))
         .catch(() => ({ ok: false, body: null as any }));
@@ -52,6 +60,11 @@ function ReturnInner() {
       }
       if (!res.ok) {
         setState('error');
+        return;
+      }
+      // Another tab or device (no token here): the payment is being applied, but this page cannot show it.
+      if (res.body?.status === 'unverified') {
+        setState('pending');
         return;
       }
       // Not paid: the customer cancelled, backed out or the payment failed.

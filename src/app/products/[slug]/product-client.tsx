@@ -3,9 +3,12 @@
 import { Product } from '@/data/mock-data';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Star, Plus, Minus, Heart } from 'lucide-react';
+import { Star, Plus, Minus, Heart, Truck, Wallet, RotateCcw } from 'lucide-react';
+import Link from 'next/link';
+import { FREE_DELIVERY_LINE } from '@/lib/money';
 import { Button } from '@/components/ui/button';
 import { Price } from '@/components/price';
+import { PromoDetails } from '@/components/product/promo-badge';
 import { useApp } from '@/lib/store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ProductCard } from '@/components/product/product-card';
@@ -189,6 +192,8 @@ export function ProductClient({
             </div>
           </div>
 
+          <PromoDetails productId={product.id} />
+
           <div className="space-y-8">
             <div className="space-y-4">
               <span className="text-[10px] font-semibold uppercase tracking-widest">Select Size</span>
@@ -270,6 +275,22 @@ export function ProductClient({
                 {notice}
               </p>
             )}
+
+            {/* What shoppers check before buying, from the same figures checkout and the policies use. */}
+            <ul className="space-y-1.5 text-sm text-muted-foreground">
+              <li className="flex items-center gap-2">
+                <Truck className="h-4 w-4 shrink-0" aria-hidden="true" /> {FREE_DELIVERY_LINE}
+              </li>
+              <li className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" /> Cash on delivery available
+              </li>
+              <li className="flex items-center gap-2">
+                <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <Link href="/refund-policy" className="underline underline-offset-2">
+                  Returns and refunds
+                </Link>
+              </li>
+            </ul>
           </div>
 
           <div className="pt-6 md:pt-10 border-t">

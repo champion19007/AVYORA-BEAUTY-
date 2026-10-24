@@ -1,4 +1,5 @@
 import { db } from '@/db';
+import { CONCERNS } from '@/data/mock-data';
 import { PRODUCT_CATEGORIES, SKIN_TYPES } from '@/modules/catalog/product-store';
 import { SLOT_LABELS } from '@/lib/routine-slots';
 import { getProfitSettings } from '@/modules/offers/settings';
@@ -8,6 +9,7 @@ export async function editorProps() {
   return {
     categories: PRODUCT_CATEGORIES,
     skinTypes: SKIN_TYPES,
+    concernOptions: CONCERNS.map(({ id, name }) => ({ id, name })),
     slots: Object.entries(SLOT_LABELS).map(([value, label]) => ({ value, label })),
     settings: await getProfitSettings(db),
   };

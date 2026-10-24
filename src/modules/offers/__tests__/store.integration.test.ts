@@ -89,3 +89,20 @@ describe('offers store', () => {
     expect((await setOfferActive(db(), saved.id, true, 'owner')).ok).toBe(false);
   });
 });
+
+describe('promotions shown on the shop', () => {
+  it('shows running automatic offers only: no coupons, nothing switched off or used up', async () => {
+    await setCost(10000);
+    const { activePromotions } = await import('../store');
+    await saveOffer(
+      db(),
+      offer({ name: 'Buy 2, get 1 free', kind: 'buy_x_get_y', percentOff: null, buyQty: 2, getQty: 1 }),
+      'owner'
+    );
+    await saveOffer(db(), offer({ name: 'Secret', couponCode: 'VIP' }), 'owner');
+    await saveOffer(db(), offer({ name: 'Paused', active: false }), 'owner');
+    const shown = await activePromotions(db());
+    expect(shown.map((p) => p.name)).toEqual(['Buy 2, get 1 free']);
+    expect(shown[0]).toMatchObject({ buyQty: 2, getQty: 1, productIds: ['face-wash'] });
+  });
+});

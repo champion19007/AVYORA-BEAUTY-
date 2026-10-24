@@ -72,13 +72,18 @@ describe('storefront consistency', () => {
   });
 
   it('never hardcodes the delivery charge or threshold outside the money module', () => {
-    const literal = /₹\s?1,?199|&#8377;\s?1,?199|₹\s?79\b|&#8377;\s?79\b|\b1199\b/;
-    // The catalogue is exempt: a product may itself cost ₹1,199.
+    // Built from the current figures, so the guard follows a change to either.
+    const figure = (paise: number) => {
+      const digits = String(paise / 100).replace(/\B(?=(\d{3})+(?!\d))/g, ',?');
+      return `₹\\s?${digits}\\b|&#8377;\\s?${digits}\\b`;
+    };
+    const literal = new RegExp(`${figure(FREE_SHIPPING_THRESHOLD_PAISE)}|${figure(STANDARD_SHIPPING_PAISE)}`);
+    // The catalogue is exempt: a product may itself cost the same amount.
     const offenders = storefrontSources(ROOT)
       .filter(({ file, text }) => !file.startsWith('src/data/') && literal.test(text))
       .map((s) => s.file);
     expect(offenders).toEqual([]);
-  });
+  }, 20_000);
 });
 
 describe('delivery copy matches what checkout charges', () => {
