@@ -64,6 +64,7 @@ function customerEmail(input: OrderNotificationInput) {
     : input.paymentProvider === 'cod'
       ? 'Cash on delivery — please keep the amount ready.'
       : 'Payment pending.';
+  const cod = !input.paid && input.paymentProvider === 'cod';
 
   return {
     subject: `Your Avyora order ${input.orderNumber}`,
@@ -81,7 +82,7 @@ function customerEmail(input: OrderNotificationInput) {
       '',
       // The link is the whole point of this email for a guest: without it a
       // closed tab loses the order permanently.
-      'Track your order here:',
+      cod ? 'Please confirm your order so we can pack it (one tap):' : 'Track your order here:',
       input.orderUrl,
       '',
       'We will email again when it is on its way.',

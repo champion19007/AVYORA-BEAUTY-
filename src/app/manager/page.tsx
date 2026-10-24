@@ -2,7 +2,7 @@ import { isDatabaseConfigured } from '@/db';
 import { listDispatchQueue } from '@/lib/manager-data';
 import { orderProgress } from '@/lib/order-progress';
 import { Button } from '@/components/ui/button';
-import { advanceDispatch, dispatchActionLabel, nextDispatchSteps } from './actions';
+import { advanceDispatch, confirmCodByPhone, dispatchActionLabel, nextDispatchSteps } from './actions';
 import { BookCourier } from './book-courier';
 import { getShiprocketConfig, trackingUrl } from '@/modules/shipping/shiprocket';
 
@@ -76,8 +76,7 @@ export default async function DispatchPage() {
              * a fast picker would otherwise send a parcel the gate was about
              * to stop.
              */
-            const onHold =
-              order.fraudStatus === 'review' || order.fraudStatus === 'pending' || order.attentionReason !== null;
+            const onHold = order.hold !== null || order.attentionReason !== null;
 
             return (
               <li key={order.id} className="rounded-xl border border-border bg-card p-6">
@@ -103,7 +102,7 @@ export default async function DispatchPage() {
                   here stops the manager either holding a valid parcel or
                   shipping one that was abandoned at the payment step.
                 */}
-                {unpaid && (
+                {unpaid && (order.paymentProvider === 'cod' || !onHold) && (
                   <p
                     className={
                       order.paymentProvider === 'cod'
@@ -118,13 +117,20 @@ export default async function DispatchPage() {
                 )}
 
                 {onHold && (
-                  <p className="mt-3 text-[13px] font-medium text-red-600 dark:text-red-400">
-                    {order.attentionReason
-                      ? 'On hold — the owner needs to decide what happens to this order before it is packed.'
-                      : order.fraudStatus === 'review'
-                        ? 'On hold — this cash-on-delivery order failed an automatic check. Confirm with the customer before packing.'
-                        : 'Risk check still running. Wait a moment and refresh.'}
-                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <p className="text-[13px] font-medium text-red-600 dark:text-red-400">
+                      On hold —{' '}
+                      {order.attentionReason ? 'the owner needs to decide what happens to this order.' : order.hold}
+                    </p>
+                    {order.awaitingCodConfirmation && order.status === 'pending' && !order.attentionReason && (
+                      <form action={confirmCodByPhone}>
+                        <input type="hidden" name="orderNumber" value={order.orderNumber} />
+                        <Button type="submit" variant="outline" className="h-9 rounded-md px-4 text-[13px]">
+                          Customer confirmed by phone
+                        </Button>
+                      </form>
+                    )}
+                  </div>
                 )}
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -137,6 +143,17 @@ export default async function DispatchPage() {
                         <li key={i}>
                           <span className="font-medium tabular-nums">{item.quantity} ×</span> {item.name}
                           <span className="text-muted-foreground"> · {item.size}</span>
+                          {item.batches.length > 0 && (
+                            <span className="block text-[13px] text-muted-foreground">
+                              From batch{' '}
+                              {item.batches
+                                .map(
+                                  (b) =>
+                                    `${b.code}${item.batches.length > 1 ? ` ×${b.quantity}` : ''}${b.expiresOn ? ` (exp ${b.expiresOn})` : ''}`
+                                )
+                                .join(', ')}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>

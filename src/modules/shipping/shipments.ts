@@ -2,7 +2,8 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { orders, orderItems } from '@/db/schema';
 import { emitEvent } from '@/lib/events';
-import { restoreOrderStock } from '@/lib/orders';
+import { openUndeliveredReturn } from '@/modules/returns/returns';
+import { packingHold } from '@/modules/shipping/cod-policy';
 import { getVariant } from '@/lib/catalogue';
 import { recordAudit } from '@/modules/audit/audit';
 import { applyPaymentSignal } from '@/modules/payments/payment-service';
@@ -44,9 +45,8 @@ export async function bookCourier(
   if (order.status !== 'fulfilled') return { ok: false, error: 'Mark the order packed before booking a courier.' };
   if (order.awb) return { ok: false, error: `Already booked: ${order.awb}.` };
   const cod = order.paymentProvider === 'cod';
-  if (order.attentionReason || order.fraudStatus !== 'approved' || (!cod && order.paymentStatus !== 'paid')) {
-    return { ok: false, error: 'This order is on hold. The owner needs to clear it first.' };
-  }
+  const hold = packingHold(order);
+  if (hold) return { ok: false, error: `This order is on hold. ${hold}` };
 
   // Claim the booking: exactly one caller moves `shipment` from null.
   const claimed = await db
@@ -110,6 +110,15 @@ export async function bookCourier(
  * collected the money at the door. Through the payment state machine, like
  * every other payment, so revenue figures include COD sales.
  */
+/** Marks when an order was delivered (once; it starts the return window) and books any cash collected. */
+export async function recordDelivered(orderId: string): Promise<void> {
+  await db
+    .update(orders)
+    .set({ deliveredAt: new Date() })
+    .where(and(eq(orders.id, orderId), isNull(orders.deliveredAt)));
+  await recordCodCollected(orderId);
+}
+
 export async function recordCodCollected(orderId: string): Promise<void> {
   const [order] = await db
     .select({ provider: orders.paymentProvider, paymentStatus: orders.paymentStatus, total: orders.total })
@@ -174,19 +183,11 @@ export async function applyTrackingUpdate(update: TrackingUpdate): Promise<Track
     if (effect.status === 'shipped') {
       await emitEvent('order.shipped', order.id, { orderId: order.id, orderNumber: order.orderNumber });
     } else if (effect.status === 'delivered') {
-      await recordCodCollected(order.id);
+      await recordDelivered(order.id);
     } else if (effect.status === 'returned') {
-      // Back on the shelf. A prepaid customer is owed a refund, which is the owner's call.
-      await restoreOrderStock(order.id);
-      if (order.paymentStatus === 'paid' && order.paymentProvider !== 'cod') {
-        const reason = 'Parcel returned to us undelivered. Refund the customer, then clear this.';
-        await db.update(orders).set({ attentionReason: reason }).where(eq(orders.id, order.id));
-        await emitEvent('order.needs_attention', order.id, {
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          reason,
-        });
-      }
+      // Not straight back on the shelf: a return case waits for the parcel to be
+      // inspected, and carries the refund for a prepaid customer.
+      await openUndeliveredReturn(order.id);
     }
   } catch (err) {
     // The status already moved; a follow-up failing must not make the webhook retry it.

@@ -473,6 +473,12 @@ export const orders = pgTable(
      * it records the problem and puts it in front of the owner.
      */
     attentionReason: text('attention_reason'),
+    /** Cash on delivery: when the customer (or staff, by phone) confirmed they want it. Packing waits for it. */
+    codConfirmedAt: timestamp('cod_confirmed_at', { withTimezone: true }),
+    /** When the courier (or staff) marked it delivered; starts the return window. */
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    /** Sum of refunds issued, in paise; a refund may never take it past `total`. */
+    refundedTotal: integer('refunded_total').notNull().default(0),
     /**
      * The courier's tracking number (AWB), once a shipment is booked. Unique:
      * tracking updates arrive keyed by AWB, and must find exactly one order.
@@ -995,6 +1001,115 @@ export const inventory = pgTable(
   (t) => ({
     uniq: uniqueIndex('inventory_product_size_idx').on(t.productId, t.size),
     variantIdx: uniqueIndex('inventory_variant_idx').on(t.variantId),
+  })
+);
+
+/**
+ * Stock by batch: one row per manufacturer batch of a SKU, with its expiry.
+ *
+ * `inventory.quantity` stays the sellable total, the number checkout reserves
+ * against; for a SKU with batches it always equals the sum of `quantity` here.
+ * Both change in the same transaction. Batches are picked earliest expiry
+ * first, and a batch too close to expiry to send (see MIN_SHELF_LIFE_DAYS) is
+ * never allocated: the daily sweep moves its units to `expired_units`, out of
+ * the sellable total, for the stockroom to take off the shelf.
+ *
+ * A SKU with no batches at all is untracked and sells from the total alone,
+ * as before; migration 0025 gave existing stock a NOT-RECORDED batch.
+ */
+export const stockLots = pgTable(
+  'stock_lots',
+  {
+    id: serial('id').primaryKey(),
+    productId: text('product_id').notNull(),
+    size: text('size').notNull(),
+    batchCode: text('batch_code').notNull(),
+    /** Null only for stock counted before batches were recorded. */
+    expiresOn: text('expires_on'),
+    /** Sellable units of this batch on the shelf. */
+    quantity: integer('quantity').notNull().default(0),
+    /** Units held back as past the shipping cutoff, awaiting disposal. */
+    expiredUnits: integer('expired_units').notNull().default(0),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    receivedBy: text('received_by'),
+  },
+  (t) => ({
+    uniq: uniqueIndex('stock_lots_sku_batch_idx').on(t.productId, t.size, t.batchCode),
+    quantities: check('stock_lots_quantity_check', sql`${t.quantity} >= 0 AND ${t.expiredUnits} >= 0`),
+    expiry: check('stock_lots_expiry_check', sql`${t.expiresOn} IS NULL OR ${t.expiresOn} ~ '^\\d{4}-\\d{2}-\\d{2}$'`),
+  })
+);
+
+/**
+ * A return, a cancellation that needs a refund, or a parcel the courier
+ * brought back. One row carries it from request to refund.
+ *
+ *   requested → approved | rejected        (staff decide; cancellations and
+ *   approved  → received                    undelivered parcels skip ahead)
+ *   approved | received → refunded
+ *
+ * `refund_to` holds a COD customer's UPI ID only until the refund is made.
+ * At most one open request per order (partial unique index).
+ */
+export const returnRequests = pgTable(
+  'return_requests',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    status: text('status').notNull().default('requested'),
+    /** [{ orderItemId, quantity }] */
+    items: jsonb('items').notNull(),
+    customerNote: text('customer_note'),
+    refundTo: text('refund_to'),
+    refundAmount: integer('refund_amount'),
+    refundMethod: text('refund_method'),
+    refundReference: text('refund_reference'),
+    /** pending | done | failed, for a refund sent through the payment provider. */
+    refundStatus: text('refund_status'),
+    /** Units put back on sale after inspection; the rest were written off. */
+    restockedUnits: integer('restocked_units').notNull().default(0),
+    staffNote: text('staff_note'),
+    decidedBy: text('decided_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    refundedAt: timestamp('refunded_at', { withTimezone: true }),
+  },
+  (t) => ({
+    orderIdx: index('return_requests_order_idx').on(t.orderId),
+    oneOpen: uniqueIndex('return_requests_one_open_idx')
+      .on(t.orderId)
+      .where(sql`${t.status} in ('requested', 'approved', 'received')`),
+    kind: check(
+      'return_requests_kind_check',
+      sql`${t.kind} in ('unopened', 'damaged', 'wrong_item', 'cancelled', 'undelivered')`
+    ),
+    status: check(
+      'return_requests_status_check',
+      sql`${t.status} in ('requested', 'approved', 'rejected', 'received', 'refunded')`
+    ),
+  })
+);
+
+/** Which batch each order line was picked from: the trail for a complaint or recall. */
+export const orderItemLots = pgTable(
+  'order_item_lots',
+  {
+    orderItemId: integer('order_item_id')
+      .notNull()
+      .references(() => orderItems.id, { onDelete: 'cascade' }),
+    lotId: integer('lot_id')
+      .notNull()
+      .references(() => stockLots.id, { onDelete: 'restrict' }),
+    quantity: integer('quantity').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orderItemId, t.lotId] }),
+    lotIdx: index('order_item_lots_lot_idx').on(t.lotId),
   })
 );
 

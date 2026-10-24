@@ -8,8 +8,10 @@ import { getProductById, getVariant } from '@/lib/catalogue';
 import { pricingMap } from '@/lib/pricing';
 import { skuKey, skuPrice } from '@/modules/catalog/sku-price';
 import { calculateTotals, formatPaise, generateOrderNumber } from '@/lib/money';
-import { releaseStock, reserveStock } from '@/lib/inventory';
+import { recordAllocations, releaseOrderStock, reserveStock } from '@/lib/inventory';
 import { MAX_QUANTITY_PER_SKU } from '@/lib/cart';
+import { checkServiceability } from '@/modules/shipping/shiprocket';
+import { COD_MAX_PAISE } from '@/modules/shipping/cod-policy';
 import { quoteBag } from '@/modules/offers/store';
 import { normaliseCode } from '@/modules/offers/engine';
 import { recordEvent } from '@/lib/activity';
@@ -376,6 +378,22 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     { freeDelivery: applied?.freeDelivery }
   );
 
+  if (data.paymentMethod === 'cod' && totals.total > COD_MAX_PAISE) {
+    return {
+      ok: false,
+      error: `Cash on delivery is available on orders up to ${formatPaise(COD_MAX_PAISE)}. Please pay online for this one.`,
+    };
+  }
+  // Checked before stock is touched. Unknown (Shiprocket not set up or slow) lets the order through.
+  const pin = data.address.postalCode.trim();
+  const service = await checkServiceability(pin);
+  if (service && !service.deliverable) {
+    return { ok: false, error: `Our couriers do not deliver to PIN code ${pin} yet. Please use another address.` };
+  }
+  if (service && data.paymentMethod === 'cod' && !service.cod) {
+    return { ok: false, error: `Cash on delivery is not available at PIN code ${pin}. Please pay online.` };
+  }
+
   const orderNumber = generateOrderNumber();
   const requestId = await currentRequestId();
   let createdOrderId = '';
@@ -463,6 +481,7 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
       createdOrderId = order.id;
 
       await tx.insert(orderItems).values(lines.map((l) => ({ ...l, orderId: order.id })));
+      await recordAllocations(tx as never, order.id, reservation.allocations);
 
       /*
        * The order and the fact that it happened commit together.
@@ -684,14 +703,10 @@ export async function restoreOrderStock(orderId: string): Promise<boolean> {
     // Someone else already restored this order's stock.
     if (claimed.length === 0) return false;
 
-    const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    const items = await tx.select({ id: orderItems.id }).from(orderItems).where(eq(orderItems.orderId, orderId));
     if (items.length === 0) return false;
 
-    await releaseStock(
-      items.map((i) => ({ productId: i.productId, size: i.size, quantity: i.quantity })),
-      tx as never
-    );
-
+    await releaseOrderStock(tx as never, orderId);
     return true;
   });
 }

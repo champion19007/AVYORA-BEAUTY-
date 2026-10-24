@@ -189,6 +189,75 @@ export async function fetchCashfreePayments(orderNumber: string, c: CashfreeConf
   }
 }
 
+/** A refund as Cashfree reports it, in this app's terms. */
+export type CashfreeRefund = { cfRefundId: string | null; status: 'pending' | 'done' | 'failed' };
+
+const REFUND_STATUS: Record<string, CashfreeRefund['status']> = {
+  SUCCESS: 'done',
+  PENDING: 'pending',
+  ONHOLD: 'pending',
+  CANCELLED: 'failed',
+};
+const readRefund = (body: { cf_refund_id?: unknown; refund_status?: unknown }): CashfreeRefund => ({
+  cfRefundId: body.cf_refund_id == null ? null : String(body.cf_refund_id),
+  status: REFUND_STATUS[String(body.refund_status ?? '').toUpperCase()] ?? 'pending',
+});
+
+/** Where a refund stands. Null when Cashfree cannot be reached or does not know it. */
+export async function fetchCashfreeRefund(
+  orderNumber: string,
+  refundId: string,
+  c: CashfreeConfig
+): Promise<CashfreeRefund | null> {
+  try {
+    const res = await fetch(
+      `${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}/refunds/${encodeURIComponent(refundId)}`,
+      { headers: headers(c), cache: 'no-store', signal: AbortSignal.timeout(10_000) }
+    );
+    return res.ok ? readRefund(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Refunds part or all of a paid order to the customer's original payment method.
+ *
+ * `refundId` is ours and Cashfree keeps it unique per order, so a retried call
+ * cannot refund twice: a repeat is answered with the existing refund's status.
+ */
+export async function createCashfreeRefund(
+  orderNumber: string,
+  refundId: string,
+  amountPaise: number,
+  note: string,
+  c: CashfreeConfig
+): Promise<CashfreeRefund | { error: string }> {
+  try {
+    const res = await fetch(`${baseUrl(c)}/orders/${encodeURIComponent(orderNumber)}/refunds`, {
+      method: 'POST',
+      headers: headers(c),
+      body: JSON.stringify({
+        refund_amount: toRupees(amountPaise),
+        refund_id: refundId,
+        refund_note: note.slice(0, 100),
+      }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      message?: unknown;
+      cf_refund_id?: unknown;
+      refund_status?: unknown;
+    };
+    if (res.ok) return readRefund(body);
+    const existing = res.status === 409 ? await fetchCashfreeRefund(orderNumber, refundId, c) : null;
+    return existing ?? { error: String(body.message ?? `Cashfree refused the refund (${res.status}).`) };
+  } catch {
+    return { error: 'Cashfree could not be reached. Nothing was refunded; try again in a minute.' };
+  }
+}
+
 /**
  * Webhook signature: base64(HMAC-SHA256(timestamp + rawBody, secretKey)),
  * over the exact bytes received. Compared in constant time.

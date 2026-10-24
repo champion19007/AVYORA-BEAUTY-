@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { domainEvents, inventory, orders } from '@/db/schema';
+import { domainEvents, inventory, orders, returnRequests } from '@/db/schema';
 import { createMigratedDb } from '@/test/migrated-db';
 
 /**
@@ -67,6 +67,7 @@ async function packedOrder(paymentMethod: 'cod' | 'cashfree' = 'cod') {
     .set({
       status: 'fulfilled',
       fraudStatus: 'approved',
+      codConfirmedAt: new Date(),
       ...(paymentMethod === 'cod' ? {} : { paymentStatus: 'paid' as const }),
     })
     .where(eq(orders.id, placed.orderId));
@@ -155,19 +156,21 @@ describe('courier updates', () => {
     expect(await events('order.shipped')).toBe(1);
   });
 
-  it('puts a returned parcel back in stock, and asks the owner to refund a prepaid one', async () => {
+  it('opens a return case for a parcel that came back, without restocking it unseen', async () => {
     const order = await booked('cashfree');
     expect(await stock()).toBe(8);
     await applyTrackingUpdate({ awb: 'AWB-1', statusId: 6, statusLabel: 'SHIPPED' });
     await applyTrackingUpdate({ awb: 'AWB-1', statusId: 10, statusLabel: 'RTO DELIVERED' });
     const row = await read(order.orderId);
     expect(row.status).toBe('returned');
-    expect(await stock()).toBe(10);
-    expect(row.attentionReason).toMatch(/Refund/);
+    // Still off the shelf until someone has looked at it.
+    expect(await stock()).toBe(8);
+    const cases = await db.select().from(returnRequests).where(eq(returnRequests.orderId, order.orderId));
+    expect(cases).toMatchObject([{ kind: 'undelivered', status: 'approved' }]);
 
-    // A repeat of the same update cannot restock twice.
+    // A repeat of the same update opens no second case.
     await applyTrackingUpdate({ awb: 'AWB-1', statusId: 10, statusLabel: 'RTO DELIVERED' });
-    expect(await stock()).toBe(10);
+    expect(await db.select().from(returnRequests)).toHaveLength(1);
   });
 
   it('flags lost or undelivered parcels for the owner without moving them', async () => {

@@ -1,7 +1,8 @@
 import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { orders, orderItems, inventory, restockRequests } from '@/db/schema';
+import { orders, orderItems, inventory, restockRequests, stockLots, orderItemLots } from '@/db/schema';
 import { allProducts, getProductById } from '@/lib/catalogue';
+import { packingHold } from '@/modules/shipping/cod-policy';
 
 /**
  * Read models for the inventory manager's console.
@@ -29,13 +30,23 @@ export type DispatchOrder = {
   fraudStatus: string;
   /** Set when the owner must decide before this ships. See `orders.attention_reason`. */
   attentionReason: string | null;
+  /** Why it may not be packed yet (lib cod-policy), or null. */
+  hold: string | null;
+  /** Cash on delivery not yet confirmed by the customer: staff may confirm by phone. */
+  awaitingCodConfirmation: boolean;
   createdAt: Date;
   customerName: string;
   city: string;
   state: string;
   postalCode: string;
   phone: string;
-  items: { name: string; size: string; quantity: number }[];
+  /** `batches` says which batch to pick each line's units from, earliest expiry first. */
+  items: {
+    name: string;
+    size: string;
+    quantity: number;
+    batches: { code: string; expiresOn: string | null; quantity: number }[];
+  }[];
   /** Set once a courier is booked. */
   courier: { awb: string; name: string; labelUrl: string | null; status: string | null } | null;
 };
@@ -78,6 +89,24 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
       )
     );
 
+  const picks = lines.length
+    ? await db
+        .select({
+          orderItemId: orderItemLots.orderItemId,
+          quantity: orderItemLots.quantity,
+          code: stockLots.batchCode,
+          expiresOn: stockLots.expiresOn,
+        })
+        .from(orderItemLots)
+        .innerJoin(stockLots, eq(stockLots.id, orderItemLots.lotId))
+        .where(
+          inArray(
+            orderItemLots.orderItemId,
+            lines.map((l) => l.id)
+          )
+        )
+    : [];
+
   const linesByOrder = new Map<string, typeof lines>();
   for (const line of lines) {
     const bucket = linesByOrder.get(line.orderId);
@@ -95,6 +124,8 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
       paymentProvider: row.paymentProvider,
       fraudStatus: row.fraudStatus,
       attentionReason: row.attentionReason,
+      hold: ['pending', 'paid'].includes(row.status) ? packingHold(row) : null,
+      awaitingCodConfirmation: row.paymentProvider === 'cod' && row.codConfirmedAt === null,
       createdAt: row.createdAt,
       customerName: address.fullName ?? '—',
       city: address.city ?? '—',
@@ -105,6 +136,9 @@ export async function listDispatchQueue(): Promise<DispatchOrder[]> {
         name: l.productName,
         size: l.size,
         quantity: l.quantity,
+        batches: picks
+          .filter((p) => p.orderItemId === l.id)
+          .map((p) => ({ code: p.code, expiresOn: p.expiresOn, quantity: p.quantity })),
       })),
       courier: row.awb
         ? (() => {
@@ -218,4 +252,84 @@ export async function countOpenRestockRequests(): Promise<number> {
     .where(and(eq(restockRequests.status, 'open'), isNull(restockRequests.resolvedAt)));
 
   return rows.length;
+}
+
+export type BatchRow = {
+  id: number;
+  batchCode: string;
+  expiresOn: string | null;
+  quantity: number;
+  expiredUnits: number;
+};
+
+/** Every batch still holding units, keyed `productId::size`, earliest expiry first. */
+export async function listBatches(): Promise<Map<string, BatchRow[]>> {
+  const rows = await db
+    .select()
+    .from(stockLots)
+    .where(sql`${stockLots.quantity} > 0 OR ${stockLots.expiredUnits} > 0`)
+    .orderBy(sql`${stockLots.expiresOn} asc nulls last`, stockLots.id);
+  const map = new Map<string, BatchRow[]>();
+  for (const r of rows) {
+    const key = `${r.productId}::${r.size}`;
+    map.set(key, [...(map.get(key) ?? []), r]);
+  }
+  return map;
+}
+
+export type BatchOrderRow = {
+  orderNumber: string;
+  status: string;
+  createdAt: Date;
+  customerName: string;
+  email: string;
+  phone: string | null;
+  productName: string;
+  size: string;
+  quantity: number;
+  expiresOn: string | null;
+};
+
+/**
+ * Who received a batch: for a complaint or a recall.
+ *
+ * Only orders still holding the batch are listed; a cancelled order's units
+ * went back on the shelf and its link to the batch was removed.
+ */
+export async function ordersForBatch(batchCode: string): Promise<BatchOrderRow[]> {
+  const rows = await db
+    .select({
+      orderNumber: orders.orderNumber,
+      status: orders.status,
+      createdAt: orders.createdAt,
+      email: orders.email,
+      shippingAddress: orders.shippingAddress,
+      productName: orderItems.productName,
+      size: stockLots.size,
+      quantity: orderItemLots.quantity,
+      expiresOn: stockLots.expiresOn,
+    })
+    .from(orderItemLots)
+    .innerJoin(stockLots, eq(stockLots.id, orderItemLots.lotId))
+    .innerJoin(orderItems, eq(orderItems.id, orderItemLots.orderItemId))
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .where(eq(stockLots.batchCode, batchCode.trim().toUpperCase()))
+    .orderBy(desc(orders.createdAt))
+    .limit(500);
+
+  return rows.map((r) => {
+    const address = (r.shippingAddress ?? {}) as { fullName?: string; phone?: string };
+    return {
+      orderNumber: r.orderNumber,
+      status: r.status,
+      createdAt: r.createdAt,
+      email: r.email,
+      customerName: address.fullName ?? '',
+      phone: address.phone ?? null,
+      productName: r.productName,
+      size: r.size,
+      quantity: r.quantity,
+      expiresOn: r.expiresOn,
+    };
+  });
 }

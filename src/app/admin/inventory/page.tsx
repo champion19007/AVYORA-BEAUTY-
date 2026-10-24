@@ -8,8 +8,9 @@ import { needsShipping } from '@/lib/order-progress';
 import { StatusPill } from '../status-pill';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { setBackorder, setStock } from '../actions';
-import { ConfirmStockForm } from '../confirm-stock-form';
+import { setBackorder } from '../actions';
+import { listBatches, ordersForBatch } from '@/lib/manager-data';
+import { StockBatches, StockError } from '@/components/admin/stock-batches';
 
 export const metadata: Metadata = { title: 'Inventory' };
 export const dynamic = 'force-dynamic';
@@ -22,8 +23,12 @@ export const dynamic = 'force-dynamic';
  * is invisibly unbuyable. Those are listed separately with a box to start
  * counting them, rather than being left to fail quietly at checkout.
  */
-export default async function AdminInventoryPage({ searchParams }: { searchParams: Promise<{ stale?: string }> }) {
-  const { stale } = await searchParams;
+export default async function AdminInventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; batch?: string }>;
+}) {
+  const { error, batch } = await searchParams;
   if (!isDatabaseConfigured()) {
     return (
       <p className="rounded-xl border border-border bg-card p-8 text-center text-[15px] text-muted-foreground">
@@ -33,21 +38,18 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
   }
 
   // ponytail: scans the 200 newest orders; move to a status-filtered query if the backlog ever outgrows that.
-  const [rows, untracked, recent] = await Promise.all([listInventory(), listUntrackedSkus(), listOrders(200)]);
+  const [rows, untracked, recent, batches, batchOrders] = await Promise.all([
+    listInventory(),
+    listUntrackedSkus(),
+    listOrders(200),
+    listBatches(),
+    batch?.trim() ? ordersForBatch(batch) : Promise.resolve(null),
+  ]);
   const toShip = recent.filter(needsShipping).reverse(); // oldest first: ship in the order they came in
 
   return (
     <div className="space-y-10">
-      {stale && (
-        <p
-          role="alert"
-          className="rounded-lg border border-amber-500/40 bg-amber-50 p-4 text-[14px] leading-relaxed text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
-        >
-          <strong>{stale.replace('::', ' · ')}</strong> was not changed. Its count moved after this page loaded — a sale
-          or the stockroom changed it — so your number would have overwritten theirs. The figures below are current; set
-          it again if it still needs changing.
-        </p>
-      )}
+      <StockError error={error} />
       <section aria-labelledby="to-ship">
         <h2 id="to-ship" className="font-headline text-2xl font-normal tracking-tight">
           Orders to ship <span className="text-muted-foreground">({toShip.length})</span>
@@ -87,8 +89,8 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
       <div>
         <h1 className="font-headline text-3xl font-normal tracking-tight">Inventory</h1>
         <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
-          Read-only by habit. Counting belongs to the stockroom, who are at the shelf — changing a number here
-          overwrites what they counted, so it asks before it does.
+          Stock is held by batch. Deliveries and corrections are usually entered by the stockroom; the same forms are
+          here for when they are away.
         </p>
       </div>
 
@@ -104,7 +106,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
                 <th className="p-4 font-semibold">Product</th>
                 <th className="p-4 font-semibold">Size</th>
                 <th className="p-4 font-semibold">In stock</th>
-                <th className="p-4 font-semibold">Set count</th>
+                <th className="p-4 font-semibold">Batches</th>
                 <th className="p-4 font-semibold">Backorder</th>
               </tr>
             </thead>
@@ -141,11 +143,12 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
                       </span>
                     </td>
                     <td className="p-4">
-                      <ConfirmStockForm
+                      <StockBatches
                         productId={row.productId}
-                        size={row.size}
                         productName={row.productName}
-                        currentQuantity={row.quantity}
+                        size={row.size}
+                        batches={batches.get(`${row.productId}::${row.size}`) ?? []}
+                        back="/admin/inventory"
                       />
                     </td>
                     <td className="p-4">
@@ -175,7 +178,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
           <h2 className="font-headline text-xl font-normal tracking-tight">Not yet counted</h2>
           <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
             These {untracked.length} SKU{untracked.length === 1 ? '' : 's'} have no inventory row, so they cannot be
-            sold at all. Enter a count to bring one under stock control.
+            sold at all. Receive a delivery to bring one under stock control.
           </p>
 
           {/* No confirmation here: there is no counted value to overwrite. */}
@@ -186,33 +189,88 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
                   {sku.productName}
                   <span className="ml-2 text-muted-foreground">{sku.size}</span>
                 </span>
-                <form action={setStock} className="ml-auto flex items-center gap-2">
-                  <input type="hidden" name="productId" value={sku.productId} />
-                  <input type="hidden" name="size" value={sku.size} />
-                  {/* No row yet; the save fails if one appeared meanwhile. */}
-                  <input type="hidden" name="expectedQuantity" value="" />
-                  <input type="hidden" name="confirmed" value="yes" />
-                  <Input
-                    name="quantity"
-                    type="number"
-                    min={0}
-                    defaultValue={0}
-                    aria-label={`Stock for ${sku.productName} ${sku.size}`}
-                    className="h-10 w-24 rounded-md"
+                <div className="ml-auto">
+                  <StockBatches
+                    productId={sku.productId}
+                    productName={sku.productName}
+                    size={sku.size}
+                    batches={[]}
+                    back="/admin/inventory"
                   />
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="h-10 rounded-md px-4 text-[11px] font-semibold uppercase tracking-[0.14em]"
-                  >
-                    Track
-                  </Button>
-                </form>
+                </div>
               </li>
             ))}
           </ul>
         </section>
       )}
+
+      <section aria-labelledby="batch-lookup">
+        <h2 id="batch-lookup" className="font-headline text-xl font-normal tracking-tight">
+          Find a batch
+        </h2>
+        <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
+          For a complaint or a recall: every order that received units of a batch, with how to reach the customer.
+        </p>
+        <form method="get" className="mt-4 flex flex-wrap items-center gap-2">
+          <Input
+            name="batch"
+            defaultValue={batch ?? ''}
+            placeholder="Batch number"
+            aria-label="Batch number"
+            className="h-10 w-48 rounded-md uppercase"
+          />
+          <Button
+            type="submit"
+            variant="outline"
+            className="h-10 rounded-md px-4 text-[11px] font-semibold uppercase tracking-[0.14em]"
+          >
+            Find orders
+          </Button>
+        </form>
+        {batchOrders && (
+          <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-card">
+            {batchOrders.length === 0 ? (
+              <p className="p-6 text-center text-[15px] text-muted-foreground">No order received batch {batch}.</p>
+            ) : (
+              <table className="w-full min-w-[760px] text-left text-[14px]">
+                <thead className="border-b border-border text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  <tr>
+                    <th className="p-3 font-semibold">Order</th>
+                    <th className="p-3 font-semibold">Customer</th>
+                    <th className="p-3 font-semibold">Product</th>
+                    <th className="p-3 font-semibold">Units</th>
+                    <th className="p-3 font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {batchOrders.map((o) => (
+                    <tr key={`${o.orderNumber}-${o.productName}-${o.size}`}>
+                      <td className="p-3">
+                        <Link href={`/admin/orders/${o.orderNumber}`} className="font-medium text-primary">
+                          {o.orderNumber}
+                        </Link>
+                      </td>
+                      <td className="p-3">
+                        {o.customerName}
+                        <span className="block text-muted-foreground">
+                          {[o.email, o.phone].filter(Boolean).join(' · ')}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        {o.productName} <span className="text-muted-foreground">· {o.size}</span>
+                      </td>
+                      <td className="p-3 tabular-nums">{o.quantity}</td>
+                      <td className="p-3">
+                        <StatusPill kind="fulfilment" value={o.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -57,6 +57,8 @@ const DEFAULT_POLICIES = {
   catalogBatch: { limit: 60, ipLimit: 60, windowSeconds: 60, onFailure: 'open' },
   /** Checkout offer quotes: generous for typing, tight enough that coupon codes cannot be ground through. */
   offerQuote: { limit: 30, ipLimit: 30, windowSeconds: 60, onFailure: 'open' },
+  /** Checkout's PIN code delivery check, once per PIN code typed; Shiprocket answers are cached. */
+  deliveryCheck: { limit: 20, ipLimit: 20, windowSeconds: 60, onFailure: 'open' },
   routineSaveMinute: { limit: 5, ipLimit: 30, windowSeconds: 60, onFailure: 'closed' },
   routineSaveDay: { limit: 20, ipLimit: 200, windowSeconds: 86_400, onFailure: 'closed' },
   feedback: { limit: 5, ipLimit: 30, windowSeconds: 3_600, onFailure: 'closed' },

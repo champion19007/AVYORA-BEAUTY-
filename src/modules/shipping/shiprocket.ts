@@ -19,6 +19,8 @@ export type ShiprocketConfig = {
   password: string;
   /** The pickup address's nickname exactly as saved in Shiprocket. */
   pickupLocation: string;
+  /** Its PIN code; needed only for delivery checks. */
+  pickupPincode: string | null;
   /** The webhook's security token, sent by Shiprocket as `x-api-key`. */
   webhookToken: string | null;
   /** ponytail: one parcel size for every order; per-product weights when the range varies enough to matter. */
@@ -33,6 +35,7 @@ export function getShiprocketConfig(env: Record<string, string | undefined> = pr
     email,
     password,
     pickupLocation,
+    pickupPincode: /^\d{6}$/.test(env.SHIPROCKET_PICKUP_PINCODE ?? '') ? env.SHIPROCKET_PICKUP_PINCODE! : null,
     webhookToken: env.SHIPROCKET_WEBHOOK_TOKEN || null,
     parcel: {
       weightKg: num(env.SHIPROCKET_PARCEL_WEIGHT_KG, 0.5),
@@ -135,6 +138,69 @@ const tenDigits = (phone: string) => phone.replace(/\D/g, '').slice(-10);
 function orderDate(d: Date): string {
   const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
   return ist.toISOString().slice(0, 16).replace('T', ' ');
+}
+
+/* -------------------------------------------------------------------------- */
+/* Delivery checks                                                              */
+/* -------------------------------------------------------------------------- */
+
+/** Whether a courier serves a PIN code, and whether one there takes cash. */
+export type Serviceability = { deliverable: boolean; cod: boolean; days: number | null };
+
+// ponytail: per-instance memory, 12 hours; a shared cache if Shiprocket's rate limit ever bites.
+const serviceCache = new Map<string, { value: Serviceability; expires: number }>();
+const SERVICE_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** Test hook: forget remembered delivery checks. */
+export function resetServiceabilityCache(): void {
+  serviceCache.clear();
+}
+
+/**
+ * Asks Shiprocket which couriers serve a PIN code from our pickup address.
+ *
+ * Null means "could not tell" (not configured, no pickup PIN code, Shiprocket
+ * unreachable). Callers let the order through then: a delivery check that
+ * blocks every sale whenever a third party is slow costs more than the odd
+ * parcel the courier refuses at booking.
+ */
+export async function checkServiceability(
+  pincode: string,
+  config: ShiprocketConfig | null = getShiprocketConfig(),
+  fetchImpl: Fetch = fetch
+): Promise<Serviceability | null> {
+  if (!config?.pickupPincode || !/^\d{6}$/.test(pincode)) return null;
+  const hit = serviceCache.get(pincode);
+  if (hit && hit.expires > Date.now()) return hit.value;
+  try {
+    const token = await login(config, fetchImpl);
+    const query = new URLSearchParams({
+      pickup_postcode: config.pickupPincode,
+      delivery_postcode: pincode,
+      weight: String(config.parcel.weightKg),
+      cod: '1',
+    });
+    const res = await fetchImpl(`${BASE}/courier/serviceability/?${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(5_000),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      status?: number;
+      data?: { available_courier_companies?: { cod?: number; estimated_delivery_days?: string | number }[] };
+    };
+    if (!res.ok && res.status !== 404) return null;
+    const couriers = body.data?.available_courier_companies ?? [];
+    const days = couriers.map((c) => Number(c.estimated_delivery_days)).filter((d) => d > 0);
+    const value: Serviceability = {
+      deliverable: couriers.length > 0,
+      cod: couriers.some((c) => c.cod === 1),
+      days: days.length ? Math.min(...days) : null,
+    };
+    serviceCache.set(pincode, { value, expires: Date.now() + SERVICE_TTL_MS });
+    return value;
+  } catch {
+    return null;
+  }
 }
 
 export function adhocOrderPayload(order: ParcelOrder, config: ShiprocketConfig) {

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { orderItems, orders, paymentEvents } from '@/db/schema';
-import { releaseStock, reserveStock } from '@/lib/inventory';
+import { recordAllocations, releaseOrderStock, reserveStock } from '@/lib/inventory';
 import { emitEvent } from '@/lib/events';
 import { currentRequestId } from '@/infrastructure/request-context';
 import type { Tx } from '@/infrastructure/idempotency/idempotency';
@@ -74,7 +74,7 @@ export async function applyPaymentSignalInTx(
   let attention: string | null = null;
 
   if (decision.stock === 'release' && stockRestoredAt === null) {
-    await releaseStock(lines, tx as never);
+    await releaseOrderStock(tx as never, orderId);
     stockRestoredAt = new Date();
   }
 
@@ -90,6 +90,7 @@ export async function applyPaymentSignalInTx(
       await tx.transaction(async (savepoint) => {
         const reserved = await reserveStock(lines, savepoint as never);
         if (!reserved.ok) throw new StockUnavailable();
+        await recordAllocations(savepoint as never, orderId, reserved.allocations);
       });
       stockRestoredAt = null;
     } catch (err) {

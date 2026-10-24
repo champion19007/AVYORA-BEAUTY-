@@ -9,6 +9,7 @@ import { privateStorage } from '@/modules/scans/private-storage';
 import { sweepScans } from '@/modules/scans/sessions';
 import { purgeUnconfirmed } from '@/modules/newsletter/newsletter';
 import { runStockAutopilot } from '@/modules/inventory/autopilot';
+import { holdBackExpiringBatches } from '@/lib/inventory';
 import { reportError } from '@/lib/observability';
 
 /** Node runtime: the Postgres driver cannot open a socket at the edge. */
@@ -55,6 +56,12 @@ export async function GET(request: Request) {
 
   const unconfirmedSignupsDeleted = await purgeUnconfirmed(db).catch(() => 0);
 
+  // Before the autopilot, so its low-stock figures already exclude short-dated batches.
+  const batchesHeldBack = await holdBackExpiringBatches().catch((err) => {
+    reportError(err, { scope: 'cron.batches' });
+    return { batches: -1, units: -1 };
+  });
+
   // Reorders and the owner's morning summary. Last, so a failure here cannot stop the clean-ups above.
   const stock = await runStockAutopilot(db)
     .then((r) => ({ restockRaised: r.raised.length, lowSkus: r.low.length, summarySent: r.summarySent }))
@@ -72,6 +79,7 @@ export async function GET(request: Request) {
     expiredRoutinesDeleted,
     scans,
     unconfirmedSignupsDeleted,
+    batchesHeldBack,
     stock,
   });
 }

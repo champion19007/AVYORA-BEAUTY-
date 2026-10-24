@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
-import { auditLogs, domainEvents, inventory, productPricing } from '@/db/schema';
+import { auditLogs, domainEvents, inventory, productPricing, stockLots } from '@/db/schema';
 import { createMigratedDb } from '@/test/migrated-db';
 
 /**
@@ -16,7 +16,7 @@ const { client, db } = await createMigratedDb();
 vi.mock('@/db', () => ({ db, getDatabase: () => db, isDatabaseConfigured: () => true }));
 
 const { setPrice, STALE_PRICE_MESSAGE } = await import('@/modules/catalog/pricing-commands');
-const { setStock, adjustStock } = await import('@/modules/inventory/stock-commands');
+const { receiveStock, adjustBatch } = await import('@/modules/inventory/stock-commands');
 
 const owner = { id: 'owner', role: 'owner' };
 const manager = { id: 'manager', role: 'manager' };
@@ -39,7 +39,9 @@ afterAll(async () => {
   await client.close();
 });
 beforeEach(async () => {
-  await db.execute(sql`truncate product_pricing, inventory, audit_logs, domain_events restart identity cascade`);
+  await db.execute(
+    sql`truncate product_pricing, inventory, stock_lots, audit_logs, domain_events restart identity cascade`
+  );
 });
 
 describe('price edits', () => {
@@ -118,57 +120,54 @@ describe('price edits', () => {
 });
 
 describe('stock edits', () => {
-  it('sets a count when nothing has moved', async () => {
-    await db.insert(inventory).values({ ...SKU, quantity: 10 });
-    const result = await setStock({ ...SKU, quantity: 25, expectedQuantity: 10 }, owner);
-    expect(result).toMatchObject({ ok: true });
+  const NEXT_YEAR = `${new Date().getUTCFullYear() + 2}-06-30`;
+  const receive = (over: Record<string, unknown> = {}, actor = manager) =>
+    receiveStock({ ...SKU, batchCode: 'b-101', expiresOn: NEXT_YEAR, quantity: 10, ...over }, actor);
+  const total = async () => (await db.select().from(inventory))[0]?.quantity;
+
+  it('records a delivery as a batch and adds it to the total', async () => {
+    expect(await receive()).toMatchObject({ ok: true, value: { quantity: 10 } });
+    expect(await receive({ quantity: 4 })).toMatchObject({ ok: true, value: { quantity: 14 } });
+    const lots = await db.select().from(stockLots);
+    expect(lots).toHaveLength(1);
+    expect(lots[0]).toMatchObject({ batchCode: 'B-101', quantity: 14, expiresOn: NEXT_YEAR });
   });
 
-  it('refuses an owner count when a sale moved the shelf meanwhile', async () => {
-    await db.insert(inventory).values({ ...SKU, quantity: 10 });
-
-    // A customer buys two after the owner's page loaded showing 10.
-    await db.update(inventory).set({ quantity: 8 }).where(eq(inventory.productId, SKU.productId));
-
-    const result = await setStock({ ...SKU, quantity: 25, expectedQuantity: 10 }, owner);
+  it('refuses a batch already recorded with a different expiry', async () => {
+    await receive();
+    const result = await receive({ expiresOn: `${new Date().getUTCFullYear() + 3}-01-31` });
     expect(result).toMatchObject({ ok: false, code: 'conflict' });
-    const [row] = await db.select().from(inventory);
-    expect(row.quantity).toBe(8);
+    expect(await total()).toBe(10);
   });
 
-  it('refuses an owner count when the stockroom adjusted meanwhile', async () => {
-    await db.insert(inventory).values({ ...SKU, quantity: 10 });
-    await adjustStock({ ...SKU, delta: 12 }, manager);
-
-    const result = await setStock({ ...SKU, quantity: 10, expectedQuantity: 10 }, owner);
-    expect(result).toMatchObject({ ok: false, code: 'conflict' });
-    const [row] = await db.select().from(inventory);
-    expect(row.quantity).toBe(22);
+  it('refuses a delivery too close to expiry to sell', async () => {
+    const soon = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+    expect(await receive({ expiresOn: soon })).toMatchObject({ ok: false, code: 'conflict' });
+    expect(await total()).toBeUndefined();
   });
 
-  it('adds up simultaneous stockroom adjustments without losing any', async () => {
-    await db.insert(inventory).values({ ...SKU, quantity: 10 });
-
+  it('adds up simultaneous batch corrections without losing any', async () => {
+    await receive();
+    const [lot] = await db.select().from(stockLots);
     await Promise.all([
-      adjustStock({ ...SKU, delta: 5 }, manager),
-      adjustStock({ ...SKU, delta: 7 }, manager),
-      adjustStock({ ...SKU, delta: -2 }, owner),
+      adjustBatch({ lotId: lot.id, delta: 5 }, manager),
+      adjustBatch({ lotId: lot.id, delta: 7 }, manager),
+      adjustBatch({ lotId: lot.id, delta: -2, reason: 'Damaged' }, owner),
     ]);
-
-    const [row] = await db.select().from(inventory);
-    expect(row.quantity).toBe(20);
-    expect(await db.select().from(auditLogs)).toHaveLength(3);
+    expect(await total()).toBe(20);
+    expect((await db.select().from(stockLots))[0].quantity).toBe(20);
+    expect(await db.select().from(auditLogs)).toHaveLength(4);
   });
 
-  it('never takes the shelf below zero', async () => {
-    await db.insert(inventory).values({ ...SKU, quantity: 3 });
-    await adjustStock({ ...SKU, delta: -10 }, manager);
-    const [row] = await db.select().from(inventory);
-    expect(row.quantity).toBe(0);
+  it('never takes a batch below zero, and moves the total by what was really removed', async () => {
+    await receive({ quantity: 3 });
+    await receive({ batchCode: 'B-102', quantity: 5 });
+    const [lot] = await db.select().from(stockLots).where(eq(stockLots.batchCode, 'B-101'));
+    await adjustBatch({ lotId: lot.id, delta: -10 }, manager);
+    expect(await total()).toBe(5);
   });
 
-  it('keeps absolute counts to the owner', async () => {
-    const result = await setStock({ ...SKU, quantity: 5, expectedQuantity: null }, manager);
-    expect(result).toMatchObject({ ok: false, code: 'forbidden' });
+  it('is for staff only', async () => {
+    expect(await receive({}, { id: 'x', role: 'customer' })).toMatchObject({ ok: false, code: 'forbidden' });
   });
 });

@@ -18,6 +18,7 @@ import type { StockByKey } from '@/modules/catalog/storefront-data';
 import { MAX_QUANTITY_PER_SKU, stockProblems, unitPrice } from '@/lib/cart';
 import { closeAttempt, forgetAttempt, openAttempt, rememberAttempt } from '@/lib/payment-attempt';
 import type { AppliedOffer } from '@/modules/offers/engine';
+import { COD_MAX_PAISE } from '@/modules/shipping/cod-policy';
 
 type Errors = Record<string, string>;
 
@@ -284,7 +285,7 @@ export function CheckoutClient({
    * rather than after submitting. The order transaction still decides.
    */
   const problems = stock ? stockProblems(cart, stock) : [];
-  const [method, setMethod] = useState<'cashfree' | 'cod'>(onlineEnabled ? 'cashfree' : 'cod');
+  const [chosenMethod, setMethod] = useState<'cashfree' | 'cod'>(onlineEnabled ? 'cashfree' : 'cod');
 
   /*
    * The offer the server would give this bag (modules/offers), asked again
@@ -336,6 +337,36 @@ export function CheckoutClient({
     [cart, prices, discount, quote.applied?.freeDelivery]
   );
 
+  /*
+   * Whether couriers reach this PIN code and take cash there, asked once the
+   * code is complete. Placing the order checks again; this only answers early.
+   */
+  const pin = (values.postalCode ?? '').trim();
+  const [delivery, setDelivery] = useState<{
+    pin: string;
+    deliverable: boolean;
+    cod: boolean;
+    days: number | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!/^\d{6}$/.test(pin)) return;
+    const ctrl = new AbortController();
+    fetch(`/api/delivery/check?pin=${pin}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.known && setDelivery({ pin, deliverable: d.deliverable, cod: d.cod, days: d.days }))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [pin]);
+  const here = delivery?.pin === pin ? delivery : null;
+  const codBlocked =
+    totals.total > COD_MAX_PAISE
+      ? `Available on orders up to ${formatPaise(COD_MAX_PAISE)}.`
+      : here && !here.cod
+        ? `Not available at PIN code ${pin}.`
+        : null;
+  // Cash on delivery stops being an option when the bag outgrows the limit or the PIN code takes no cash.
+  const method = codBlocked && chosenMethod === 'cod' && onlineEnabled ? 'cashfree' : chosenMethod;
+
   const set = (name: string, value: string) => {
     setValues((v) => ({ ...v, [name]: value }));
     setErrors((e) => ({ ...e, [name]: '' }));
@@ -358,6 +389,7 @@ export function CheckoutClient({
     if (!values.city || values.city.trim().length < 2) e.city = 'Enter your city';
     if (!values.state || values.state.trim().length < 2) e.state = 'Enter your state';
     if (!/^\d{6}$/.test((values.postalCode || '').trim())) e.postalCode = 'Enter a valid 6-digit PIN code';
+    else if (here && !here.deliverable) e.postalCode = `Our couriers do not deliver to ${pin} yet`;
     return e;
   };
 
@@ -712,6 +744,17 @@ export function CheckoutClient({
             )}
           </div>
 
+          {here && (
+            <p
+              className={cn('mt-4 text-sm', here.deliverable ? 'text-muted-foreground' : 'text-destructive')}
+              role="status"
+            >
+              {here.deliverable
+                ? `Delivers to ${pin}${here.days ? ` in about ${here.days} day${here.days === 1 ? '' : 's'}` : ''}.`
+                : `Our couriers do not deliver to ${pin} yet. Please use another address.`}
+            </p>
+          )}
+
           <h2 className="mt-12 font-headline text-xl font-normal tracking-tight">Payment</h2>
           <div className="mt-4 space-y-3" role="radiogroup" aria-label="Payment method">
             {onlineEnabled && (
@@ -735,14 +778,18 @@ export function CheckoutClient({
               type="button"
               role="radio"
               aria-checked={method === 'cod'}
+              aria-disabled={codBlocked !== null}
+              disabled={codBlocked !== null && onlineEnabled}
               onClick={() => setMethod('cod')}
               className={cn(
-                'w-full rounded-lg border p-5 text-left transition-colors',
+                'w-full rounded-lg border p-5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
                 method === 'cod' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
               )}
             >
               <p className="text-sm font-medium">Cash on delivery</p>
-              <p className="mt-1.5 text-sm text-muted-foreground">Pay the courier when your order arrives.</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {codBlocked ?? 'Pay the courier when your order arrives. We ask you to confirm before we pack it.'}
+              </p>
             </button>
           </div>
           {!onlineEnabled && (
