@@ -1,9 +1,9 @@
 import { after } from 'next/server';
 import { z } from 'zod';
 import { reportError } from '@/lib/observability';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { db } from '@/db';
-import { orders, orderItems, addresses, catalogProducts } from '@/db/schema';
+import { orders, orderItems, addresses, catalogProducts, offers } from '@/db/schema';
 import { getProductById, getVariant } from '@/lib/catalogue';
 import { pricingMap } from '@/lib/pricing';
 import { skuKey, skuPrice } from '@/modules/catalog/sku-price';
@@ -165,6 +165,13 @@ export async function findByIdempotencyKey(key: string, email: string): Promise<
 }
 
 /** Thrown inside the order transaction to roll it back when stock runs out. */
+/** The order's offer reached its use limit while this order was being placed. */
+class OfferUsedUpError extends Error {
+  constructor(readonly detail: string) {
+    super(detail);
+  }
+}
+
 class OutOfStockError extends Error {
   constructor(readonly detail: string) {
     super(detail);
@@ -235,6 +242,8 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     unitPrice: number;
     quantity: number;
     lineTotal: number;
+    /** This line's share of the order discount (set once the offer is known). */
+    discount: number;
     pricingSnapshot: Record<string, unknown>;
   }[] = [];
 
@@ -283,6 +292,7 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
       unitPrice,
       quantity: item.quantity,
       lineTotal: unitPrice * item.quantity,
+      discount: 0,
       /*
        * Why this line cost what it did, frozen now. Read only by people
        * explaining a past order; checkout's authority is the price above,
@@ -346,6 +356,10 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     if (!applied) return { ok: false, code: 'price_changed', error: quote.codeProblem };
   }
   const discount = applied?.itemDiscount ?? 0;
+  // Each line's share, so a partial refund or a per-line tax invoice uses what was actually paid for it.
+  applied?.lineDiscounts.forEach((share, i) => {
+    lines[i].discount = share;
+  });
   if (data.expectedDiscountPaise !== undefined && data.expectedDiscountPaise !== discount) {
     return {
       ok: false,
@@ -384,6 +398,30 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
             ? `${product?.name ?? 'An item'} (${first.size}) has just sold out.`
             : `Only ${first.available} left of ${product?.name ?? 'an item'} (${first.size}). Please reduce the quantity.`
         );
+      }
+
+      /*
+       * An offer with a use limit is counted here, under a lock on its row,
+       * so simultaneous checkouts queue and the last use goes to one order
+       * only. The quote above counted without a lock and can be one behind.
+       */
+      if (applied) {
+        const [offer] = await tx
+          .select({ maxUses: offers.maxUses })
+          .from(offers)
+          .where(eq(offers.id, applied.offerId))
+          .for('update');
+        if (offer?.maxUses != null) {
+          const [{ used }] = await tx
+            .select({ used: count() })
+            .from(orders)
+            .where(and(eq(orders.offerId, applied.offerId), ne(orders.status, 'cancelled')));
+          if (Number(used) >= offer.maxUses) {
+            throw new OfferUsedUpError(
+              `${applied.name} has just been used up. Review your updated total, then place your order again.`
+            );
+          }
+        }
       }
 
       const [address] = await tx
@@ -481,6 +519,9 @@ export async function createOrder(input: CheckoutInput, userId?: string | null):
     // exactly what happened rather than a generic failure.
     if (err instanceof OutOfStockError) {
       return { ok: false, error: err.detail };
+    }
+    if (err instanceof OfferUsedUpError) {
+      return { ok: false, code: 'price_changed', error: err.detail };
     }
 
     /*

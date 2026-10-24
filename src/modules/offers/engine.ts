@@ -56,6 +56,8 @@ export type AppliedOffer = {
   freeDelivery: boolean;
   /** True when the profit floor reduced what the offer would otherwise give. */
   capped: boolean;
+  /** `itemDiscount` split across the bag's lines, in the order given; sums to it exactly. */
+  lineDiscounts: number[];
 };
 
 export type QuoteContext = {
@@ -73,12 +75,9 @@ export type QuoteContext = {
 export const normaliseCode = (code: string | null | undefined) => (code ?? '').trim().toUpperCase();
 
 /**
- * Running, inside its dates and under its use limit.
- *
- * ponytail: the use limit counts orders already placed, so two checkouts at
- * the same moment can both take the last use (a limit of 100 may end at 101).
- * Fine for launch offers; reserve a use in the order transaction if an exact
- * cap ever matters.
+ * Running, inside its dates and under its use limit. The limit is enforced
+ * exactly when the order is written (lib/orders.ts, under a row lock); this
+ * check only stops a used-up offer being shown or quoted.
  */
 export function offerLive(offer: Offer, now: Date, used = 0): boolean {
   if (!offer.active) return false;
@@ -144,8 +143,68 @@ function capped(offer: Offer, lines: QuoteLine[], settings: ProfitSettings): (Ap
     itemDiscount,
     freeDelivery,
     capped: itemDiscount < raw.item || (raw.freeDelivery && !freeDelivery),
+    lineDiscounts: allocateDiscount(
+      itemDiscount,
+      lineWeights(offer, lines),
+      lines.map((l) => l.unitPrice * l.quantity)
+    ),
     value,
   };
+}
+
+/** What each line would get under the offer before any cap, by the same rules as `rawDiscount`. */
+function lineWeights(offer: Offer, lines: QuoteLine[]): number[] {
+  const eligible = (l: QuoteLine) => covers(offer, l.productId) && l.quantity > 0;
+  switch (offer.kind) {
+    case 'percent_off':
+      return lines.map((l) => (eligible(l) ? (l.unitPrice * l.quantity * (offer.percentOff ?? 0)) / 100 : 0));
+    case 'amount_off':
+      return lines.map((l) => (eligible(l) ? l.unitPrice * l.quantity : 0));
+    case 'buy_x_get_y': {
+      // The same free units as rawDiscount: dearest first, the last `get` of each full group.
+      const units = lines
+        .flatMap((l, i) => (eligible(l) ? Array.from({ length: l.quantity }, () => ({ i, price: l.unitPrice })) : []))
+        .sort((a, b) => b.price - a.price);
+      const weights = lines.map(() => 0);
+      const buy = offer.buyQty ?? 0;
+      const group = buy + (offer.getQty ?? 0);
+      if (group < 2) return weights;
+      for (let start = 0; start + group <= units.length; start += group) {
+        for (let k = start + buy; k < start + group; k++) weights[units[k].i] += units[k].price;
+      }
+      return weights;
+    }
+    case 'free_delivery':
+      return lines.map(() => 0);
+  }
+}
+
+/**
+ * Splits `total` paise across lines in proportion to `weights`, never more
+ * than a line's own `limits`, by largest remainder so the shares add up to
+ * `total` exactly. Zero weights get nothing.
+ */
+export function allocateDiscount(total: number, weights: number[], limits: number[]): number[] {
+  const sum = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0 || sum <= 0) return weights.map(() => 0);
+  const exact = weights.map((w) => (total * w) / sum);
+  const shares = exact.map((x, i) => Math.min(Math.floor(x), limits[i]));
+  let left = total - shares.reduce((a, b) => a + b, 0);
+  // Hand out the remaining paise to the largest fractions first, within each line's limit.
+  const order = exact.map((x, i) => ({ i, frac: x - Math.floor(x) })).sort((a, b) => b.frac - a.frac);
+  while (left > 0) {
+    let gave = false;
+    for (const { i } of order) {
+      if (left === 0) break;
+      if (weights[i] > 0 && shares[i] < limits[i]) {
+        shares[i] += 1;
+        left -= 1;
+        gave = true;
+      }
+    }
+    if (!gave) break;
+  }
+  return shares;
 }
 
 export type QuoteResult = {
@@ -185,6 +244,7 @@ export function bestOffer(ctx: QuoteContext): QuoteResult {
       itemDiscount: best.itemDiscount,
       freeDelivery: best.freeDelivery,
       capped: best.capped,
+      lineDiscounts: best.lineDiscounts,
     },
     codeProblem,
   };

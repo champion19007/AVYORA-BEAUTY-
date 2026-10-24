@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { inventory, offers, orders } from '@/db/schema';
+import { inventory, offers, orderItems, orders } from '@/db/schema';
 import { createMigratedDb } from '@/test/migrated-db';
 
 /**
@@ -87,5 +87,52 @@ describe('offers at checkout', () => {
     expect((await createOrder(CHECKOUT)).ok).toBe(true);
     const [o] = await db.select().from(orders);
     expect(o).toMatchObject({ shipping: 0, discount: 0, total: 69800 });
+  });
+});
+
+describe('discount split across order lines', () => {
+  it('gives each line its share, adding up to the order discount exactly', async () => {
+    await addOffer();
+    await db.insert(inventory).values({ productId: 'ha-toner', size: '200ml', quantity: 10 });
+    await client.exec(`UPDATE catalog_variants SET cost_paise = 5000 WHERE legacy_stock_key = 'ha-toner::200ml'`);
+    const r = await createOrder({
+      ...CHECKOUT,
+      items: [...CHECKOUT.items, { productId: 'ha-toner', size: '200ml', quantity: 1 }],
+    });
+    expect(r.ok).toBe(true);
+    const [o] = await db.select().from(orders);
+    const lines = await db.select().from(orderItems);
+    expect(lines.reduce((s, l) => s + l.discount, 0)).toBe(o.discount);
+    expect(lines.every((l) => l.discount > 0)).toBe(true);
+  });
+
+  it('puts a buy-2-get-1 discount on the free (lowest-priced) item', async () => {
+    await addOffer({ name: 'B2G1', kind: 'buy_x_get_y', percentOff: null, buyQty: 2, getQty: 1 });
+    await db.insert(inventory).values({ productId: 'ha-toner', size: '200ml', quantity: 10 });
+    await client.exec(`UPDATE catalog_variants SET cost_paise = 5000 WHERE legacy_stock_key = 'ha-toner::200ml'`);
+    await createOrder({
+      ...CHECKOUT,
+      items: [...CHECKOUT.items, { productId: 'ha-toner', size: '200ml', quantity: 1 }],
+    });
+    const lines = await db.select().from(orderItems);
+    const byProduct = Object.fromEntries(lines.map((l) => [l.productId, l.discount]));
+    // Two face washes at ₹349 and a toner: the toner (₹399) is dearer, so a face wash is the free one.
+    expect(byProduct['face-wash']).toBe(34900);
+    expect(byProduct['ha-toner']).toBe(0);
+  });
+});
+
+describe('offer use limits', () => {
+  it('lets only one of two simultaneous orders take the last use', async () => {
+    await addOffer({ maxUses: 1 });
+    const results = await Promise.all([
+      createOrder({ ...CHECKOUT, idempotencyKey: 'race-key-0001' }),
+      createOrder({ ...CHECKOUT, email: 'ravi@example.com', idempotencyKey: 'race-key-0002' }),
+    ]);
+    const withOffer = (await db.select().from(orders)).filter((o) => o.offerId);
+    expect(withOffer).toHaveLength(1);
+    // The other was either refused (the offer ran out under it) or placed without the offer.
+    const refused = results.filter((r) => !r.ok);
+    expect(refused.every((r) => !r.ok && r.code === 'price_changed')).toBe(true);
   });
 });

@@ -169,6 +169,13 @@
       "when": 1792760068616,
       "tag": "0023_products_offers",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792860889403,
+      "tag": "0024_order_line_discounts",
+      "breakpoints": true
     }
   ]
 }

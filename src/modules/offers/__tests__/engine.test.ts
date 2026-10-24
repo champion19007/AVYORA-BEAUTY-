@@ -100,3 +100,13 @@ describe('offerProblems (checked when saving)', () => {
     ).toEqual([]);
   });
 });
+
+describe('allocateDiscount', () => {
+  it('splits by weight, paise for paise, never above a line', async () => {
+    const { allocateDiscount } = await import('../engine');
+    expect(allocateDiscount(100, [1, 1, 1], [1000, 1000, 1000])).toEqual([34, 33, 33]);
+    expect(allocateDiscount(101, [3, 0, 1], [1000, 1000, 1000])).toEqual([76, 0, 25]);
+    expect(allocateDiscount(50, [1, 1], [10, 1000])).toEqual([10, 40]);
+    expect(allocateDiscount(0, [1, 2], [10, 10])).toEqual([0, 0]);
+  });
+});

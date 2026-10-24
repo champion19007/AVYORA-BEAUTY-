@@ -514,6 +514,13 @@ export const orderItems = pgTable(
     quantity: integer('quantity').notNull(),
     lineTotal: integer('line_total').notNull(),
     /**
+     * This line's share of the order's discount, in paise; `lineTotal -
+     * discount` is what the customer paid for it. Shares add up to the
+     * order's discount exactly, so a partial refund or a per-line tax
+     * invoice uses real figures (modules/offers/engine.ts allocateDiscount).
+     */
+    discount: integer('discount').notNull().default(0),
+    /**
      * How the unit price was arrived at, frozen at purchase: catalogue price,
      * owner override, any live offer with its label, and the pricing row's
      * version. Without it an order can say what was charged but not why, and
