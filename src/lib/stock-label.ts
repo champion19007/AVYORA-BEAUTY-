@@ -9,6 +9,7 @@
  *
  * Nothing here may import from `@/db`.
  */
+import { UNAVAILABLE_LABEL } from '@/lib/catalogue-mode';
 
 /**
  * Human-readable availability for a storefront badge.
@@ -25,8 +26,7 @@ export function stockLabel(
   lowStockThreshold = 5
 ): { label: string; tone: 'in' | 'low' | 'out' } {
   if (quantity === Infinity) return { label: 'In stock', tone: 'in' };
-  if (quantity === undefined) return { label: 'Out of stock', tone: 'out' };
-  if (quantity <= 0) return { label: 'Out of stock', tone: 'out' };
+  if (quantity === undefined || quantity <= 0) return { label: UNAVAILABLE_LABEL, tone: 'out' };
   if (quantity <= lowStockThreshold) return { label: `Only ${quantity} left`, tone: 'low' };
   return { label: 'In stock', tone: 'in' };
 }

@@ -16,7 +16,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { config } from 'dotenv';
 import * as schema from '../src/db/schema';
-import { liveCatalogue, publishRecord } from '../src/modules/catalog/product-store';
+import { liveCatalogue, previewCatalogue, publishRecord } from '../src/modules/catalog/product-store';
 
 config({ path: '.env.local' });
 config();
@@ -37,9 +37,13 @@ async function main() {
       console.log('catalogue: not published from the admin yet, keeping the sample catalogue.');
       return;
     }
-    const products = await liveCatalogue(db);
-    writeFileSync(FILE, `${JSON.stringify({ publishedAt: record.requestedAt, products }, null, 2)}\n`);
-    console.log(`catalogue: ${products.length} live products written to ${FILE}.`);
+    // A preview shows drafts too; the site then labels everything a sample and refuses orders.
+    const preview = record.preview === true;
+    const products = preview ? await previewCatalogue(db) : await liveCatalogue(db);
+    writeFileSync(FILE, `${JSON.stringify({ publishedAt: record.requestedAt, preview, products }, null, 2)}\n`);
+    console.log(
+      `catalogue: ${products.length} ${preview ? 'preview (not for sale)' : 'live'} products written to ${FILE}.`
+    );
   } finally {
     await sql.end();
   }

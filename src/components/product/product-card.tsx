@@ -11,7 +11,7 @@ import { Price } from '@/components/price';
 import { cn } from '@/lib/utils';
 import { stockLabel } from '@/lib/stock-label';
 import { skuPrice, type SkuPrice } from '@/modules/catalog/sku-price';
-import { IS_SAMPLE_CATALOGUE } from '@/lib/catalogue-mode';
+import { IS_PREVIEW, IS_SAMPLE_CATALOGUE } from '@/lib/catalogue-mode';
 import { PromoBadge } from './promo-badge';
 
 /**
@@ -229,7 +229,7 @@ export function ProductCard({
             }
             disabled={soldOut}
           >
-            {soldOut ? 'Sold out' : 'Add to Bag'}
+            {soldOut ? (IS_PREVIEW ? 'Coming soon' : 'Sold out') : 'Add to Bag'}
           </Button>
         </div>
       </div>

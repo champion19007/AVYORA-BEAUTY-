@@ -10,6 +10,7 @@ import { reportError } from '@/lib/observability';
 import { uploadMedia } from '@/modules/cms/media';
 import {
   liveCatalogue,
+  previewCatalogue,
   productInputSchema,
   recordPublish,
   saveProduct,
@@ -80,18 +81,28 @@ export type PublishState = { error?: string; message?: string };
  * database. On a local server it writes the file directly and the page
  * reloads with it. Prices, stock and offers never need this: they are live.
  */
-export async function publishCatalogueAction(_prev: PublishState, _form: FormData): Promise<PublishState> {
+export async function publishCatalogueAction(_prev: PublishState, form: FormData): Promise<PublishState> {
   const actor = await owner();
   if (!actor) return { error: 'Only the owner can publish.' };
   if (!isDatabaseConfigured()) return { error: 'No database is configured.' };
+  // A preview shows drafts too, labelled as samples, with ordering switched off.
+  const preview = form.get('mode') === 'preview';
 
   if (!process.env.VERCEL) {
-    await recordPublish(db, actor);
-    const products = await liveCatalogue(db);
+    await recordPublish(db, actor, preview);
+    const products = preview ? await previewCatalogue(db) : await liveCatalogue(db);
     const file = path.join(process.cwd(), 'src', 'data', 'catalogue.published.json');
-    writeFileSync(file, `${JSON.stringify({ publishedAt: new Date().toISOString(), products }, null, 2)}\n`);
+    writeFileSync(
+      file,
+      `${JSON.stringify({ publishedAt: new Date().toISOString(), preview, products }, null, 2)}
+`
+    );
     revalidatePath('/', 'layout');
-    return { message: `Published ${products.length} live products. The local site reloads with them now.` };
+    return {
+      message: `Published ${products.length} ${
+        preview ? 'products as a preview (not for sale)' : 'live products'
+      }. The local site reloads with them now.`,
+    };
   }
 
   const hook = process.env.VERCEL_DEPLOY_HOOK_URL;
@@ -101,12 +112,16 @@ export async function publishCatalogueAction(_prev: PublishState, _form: FormDat
         'Publishing needs a deploy hook: in Vercel, Settings → Git → Deploy Hooks, create one for the main branch, then add its URL as VERCEL_DEPLOY_HOOK_URL and redeploy once.',
     };
   }
-  await recordPublish(db, actor);
+  await recordPublish(db, actor, preview);
   const res = await fetch(hook, { method: 'POST' }).catch((err) => {
     reportError(err, { scope: 'catalogue.publish' });
     return null;
   });
   if (!res?.ok) return { error: 'Vercel did not accept the publish request. Try again in a minute.' };
   revalidatePath('/admin/products');
-  return { message: 'Publishing: the shop updates with your live products in about 3 minutes.' };
+  return {
+    message: preview
+      ? 'Publishing a preview: the shop shows these products, not for sale, in about 3 minutes.'
+      : 'Publishing: the shop updates with your live products in about 3 minutes.',
+  };
 }

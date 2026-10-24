@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Star, Plus, Minus, Heart, Truck, Wallet, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { FREE_DELIVERY_LINE } from '@/lib/money';
+import { UNAVAILABLE_LABEL } from '@/lib/catalogue-mode';
 import { Button } from '@/components/ui/button';
 import { Price } from '@/components/price';
 import { PromoDetails } from '@/components/product/promo-badge';
@@ -267,7 +268,7 @@ export function ProductClient({
                 className="flex-1 h-14 md:h-16 rounded-md bg-primary text-primary-foreground font-semibold uppercase tracking-widest hover:bg-primary/90 text-[10px] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={handleAdd}
               >
-                {selectedOut ? 'Out of stock' : 'Add to Cart'}
+                {selectedOut ? UNAVAILABLE_LABEL : 'Add to Cart'}
               </Button>
             </div>
             {notice && (

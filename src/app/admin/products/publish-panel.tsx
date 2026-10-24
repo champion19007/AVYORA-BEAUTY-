@@ -8,11 +8,13 @@ export function PublishPanel({
   publishedAt,
   unpublished,
   liveCount,
+  draftCount,
   showingSamples,
 }: {
   publishedAt: string | null;
   unpublished: number;
   liveCount: number;
+  draftCount: number;
   showingSamples: boolean;
 }) {
   const [state, publish, pending] = useActionState<PublishState, FormData>(publishCatalogueAction, {});
@@ -38,11 +40,20 @@ export function PublishPanel({
           </p>
         )}
       </div>
-      <form action={publish}>
-        <Button type="submit" disabled={pending || liveCount === 0}>
-          {pending ? 'Publishing…' : 'Publish to shop'}
-        </Button>
-      </form>
+      <div className="flex flex-wrap gap-2">
+        {/* Shows drafts too, labelled as samples, with ordering off: for before the real details are in. */}
+        <form action={publish}>
+          <input type="hidden" name="mode" value="preview" />
+          <Button type="submit" variant="outline" disabled={pending || draftCount + liveCount === 0}>
+            Publish as preview (not for sale)
+          </Button>
+        </form>
+        <form action={publish}>
+          <Button type="submit" disabled={pending || liveCount === 0}>
+            {pending ? 'Publishing…' : 'Publish to shop'}
+          </Button>
+        </form>
+      </div>
     </section>
   );
 }

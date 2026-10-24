@@ -338,19 +338,78 @@ export async function saveProduct(
 /* Launch set-up and publishing                                                */
 /* -------------------------------------------------------------------------- */
 
-/** The launch range, created as empty drafts for the owner to fill in. */
-export const LAUNCH_DRAFTS: { id: string; name: string; category: ProductCategory; routineSlot: string }[] = [
-  { id: 'avyora-face-wash', name: 'Face Wash', category: 'cleanser', routineSlot: 'gelCleanser' },
-  { id: 'avyora-moisturiser', name: 'Moisturiser', category: 'moisturizer', routineSlot: 'moisturizerLight' },
-  { id: 'avyora-mineral-sunscreen', name: 'Mineral Sunscreen', category: 'sun', routineSlot: 'sunscreen' },
-  { id: 'avyora-vitamin-c-serum', name: 'Vitamin C Serum', category: 'serum', routineSlot: 'vitaminC' },
-  { id: 'avyora-retinol', name: 'Retinol Serum', category: 'serum', routineSlot: 'retinol' },
+/**
+ * The launch range: the six products the shop opens with. Created as drafts
+ * with a placeholder line and a placeholder size and price (borrowed from the
+ * closest sample) so they can be shown as a preview before the real details
+ * are entered. Every placeholder is overwritten in the product editor.
+ */
+export const LAUNCH_DRAFTS: {
+  id: string;
+  name: string;
+  category: ProductCategory;
+  routineSlot: string;
+  size: string;
+  pricePaise: number;
+}[] = [
+  {
+    id: 'avyora-face-wash',
+    name: 'Face Wash',
+    category: 'cleanser',
+    routineSlot: 'gelCleanser',
+    size: '150ml',
+    pricePaise: 34900,
+  },
+  {
+    id: 'avyora-cleanser',
+    name: 'Cleanser',
+    category: 'cleanser',
+    routineSlot: 'cleansingBalm',
+    size: '100ml',
+    pricePaise: 79900,
+  },
+  {
+    id: 'avyora-moisturiser',
+    name: 'Moisturiser',
+    category: 'moisturizer',
+    routineSlot: 'moisturizerLight',
+    size: '50ml',
+    pricePaise: 54900,
+  },
+  {
+    id: 'avyora-mineral-sunscreen',
+    name: 'Mineral Sunscreen',
+    category: 'sun',
+    routineSlot: 'sunscreen',
+    size: '50ml',
+    pricePaise: 64900,
+  },
+  {
+    id: 'avyora-vitamin-c-serum',
+    name: 'Vitamin C Serum',
+    category: 'serum',
+    routineSlot: 'vitaminC',
+    size: '30ml',
+    pricePaise: 49900,
+  },
+  {
+    id: 'avyora-retinol',
+    name: 'Retinol Serum',
+    category: 'serum',
+    routineSlot: 'retinol',
+    size: '30ml',
+    pricePaise: 39900,
+  },
 ];
 
+/** Shown until the owner writes the real description. */
+export const PLACEHOLDER_DESCRIPTION = 'Full details, ingredients and photos are coming soon.';
+
 /**
- * One-time set-up: every existing product becomes hidden (kept, editable,
- * switchable back on), and the launch range is created as drafts. Safe to
- * run twice: drafts that exist are left alone.
+ * One-time set-up: every other product becomes hidden (kept, editable,
+ * switchable back on), and the launch range is created as drafts with a
+ * placeholder size and price and no stock. Safe to run twice: drafts that
+ * exist are left alone, and so are their sizes and prices.
  */
 export async function setUpLaunchCatalogue(db: Db, actor: string): Promise<{ hidden: number; created: number }> {
   return db.transaction(async (tx) => {
@@ -369,6 +428,7 @@ export async function setUpLaunchCatalogue(db: Db, actor: string): Promise<{ hid
           name: d.name,
           category: d.category,
           routineSlot: d.routineSlot,
+          description: PLACEHOLDER_DESCRIPTION,
           status: 'draft',
           published: false,
           isNew: true,
@@ -378,6 +438,22 @@ export async function setUpLaunchCatalogue(db: Db, actor: string): Promise<{ hid
       )
       .onConflictDoNothing()
       .returning({ id: P.id });
+    const fresh = new Set(created.map((c) => c.id));
+    for (const d of LAUNCH_DRAFTS.filter((x) => fresh.has(x.id))) {
+      await tx.insert(V).values({
+        id: variantId(d.id, d.size),
+        productId: d.id,
+        legacyStockKey: skuKey(d.id, d.size),
+        sizeLabel: d.size,
+        volumeMl: volumeMl(d.size)?.toString() ?? null,
+        active: true,
+      });
+      await tx
+        .insert(schema.productPricing)
+        .values({ productId: d.id, size: d.size, price: d.pricePaise, updatedBy: actor })
+        .onConflictDoNothing();
+      await tx.insert(schema.inventory).values({ productId: d.id, size: d.size, quantity: 0 }).onConflictDoNothing();
+    }
     await tx.insert(schema.auditLogs).values({
       actor,
       actorRole: 'owner',
@@ -390,9 +466,21 @@ export async function setUpLaunchCatalogue(db: Db, actor: string): Promise<{ hid
   });
 }
 
+/**
+ * What a preview shows: everything not hidden (drafts included) that has a
+ * size. The site labels it all as samples and refuses orders, so drafts can
+ * be seen on the shop before their details are final.
+ */
+export async function previewCatalogue(db: Db): Promise<Product[]> {
+  return (await listEditableProducts(db))
+    .filter((p) => p.status !== 'hidden' && p.sizes.length > 0)
+    .map(toStorefrontProduct);
+}
+
 /** `shop_settings` key recording that the owner has published, and when. */
 export const PUBLISH_KEY = 'catalogue_publish';
-export type PublishRecord = { requestedAt: string; by: string };
+/** `preview`: drafts shown too, labelled as samples, ordering off (see previewCatalogue). */
+export type PublishRecord = { requestedAt: string; by: string; preview?: boolean };
 
 export async function publishRecord(db: Db): Promise<PublishRecord | null> {
   const [row] = await db
@@ -403,8 +491,8 @@ export async function publishRecord(db: Db): Promise<PublishRecord | null> {
   return (row?.value as PublishRecord | undefined) ?? null;
 }
 
-export async function recordPublish(db: Db, by: string): Promise<void> {
-  const value: PublishRecord = { requestedAt: new Date().toISOString(), by };
+export async function recordPublish(db: Db, by: string, preview = false): Promise<void> {
+  const value: PublishRecord = { requestedAt: new Date().toISOString(), by, ...(preview ? { preview: true } : {}) };
   await db
     .insert(schema.shopSettings)
     .values({ key: PUBLISH_KEY, value, updatedBy: by })

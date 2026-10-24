@@ -26,7 +26,8 @@ export type CatalogueMode = 'managed' | 'sample' | 'verified';
  * /admin/products), so its products are compiled into the site like the
  * samples were, and every page reads them synchronously.
  */
-export type PublishedCatalogue = { publishedAt: string; products: Product[] };
+/** `preview`: published to look at, not to sell; everything is labelled a sample and orders are refused. */
+export type PublishedCatalogue = { publishedAt: string; preview?: boolean; products: Product[] };
 export const PUBLISHED_CATALOGUE = published as unknown as PublishedCatalogue | null;
 
 export const CATALOGUE_MODE: CatalogueMode = PUBLISHED_CATALOGUE
@@ -34,7 +35,11 @@ export const CATALOGUE_MODE: CatalogueMode = PUBLISHED_CATALOGUE
   : process.env.NEXT_PUBLIC_CATALOGUE_MODE === 'verified'
     ? 'verified'
     : 'sample';
-export const IS_SAMPLE_CATALOGUE = CATALOGUE_MODE === 'sample';
+export const IS_SAMPLE_CATALOGUE = CATALOGUE_MODE === 'sample' || PUBLISHED_CATALOGUE?.preview === true;
+
+/** In a preview nothing is for sale yet, so an unavailable product is "coming soon", not "sold out". */
+export const IS_PREVIEW = PUBLISHED_CATALOGUE?.preview === true;
+export const UNAVAILABLE_LABEL = IS_PREVIEW ? 'Coming soon' : 'Out of stock';
 
 /** Server only: whether an order for sample products must be refused here. */
 export function sampleOrdersBlocked(env: Record<string, string | undefined> = process.env): boolean {

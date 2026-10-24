@@ -8,6 +8,8 @@ import {
   saveProduct,
   setUpLaunchCatalogue,
   PLACEHOLDER_IMAGE,
+  PLACEHOLDER_DESCRIPTION,
+  previewCatalogue,
 } from '../product-store';
 
 let ctx: Awaited<ReturnType<typeof createMigratedDb>>;
@@ -56,6 +58,22 @@ describe('product store', () => {
     expect(first.hidden).toBeGreaterThan(20);
     expect(await setUpLaunchCatalogue(db(), 'owner')).toEqual({ hidden: 0, created: 0 });
     expect(await liveCatalogue(db())).toEqual([]);
+    // Nothing is live yet, but a preview shows exactly the six, at their placeholder prices.
+    const preview = await previewCatalogue(db());
+    expect(preview.map((p) => p.name)).toEqual([
+      'Face Wash',
+      'Cleanser',
+      'Moisturiser',
+      'Mineral Sunscreen',
+      'Vitamin C Serum',
+      'Retinol Serum',
+    ]);
+    expect(preview[0]).toMatchObject({
+      description: PLACEHOLDER_DESCRIPTION,
+      images: [PLACEHOLDER_IMAGE],
+      sizes: [{ label: '150ml', price: 349 }],
+      routineSlot: 'gelCleanser',
+    });
   });
 
   it('creates a product with its size, price, cost and an empty stock row', async () => {
@@ -90,6 +108,8 @@ describe('product store', () => {
   it('publishes only live products, with the placeholder image and routine slot', async () => {
     const live = await liveCatalogue(db());
     expect(live.map((p) => p.id)).toEqual(['mineral-sunscreen-spf-50']);
+    // The preview adds the six drafts around it.
+    expect((await previewCatalogue(db())).length).toBe(7);
     expect(live[0]).toMatchObject({ images: [PLACEHOLDER_IMAGE], routineSlot: 'sunscreen', price: 599 });
   });
 

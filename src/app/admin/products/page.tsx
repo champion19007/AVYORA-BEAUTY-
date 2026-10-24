@@ -99,9 +99,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         <section className="rounded-xl border border-primary/30 bg-primary/5 p-5">
           <h2 className="font-medium">Set up your launch range</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Creates five empty drafts ({LAUNCH_DRAFTS.map((d) => d.name).join(', ')}) for you to fill in, and hides the{' '}
-            {all.length} sample products. Hidden products are kept and can be switched back on. Nothing changes on the
-            shop until you publish.
+            Creates the six launch drafts ({LAUNCH_DRAFTS.map((d) => d.name).join(', ')}) for you to fill in, and hides
+            the {all.length} sample products. Hidden products are kept and can be switched back on. Nothing changes on
+            the shop until you publish.
           </p>
           <form action={setUpLaunchAction} className="mt-4">
             <Button type="submit">Set up launch range</Button>
@@ -127,6 +127,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         publishedAt={publishedAt?.toISOString() ?? null}
         unpublished={unpublished}
         liveCount={all.filter((p) => p.status === 'live').length}
+        draftCount={all.filter((p) => p.status === 'draft').length}
         showingSamples={CATALOGUE_MODE === 'sample' && !PUBLISHED_CATALOGUE}
       />
 
